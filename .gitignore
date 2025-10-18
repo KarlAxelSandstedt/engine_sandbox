@@ -1,0 +1,13 @@
+Testing
+build
+lib/SDL3
+log
+**Makefile
+**.swap
+**.cache
+**.Makefile
+**.cmake
+**.ts
+**.make
+**/link.txt
+**CMakeFiles
