@@ -96,7 +96,7 @@ void font_build(struct arena *mem, const enum font_id id)
 		/* load embeded bitmap if found, otherwise load native image of glyph and 
 		 * render anti-aliased coverage bitmap (8bit pixmap) */
 		//error = FT_Load_Char(face, c, FT_LOAD_RENDER | FT_LOAD_FORCE_AUTOHINT | FT_LOAD_TARGET_NORMAL | FT_RENDER_MODE_NORMAL);
-		error = FT_Load_Char(face, c, FT_LOAD_RENDER | FT_LOAD_TARGET_NORMAL | FT_RENDER_MODE_NORMAL);
+		error = FT_Load_Char(face, c, FT_LOAD_RENDER | FT_LOAD_TARGET_NORMAL);
 		if (error)
 		{
 			log_string(T_ASSET, S_ERROR, "Failed to load glyph");

@@ -1,10 +1,13 @@
-=========== Place Holder ============
+Place Holder
+============
 
 License
+General Notes 
 Compiling on Windows
 Compiling on Linux
 
-========== License =============
+License
+=======
 
 See COPYING.txt for the GNU GENERAL PUBLIC LICENSE.
 
@@ -312,9 +315,11 @@ MATERIALS OR THE USE OR OTHER DEALINGS IN THE MATERIALS.
 
 File: lib/opengl/KHR/khrplatform.h
 
+General Notes 
+=============
+ 
+Compiling on Windows 
+====================
 
-========== General Notes =============
-
-========== Compiling on Windows =============
-
-========== Compiling on Linux=============
+Compiling on Linux
+==================

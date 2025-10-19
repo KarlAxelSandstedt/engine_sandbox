@@ -125,7 +125,11 @@ static void time_unit_config_generate(struct timeline_config *config)
 	const u64 high = low + base;
 	const u64 low_diff  = preferred_ns_per_unit_line_interval - low;
 	const u64 high_diff = high - preferred_ns_per_unit_line_interval;
-	const u64 ns_unit_line_interval = (low_diff <= high_diff) ? low : high;
+	u64 ns_unit_line_interval = (low_diff <= high_diff) ? low : high;
+	if (ns_unit_line_interval == 0)
+	{
+		ns_unit_line_interval = 1;
+	}
 	
 	const u64 ns_unit_line_first = (config->ns_interval_start % ns_unit_line_interval)
 		? (1 + config->ns_interval_start / ns_unit_line_interval) * ns_unit_line_interval
@@ -135,33 +139,27 @@ static void time_unit_config_generate(struct timeline_config *config)
 	ns_unit_line_last = (ns_unit_line_last < ns_unit_line_first) ? ns_unit_line_first : ns_unit_line_last;
 
 	config->unit_line_count = 1 + (ns_unit_line_last - ns_unit_line_first) / ns_unit_line_interval;
+	config->unit_line_first = ns_unit_line_first;
+	config->unit_line_interval = ns_unit_line_interval;
 
 	if (ns_unit_line_interval / NSEC_PER_SEC)
 	{
 		config->unit = utf8_s;
-		config->unit_line_first = ns_unit_line_first;
-		config->unit_line_interval = ns_unit_line_interval;
 		config->unit_to_ns_multiplier = NSEC_PER_SEC;
 	}
 	else if (ns_unit_line_interval / NSEC_PER_MSEC)
 	{
 		config->unit = utf8_ms;
-		config->unit_line_first = ns_unit_line_first;
-		config->unit_line_interval = ns_unit_line_interval;
 		config->unit_to_ns_multiplier = NSEC_PER_MSEC;
 	}
 	else if (ns_unit_line_interval / NSEC_PER_USEC)
 	{
 		config->unit = utf8_us;
-		config->unit_line_first = ns_unit_line_first;
-		config->unit_line_interval = ns_unit_line_interval;
 		config->unit_to_ns_multiplier = NSEC_PER_USEC;
 	}
 	else
 	{
 		config->unit = utf8_ns;
-		config->unit_line_first = ns_unit_line_first;
-		config->unit_line_interval = ns_unit_line_interval;
 		config->unit_to_ns_multiplier = 1;
 	}
 }
@@ -308,8 +306,8 @@ void timeline_drag(void)
 
 	if (ctrl_pressed)
 	{
-		const i64 ns_interval = (i64) (config->ns_interval_end - config->ns_interval_start);
-		const f64 ns_drag_half = (f64) ns_interval / 500;
+		u64 ns_interval = config->ns_interval_end - config->ns_interval_start;
+		const f64 ns_drag_half = ns_interval / 500;
 
 		/* upward motion => zoom in, downward motion => zoon out */
 		const f64 ns_interval_start = config->ns_interval_start - ns_drag_half*drag_delta_y;
@@ -317,7 +315,17 @@ void timeline_drag(void)
 		config->ns_interval_start = (0 < ns_interval_start)
 			? (u64) ns_interval_start
 			: 0;
-		config->ns_interval_end = config->ns_interval_start + ns_interval + 2*ns_drag_half*drag_delta_y;
+
+		const f64 ns_change = 2*ns_drag_half*drag_delta_y;
+
+		ns_interval = (ns_change > 0.0f || ((f64) ns_interval + ns_change) > 0.0f)
+			? (u64) ((f64) ns_interval + ns_change) + 1
+			: 1;
+		
+		config->ns_interval_end = config->ns_interval_start + ns_interval;
+
+
+		fprintf(stderr, "%lu\n", ns_interval);
 	}
 }
 

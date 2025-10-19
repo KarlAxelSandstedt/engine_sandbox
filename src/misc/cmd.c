@@ -298,7 +298,7 @@ void cmd_queue_execute(void)
 		next = g_queue->cmd_exec->header.next;
 		if (g_queue->cmd_exec->args_type == CMD_ARGS_TOKEN)
 		{
-			utf8_debug_print(g_queue->cmd_exec->string);
+			//utf8_debug_print(g_queue->cmd_exec->string);
 			cmd_tokenize_string(g_queue->cmd_exec);
 		}
 
