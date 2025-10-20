@@ -1,7 +1,7 @@
 #/bin/bash
-cmake -S . -B build -G Ninja
+cmake -S . -B build -Dapply_optimization_options=ON 
 cd build
-cmake --build .
+cmake --build . --parallel
 ./engine_sandbox &
 sleep 1s
 ProcID=$(pidof engine_sandbox)

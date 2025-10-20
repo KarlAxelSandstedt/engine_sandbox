@@ -1,10 +1,45 @@
 Place Holder
 ============
 
-License
 General Notes 
 Compiling on Windows
 Compiling on Linux
+License
+
+
+General Notes 
+=============
+ 
+
+Compiling on Windows 
+====================
+
+
+Compiling on Linux
+==================
+
+1. Clone the repository and all of its submodules:
+
+git clone --recurse-submodules https://github.com/KarlAxelSandstedt/engine_sandbox.git
+
+2. Compile and run the codebase by calling any of the following options.
+
+run.sh:
+Compile the code with optimization options turned on.
+
+debug.sh:
+Compile the code with optimization turned off and debugging code turned on.
+
+address_sanitize.sh:
+Instrument and compile the code with runtime memory error checking. Also 
+enables manual memory poisoning debugging tools in the codebase.
+
+threaed_sanitize.sh:
+Instrument and compile the code with data race checking.
+
+undefined_behaviour_sanitize.sh:
+Instrument and compile the code with undefined behaviour runtime checks.
+
 
 License
 =======
@@ -314,12 +349,3 @@ MATERIALS OR THE USE OR OTHER DEALINGS IN THE MATERIALS.
 
 
 File: lib/opengl/KHR/khrplatform.h
-
-General Notes 
-=============
- 
-Compiling on Windows 
-====================
-
-Compiling on Linux
-==================

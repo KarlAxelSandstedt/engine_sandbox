@@ -1,12 +1,9 @@
 cmake_minimum_required(VERSION 3.14.3)
 
-#TODO 1. setup debug / optimized build
-#TODO 2. setup easy sdl/opengl install
-#TODO 3. setup install process of game for win32, linux AND web
-#TODO 4. Can we distinguish and generate X86, WEB, ARM, RISC-v and so on BEFORE compiling?
-#TODO 5. set/unset debug defines
-#TODO 6. set/unset optimized builds
-#TODO 7. setup ASAN on windows
+find_program(NINJA_EXECUTABLE ninja)
+if (NINJA_EXECUTABLE)
+	set(CMAKE_GENERATOR "Ninja")
+endif()
 
 project(engine_sandbox)
 set(CPACK_PACKAGE_MAJOR "0")
