@@ -306,7 +306,7 @@ static struct test_output dmg_strtod_utf8_f64_equivalence(struct test_environmen
 
 		const f64 d = ((b64) { .u = rng_u64() }).f;
 		const utf8 str = utf8_f64(env->mem_1, 0, d);
-		const f64 ret = f64_utf8(str);
+		const f64 ret = f64_utf8(env->mem_1, str);
 
 		//fprintf(stderr, "expected:\t%.27e\ngot:     \t%.27e\n", d, ret);
 
@@ -491,11 +491,11 @@ static struct test_output utf8_utf32_u64_i64_equivalence(struct test_environment
 
 static struct test_output(*kas_string_tests[])(struct test_environment *) =
 {
-	utf8_utf32_u64_i64_equivalence,
 	dmg_strtod_utf32_f64_equivalence,
 	dmg_strtod_utf8_f64_equivalence,
 	dmg_dtoa_functionallity_check,
 	dmg_strtod_dtoa_equivalence,
+	utf8_utf32_u64_i64_equivalence,
 	utf8_lookup_substring_randomizer,
 };
 

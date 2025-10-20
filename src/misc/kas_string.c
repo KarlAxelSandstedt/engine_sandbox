@@ -443,39 +443,27 @@ f64 f64_cstr(char **new_offset, const char *str)
 	return dmg_strtod(str, new_offset);
 }
 
-f32 f32_utf8(const utf8 str)
+f32 f32_utf8(struct arena *tmp, const utf8 str)
 {
-	if (str.len == 0)
-	{
-		return 0;
-	}
-	return (f32) dmg_strtod((char *) str.buf, NULL);
+	return (f32) f64_utf8(tmp, str);
 }
 
-f64 f64_utf8(const utf8 str)
+f64 f64_utf8(struct arena *tmp, const utf8 str)
 {
 	if (str.len == 0)
 	{
 		return 0;
 	}
-	return dmg_strtod((char *) str.buf, NULL);
+
+	const char *cstr = cstr_utf8(tmp, str);
+	const f64 val = dmg_strtod(cstr, NULL);
+
+	return val;
 }
 
 f32 f32_utf32(struct arena *tmp, const utf32 str)
 {
-	f32 ret = 0.0f;
-	char *buf = arena_push_packed(tmp, str.len+1);
-	if (buf)
-	{
-		for (u32 i = 0; i < str.len; ++i)
-		{
-			buf[i] = (char) str.buf[i];	
-		}
-		buf[str.len] = '\0';
-		ret = (f32) dmg_strtod(buf, NULL);
-		arena_pop_packed(tmp, str.len+1);
-	}
-	return ret;
+	return (f32) f64_utf32(tmp, str);
 }
 
 f64 f64_utf32(struct arena *tmp, const utf32 str)

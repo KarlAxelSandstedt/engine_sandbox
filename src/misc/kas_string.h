@@ -141,8 +141,8 @@ utf8			utf8_i64(struct arena *mem, const i64 val);
 utf8			utf8_utf32(struct arena *mem, const utf32 str);
 utf8			utf8_utf32_null_terminated(struct arena *mem, const utf32 str);
 
-f32			f32_utf8(const utf8 str);
-f64			f64_utf8(const utf8 str);
+f32			f32_utf8(struct arena *tmp, const utf8 str);
+f64			f64_utf8(struct arena *tmp, const utf8 str);
 struct parse_retval 	u64_utf8(const utf8 str);	/* on overflow, return u64 value 0 		*/
 struct parse_retval 	i64_utf8(const utf8 str); 	/* on under/overflow, return i64 value 0 	*/
 

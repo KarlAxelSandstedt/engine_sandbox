@@ -5,7 +5,6 @@ if !(command -v cmake > /dev/null 2>&1); then
 fi
 
 if (command -v ninja > /dev/null 2>&1); then
-	echo "NINJA FOUND"
 	CMAKE_GENERATOR="Ninja"
 else
 	CMAKE_GENERATOR="Unix Makefiles"

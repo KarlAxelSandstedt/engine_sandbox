@@ -40,7 +40,7 @@
 #include "ui_public.h"
 #include "kas_random.h"
 
-#if defined(KAS_TEST_CORRETNESS) || defined(KAS_TEST_PERFORMANCE)
+#if defined(KAS_TEST_CORRECTNESS) || defined(KAS_TEST_PERFORMANCE)
 #include "test_public.h"
 #endif
 
@@ -65,9 +65,9 @@ int main(int argc, char *argv[])
 	cmd_alloc();
 	ui_init_global_state();
 	asset_database_init(&mem_persistent);
-#if defined(KAS_TEST_CORRETNESS) || defined(KAS_TEST_PERFORMANCE)
+#if defined(KAS_TEST_CORRECTNESS) || defined(KAS_TEST_PERFORMANCE)
 	test_main();
-#endif
+#else
 	struct led editor = led_alloc();
 	
 	const u64 renderer_framerate = 144;	
@@ -100,6 +100,6 @@ int main(int argc, char *argv[])
 	system_graphics_destroy();
 	system_resources_cleanup();
 	arena_free(&mem_persistent);
-
+#endif
 	return 0;
 }

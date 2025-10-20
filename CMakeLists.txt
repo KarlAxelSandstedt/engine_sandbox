@@ -160,7 +160,6 @@ add_subdirectory("${SRC_PATH}/sys/sdl3_wrapper")
 add_subdirectory("${SRC_PATH}/led")
 add_subdirectory("${SRC_PATH}/asset_system")
 
-
 link_libraries(kas_common)
 link_libraries(log)
 link_libraries(kas_profiler)

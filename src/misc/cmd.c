@@ -127,6 +127,7 @@ static void cmd_tokenize_string(struct cmd *cmd)
 		return;
 	}
 
+	struct arena tmp_arena = arena_alloc_1MB();
 	while (1)
 	{
 		while (codepoints_left && (text[i] == ' ' || text[i] == '\t' || text[i] == '\n'))
@@ -254,7 +255,7 @@ static void cmd_tokenize_string(struct cmd *cmd)
 
 			case CMD_TOKEN_F64:
 			{
-				cmd->arg[token_count++].f64 = f64_utf8(token_string);
+				cmd->arg[token_count++].f64 = f64_utf8(&tmp_arena, token_string);
 			} break;
 
 			case CMD_TOKEN_INVALID:
@@ -287,6 +288,7 @@ static void cmd_tokenize_string(struct cmd *cmd)
 			break;
 		}
 	}
+	arena_free_1MB(&tmp_arena);
 }
 
 void cmd_queue_execute(void)

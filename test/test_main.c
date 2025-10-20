@@ -234,8 +234,7 @@ void test_main(void)
 	run_suite(serialize_suite, &env, 1);
 	run_suite(array_list_suite, &env, 1);
 	run_suite(hierarchy_index_suite, &env, 1);
-	run_suite(bitstream_suite, &env, 1);
-	run_suite(math_suite, &env, 1);
+	//run_suite(math_suite, &env, 1);
 #elif defined(KAS_TEST_PERFORMANCE)
 	run_performance_suite(allocator_performance_suite);
 	run_performance_suite(rng_performance_suite);

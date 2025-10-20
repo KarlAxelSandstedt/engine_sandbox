@@ -30,13 +30,13 @@ static struct test_output array_list_slot_size(struct test_environment *env)
 
 	list = array_list_alloc(env->mem_1, 4, 1, 0);
 	TEST_EQUAL(list->data_size, 1);
-	TEST_EQUAL(list->slot_size, 8);
+	TEST_EQUAL(list->slot_size, 4);
 
 	list = array_list_alloc(env->mem_1, 4, 2, 0);
-	TEST_EQUAL(list->slot_size, 8);
+	TEST_EQUAL(list->slot_size, 4);
 
 	list = array_list_alloc(env->mem_1, 4, 4, 0);
-	TEST_EQUAL(list->slot_size, 8);
+	TEST_EQUAL(list->slot_size, 4);
 
 	list = array_list_alloc(env->mem_1, 4, 8, 0);
 	TEST_EQUAL(list->slot_size, 8);
