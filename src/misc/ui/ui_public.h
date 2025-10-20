@@ -227,7 +227,6 @@ struct ui_popup
 	utf8			display2;
 	utf8			display3;
 
-
 	struct ui_input_line	*prompt;
 	utf8			*input;
 

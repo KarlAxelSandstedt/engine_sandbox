@@ -131,12 +131,14 @@ struct system_window
 u32 			system_window_alloc(const char *title, const vec2u32 position, const vec2u32 size, const u32 parent);
 /* alloc system_window resources AND set window to global root process window, if no gl context exist, allocate context as well. */
 u32 			system_process_root_window_alloc(const char *title, const vec2u32 position, const vec2u32 size);
+/* Tag sub-hierachy of root (including root itself) for destruction on next frame. */
+void system_window_tag_sub_hierarchy_for_destruction(const u32 root);
 /* free system windows tagged for destruction */
 void			system_free_tagged_windows(void);
 /* get system window address  */
 struct system_window *	system_window_address(const u32 index);
-/* Return system window containing the given native window handle, or NULL if no window found */
-struct system_window *	system_window_lookup(const u64 native_handle);
+/* Return system window containing the given native window handle, or an empty allocation slot if no window found */
+struct allocation_slot	system_window_lookup(const u64 native_handle);
 /* Set window to current (global pointers to window, ui and cmd_queue is set) */
 void			system_window_set_global(const u32 window);
 /* enable text input mode for current window */

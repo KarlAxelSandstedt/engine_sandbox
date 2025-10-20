@@ -727,7 +727,7 @@ void ui_popup_build(void)
 	struct system_window *win = system_window_address(popup->window);
 	if (win->tagged_for_destruction || popup->state == UI_POPUP_STATE_COMPLETED)
 	{
-		win->tagged_for_destruction = 1;
+		system_window_tag_sub_hierarchy_for_destruction(popup->window);
 		*popup = ui_popup_null();
 		return;
 	}
@@ -843,7 +843,7 @@ void ui_popup_try_destroy_and_set_to_null(struct ui_popup *popup)
 	if (popup->window != HI_NULL_INDEX)
 	{
 		struct system_window *win = system_window_address(popup->window);
-		win->tagged_for_destruction = 1;
+		system_window_tag_sub_hierarchy_for_destruction(popup->window);
 	}
 	*popup = ui_popup_null();
 }

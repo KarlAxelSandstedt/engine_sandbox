@@ -28,7 +28,8 @@ void system_process_events(void)
 	struct system_event event;
 	while (system_event_consume(&event)) 
 	{
-		struct system_window *sys_win = system_window_lookup(event.native_handle);
+		struct allocation_slot slot = system_window_lookup(event.native_handle);
+		struct system_window *sys_win = slot.address;
 		if (!sys_win)
 		{
 			continue;
@@ -216,7 +217,11 @@ void system_process_events(void)
 							      : native_window_bordered(sys_win->native);
 						} break;
 
-						case KAS_ESCAPE: { sys_win->tagged_for_destruction = 1; } break;	
+						case KAS_ESCAPE: 
+						{
+							system_window_tag_sub_hierarchy_for_destruction(slot.index);
+						} break;	
+
 						default:
 						{
 							fprintf(stderr, "Unhandled Press: %s\n", kas_keycode_to_string(event.keycode));
@@ -243,7 +248,7 @@ void system_process_events(void)
 
 			case SYSTEM_WINDOW_CLOSE:
 			{
-				sys_win->tagged_for_destruction = 1;
+				system_window_tag_sub_hierarchy_for_destruction(slot.index);
 			} break;
 
 			//case SYSTEM_WINDOW_CURSOR_ENTER:

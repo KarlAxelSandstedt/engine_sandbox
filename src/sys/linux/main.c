@@ -101,7 +101,5 @@ int main(int argc, char *argv[])
 	system_resources_cleanup();
 	arena_free(&mem_persistent);
 
-
-	
 	return 0;
 }

@@ -18,6 +18,8 @@ Compiling on Windows
 Compiling on Linux
 ==================
 
+Requirements: Some modern version of CMake.
+
 1. Clone the repository and all of its submodules:
 
 git clone --recurse-submodules https://github.com/KarlAxelSandstedt/engine_sandbox.git

@@ -1,10 +1,5 @@
 cmake_minimum_required(VERSION 3.14.3)
 
-find_program(NINJA_EXECUTABLE ninja)
-if (NINJA_EXECUTABLE)
-	set(CMAKE_GENERATOR "Ninja")
-endif()
-
 project(engine_sandbox)
 set(CPACK_PACKAGE_MAJOR "0")
 set(CPACK_PACKAGE_MINOR "1")

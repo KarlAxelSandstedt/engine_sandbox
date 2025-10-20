@@ -65,8 +65,9 @@ void led_project_menu_main(struct led *led)
 	if (led->project.initialized)
 	{
 		struct system_window *win = system_window_address(menu->window);
-		win->tagged_for_destruction = 1;
+		system_window_tag_sub_hierarchy_for_destruction(menu->window);
 		menu->window = HI_NULL_INDEX;
+		menu->input_line_new_project = ui_input_line_empty();
 	}
 }
 static void led_project_main(struct led *led)

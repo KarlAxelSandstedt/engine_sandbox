@@ -80,6 +80,22 @@ u32 system_window_alloc(const char *title, const vec2u32 position, const vec2u32
 	return slot.index;
 }
 
+void system_window_tag_sub_hierarchy_for_destruction(const u32 root)
+{
+	struct arena tmp = arena_alloc_1MB();
+	struct hierarchy_index_iterator	it = hierarchy_index_iterator_init(&tmp, g_window_hierarchy, root);
+	while (it.count)
+	{
+		const u32 index = hierarchy_index_iterator_next_df(&it);
+		struct system_window *sys_win = hierarchy_index_address(g_window_hierarchy, index);
+		sys_win->tagged_for_destruction = 1;
+	}
+	hierarchy_index_iterator_release(&it);
+	arena_free_1MB(&tmp);
+}
+
+
+
 static void func_system_window_free(const struct hierarchy_index *hi, const u32 index, void *data)
 {
 	struct system_window *win = hierarchy_index_address(hi, index);
@@ -111,24 +127,29 @@ void system_free_tagged_windows(void)
 	arena_free_1MB(&tmp2);
 }
 
-struct system_window *system_window_lookup(const u64 native_handle)
+struct allocation_slot system_window_lookup(const u64 native_handle)
 {
 	struct system_window *win = NULL;
+	u32 index = U32_MAX;
+
 	struct arena tmp = arena_alloc_1MB();
 	struct hierarchy_index_iterator	it = hierarchy_index_iterator_init(&tmp, g_window_hierarchy, g_process_root_window);
 	while (it.count)
 	{
-		struct system_window *sys_win = hierarchy_index_address(g_window_hierarchy, hierarchy_index_iterator_next_df(&it));
+		const u32 win_index = hierarchy_index_iterator_next_df(&it);
+		struct system_window *sys_win = hierarchy_index_address(g_window_hierarchy, win_index);
 		if (native_window_get_native_handle(sys_win->native) == native_handle)
 		{
 			win = sys_win;
+			index = win_index;
 			break;
 		}
 	}
 
 	hierarchy_index_iterator_release(&it);
 	arena_free_1MB(&tmp);
-	return win;
+
+	return (struct allocation_slot) { .index = index, .address = win };
 }
 
 u32 system_process_root_window_alloc(const char *title, const vec2u32 position, const vec2u32 size)
