@@ -24,6 +24,7 @@
 #include "kas_string.h"
 #include "sys_public.h"
 #include "allocator.h"
+#include "csg.h"
 
 /*******************************************/
 /*                 led_init.c              */
@@ -81,6 +82,8 @@ struct led
 		
 	u64			ns;		/* current time in ns */
 	u32			running;
+
+	struct csg 		csg;
 };
 
 /* Allocate initial led resources */

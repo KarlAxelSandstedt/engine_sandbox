@@ -22,21 +22,18 @@
 
 #include "kas_common.h"
 #include "kas_string.h"
-#include "array_list.h"
+#include "allocator.h"
 #include "hash_map.h"
 
-#define STRING_DATABASE_GROWABLE	1
 #define STRING_DATABASE_STUB_INDEX	0
 
 /*
- * string_database_node - header to be placed at the top of any structure to be stored within the database.
+ * internal database struct state - Place inside of any structure to be stored within the database.
  */
-struct string_database_node
-{
-	struct array_list_intrusive_node list_header;		/* header for internal use: MAY NOT BE MOVED */
-	utf8 				id;			/* identifier of database object */
-	u32				reference_count;	/* Number of references to the current data base object*/
-};
+#define STRING_DATABASE_SLOT_STATE									\
+	utf8 				__string_db_id;		/* identifier of database object */	\
+	u32				__reference_count;	/* Number of references to slot  */	\
+	POOL_SLOT_STATE						/* pool slot internal state      */
 
 /*
  *	1. id aliasing: on deallocation, do nothing with identifier, 
@@ -47,22 +44,37 @@ struct string_database_node
 struct string_database
 {
 	struct hash_map *		hash;
-	struct array_list_intrusive *	list;
-	u32 				growable; /* Boolean: increases the size of the database if more memory is required */
+	struct pool			pool;
+	u64				id_offset;		/* id offset within db structure 	    */
+	u64				reference_count_offset; /* ref_count offset within db structure     */
+	u32 				growable; 		/* Boolean: increases the size of the 
+								   database if more memory is required      */
+	u32				heap_allocated;		/* Boolean: was resources allocated on heap */
 };
 
 /* allocate and return database with entries of data_size (simply sizeof(struct)). 
  * If growable, allows the database to increase size when required. */
-struct string_database *string_database_init(struct arena *mem, const u32 hash_size, const u32 index_size, const u64 data_size, const u32 growable);
+struct string_database	string_database_alloc_internal(struct arena *mem, const u32 hash_size, const u32 index_size, const u64 data_size, const u64 id_offset, const u64 reference_count_offset, const u64 pool_state_offset, const u32 growable);
+#define 		string_database_alloc(mem, hash_size, index_size, STRUCT, growable)	\
+			string_database_alloc_internal(mem,					\
+				       		       hash_size,				\
+						       index_size, 				\
+						       sizeof(STRUCT),				\
+						       ((u64)&((STRUCT *)0)->__string_db_id),	\
+						       ((u64)&((STRUCT *)0)->__reference_count),\
+						       ((u64)&((STRUCT *)0)->__pool_slot_state),\
+						       growable)
 /* free the database. NOTE that none of the database id strings are freed as they are either aliases or arena memory. */
 void			string_database_free(struct string_database *db);
 /* flush or reset the string database */
 void			string_database_flush(struct string_database *db);
 /* allocate a new database node with the given identifier and return its index (handle). 
-   The id will be copied onto the arena. On failure, the stub slot (0, NULL) is returned. */
+   The id will be copied onto the arena. On failure, the stub slot (0, NULL) is returned. 
+   the reference count is set to 0. */
 struct allocation_slot	string_database_add(struct arena *mem_db_lifetime, struct string_database *db, const utf8 id);
 /* allocate a new database node with the given identifier and return its index. 
- * The id will alias the given string's content. On failure, the stub slot (0, NULL) is returned.  */
+   The id will alias the given string's content. On failure, the stub slot (0, NULL) is returned. 
+   the reference count is set to 0. */
 struct allocation_slot	string_database_add_and_alias(struct string_database *db, const utf8 id);
 /* remove the identifier's corresponding database node if found and update database state, otherwise do nothing. */
 void			string_database_remove(struct string_database *db, const utf8 id);

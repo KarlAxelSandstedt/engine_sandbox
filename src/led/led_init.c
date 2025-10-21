@@ -53,6 +53,8 @@ struct led led_alloc(void)
 	editor.ns = time_ns();
 	editor.root_folder = file_null();
 
+	editor.csg = csg_alloc();
+
 #if defined(KAS_PROFILER)
 	editor.profiler.visible = 1;
 #else
@@ -80,4 +82,5 @@ struct led led_alloc(void)
 void led_dealloc(struct led *led)
 {
 	led_project_menu_dealloc(&led->project_menu);
+	csg_dealloc(&led->csg);
 }

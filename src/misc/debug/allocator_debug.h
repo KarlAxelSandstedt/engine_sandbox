@@ -29,8 +29,6 @@
 
 /*
  * allocator_debug_index: poison/unpoison slots in index allocators.
- *
- * USAGE: TODO
  */
 struct allocator_debug_index
 {
@@ -50,7 +48,7 @@ void allocator_debug_index_poison(struct allocator_debug_index *debug, const u32
 void allocator_debug_index_unpoison(struct allocator_debug_index *debug, const u32 index);
 void allocator_debug_index_alias_and_repoison(struct allocator_debug_index *debug, const u8 *reallocated_array, const u32 new_slot_count);
 
-#define ALLOCATOR_DEBUG_INDEX_STRUCT	struct allocator_debug_index __allocator_poisoner;
+#define ALLOCATOR_DEBUG_INDEX_STRUCT	struct allocator_debug_index __allocator_poisoner
 #define ALLOCATOR_DEBUG_INDEX_ALLOC(structure_addr, array, slot_count, slot_size, slot_header_size, slot_header_offset)	(structure_addr)->__allocator_poisoner = allocator_debug_index_alloc(array, slot_count, slot_size, slot_header_size, slot_header_offset)
 #define ALLOCATOR_DEBUG_INDEX_FREE(structure_addr)	allocator_debug_index_free(&(structure_addr)->__allocator_poisoner)
 #define ALLOCATOR_DEBUG_INDEX_FLUSH(structure_addr)	allocator_debug_index_flush(&(structure_addr)->__allocator_poisoner)

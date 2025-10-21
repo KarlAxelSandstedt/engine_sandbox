@@ -60,7 +60,17 @@ void allocator_debug_index_poison(struct allocator_debug_index *debug, const u32
 {
 	kas_assert(index < debug->slot_count);
 	kas_assert(bit_vec_get_bit(&debug->poisoned, index) == 0);
-	ASAN_POISON_MEMORY_REGION(debug->array + index*debug->slot_size + debug->slot_header_size, debug->slot_size - debug->slot_header_size);
+
+	if (debug->slot_header_offset)
+	{
+		ASAN_POISON_MEMORY_REGION(debug->array + index*debug->slot_size, debug->slot_header_offset);
+		ASAN_POISON_MEMORY_REGION(debug->array + index*debug->slot_size + debug->slot_header_offset + debug->slot_header_size
+				, debug->slot_size - debug->slot_header_size - debug->slot_header_offset);
+	}
+	else
+	{
+		ASAN_POISON_MEMORY_REGION(debug->array + index*debug->slot_size + debug->slot_header_size, debug->slot_size - debug->slot_header_size);
+	}
 	bit_vec_set_bit(&debug->poisoned, index, 1);
 }
 
@@ -77,7 +87,17 @@ void allocator_debug_index_unpoison(struct allocator_debug_index *debug, const u
 	}
 	else
 	{
-		ASAN_UNPOISON_MEMORY_REGION(debug->array + index*debug->slot_size + debug->slot_header_size, debug->slot_size - debug->slot_header_size);
+		if (debug->slot_header_offset)
+		{
+			ASAN_UNPOISON_MEMORY_REGION(debug->array + index*debug->slot_size, debug->slot_header_offset);
+			ASAN_UNPOISON_MEMORY_REGION(debug->array + index*debug->slot_size + debug->slot_header_offset + debug->slot_header_size
+					, debug->slot_size - debug->slot_header_size - debug->slot_header_offset);
+		}
+		else
+		{
+			ASAN_UNPOISON_MEMORY_REGION(debug->array + index*debug->slot_size + debug->slot_header_size, debug->slot_size - debug->slot_header_size);
+		}
+
 	}
 	bit_vec_set_bit(&debug->poisoned, index, 0);
 }

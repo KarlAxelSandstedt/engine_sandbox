@@ -46,7 +46,7 @@ u32 r_proxy3d_alloc(const u32 parent, const u64 screen, const u64 transparency, 
 	vec3_copy(proxy->linear.angular_velocity, config->angular_velocity);
 
 	unit->draw_flags = draw_flags;
-	unit->mesh_handle = string_database_reference(g_r_core->mesh_database, *config->mesh_id_alias).index;
+	unit->mesh_handle = string_database_reference(&g_r_core->mesh_database, *config->mesh_id_alias).index;
 	if (unit->mesh_handle == STRING_DATABASE_STUB_INDEX)
 	{
 		log(T_RENDERER, S_WARNING, "failed to locate mesh %k in database", config->mesh_id_alias);

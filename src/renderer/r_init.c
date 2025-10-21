@@ -169,10 +169,8 @@ void r_init(struct arena *mem_persistent, const u64 ns_tick, const u64 frame_siz
 		fatal_cleanup_and_exit(0);
 	}
 
-	g_r_core->mesh_database = string_database_init(NULL, 128, 128, sizeof(struct r_mesh), STRING_DATABASE_GROWABLE);
-	struct r_mesh *stub = string_database_address(g_r_core->mesh_database, 0);
-	const utf8 empty = utf8_empty();
-	kas_assert(stub->header.list_header.allocated == 1 && utf8_equivalence(stub->header.id, empty));
+	g_r_core->mesh_database = string_database_alloc(NULL, 128, 128, struct r_mesh, GROWABLE);
+	struct r_mesh *stub = string_database_address(&g_r_core->mesh_database, 0);
 	r_mesh_set_stub_box(stub);
 
 	g_r_core->static_list = array_list_intrusive_alloc(NULL, 32, sizeof(struct r_static), ARRAY_LIST_GROWABLE);
@@ -272,10 +270,8 @@ void r_core_flush(void)
 	array_list_intrusive_flush(g_r_core->static_list);
 	bit_vec_clear(&g_r_core->unit_allocation, 0);
 
-	string_database_flush(g_r_core->mesh_database);
-	struct r_mesh *stub = string_database_address(g_r_core->mesh_database, 0);
-	const utf8 empty = utf8_empty();
-	kas_assert(stub->header.list_header.allocated == 1 && utf8_equivalence(stub->header.id, empty));
+	string_database_flush(&g_r_core->mesh_database);
+	struct r_mesh *stub = string_database_address(&g_r_core->mesh_database, 0);
 	r_mesh_set_stub_box(stub);
 
 	R_PHYSICS_DEBUG_FLUSH;

@@ -655,19 +655,6 @@ void ring_pop_end(struct ring *ring, const u64 size)
 	ring->offset = (ring->mem_total + ring->offset - size) % ring->mem_total;
 }
 
-//struct pool
-//{
-//	u64	slot_size;		/* size of struct containing POOL_SLOT_STATE 	*/
-//	u64	slot_state_offset;	/* offset of __pool_slot_state of struct 	*/
-//	u8 *	buf;
-//	u32 	length;			/* array length 				*/
-//	u32 	count;			/* current count of occupied slots 		*/
-//	u32 	count_max;		/* max count used over the object's lifetime 	*/
-//	u32 	next_free;		/* next free index if != U32_MAX 		*/
-//	u32 	growable;
-//
-//	ALLOCATOR_DEBUG_INDEX_STRUCT
-//}
 /* internal allocation of pool, use pool_alloc macro instead */
 struct pool pool_alloc_internal(struct arena *mem, const u32 length, const u64 slot_size, const u64 __pool_slot_state_offset, const u32 growable)
 {
@@ -696,18 +683,17 @@ struct pool pool_alloc_internal(struct arena *mem, const u32 length, const u64 s
 		pool.length = length;
 		pool.count = 0;
 		pool.count_max = 0;
-		pool.next_free = U32_MAX;
+		pool.next_free = POOL_NULL;
 		pool.growable = growable;
 		pool.heap_allocated = heap_allocated;
-		ALLOCATOR_DEBUG_INDEX_ALLOC(&pool, pool.buf, pool.length, pool.slot_size, sizeof(u32), 0);
+		POISON_ADDRESS(pool.buf, pool.slot_size * pool.length);
 	}
 
 	return pool;
 }
 
-void pool_free(struct pool *pool)
+void pool_dealloc(struct pool *pool)
 {
-	ALLOCATOR_DEBUG_INDEX_FREE(pool);
 	if (pool->heap_allocated)
 	{
 		free(pool->buf);
@@ -718,8 +704,8 @@ void pool_flush(struct pool *pool)
 {
 	pool->count = 0;
 	pool->count_max = 0;
-	pool->next_free = U32_MAX;
-	ALLOCATOR_DEBUG_INDEX_FLUSH(pool);
+	pool->next_free = POOL_NULL;
+	POISON_ADDRESS(pool->buf, pool->slot_size * pool->length);
 }
 
 static void internal_pool_realloc(struct pool *pool)
@@ -731,6 +717,7 @@ static void internal_pool_realloc(struct pool *pool)
 		fatal_cleanup_and_exit(kas_thread_self_tid());
 	}
 	
+	u32 old_length = pool->length;
 	pool->length <<= 1;
 	if (pool->length > length_max)
 	{
@@ -744,7 +731,8 @@ static void internal_pool_realloc(struct pool *pool)
 		fatal_cleanup_and_exit(kas_thread_self_tid());
 	}
 
-	ALLOCATOR_DEBUG_INDEX_ALIAS_AND_REPOISON(pool, pool->buf, pool->length);
+	UNPOISON_ADDRESS(pool->buf, pool->slot_size*old_length);
+	POISON_ADDRESS(pool->buf + old_length*pool->slot_size, (pool->length-old_length)*pool->slot_size);
 }
 
 struct allocation_slot pool_add(struct pool *pool)
@@ -756,7 +744,7 @@ struct allocation_slot pool_add(struct pool *pool)
 	{
 		if (pool->next_free != POOL_NULL)
 		{
-			ALLOCATOR_DEBUG_INDEX_UNPOISON(pool, pool->next_free);
+			UNPOISON_ADDRESS(pool->buf + pool->next_free*pool->slot_size, pool->slot_size);
 			allocation.address = pool->buf + pool->next_free*pool->slot_size;
 			allocation.index = pool->next_free;
 
@@ -766,7 +754,7 @@ struct allocation_slot pool_add(struct pool *pool)
 		}
 		else
 		{
-			ALLOCATOR_DEBUG_INDEX_UNPOISON(pool, pool->count_max);
+			UNPOISON_ADDRESS(pool->buf + pool->count_max*pool->slot_size, pool->slot_size);
 			allocation.address = (u8 *) pool->buf + pool->slot_size * pool->count_max;
 			allocation.index = pool->count_max;
 			slot_state = (u32 *) ((u8 *) allocation.address + pool->slot_state_offset);
@@ -778,7 +766,7 @@ struct allocation_slot pool_add(struct pool *pool)
 	else if (pool->growable)
 	{
 		internal_pool_realloc(pool);
-		ALLOCATOR_DEBUG_INDEX_UNPOISON(pool, pool->count_max);
+		UNPOISON_ADDRESS(pool->buf + pool->count_max*pool->slot_size, pool->slot_size);
 		allocation.address = pool->buf + pool->slot_size*pool->count_max;
 		allocation.index = pool->count_max;
 		slot_state = (u32 *) ((u8 *) allocation.address + pool->slot_state_offset);
@@ -801,7 +789,7 @@ void pool_remove(struct pool *pool, const u32 index)
 	*slot_state = pool->next_free;
 	pool->next_free = index;
 	pool->count -= 1;
-	ALLOCATOR_DEBUG_INDEX_POISON(pool, index);
+	POISON_ADDRESS(pool->buf + index*pool->slot_size, pool->slot_size);
 }
 
 void pool_remove_address(struct pool *pool, void *slot)

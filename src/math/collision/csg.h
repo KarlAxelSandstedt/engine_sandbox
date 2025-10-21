@@ -4,7 +4,7 @@
 #include "kas_common.h"
 #include "kas_string.h"
 #include "allocator.h"
-#include "array_list.h"
+#include "string_database.h"
 #include "quaternion.h"
 #include "vector.h"
 
@@ -24,45 +24,60 @@ enum csg_op
 	CSG_OP_COUNT
 };
 
+/* TODO: */
 struct csg_brush
 {
-	struct array_list_intrusive_node header;	/* node header, MUST BE AT THE TOP OF STRUCT! */
-
 	utf8			id;			/* unique brush name 	*/
 	u32			key;			/* id hash 		*/
 
 	enum csg_primitive	primitive;		/* primitive type 	*/
 
+	STRING_DATABASE_SLOT_STATE;
 };
 
+/* TODO: */
 struct csg_instance
 {
-	struct array_list_intrusive_node header;	/* node header, MUST BE AT THE TOP OF STRUCT! */
-
 	utf8			brush;			/* brush 			*/
-	utf8			id;			/* unique instance name		*/
-	u32			key;			/* id hash 			*/ 
 	u32			node;			/* csg_node (leaf) index 	*/
 
 	quat			rotation;		/* normalized quaternion 	*/
 	vec3			position;
+
+	POOL_SLOT_STATE;
 };
 
+/* TODO: */
 struct csg_node
 {
-	//TODO pool_index_macro
 	//TODO place below into a binary_tree_macro
 	u32 		parent;
 	u32		left;
 	u32		right;
 
 	enum csg_op	op;
+
+	POOL_SLOT_STATE;
 };
 
+/* TODO: */
 struct csg
 {
-	u32 tmp;
+	struct string_database	brush_database;
+	struct pool		instance_pool;
+	struct pool		node_pool;
 };
+
+/* allocate a csg structure */
+struct csg 	csg_alloc(void);
+/* deallocate a csg structure */
+void		csg_dealloc(struct csg *csg);
+/* flush a csg structure's resources */
+void		csg_flush(struct csg *csg);
+/* serialize a csg structure and its resources */
+void		csg_serialize(struct serialize_stream *ss, const struct csg *csg);
+/* deserialize a csg stream and return the csg struct. If mem is not NULL, alloc fixed size csg on arena.  */
+struct csg	csg_deserialize(struct arena *mem, struct serialize_stream *ss, const u32 growable);		
 
 /*
 Definitions

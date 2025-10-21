@@ -109,7 +109,7 @@ struct r_core
 	struct bit_vec		unit_allocation;	/* check allocated indices */
 	struct hierarchy_index *unit_hierarchy;		/* render unit storage 	   */
 
-	struct string_database *mesh_database;		/* mesh storage   */
+	struct string_database	mesh_database;		/* mesh storage   */
 	struct hierarchy_index *proxy3d_hierarchy;	/* proxy3d storage */
 	struct array_list_intrusive *static_list;	/* static storage */
 
@@ -167,7 +167,7 @@ enum r_mesh_attribute
 
 struct r_mesh
 {
-	struct string_database_node	header;			/* internal header, MAY NOT BE MOVED */
+	STRING_DATABASE_SLOT_STATE;				/* internal header, MAY NOT BE MOVED */
 	u32				attribute_flags;	/* attribute flags describing layout of triangles */
 	u32				index_count;		
 	u32 *				index_data; 		/* index_data[index_count] */

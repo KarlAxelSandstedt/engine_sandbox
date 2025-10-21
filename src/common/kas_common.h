@@ -110,5 +110,8 @@ enum severity_id
 #define NSEC_PER_MSEC 	1000000
 #define NSEC_PER_USEC 	1000
 
+#define GROWABLE	1
+#define NOT_GROWABLE	0
+
 #endif
 

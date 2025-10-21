@@ -20,69 +20,86 @@
 #include "string_database.h"
 #include "sys_public.h"
 
-struct string_database *string_database_init(struct arena *mem, const u32 hash_size, const u32 index_size, const u64 data_size, const u32 growable)
+struct string_database string_database_alloc_internal(struct arena *mem, const u32 hash_size, const u32 index_size, const u64 data_size, const u64 id_offset, const u64 reference_count_offset, const u64 pool_state_offset, const u32 growable)
 {
+	kas_assert(!growable || !mem);
 	kas_assert(index_size && hash_size);
-	struct string_database *db = NULL;
+
+	u32 heap_allocated;
+	struct pool pool;
 	struct hash_map *hash = NULL;
-	struct array_list_intrusive *list = NULL;
+	struct string_database db = { 0 };
 	if (mem)
 	{
-		kas_assert(!growable);
-		db = arena_push(mem, sizeof(struct string_database));
+		heap_allocated = 0;
 		hash = hash_map_alloc(mem, hash_size, index_size, 0);
-		list = array_list_intrusive_alloc(mem, index_size, data_size, 0);
+		pool = pool_alloc_internal(mem, index_size, data_size, pool_state_offset, 0);
 	}
 	else
 	{
-		db = malloc(sizeof(struct string_database));
+		heap_allocated = 1;
 		hash = hash_map_alloc(NULL, hash_size, index_size, growable);
-		list = array_list_intrusive_alloc(NULL, index_size, data_size, growable);
+		pool = pool_alloc_internal(mem, index_size, data_size, pool_state_offset, growable);
 	}
 
-	if (!db || !hash || !list)
+	if (!hash || !pool.length)
 	{
 		log_string(T_SYSTEM, S_FATAL, "Failed to allocate string_database");
 		fatal_cleanup_and_exit(kas_thread_self_tid());
 	}
 
-	db->hash = hash;
-	db->list = list;
-	db->growable = growable;
+	db.hash = hash;
+	db.pool = pool;
+	db.growable = growable;
+	db.heap_allocated = heap_allocated;
+	db.id_offset = id_offset;
+	db.reference_count_offset = reference_count_offset;
+
 	const utf8 stub_id = utf8_empty();
 	const u32 key = utf8_hash(stub_id);
-	u32 index = array_list_intrusive_reserve_index(db->list);
-	hash_map_add(db->hash, key, index);
-	struct string_database_node *node = array_list_intrusive_address(db->list, index);
-	node->reference_count = 0;
-	node->id = stub_id;
-	kas_assert(index == STRING_DATABASE_STUB_INDEX);
+
+	struct allocation_slot slot = pool_add(&db.pool);
+	hash_map_add(db.hash, key, slot.index);
+	struct string_database_node *node = slot.address;
+
+	utf8 *id = (utf8 *)(((u8 *) slot.address) + db.id_offset);
+	*id = stub_id;
+
+	u32 *reference_count = (u32 *)(((u8 *) slot.address) + db.reference_count_offset);
+	*reference_count = 0;
+
+	kas_assert(slot.index == STRING_DATABASE_STUB_INDEX);
 
 	return db;
 }
 
 void string_database_free(struct string_database *db)
 {
-	if (db)
+	if (db->heap_allocated)
 	{
-		array_list_intrusive_free(db->list);
+		pool_dealloc(&db->pool);
 		hash_map_free(db->hash);
-		free(db);
 	}
 }
 
 void string_database_flush(struct string_database *db)
 {
 	hash_map_flush(db->hash);
-	array_list_intrusive_flush(db->list);
+	pool_flush(&db->pool);
 	const utf8 stub_id = utf8_empty();
 	const u32 key = utf8_hash(stub_id);
-	u32 index = array_list_intrusive_reserve_index(db->list);
-	hash_map_add(db->hash, key, index);
-	struct string_database_node *node = array_list_intrusive_address(db->list, index);
-	node->reference_count = 0;
-	node->id = stub_id;
-	kas_assert(index == STRING_DATABASE_STUB_INDEX);
+
+	struct allocation_slot slot = pool_add(&db->pool);
+	hash_map_add(db->hash, key, slot.index);
+	struct string_database_node *node = slot.address;
+
+	utf8 *id = (utf8 *)(((u8 *) slot.address) + db->id_offset);
+	*id = stub_id;
+
+	u32 *reference_count = (u32 *)(((u8 *) slot.address) + db->reference_count_offset);
+	*reference_count = 0;
+
+	kas_assert(slot.index == STRING_DATABASE_STUB_INDEX);
 }
 
 struct allocation_slot string_database_add(struct arena *mem_db_lifetime, struct string_database *db, const utf8 copy)
@@ -94,11 +111,14 @@ struct allocation_slot string_database_add(struct arena *mem_db_lifetime, struct
 	if (id.buf)
 	{
 		const u32 key = utf8_hash(copy);
-		slot = array_list_intrusive_add(db->list);
+		struct allocation_slot slot = pool_add(&db->pool);
 		hash_map_add(db->hash, key, slot.index);
-		struct string_database_node *node = slot.address;
-		node->reference_count = 0;
-		node->id = id;
+
+		utf8 *id_ptr = (utf8 *)(((u8 *) slot.address) + db->id_offset);
+		*id_ptr = id;
+
+		u32 *reference_count = (u32 *)(((u8 *) slot.address) + db->reference_count_offset);
+		*reference_count = 0;
 	}
 
 	return slot;
@@ -108,9 +128,15 @@ struct allocation_slot string_database_add_and_alias(struct string_database *db,
 {
 	kas_assert(string_database_lookup(db, id).index == STRING_DATABASE_STUB_INDEX);
 
-	struct allocation_slot slot = array_list_intrusive_add(db->list);
+	struct allocation_slot slot = pool_add(&db->pool);
 	const u32 key = utf8_hash(id);
 	hash_map_add(db->hash, key, slot.index);
+
+	utf8 *id_ptr = (utf8 *)(((u8 *) slot.address) + db->id_offset);
+	*id_ptr = id;
+
+	u32 *reference_count = (u32 *)(((u8 *) slot.address) + db->reference_count_offset);
+	*reference_count = 0;
 
 	return slot;
 }
@@ -120,11 +146,10 @@ void string_database_remove(struct string_database *db, const utf8 id)
 	const struct allocation_slot slot = string_database_lookup(db, id);
 	if (slot.index != STRING_DATABASE_STUB_INDEX)
 	{
-		kas_assert(((struct string_database_node *) slot.address)->list_header.allocated);
-		kas_assert(((struct string_database_node *) slot.address)->reference_count == 0);
-		const u32 key = utf8_hash(((struct string_database_node *)slot.address)->id);
+		kas_assert(*(u32 *)((u8 *) slot.address + db->reference_count_offset) == 0);
+		const u32 key = utf8_hash(*(utf8 *)((u8 *) slot.address + db->id_offset));
 		hash_map_remove(db->hash, key, slot.index);
-		array_list_intrusive_remove_index(db->list, slot.index);
+		pool_remove(&db->pool, slot.index);
 	}
 }
 
@@ -134,11 +159,12 @@ struct allocation_slot string_database_lookup(const struct string_database *db, 
 	struct allocation_slot slot = { .index = STRING_DATABASE_STUB_INDEX, .address = NULL };
 	for (u32 i = hash_map_first(db->hash, key); i != HASH_NULL; i = hash_map_next(db->hash, i))
 	{
-		struct string_database_node *node = string_database_address(db, i);
-		if (utf8_equivalence(id, node->id))
+		u8 *address = string_database_address(db, i);
+		utf8 *id_ptr = (utf8 *) (address + db->id_offset);
+		if (utf8_equivalence(id, *id_ptr))
 		{
 			slot.index = i;
-			slot.address = node;
+			slot.address = address;
 			break;
 		}
 	}
@@ -148,11 +174,9 @@ struct allocation_slot string_database_lookup(const struct string_database *db, 
 
 void *string_database_address(const struct string_database *db, const u32 handle)
 {
-	struct string_database_node *node = array_list_intrusive_address(db->list, handle);
-	kas_assert(node->list_header.allocated);
-	return (node->list_header.allocated)
-		? node
-		: string_database_address(db, STRING_DATABASE_STUB_INDEX);
+	u8 *address = pool_address(&db->pool, handle);
+	kas_assert((*(u32 *)(address + db->pool.slot_state_offset)) & 0x80000000);
+	return address;
 }
 
 struct allocation_slot string_database_reference(struct string_database *db, const utf8 id)
@@ -160,15 +184,15 @@ struct allocation_slot string_database_reference(struct string_database *db, con
 	struct allocation_slot slot = string_database_lookup(db, id);
 	if (slot.index != STRING_DATABASE_STUB_INDEX)
 	{
-		struct string_database_node *node = slot.address;
-		node->reference_count += 1;
+		u32 *reference_count = (u32 *)(((u8 *) slot.address) + db->reference_count_offset);
+		*reference_count += 1;
 	}
 	return slot;
 }
 
 void string_database_dereference(struct string_database *db, const u32 handle)
 {
-	struct string_database_node *node = string_database_address(db, handle);
-	kas_assert(node->reference_count);
-	node->reference_count -= 1;
+	u32 *reference_count = (u32 *)(((u8 *) string_database_address(db, handle)) + db->reference_count_offset);
+	kas_assert(*reference_count);
+	*reference_count -= 1;
 }

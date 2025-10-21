@@ -131,8 +131,6 @@ void  				thread_block_free(struct thread_block_allocator *allocator, void *addr
 
 /************************************* ring allocator *************************************/
 
-#include "allocator_debug.h"
-
 /* virtual memory wrapped ring buffer. */
 struct ring
 {
@@ -173,7 +171,6 @@ For unallocated slots, the variable represents an index < 0x7fffffff to the next
 The end of the free chain is represented by POOL_NULL.
 */
 
-#define POOL_GROWABLE			1
 #define POOL_NULL			0x7fffffff
 #define POOL_SLOT_STATE 		u32 __pool_slot_state
 #define POOL_SLOT_ALLOCATED(ptr)	(ptr->__pool_slot_state & 0x80000000)
@@ -190,17 +187,15 @@ struct pool
 	u32 	next_free;		/* next free index if != U32_MAX 		*/
 	u32 	growable;
 	u32	heap_allocated;	
-
-	ALLOCATOR_DEBUG_INDEX_STRUCT
 };
 
 /* internal allocation of pool, use pool_alloc macro instead */
 struct pool 		pool_alloc_internal(struct arena *mem, const u32 length, const u64 slot_size, const u64 __pool_slot_state_offset, const u32 growable);
 /* allocation of pool; on error, an empty pool (length == 0), is returned.  */
 #define 		pool_alloc(mem, length, STRUCT, growable)	pool_alloc_internal(mem, length, sizeof(STRUCT), ((u64)&((STRUCT *)0)->__pool_slot_state), growable)
-/* free pool */
-void			pool_free(struct pool *pool);
-/* free all slot allocations */
+/* dealloc pool */
+void			pool_dealloc(struct pool *pool);
+/* dealloc all slot allocations */
 void			pool_flush(struct pool *pool);
 /* alloc new slot; on error return (NULL, U32_MAX) */
 struct allocation_slot	pool_add(struct pool *pool);

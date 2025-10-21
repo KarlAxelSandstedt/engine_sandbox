@@ -60,7 +60,7 @@ struct net_list
 	u32	(*index_in_previous_node)(struct net_list *net, void **prev_node, const void *cur_node, const u32 cur_index);
 	u32	(*index_in_next_node)(struct net_list *net, void **next_node, const void *cur_node, const u32 cur_index);
 
-	ALLOCATOR_DEBUG_INDEX_STRUCT
+	ALLOCATOR_DEBUG_INDEX_STRUCT;
 };
 
 /* intrusive net list node header: Should be placed at base of any structure to be used as a net node. */

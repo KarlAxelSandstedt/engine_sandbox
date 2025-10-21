@@ -40,7 +40,7 @@ struct vector
 	u32 	next;		/* next index to be pushed 	*/ 
 	u32	growable;	/* Boolean: is memory growable  */
 
-	ALLOCATOR_DEBUG_INDEX_STRUCT
+	ALLOCATOR_DEBUG_INDEX_STRUCT;
 };
 
 /* allocate and initalize vector: If mem is defined, use arena allocator; given that growable == VECTOR_STATIC */
