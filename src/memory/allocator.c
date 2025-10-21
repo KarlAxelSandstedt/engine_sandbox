@@ -811,3 +811,99 @@ u32 pool_index(const struct pool *pool, const void *slot)
 	kas_assert(((u64) slot - (u64) pool->buf) % pool->slot_size == 0); 
 	return (u32) (((u64) slot - (u64) pool->buf) / pool->slot_size);
 }
+
+struct pool_external_slot
+{
+	POOL_SLOT_STATE;
+};
+
+struct pool_external pool_external_alloc(void **external_buf, const u32 length, const u64 slot_size, const u32 growable)
+{
+	kas_static_assert(sizeof(struct pool_external_slot) == 4, "Expect size of pool_external_slot is 4");
+
+	*external_buf = NULL;
+	struct pool_external ext = { 0 };
+
+	struct pool pool = pool_alloc(NULL, length, struct pool_external_slot, growable);
+	if (pool.length)
+	{
+		*external_buf = malloc(length * slot_size);
+		if (*external_buf)
+		{
+			ext.slot_size = slot_size;
+			ext.external_buf = external_buf;
+			ext.pool = pool;
+			POISON_ADDRESS(*external_buf, ext.slot_size * ext.pool.length);
+		}
+		else
+		{
+			pool_dealloc(&pool);
+		}
+	}
+
+	return ext;
+}
+
+void pool_external_dealloc(struct pool_external *pool)
+{
+	pool_dealloc(&pool->pool);
+	free(*pool->external_buf);
+}
+
+void pool_external_flush(struct pool_external *pool)
+{
+	pool_flush(&pool->pool);
+	POISON_ADDRESS(*pool->external_buf, pool->slot_size * pool->pool.length);
+}
+
+struct allocation_slot pool_external_add(struct pool_external *pool)
+{
+	const u32 old_length = pool->pool.length;
+	struct allocation_slot slot = pool_add(&pool->pool);
+
+	if (slot.index != POOL_NULL)
+	{
+		if (old_length != pool->pool.length)
+		{
+			*pool->external_buf = realloc(*pool->external_buf, pool->pool.slot_size*pool->pool.length);
+			if (*pool->external_buf == NULL)
+			{
+				log_string(T_SYSTEM, S_FATAL, "Failed to reallocate external pool buffer");
+				fatal_cleanup_and_exit(kas_thread_self_tid());
+			}
+			UNPOISON_ADDRESS(*pool->external_buf, pool->slot_size*old_length);
+			POISON_ADDRESS(((u8 *)(*pool->external_buf) + pool->slot_size*old_length), pool->slot_size*(pool->pool.length - old_length)); 
+		}
+			
+		UNPOISON_ADDRESS((u8*) *pool->external_buf + pool->slot_size*old_length, pool->slot_size);
+	}
+
+	return slot;
+}
+
+void pool_external_remove(struct pool_external *pool, const u32 index)
+{
+	pool_remove(&pool->pool, index);
+	POISON_ADDRESS(((u8*)*pool->external_buf) + index*pool->slot_size, pool->slot_size);
+}
+
+void pool_external_remove_address(struct pool_external *pool, void *slot)
+{
+	const u32 index = pool_index(&pool->pool, slot);
+	pool_remove(&pool->pool, index);
+	POISON_ADDRESS(((u8*)*pool->external_buf) + index*pool->slot_size, pool->slot_size);
+}
+
+void *pool_external_address(const struct pool_external *pool, const u32 index)
+{
+	kas_assert(index <= pool->pool.count_max);
+	return ((u8*)*pool->external_buf) + index*pool->slot_size;
+}
+
+u32 pool_external_index(const struct pool_external *pool, const void *slot)
+{
+	kas_assert((u64) slot >= (u64) (*pool->external_buf));
+	kas_assert((u64) slot < (u64) *pool->external_buf + pool->pool.length*pool->slot_size);
+	kas_assert(((u64) slot - (u64) *pool->external_buf) % pool->slot_size == 0); 
+	return (u32) (((u64) slot - (u64) *pool->external_buf) / pool->slot_size);
+}

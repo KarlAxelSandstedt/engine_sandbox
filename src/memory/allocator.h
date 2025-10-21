@@ -208,4 +208,35 @@ void *			pool_address(const struct pool *pool, const u32 index);
 /* return index of address */
 u32			pool_index(const struct pool *pool, const void *slot);
 
+/*
+Pool External Allocator 
+=======================
+An extension of the pool allocator to handle an outside buffer instead of an internal one; It can be useful for
+cases when we want to pool C types such as f32, u32 or vec3.
+*/
+
+struct pool_external
+{
+	u64		slot_size;
+	void **		external_buf;
+	struct pool	pool;
+};
+
+/* allocation of pool; on error, an empty pool (length == 0), is returned.  */
+struct pool_external 	pool_external_alloc(void **external_buf, const u32 length, const u64 slot_size, const u32 growable);
+/* dealloc pool_external */
+void			pool_external_dealloc(struct pool_external *pool);
+/* dealloc all slot allocations */
+void			pool_external_flush(struct pool_external *pool);
+/* alloc new slot; on error return (NULL, U32_MAX) */
+struct allocation_slot	pool_external_add(struct pool_external *pool);
+/* remove slot given index */
+void			pool_external_remove(struct pool_external *pool, const u32 index);
+/* remove slot given address */
+void			pool_external_remove_address(struct pool_external *pool, void *slot);
+/* return address of index */
+void *			pool_external_address(const struct pool_external *pool, const u32 index);
+/* return index of address */
+u32			pool_external_index(const struct pool_external *pool, const void *slot);
+
 #endif

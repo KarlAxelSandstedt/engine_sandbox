@@ -63,7 +63,7 @@ struct string_database string_database_alloc_internal(struct arena *mem, const u
 	struct string_database_node *node = slot.address;
 
 	utf8 *id = (utf8 *)(((u8 *) slot.address) + db.id_offset);
-	*id = stub_id;
+	*id = utf8_empty();
 
 	u32 *reference_count = (u32 *)(((u8 *) slot.address) + db.reference_count_offset);
 	*reference_count = 0;

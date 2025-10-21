@@ -9,6 +9,10 @@ struct csg csg_alloc(void)
 	csg.instance_pool = pool_alloc(NULL, 32, struct csg_instance, GROWABLE);
 	csg.node_pool = pool_alloc(NULL, 32, struct csg_instance, GROWABLE);
 
+	struct csg_brush *stub_brush = string_database_address(&csg.brush_database, STRING_DATABASE_STUB_INDEX);
+	stub_brush->primitive = CSG_PRIMITIVE_BOX;
+	//TODO
+
 	return csg;
 }
 

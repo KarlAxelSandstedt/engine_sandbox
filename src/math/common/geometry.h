@@ -164,10 +164,10 @@ u32 		AABB_raycast(vec3 intersection, const struct AABB *aabb, const struct ray 
 
 struct dcel_half_edge
 {
-	u32 origin;	/* vertex index origin 			   */
-	u32 twin; 	/* twin half edge 			   */
-	u32 next;	/* next half edge in ccw traversal of face */
-	u32 prev;	/* prev half edge in ccw traversal of face */
+	u32 	origin;	/* vertex index origin 			   */
+	u32 	twin; 	/* twin half edge 			   */
+	u32 	next;	/* next half edge in ccw traversal of face */
+	u32 	prev;	/* prev half edge in ccw traversal of face */
 };
 
 /*
@@ -193,6 +193,19 @@ struct dcel	dcel_box(void);
 
 /* debug assert dcel topology */
 void		dcel_assert_topology(const struct dcel *dcel);
+
+
+/* dcel_allocator: Dynamically allocates resources for dcel as required. */
+struct dcel_allocator
+{
+	vec3ptr			v;
+	struct dcel_half_edge *	he;
+	u32 *			face;
+
+	struct pool_external	v_pool;
+	struct pool_external	half_edge_pool;
+	struct pool_external	face_pool;
+};
 
 /********************************* vertex ***********************************/
 

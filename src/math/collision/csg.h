@@ -6,7 +6,7 @@
 #include "allocator.h"
 #include "string_database.h"
 #include "quaternion.h"
-#include "vector.h"
+#include "geometry.h"
 
 enum csg_primitive
 {
@@ -27,9 +27,6 @@ enum csg_op
 /* TODO: */
 struct csg_brush
 {
-	utf8			id;			/* unique brush name 	*/
-	u32			key;			/* id hash 		*/
-
 	enum csg_primitive	primitive;		/* primitive type 	*/
 
 	STRING_DATABASE_SLOT_STATE;
@@ -66,6 +63,8 @@ struct csg
 	struct string_database	brush_database;
 	struct pool		instance_pool;
 	struct pool		node_pool;
+
+	struct dcel_allocator	dcel_allocator;
 };
 
 /* allocate a csg structure */
