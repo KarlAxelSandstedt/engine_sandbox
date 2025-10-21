@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.14.3)
 
 add_library(collision STATIC
+	csg.h
+	csg.c
 	collision.h
 	collision.c
 	dbvt.h

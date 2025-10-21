@@ -1,7 +1,7 @@
 Testing
 build
-lib/SDL3
 log
+asset_components/led_projects
 **Makefile
 **.swap
 **.cache

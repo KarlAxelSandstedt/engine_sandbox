@@ -24,6 +24,7 @@
 #include "array_list.h"
 #include "queue.h"
 #include "float32.h"
+#include "sys_public.h"
 
 //TODO what to do with this?
 #define MIN_SEGMENT_LENGTH_SQ	(100.0f*F32_EPSILON)
@@ -2186,4 +2187,117 @@ u32 triangle_origin_closest_point_is_internal(vec3 lambda, const vec3 A, const v
 {
 	triangle_origin_closest_point(lambda, A, B, C);
 	return (lambda[0] < 0.0f || lambda[1] < 0.0f || lambda[2] < 0.0f) ? 0 : 1;
+}
+
+static vec3 box_vertex[] =
+{
+	{  0.5f,  0.5f, -0.5f },
+	{  0.5f,  0.5f,  0.5f },	
+	{ -0.5f,  0.5f,  0.5f },	
+	{ -0.5f,  0.5f, -0.5f },	
+	{  0.5f, -0.5f, -0.5f },
+	{  0.5f, -0.5f,  0.5f },	
+	{ -0.5f, -0.5f,  0.5f },	
+	{ -0.5f, -0.5f, -0.5f },	
+};
+
+static const struct dcel_half_edge box_edge[] =
+{
+	{ .origin = 0, .twin =  7, /* .face = 0,*/ .next =  1, . prev =  3, },
+	{ .origin = 1, .twin = 11, /* .face = 0,*/ .next =  2, . prev =  0, },
+	{ .origin = 2, .twin = 15, /* .face = 0,*/ .next =  3, . prev =  1, },
+	{ .origin = 3, .twin = 19, /* .face = 0,*/ .next =  0, . prev =  2, },
+
+	{ .origin = 0, .twin = 18, /* .face = 1,*/ .next =  5, . prev =  7, },
+	{ .origin = 4, .twin = 21, /* .face = 1,*/ .next =  6, . prev =  4, },
+	{ .origin = 5, .twin =  8, /* .face = 1,*/ .next =  7, . prev =  5, },
+	{ .origin = 1, .twin =  0, /* .face = 1,*/ .next =  4, . prev =  6, },
+
+	{ .origin = 1, .twin =  5, /* .face = 2,*/ .next =  9, . prev = 11, },
+	{ .origin = 5, .twin = 20, /* .face = 2,*/ .next = 10, . prev =  8, },
+	{ .origin = 6, .twin = 12, /* .face = 2,*/ .next = 11, . prev =  9, },
+	{ .origin = 2, .twin =  1, /* .face = 2,*/ .next =  8, . prev = 10, },
+
+	{ .origin = 2, .twin =  6, /* .face = 3,*/ .next = 13, . prev = 15, },
+	{ .origin = 6, .twin = 23, /* .face = 3,*/ .next = 14, . prev = 12, },
+	{ .origin = 7, .twin = 16, /* .face = 3,*/ .next = 15, . prev = 13, },
+	{ .origin = 3, .twin =  2, /* .face = 3,*/ .next = 12, . prev = 14, },
+
+	{ .origin = 3, .twin = 14, /* .face = 4,*/ .next = 17, . prev = 19, },
+	{ .origin = 7, .twin = 22, /* .face = 4,*/ .next = 18, . prev = 16, },
+	{ .origin = 4, .twin =  4, /* .face = 4,*/ .next = 19, . prev = 17, },
+	{ .origin = 0, .twin =  3, /* .face = 4,*/ .next = 16, . prev = 18, },
+
+	{ .origin = 6, .twin =  9, /* .face = 5,*/ .next = 21, . prev = 23, },
+	{ .origin = 5, .twin =  5, /* .face = 5,*/ .next = 22, . prev = 20, },
+	{ .origin = 4, .twin = 17, /* .face = 5,*/ .next = 23, . prev = 21, },
+	{ .origin = 7, .twin = 13, /* .face = 5,*/ .next = 20, . prev = 22, },
+};
+
+/* 
+const u32 box_face_to_edge_map[] = { 0, 4, 8, 12, 16, 20 };
+*/
+
+struct dcel dcel_box(void)
+{
+	struct dcel box = 
+	{
+		.vertex = box_vertex,
+		.edge = box_edge,
+		.vertex_count = 8,
+		.edge_count = 24,
+	};
+
+	return box; 
+}
+
+void dcel_assert_topology(const struct dcel *dcel)
+{
+	struct arena tmp = arena_alloc_1MB();
+
+	u32 face_count = 0;
+	u32 vertex_count = 0;
+
+	u32 *vertex_check = arena_push_zero(&tmp, dcel->vertex_count * sizeof(u32));
+	u32 *edge_check = arena_push_zero(&tmp, dcel->edge_count * sizeof(u32));
+	u32 *face_check = arena_push_zero(&tmp, 3*dcel->vertex_count * sizeof(u32));
+
+	for (u32 i = 0; i < dcel->edge_count; ++i)
+	{
+		if (!edge_check[i])
+		{
+			face_count += 1;
+			u32 next;
+		        u32 prev; 
+			u32 current = i;
+			u32 edge_count = 0;
+			do
+			{
+				edge_count += 1;
+				const struct dcel_half_edge *c = dcel->edge + current;
+				const struct dcel_half_edge *p = dcel->edge + c->prev;
+				const struct dcel_half_edge *n = dcel->edge + c->next;
+				const struct dcel_half_edge *t = dcel->edge + c->twin;
+
+				current = c->next;
+
+				kas_assert(c->origin < dcel->vertex_count);
+				kas_assert(p->next == i);
+				kas_assert(n->prev == i);
+				kas_assert(t->twin == i);
+				kas_assert(t->origin == n->origin);
+
+				edge_check[current] = 1;
+				vertex_count += (1 - vertex_check[c->origin]);
+				vertex_check[c->origin] = 1;
+			} while (current != i);
+
+			kas_assert(edge_count >= 3);
+		}
+	}
+
+	arena_free_1MB(&tmp);
+
+	kas_assert(vertex_count == dcel->vertex_count);
+	kas_assert(face_count >= 4);
 }

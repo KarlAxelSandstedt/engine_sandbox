@@ -160,6 +160,40 @@ u32 		AABB_contains(const struct AABB *a, const struct AABB *b);
 /* If the ray hits aabb, return 1 and set intersection. otherwise return 0. */
 u32 		AABB_raycast(vec3 intersection, const struct AABB *aabb, const struct ray *ray);
 
+/********************************** dcel ************************************/
+
+struct dcel_half_edge
+{
+	u32 origin;	/* vertex index origin 			   */
+	u32 twin; 	/* twin half edge 			   */
+	u32 next;	/* next half edge in ccw traversal of face */
+	u32 prev;	/* prev half edge in ccw traversal of face */
+};
+
+/*
+ * (Computational Geometry Algorithms and Applications, Section 2.2) 
+ * dcel - doubly-connected edge list. Can represent convex 3d bodies (with no holes in polygons)
+ * 	  and 2d planar graphs. A polygon in the data structure are implicitly defined by its 
+ * 	  first half edge. 
+ */
+struct dcel
+{
+	const struct dcel_half_edge *	edge;			/* array[edge_count] 	    */
+	const vec3ptr			vertex;			/* array[vertex_count] 	    */
+	u32				edge_count;
+	u32				vertex_count;
+};
+
+/* returns a dcel structure aliasing box data */
+struct dcel	dcel_box(void);
+
+/*TODO:
+ * floating point utilities for checking max/min angles, vertex aliasing, max/min distances...
+ */
+
+/* debug assert dcel topology */
+void		dcel_assert_topology(const struct dcel *dcel);
+
 /********************************* vertex ***********************************/
 
 /* Return: support of vertex set given the direction. */
