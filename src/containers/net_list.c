@@ -64,7 +64,7 @@ struct net_list *net_list_alloc(struct arena *mem,
 	net->index_in_previous_node = index_in_previous_node;
 	net->index_in_next_node = index_in_next_node;
 	
-	ALLOCATOR_DEBUG_INDEX_ALLOC(net, net->data, net->length, net->data_size, sizeof(struct net_list_node));
+	ALLOCATOR_DEBUG_INDEX_ALLOC(net, net->data, net->length, net->data_size, sizeof(struct net_list_node), 0);
 
 	struct net_list_node *not_allocated_dummy = (struct net_list_node *) ((u8 *) net->data + net->data_size * 0);
 	struct net_list_node *null_dummy = (struct net_list_node *) ((u8 *) net->data + net->data_size * 1);

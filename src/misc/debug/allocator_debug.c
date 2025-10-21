@@ -22,7 +22,7 @@
 
 #if (defined(KAS_ASAN) && defined(KAS_ASSERT_DEBUG))
 
-struct allocator_debug_index allocator_debug_index_alloc(const u8 *array, const u32 slot_count, const u64 slot_size, const u64 slot_header_size)
+struct allocator_debug_index allocator_debug_index_alloc(const u8 *array, const u32 slot_count, const u64 slot_size, const u64 slot_header_size, const u64 slot_header_offset)
 {
 	struct allocator_debug_index debug =
 	{
@@ -30,6 +30,7 @@ struct allocator_debug_index allocator_debug_index_alloc(const u8 *array, const 
 		.poisoned = bit_vec_alloc(NULL, slot_count, 1, 1),
 		.slot_size = slot_size,
 		.slot_header_size = slot_header_size,
+		.slot_header_offset = slot_header_offset,
 		.slot_count = slot_count,
 		.max_unpoisoned_count = 0,
 	};

@@ -17,6 +17,10 @@
 ==========================================================================
 */
 
+/*
+ * NOTE: (DEPRECATED, use pool allocator instead)
+ */
+
 #include <stdlib.h>
 #include <string.h>
 
@@ -54,7 +58,7 @@ struct array_list *array_list_alloc(struct arena *mem, const u32 length, const u
 
 	if (list && list->slot)
 	{
-		ALLOCATOR_DEBUG_INDEX_ALLOC(list, list->slot, length, slot_size, 0);
+		ALLOCATOR_DEBUG_INDEX_ALLOC(list, list->slot, length, slot_size, 0, 0);
 		list->length = length;
 		list->max_count = 0;
 		list->count = 0;
@@ -263,7 +267,7 @@ struct array_list_intrusive *array_list_intrusive_alloc(struct arena *mem, const
 
 	if (list && list->data)
 	{
-		ALLOCATOR_DEBUG_INDEX_ALLOC(list, list->data, length, data_size, sizeof(struct array_list_intrusive_node));
+		ALLOCATOR_DEBUG_INDEX_ALLOC(list, list->data, length, data_size, sizeof(struct array_list_intrusive_node), 0);
 		list->length = length;
 		list->max_count = 0;
 		list->count = 0;
@@ -488,7 +492,7 @@ struct dll *dll_alloc(struct arena *mem, const u32 length, const u64 data_size, 
 
 	if (list && list->data)
 	{
-		ALLOCATOR_DEBUG_INDEX_ALLOC(list, list->data, (length+2), data_size, sizeof(struct dll_node));
+		ALLOCATOR_DEBUG_INDEX_ALLOC(list, list->data, (length+2), data_size, sizeof(struct dll_node), 0);
 		list->length = length+2;
 		list->max_count = 0;
 		list->count = 0;

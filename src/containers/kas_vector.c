@@ -52,7 +52,7 @@ struct vector vector_alloc(struct arena *mem, const u64 blocksize, const u32 len
 		fatal_cleanup_and_exit(kas_thread_self_tid());
 	}
 
-	ALLOCATOR_DEBUG_INDEX_ALLOC(&v, v.data, v.length, v.blocksize, 0);
+	ALLOCATOR_DEBUG_INDEX_ALLOC(&v, v.data, v.length, v.blocksize, 0, 0);
 
 	return v;
 }

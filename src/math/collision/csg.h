@@ -7,7 +7,6 @@
 #include "array_list.h"
 #include "quaternion.h"
 #include "vector.h"
-#include "binary_tree.h"
 
 enum csg_primitive
 {

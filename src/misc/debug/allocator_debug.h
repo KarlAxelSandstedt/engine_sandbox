@@ -40,9 +40,10 @@ struct allocator_debug_index
 	u32		max_unpoisoned_count;
 	u64		slot_size;
 	u64		slot_header_size;
+	u64		slot_header_offset;
 };
 
-struct allocator_debug_index allocator_debug_index_alloc(const u8 *array, const u32 slot_count, const u64 slot_size, const u64 slot_header_size);
+struct allocator_debug_index allocator_debug_index_alloc(const u8 *array, const u32 slot_count, const u64 slot_size, const u64 slot_header_size, const u64 slot_header_offset);
 void allocator_debug_index_free(struct allocator_debug_index *debug);
 void allocator_debug_index_flush(struct allocator_debug_index *debug);
 void allocator_debug_index_poison(struct allocator_debug_index *debug, const u32 index);
@@ -50,7 +51,7 @@ void allocator_debug_index_unpoison(struct allocator_debug_index *debug, const u
 void allocator_debug_index_alias_and_repoison(struct allocator_debug_index *debug, const u8 *reallocated_array, const u32 new_slot_count);
 
 #define ALLOCATOR_DEBUG_INDEX_STRUCT	struct allocator_debug_index __allocator_poisoner;
-#define ALLOCATOR_DEBUG_INDEX_ALLOC(structure_addr, array, slot_count, slot_size, slot_header_size)	(structure_addr)->__allocator_poisoner = allocator_debug_index_alloc(array, slot_count, slot_size, slot_header_size)
+#define ALLOCATOR_DEBUG_INDEX_ALLOC(structure_addr, array, slot_count, slot_size, slot_header_size, slot_header_offset)	(structure_addr)->__allocator_poisoner = allocator_debug_index_alloc(array, slot_count, slot_size, slot_header_size, slot_header_offset)
 #define ALLOCATOR_DEBUG_INDEX_FREE(structure_addr)	allocator_debug_index_free(&(structure_addr)->__allocator_poisoner)
 #define ALLOCATOR_DEBUG_INDEX_FLUSH(structure_addr)	allocator_debug_index_flush(&(structure_addr)->__allocator_poisoner)
 #define ALLOCATOR_DEBUG_INDEX_POISON(structure_addr, index) allocator_debug_index_poison(&(structure_addr)->__allocator_poisoner, index)
@@ -60,7 +61,7 @@ void allocator_debug_index_alias_and_repoison(struct allocator_debug_index *debu
 #else
 
 #define ALLOCATOR_DEBUG_INDEX_STRUCT
-#define ALLOCATOR_DEBUG_INDEX_ALLOC(structure_addr, array, slot_count, slot_size, slot_header_size)	
+#define ALLOCATOR_DEBUG_INDEX_ALLOC(structure_addr, array, slot_count, slot_size, slot_header_size, slot_header_offset)	
 #define ALLOCATOR_DEBUG_INDEX_FREE(structure_addr)	
 #define ALLOCATOR_DEBUG_INDEX_FLUSH(structure_addr)	
 #define ALLOCATOR_DEBUG_INDEX_POISON(structure_addr, index) 

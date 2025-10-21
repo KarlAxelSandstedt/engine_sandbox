@@ -129,8 +129,9 @@ void *				thread_block_alloc(struct thread_block_allocator *allocator);
 /* Free block */
 void  				thread_block_free(struct thread_block_allocator *allocator, void *addr);
 
-/************************************* ring allocator  *************************************/
+/************************************* ring allocator *************************************/
 
+#include "allocator_debug.h"
 
 /* virtual memory wrapped ring buffer. */
 struct ring
@@ -160,5 +161,56 @@ void 			ring_pop_start(struct ring *ring, const u64 size);
 /* release bytes in ring in lifo order. */
 void 			ring_pop_end(struct ring *ring, const u64 size); 
 
+/*
+Pool Allocator
+============
+Intrusive pool allocator that handles allocation and deallocation of a specific struct. In order to use the
+pool allocator for a specific struct, the struct should contain the POOL_SLOT_STATE macro; it defines
+internal slot state for the struct. Can allocate at most 2^31 - 1 slots.
+
+Internals: each struct contains a slot state variable (u32). For allocated slots the state is 0x80000000.
+For unallocated slots, the variable represents an index < 0x7fffffff to the next free slot in the chain.
+The end of the free chain is represented by POOL_NULL.
+*/
+
+#define POOL_GROWABLE			1
+#define POOL_NULL			0x7fffffff
+#define POOL_SLOT_STATE 		u32 __pool_slot_state
+#define POOL_SLOT_ALLOCATED(ptr)	(ptr->__pool_slot_state & 0x80000000)
+#define POOL_SLOT_NEXT(ptr)		(ptr->__pool_slot_state & 0x7fffffff)
+
+struct pool
+{
+	u64	slot_size;		/* size of struct containing POOL_SLOT_STATE 	*/
+	u64	slot_state_offset;	/* offset of __pool_slot_state of struct 	*/
+	u8 *	buf;
+	u32 	length;			/* array length 				*/
+	u32 	count;			/* current count of occupied slots 		*/
+	u32 	count_max;		/* max count used over the object's lifetime 	*/
+	u32 	next_free;		/* next free index if != U32_MAX 		*/
+	u32 	growable;
+	u32	heap_allocated;	
+
+	ALLOCATOR_DEBUG_INDEX_STRUCT
+};
+
+/* internal allocation of pool, use pool_alloc macro instead */
+struct pool 		pool_alloc_internal(struct arena *mem, const u32 length, const u64 slot_size, const u64 __pool_slot_state_offset, const u32 growable);
+/* allocation of pool; on error, an empty pool (length == 0), is returned.  */
+#define 		pool_alloc(mem, length, STRUCT, growable)	pool_alloc_internal(mem, length, sizeof(STRUCT), ((u64)&((STRUCT *)0)->__pool_slot_state), growable)
+/* free pool */
+void			pool_free(struct pool *pool);
+/* free all slot allocations */
+void			pool_flush(struct pool *pool);
+/* alloc new slot; on error return (NULL, U32_MAX) */
+struct allocation_slot	pool_add(struct pool *pool);
+/* remove slot given index */
+void			pool_remove(struct pool *pool, const u32 index);
+/* remove slot given address */
+void			pool_remove_address(struct pool *pool, void *slot);
+/* return address of index */
+void *			pool_address(const struct pool *pool, const u32 index);
+/* return index of address */
+u32			pool_index(const struct pool *pool, const void *slot);
 
 #endif
