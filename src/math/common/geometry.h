@@ -178,8 +178,8 @@ struct dcel_half_edge
  */
 struct dcel
 {
-	const struct dcel_half_edge *	edge;			/* array[edge_count] 	    */
-	const vec3ptr			vertex;			/* array[vertex_count] 	    */
+	const struct dcel_half_edge *	edge;		/* array[edge_count] 	    */
+	constvec3ptr			vertex;		/* array[vertex_count] 	    */
 	u32				edge_count;
 	u32				vertex_count;
 };
@@ -198,14 +198,27 @@ void		dcel_assert_topology(const struct dcel *dcel);
 /* dcel_allocator: Dynamically allocates resources for dcel as required. */
 struct dcel_allocator
 {
-	vec3ptr			v;
-	struct dcel_half_edge *	he;
-	u32 *			face;
+	vec3ptr			vertex;
+	struct dcel_half_edge *	edge;
 
-	struct pool_external	v_pool;
-	struct pool_external	half_edge_pool;
-	struct pool_external	face_pool;
+	struct pool_external	vertex_pool;
+	struct pool_external	edge_pool;
 };
+
+/* allocate resources */
+struct dcel_allocator * dcel_allocator_alloc(const u32 initial_vertex_count, const u32 initial_edge_count);
+/* deallocate resources */
+void			dcel_allocator_dealloc(struct dcel_allocator *allocator);
+/* flush resources */
+void			dcel_allocator_flush(struct dcel_allocator *allocator);
+/* return index to allocated vertex */
+u32			dcel_allocator_add_vertex(struct dcel_allocator *allocator);
+/* remove allocated vertex */
+void			dcel_allocator_remove_vertex(struct dcel_allocator *allocator, const u32 index);
+/* return index to allocated edge */
+u32			dcel_allocator_add_edge(struct dcel_allocator *allocator);
+/* remove allocated edge */
+void			dcel_allocator_remove_edge(struct dcel_allocator *allocator, const u32 index);
 
 /********************************* vertex ***********************************/
 

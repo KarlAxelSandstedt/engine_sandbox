@@ -8,6 +8,9 @@
 #include "quaternion.h"
 #include "geometry.h"
 
+#define CSG_FLAG_NONE		((u64) 0)
+#define CSG_FLAG_CONSTANT	((u64) 1 << 0)	/* If set, the struct's state is to be viewed as constant */
+
 enum csg_primitive
 {
 	CSG_PRIMITIVE_BOX,	
@@ -27,7 +30,9 @@ enum csg_op
 /* TODO: */
 struct csg_brush
 {
+	u64			flags;
 	enum csg_primitive	primitive;		/* primitive type 	*/
+	struct dcel		dcel;
 
 	STRING_DATABASE_SLOT_STATE;
 };
@@ -35,6 +40,8 @@ struct csg_brush
 /* TODO: */
 struct csg_instance
 {
+	u64			flags;
+
 	utf8			brush;			/* brush 			*/
 	u32			node;			/* csg_node (leaf) index 	*/
 
@@ -64,7 +71,7 @@ struct csg
 	struct pool		instance_pool;
 	struct pool		node_pool;
 
-	struct dcel_allocator	dcel_allocator;
+	//struct dcel_allocator *	dcel_allocator;
 };
 
 /* allocate a csg structure */

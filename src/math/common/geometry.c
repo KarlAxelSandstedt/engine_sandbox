@@ -2189,7 +2189,7 @@ u32 triangle_origin_closest_point_is_internal(vec3 lambda, const vec3 A, const v
 	return (lambda[0] < 0.0f || lambda[1] < 0.0f || lambda[2] < 0.0f) ? 0 : 1;
 }
 
-static vec3 box_vertex[] =
+static const vec3 box_vertex[] =
 {
 	{  0.5f,  0.5f, -0.5f },
 	{  0.5f,  0.5f,  0.5f },	
@@ -2213,12 +2213,12 @@ static const struct dcel_half_edge box_edge[] =
 	{ .origin = 5, .twin =  8, /* .face = 1,*/ .next =  7, . prev =  5, },
 	{ .origin = 1, .twin =  0, /* .face = 1,*/ .next =  4, . prev =  6, },
 
-	{ .origin = 1, .twin =  5, /* .face = 2,*/ .next =  9, . prev = 11, },
+	{ .origin = 1, .twin =  6, /* .face = 2,*/ .next =  9, . prev = 11, },
 	{ .origin = 5, .twin = 20, /* .face = 2,*/ .next = 10, . prev =  8, },
 	{ .origin = 6, .twin = 12, /* .face = 2,*/ .next = 11, . prev =  9, },
 	{ .origin = 2, .twin =  1, /* .face = 2,*/ .next =  8, . prev = 10, },
 
-	{ .origin = 2, .twin =  6, /* .face = 3,*/ .next = 13, . prev = 15, },
+	{ .origin = 2, .twin = 10, /* .face = 3,*/ .next = 13, . prev = 15, },
 	{ .origin = 6, .twin = 23, /* .face = 3,*/ .next = 14, . prev = 12, },
 	{ .origin = 7, .twin = 16, /* .face = 3,*/ .next = 15, . prev = 13, },
 	{ .origin = 3, .twin =  2, /* .face = 3,*/ .next = 12, . prev = 14, },
@@ -2279,17 +2279,17 @@ void dcel_assert_topology(const struct dcel *dcel)
 				const struct dcel_half_edge *n = dcel->edge + c->next;
 				const struct dcel_half_edge *t = dcel->edge + c->twin;
 
-				current = c->next;
-
 				kas_assert(c->origin < dcel->vertex_count);
-				kas_assert(p->next == i);
-				kas_assert(n->prev == i);
-				kas_assert(t->twin == i);
+				kas_assert(p->next == current);
+				kas_assert(n->prev == current);
+				kas_assert(t->twin == current);
 				kas_assert(t->origin == n->origin);
 
 				edge_check[current] = 1;
 				vertex_count += (1 - vertex_check[c->origin]);
 				vertex_check[c->origin] = 1;
+
+				current = c->next;
 			} while (current != i);
 
 			kas_assert(edge_count >= 3);
@@ -2300,4 +2300,61 @@ void dcel_assert_topology(const struct dcel *dcel)
 
 	kas_assert(vertex_count == dcel->vertex_count);
 	kas_assert(face_count >= 4);
+}
+
+struct dcel_allocator *dcel_allocator_alloc(const u32 initial_vertex_count, const u32 initial_edge_count)
+{
+	struct dcel_allocator *allocator = malloc(sizeof(struct dcel_allocator));
+
+	allocator->vertex_pool = pool_external_alloc((void **) &allocator->vertex, initial_vertex_count, sizeof(vec3), GROWABLE);
+	if (!allocator->vertex_pool.external_buf)
+	{
+		free(allocator);
+		allocator = NULL;
+	}
+	else
+	{
+		allocator->edge_pool = pool_external_alloc((void **) &allocator->edge, initial_edge_count, sizeof(struct dcel_half_edge), GROWABLE);
+		if (!allocator->edge_pool.external_buf)
+		{
+			pool_external_dealloc(&allocator->vertex_pool);
+			free(allocator);
+			allocator = NULL;
+		}
+	}
+
+	return allocator;
+}
+
+void dcel_allocator_dealloc(struct dcel_allocator *allocator)
+{
+	pool_external_dealloc(&allocator->vertex_pool);
+	pool_external_dealloc(&allocator->edge_pool);
+	free(allocator);
+}
+
+void dcel_allocator_flush(struct dcel_allocator *allocator)
+{
+	pool_external_flush(&allocator->vertex_pool);
+	pool_external_flush(&allocator->edge_pool);
+}
+
+u32 dcel_allocator_add_vertex(struct dcel_allocator *allocator)
+{
+	return pool_external_add(&allocator->vertex_pool).index;
+}
+
+void dcel_allocator_remove_vertex(struct dcel_allocator *allocator, const u32 index)
+{
+	pool_external_remove(&allocator->vertex_pool, index);
+}
+
+u32 dcel_allocator_add_edge(struct dcel_allocator *allocator)
+{
+	return pool_external_add(&allocator->edge_pool).index;
+}
+
+void dcel_allocator_remove_edge(struct dcel_allocator *allocator, const u32 index)
+{
+	pool_external_remove(&allocator->edge_pool, index);
 }
