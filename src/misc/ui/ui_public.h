@@ -105,7 +105,7 @@ struct ui_list
 struct ui_list 		ui_list_init(enum axis_2 axis, const f32 axis_pixel_size, const f32 entry_pixel_size);
 void			ui_list_push(struct ui_list *list, const char *format, ...);
 void			ui_list_pop(struct ui_list *list);
-struct allocation_slot 	ui_list_entry_alloc(struct ui_list *list);
+struct slot 	ui_list_entry_alloc(struct ui_list *list);
 
 /***************************************** ui_timeline ******************************************/
 
@@ -664,21 +664,21 @@ struct ui_node
 };
 
 /* allocate new node, values are set according to stack values */
-struct allocation_slot	ui_node_alloc(const u64 flags, const utf8 *formatted);
+struct slot	ui_node_alloc(const u64 flags, const utf8 *formatted);
 /* format input string and allocate new node, values are set according to stack values */
-struct allocation_slot	ui_node_alloc_f(const u64 flags, const char *format, ...);
+struct slot	ui_node_alloc_f(const u64 flags, const char *format, ...);
 /* allocate a new non-hashed node, values are set according to stack values */
-struct allocation_slot	ui_node_alloc_non_hashed(const u64 flags);
+struct slot	ui_node_alloc_non_hashed(const u64 flags);
 /* get node address */
-struct ui_node *	ui_node_address(const u32 node);
+struct ui_node *ui_node_address(const u32 node);
 /* lookup node using id; returns NULL on not found. */
-struct ui_node *	ui_node_lookup(const utf8 *id);
+struct ui_node *ui_node_lookup(const utf8 *id);
 /* push node stack; any new node created becomes a decendant */
-void 			ui_node_push(const u32 node);		
+void 		ui_node_push(const u32 node);		
 /* pop node stack */
-void 			ui_node_pop(void);			
+void 		ui_node_pop(void);			
 /* get top node address (parent address) */
-struct ui_node *	ui_node_top(void);
+struct ui_node *ui_node_top(void);
 
 
 /* add layout node padding given number of pixels according to stack_pad (non-cacheable) */

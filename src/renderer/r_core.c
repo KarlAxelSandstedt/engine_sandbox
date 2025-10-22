@@ -157,7 +157,7 @@ struct r_static *r_static_lookup(const u32 unit)
 u32 r_unit_alloc(const u32 parent_handle, const enum r_unit_type type, const u64 screen, const u64 transparency, const u64 depth, const u64 material, const u64 primitive)
 {
 	const u32 max_count = g_r_core->unit_hierarchy->list->max_count;
-	struct allocation_slot slot = hierarchy_index_add(g_r_core->unit_hierarchy, parent_handle);
+	struct slot slot = hierarchy_index_add(g_r_core->unit_hierarchy, parent_handle);
 	const u32 unit_i = slot.index;
 	struct r_unit *unit = slot.address;
 	unit->generation = (max_count < g_r_core->unit_hierarchy->list->max_count)

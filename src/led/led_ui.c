@@ -73,7 +73,7 @@ static void led_project_menu_ui(struct led *led, const struct ui_visual *visual)
 				? SPRITE_LED_FOLDER
 				: SPRITE_LED_FILE;
 
-			struct allocation_slot entry = ui_list_entry_alloc(&menu->dir_list);
+			struct slot entry = ui_list_entry_alloc(&menu->dir_list);
 			if (entry.address)
 			ui_parent(entry.index)
 			{

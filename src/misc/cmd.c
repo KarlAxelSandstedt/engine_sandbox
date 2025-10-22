@@ -323,15 +323,15 @@ void cmd_queue_flush(struct cmd_queue *queue)
 	queue->cmd_last_next_frame = U32_MAX;
 }
 
-struct allocation_slot cmd_function_register(const utf8 name, const u32 args_count, void (*call)(void))
+struct slot cmd_function_register(const utf8 name, const u32 args_count, void (*call)(void))
 {
 	if (CMD_REGISTER_COUNT < args_count)
 	{
-		return (struct allocation_slot) { .index = U32_MAX, .address = NULL };
+		return (struct slot) { .index = U32_MAX, .address = NULL };
 	}
 
 	const struct cmd_function cmd_f = { .name = name, .args_count = args_count, .call = call };
-	struct allocation_slot slot = cmd_function_lookup(name);
+	struct slot slot = cmd_function_lookup(name);
 	if (!slot.address)
 	{
 		slot.index = g_cmd_f.next;
@@ -349,10 +349,10 @@ struct allocation_slot cmd_function_register(const utf8 name, const u32 args_cou
 	return slot;
 }
 
-struct allocation_slot cmd_function_lookup(const utf8 name)
+struct slot cmd_function_lookup(const utf8 name)
 {
 	const u32 key = utf8_hash(name);
-	struct allocation_slot slot = { .index = hash_map_first(g_name_to_cmd_f_map, key), .address = NULL };
+	struct slot slot = { .index = hash_map_first(g_name_to_cmd_f_map, key), .address = NULL };
 	for (; slot.index != U32_MAX; slot.index = hash_map_next(g_name_to_cmd_f_map, slot.index))
 	{
 		if (utf8_equivalence(g_cmd_f.arr[slot.index].name, name))

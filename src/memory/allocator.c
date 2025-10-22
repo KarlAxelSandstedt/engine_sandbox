@@ -735,9 +735,9 @@ static void internal_pool_realloc(struct pool *pool)
 	POISON_ADDRESS(pool->buf + old_length*pool->slot_size, (pool->length-old_length)*pool->slot_size);
 }
 
-struct allocation_slot pool_add(struct pool *pool)
+struct slot pool_add(struct pool *pool)
 {
-	struct allocation_slot allocation = { .address = NULL, .index = POOL_NULL };
+	struct slot allocation = { .address = NULL, .index = POOL_NULL };
 
 	u32* slot_state;
 	if (pool->count < pool->length)
@@ -856,10 +856,10 @@ void pool_external_flush(struct pool_external *pool)
 	POISON_ADDRESS(*pool->external_buf, pool->slot_size * pool->pool.length);
 }
 
-struct allocation_slot pool_external_add(struct pool_external *pool)
+struct slot pool_external_add(struct pool_external *pool)
 {
 	const u32 old_length = pool->pool.length;
-	struct allocation_slot slot = pool_add(&pool->pool);
+	struct slot slot = pool_add(&pool->pool);
 
 	if (slot.index != POOL_NULL)
 	{

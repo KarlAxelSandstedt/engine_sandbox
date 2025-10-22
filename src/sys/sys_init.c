@@ -55,13 +55,15 @@ void system_resources_init(struct arena *mem)
 	/* must initalize stuff in multithreaded dtoa/strtod */
 	dmg_dtoa_init(g_arch_config->logical_core_count);
 
-	const u32 count_256B = U16_MAX;
-	const u32 count_1MB = 256;
-
 #if __OS__ != __WEB__
 	log(T_SYSTEM, S_NOTE, "clock resolution (us): %3f", (f64) time_ns_per_tick() / 1000.0);
 	log(T_SYSTEM, S_NOTE, "rdtsc estimated frequency (GHz): %3f", (f32) freq_rdtsc() / 1000000000);
 #endif
+
+	/* 1GB */
+	const u32 count_256B = 1024*1024/256;
+	/* 1GB */
+	const u32 count_1MB = 1024;
 
 	global_thread_block_allocators_alloc(count_256B, count_1MB);
 	KASPF_READER_ALLOC(16*1024*1024);

@@ -94,14 +94,14 @@ void hierarchy_index_flush(struct hierarchy_index *hi)
 	root->last = HI_NULL_INDEX;
 }
 
-struct allocation_slot hierarchy_index_add(struct hierarchy_index *hi, const u32 parent_index)
+struct slot hierarchy_index_add(struct hierarchy_index *hi, const u32 parent_index)
 {
 	kas_assert(parent_index <= hi->list->max_count);
 
 	const u32 new_index = (u32) array_list_reserve_index(hi->list);
 	if (new_index == U32_MAX)
 	{
-		return (struct allocation_slot) { .index = 0, .address = NULL };
+		return (struct slot) { .index = 0, .address = NULL };
 	}
 
 	struct hierarchy_index_node *parent = array_list_address(hi->list, parent_index);
@@ -129,7 +129,7 @@ struct allocation_slot hierarchy_index_add(struct hierarchy_index *hi, const u32
 		parent->last = new_index;
 	}
 
-	return (struct allocation_slot) { .index = new_index, .address = new_node };
+	return (struct slot) { .index = new_index, .address = new_node };
 }
 
 static void internal_remove_recursive(struct hierarchy_index *hi, struct hierarchy_index_node *root)

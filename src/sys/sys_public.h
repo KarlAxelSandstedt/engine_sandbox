@@ -138,7 +138,7 @@ void			system_free_tagged_windows(void);
 /* get system window address  */
 struct system_window *	system_window_address(const u32 index);
 /* Return system window containing the given native window handle, or an empty allocation slot if no window found */
-struct allocation_slot	system_window_lookup(const u64 native_handle);
+struct slot		system_window_lookup(const u64 native_handle);
 /* Set window to current (global pointers to window, ui and cmd_queue is set) */
 void			system_window_set_global(const u32 window);
 /* enable text input mode for current window */

@@ -14,6 +14,8 @@ add_library(containers STATIC
 	kas_vector.h
 	array_list.c
 	array_list.h
+	list.c
+	list.h
 	net_list.c
 	net_list.h
 	hierarchy_index.c

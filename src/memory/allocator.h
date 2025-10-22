@@ -172,14 +172,14 @@ The end of the free chain is represented by POOL_NULL.
 */
 
 #define POOL_NULL			0x7fffffff
-#define POOL_SLOT_STATE 		u32 __pool_slot_state
-#define POOL_SLOT_ALLOCATED(ptr)	(ptr->__pool_slot_state & 0x80000000)
-#define POOL_SLOT_NEXT(ptr)		(ptr->__pool_slot_state & 0x7fffffff)
+#define POOL_SLOT_STATE 		u32 pool_slot_state
+#define POOL_SLOT_ALLOCATED(ptr)	(ptr->pool_slot_state & 0x80000000)
+#define POOL_SLOT_NEXT(ptr)		(ptr->pool_slot_state & 0x7fffffff)
 
 struct pool
 {
 	u64	slot_size;		/* size of struct containing POOL_SLOT_STATE 	*/
-	u64	slot_state_offset;	/* offset of __pool_slot_state of struct 	*/
+	u64	slot_state_offset;	/* offset of pool_slot_state of struct 	*/
 	u8 *	buf;
 	u32 	length;			/* array length 				*/
 	u32 	count;			/* current count of occupied slots 		*/
@@ -190,23 +190,23 @@ struct pool
 };
 
 /* internal allocation of pool, use pool_alloc macro instead */
-struct pool 		pool_alloc_internal(struct arena *mem, const u32 length, const u64 slot_size, const u64 __pool_slot_state_offset, const u32 growable);
+struct pool 	pool_alloc_internal(struct arena *mem, const u32 length, const u64 slot_size, const u64 pool_slot_state_offset, const u32 growable);
 /* allocation of pool; on error, an empty pool (length == 0), is returned.  */
-#define 		pool_alloc(mem, length, STRUCT, growable)	pool_alloc_internal(mem, length, sizeof(STRUCT), ((u64)&((STRUCT *)0)->__pool_slot_state), growable)
+#define 	pool_alloc(mem, length, STRUCT, growable)	pool_alloc_internal(mem, length, sizeof(STRUCT), ((u64)&((STRUCT *)0)->pool_slot_state), growable)
 /* dealloc pool */
-void			pool_dealloc(struct pool *pool);
+void		pool_dealloc(struct pool *pool);
 /* dealloc all slot allocations */
-void			pool_flush(struct pool *pool);
+void		pool_flush(struct pool *pool);
 /* alloc new slot; on error return (NULL, U32_MAX) */
-struct allocation_slot	pool_add(struct pool *pool);
+struct slot	pool_add(struct pool *pool);
 /* remove slot given index */
-void			pool_remove(struct pool *pool, const u32 index);
+void		pool_remove(struct pool *pool, const u32 index);
 /* remove slot given address */
-void			pool_remove_address(struct pool *pool, void *slot);
+void		pool_remove_address(struct pool *pool, void *slot);
 /* return address of index */
-void *			pool_address(const struct pool *pool, const u32 index);
+void *		pool_address(const struct pool *pool, const u32 index);
 /* return index of address */
-u32			pool_index(const struct pool *pool, const void *slot);
+u32		pool_index(const struct pool *pool, const void *slot);
 
 /*
 Pool External Allocator 
@@ -229,7 +229,7 @@ void			pool_external_dealloc(struct pool_external *pool);
 /* dealloc all slot allocations */
 void			pool_external_flush(struct pool_external *pool);
 /* alloc new slot; on error return (NULL, U32_MAX) */
-struct allocation_slot	pool_external_add(struct pool_external *pool);
+struct slot		pool_external_add(struct pool_external *pool);
 /* remove slot given index */
 void			pool_external_remove(struct pool_external *pool, const u32 index);
 /* remove slot given address */

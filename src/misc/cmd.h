@@ -132,9 +132,9 @@ void 			cmd_queue_execute(void);
 void 			cmd_queue_flush(struct cmd_queue *queue);
 
 /* Register the command function (or overwrite existing one) */
-struct allocation_slot	cmd_function_register(const utf8 name, const u32 args_count, void (*call)(void));
+struct slot		cmd_function_register(const utf8 name, const u32 args_count, void (*call)(void));
 /* Lookup command function; if function not found, return { .index = U32_MAX, .address = NULL } */
-struct allocation_slot 	cmd_function_lookup(const utf8 name);
+struct slot 		cmd_function_lookup(const utf8 name);
 
 /* push current global register values as command arguments and submit the command */
 void			cmd_submit(const u32 cmd_function);

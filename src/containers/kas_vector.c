@@ -63,7 +63,7 @@ void vector_dealloc(struct vector *v)
 	free(v->data);
 }
 
-struct allocation_slot vector_push(struct vector *v)
+struct slot vector_push(struct vector *v)
 {
 	if (v->next >= v->length)
 	{
@@ -81,12 +81,12 @@ struct allocation_slot vector_push(struct vector *v)
 		}
 		else
 		{
-			return (struct allocation_slot) { .index = 0, .address = NULL };
+			return (struct slot) { .index = 0, .address = NULL };
 		}
 	}
 
 	ALLOCATOR_DEBUG_INDEX_UNPOISON(v, v->next);
-	struct allocation_slot slot = { .address = vector_address(v, v->next) };
+	struct slot slot = { .address = vector_address(v, v->next) };
 	slot.index = v->next;
 	v->next += 1;
 	return slot;

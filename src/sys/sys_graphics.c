@@ -39,7 +39,7 @@ static void system_window_free_resources(struct system_window *sys_win)
 
 u32 system_window_alloc(const char *title, const vec2u32 position, const vec2u32 size, const u32 parent)
 {
-	struct allocation_slot slot = hierarchy_index_add(g_window_hierarchy, parent);
+	struct slot slot = hierarchy_index_add(g_window_hierarchy, parent);
 	kas_assert(parent != HI_ROOT_STUB_INDEX || slot.index == 2);
 
 	struct system_window *sys_win = slot.address;
@@ -127,7 +127,7 @@ void system_free_tagged_windows(void)
 	arena_free_1MB(&tmp2);
 }
 
-struct allocation_slot system_window_lookup(const u64 native_handle)
+struct slot system_window_lookup(const u64 native_handle)
 {
 	struct system_window *win = NULL;
 	u32 index = U32_MAX;
@@ -149,7 +149,7 @@ struct allocation_slot system_window_lookup(const u64 native_handle)
 	hierarchy_index_iterator_release(&it);
 	arena_free_1MB(&tmp);
 
-	return (struct allocation_slot) { .index = index, .address = win };
+	return (struct slot) { .index = index, .address = win };
 }
 
 u32 system_process_root_window_alloc(const char *title, const vec2u32 position, const vec2u32 size)

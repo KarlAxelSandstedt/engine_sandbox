@@ -44,17 +44,17 @@ struct vector
 };
 
 /* allocate and initalize vector: If mem is defined, use arena allocator; given that growable == VECTOR_STATIC */
-struct vector		vector_alloc(struct arena *mem, const u64 blocksize, const u32 length, const u32 growable);
+struct vector	vector_alloc(struct arena *mem, const u64 blocksize, const u32 length, const u32 growable);
 /* deallocate vector heap memory */
-void			vector_dealloc(struct vector *v);
+void		vector_dealloc(struct vector *v);
 /* push block, return index and address on success, otherwise return (0, NULL) */
-struct allocation_slot	vector_push(struct vector *v);
+struct slot	vector_push(struct vector *v);
 /* pop block  */
-void			vector_pop(struct vector *v);
+void		vector_pop(struct vector *v);
 /* return address of indexed block */
-void *			vector_address(const struct vector *v, const u32 index);
+void *		vector_address(const struct vector *v, const u32 index);
 /* pop all allocated blocks */
-void			vector_flush(struct vector *v);
+void		vector_flush(struct vector *v);
 
 /****************************************** FIXED TYPE STACK GENERATION ******************************************/
 

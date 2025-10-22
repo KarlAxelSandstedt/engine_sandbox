@@ -49,23 +49,23 @@ struct hierarchy_index
 };
 
 /* alloc array list (on arena if non-NULL and non-growable), returns NULL on failure */
-struct hierarchy_index *	hierarchy_index_alloc(struct arena *mem, const u32 length, const u64 data_size, const u32 growable);
+struct hierarchy_index *hierarchy_index_alloc(struct arena *mem, const u32 length, const u64 data_size, const u32 growable);
 /* free hierarchy allocated on the heap */
-void				hierarchy_index_free(struct hierarchy_index *hi);
+void			hierarchy_index_free(struct hierarchy_index *hi);
 /* flush or reset hierarchy */
-void				hierarchy_index_flush(struct hierarchy_index *hi);
+void			hierarchy_index_flush(struct hierarchy_index *hi);
 /* Allocate a hierarchy node and return the allocation slot on success, RETURNS (0, NULL) on failure */
-struct allocation_slot		hierarchy_index_add(struct hierarchy_index *hi, const u32 parent_index);
+struct slot		hierarchy_index_add(struct hierarchy_index *hi, const u32 parent_index);
 /* Deallocate a hierarchy node and its whole sub-hierarchy */
-void 				hierarchy_index_remove(struct arena *tmp, struct hierarchy_index *hi, const u32 node_index);
+void 			hierarchy_index_remove(struct arena *tmp, struct hierarchy_index *hi, const u32 node_index);
 /* node's children (and their subtrees) are adopted by node's parent, and node's new parent becomes parent_index */
-void 				hierarchy_index_adopt_node_exclusive(struct hierarchy_index *hi, const u32 node_index, const u32 new_parent_index);
+void 			hierarchy_index_adopt_node_exclusive(struct hierarchy_index *hi, const u32 node_index, const u32 new_parent_index);
 /* node's subtree is removed from current parent and added to new parent*/
-void 				hierarchy_index_adopt_node(struct hierarchy_index *hi, const u32 node_index, const u32 new_parent_index);
+void 			hierarchy_index_adopt_node(struct hierarchy_index *hi, const u32 node_index, const u32 new_parent_index);
 /* apply a custom free to and deallocate a hierarchy node and its whole sub-hierarchy; the custom free takes in the index to remove */
-void				hierarchy_index_apply_custom_free_and_remove(struct arena *tmp, struct hierarchy_index *hi, const u32 node_index, void (*custom_free)(const struct hierarchy_index *hi, const u32, void *data), void *data);
+void			hierarchy_index_apply_custom_free_and_remove(struct arena *tmp, struct hierarchy_index *hi, const u32 node_index, void (*custom_free)(const struct hierarchy_index *hi, const u32, void *data), void *data);
 /* Return node address corresponding to index */
-void *				hierarchy_index_address(const struct hierarchy_index *hi, const u32 node_index);
+void *			hierarchy_index_address(const struct hierarchy_index *hi, const u32 node_index);
 
 /*
  * hierarchy_index_iterator: iterator for traversing a supplied node and it's entire sub-hierarchy in the given

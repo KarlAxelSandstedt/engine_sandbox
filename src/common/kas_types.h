@@ -80,11 +80,13 @@ typedef union
 
 /************** Allocator Helper **************/
 
-struct allocation_slot
+struct slot
 {
 	void *	address;
 	u32	index;
 };
+
+#define empty_slot	(struct slot) { .address = NULL, .index = U32_MAX }
 
 /************** Math Types **************/
 

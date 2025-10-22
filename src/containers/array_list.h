@@ -50,7 +50,7 @@ void 			array_list_free(struct array_list *list);
 /* flush any alloctions within the list, reseting it. */
 void			array_list_flush(struct array_list *list);
 /* return allocation slot of possibly new allocation  */
-struct allocation_slot	array_list_add(struct array_list *list);
+struct slot	array_list_add(struct array_list *list);
 /* reserve slot = returned address, or NULL if no space */
 void *			array_list_reserve(struct array_list *list);
 /* reserve slot = returned index to address, or U32_MAX if no space */
@@ -100,7 +100,7 @@ void 				array_list_intrusive_free(struct array_list_intrusive *list);
 /* flush any alloctions within the list, reseting it. */
 void				array_list_intrusive_flush(struct array_list_intrusive *list);
 /* return allocation slot of possibly new allocation  */
-struct allocation_slot		array_list_intrusive_add(struct array_list_intrusive *list);
+struct slot			array_list_intrusive_add(struct array_list_intrusive *list);
 /* reserve slot = return	ed address_intrusive, or NULL if no space */
 void *				array_list_intrusive_reserve(struct array_list_intrusive *list);
 /* reserve slot = return	ed index t_intrusiveo address, or U32_MAX if no space */
@@ -150,28 +150,28 @@ struct dll
 };
 
 /* alloc dll either on arena if defined, otherwise heap */
-struct dll *		dll_alloc(struct arena *mem, const u32 length, const u64 data_size, const u32 growable);
+struct dll *	dll_alloc(struct arena *mem, const u32 length, const u64 data_size, const u32 growable);
 /* free dll heap memory 		*/
-void			dll_free(struct dll *dll);
+void		dll_free(struct dll *dll);
 /* flush any allocations within the dll, reseting it. */
-void			dll_flush(struct dll *dll);
+void		dll_flush(struct dll *dll);
 /* allocatate slot and set link DLL_NULL <-> slot <-> DLL_NULL */
-struct allocation_slot 	dll_add(struct dll *list);
+struct slot 	dll_add(struct dll *list);
 /* allocatate slot and set link next.prev <-> slot <-> next */
-struct allocation_slot 	dll_prepend(struct dll *list, const u32 next);
+struct slot 	dll_prepend(struct dll *list, const u32 next);
 /* allocatate slot and set link prev <-> slot <-> prev.next */
-struct allocation_slot 	dll_append(struct dll *list, const u32 prev);
+struct slot 	dll_append(struct dll *list, const u32 prev);
 /* unset any links (...) <-> index <-> (...), and set links  next.prev <-> slot <-> next */
-void 			dll_unlink_and_prepend(struct dll *list, const u32 index, const u32 next);
+void 		dll_unlink_and_prepend(struct dll *list, const u32 index, const u32 next);
 /* remove slot[index] 			*/
-void 			dll_remove(struct dll *dll, void *addr);
+void 		dll_remove(struct dll *dll, void *addr);
 /* remove slot[index] at address 	*/
-void 			dll_remove_index(struct dll *dll, const u32 index);
+void 		dll_remove_index(struct dll *dll, const u32 index);
 /* return &slot[index] of address	*/
-void * 			dll_address(const struct dll *list, const u32 index);
+void * 		dll_address(const struct dll *list, const u32 index);
 /* return index of address		*/
-u32			dll_index(const struct dll *list, const void *address);
+u32		dll_index(const struct dll *list, const void *address);
 /* return index of address		*/
-void			dll_print(const struct dll *list, const u32 index);
+void		dll_print(const struct dll *list, const u32 index);
 
 #endif

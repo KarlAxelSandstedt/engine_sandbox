@@ -5,14 +5,15 @@
 #include "kas_string.h"
 #include "allocator.h"
 #include "string_database.h"
+#include "list.h"
 #include "quaternion.h"
 #include "geometry.h"
 
-#define CSG_FLAG_NONE		((u64) 0)
-#define CSG_FLAG_CONSTANT	((u64) 1 << 0)	/* If set, the struct's state is to be viewed as constant   */
-#define CSG_FLAG_DIRTY		((u64) 1 << 1)	/* If set, the struct's state has been modified and a delta 
-						   is available. */
-#define CSG_MARKED_FOR_REMOVAL	((u64) 1 << 2)	/* If set, the struct should be removed as soon as possible */
+#define CSG_FLAG_NONE			((u64) 0)
+#define CSG_FLAG_CONSTANT		((u64) 1 << 0)	/* If set, the struct's state is to be viewed as constant   */
+#define CSG_FLAG_DIRTY			((u64) 1 << 1)	/* If set, the struct's state has been modified and a delta 
+						   	   is available. */
+#define CSG_FLAG_MARKED_FOR_REMOVAL	((u64) 1 << 2)	/* If set, the struct should be removed as soon as possible */
 
 enum csg_primitive
 {
@@ -30,20 +31,29 @@ enum csg_op
 	CSG_OP_COUNT
 };
 
-/* TODO: */
+/*
+csg_bursh
+=========  
+*/
 struct csg_brush
 {
 	u64			flags;
+	struct csg_brush *	delta;
 	enum csg_primitive	primitive;		/* primitive type 	*/
 	struct dcel		dcel;
 
+	LIST_SLOT_STATE;
 	STRING_DATABASE_SLOT_STATE;
 };
 
-/* TODO: */
+/*
+csg_instance
+============  
+*/
 struct csg_instance
 {
 	u64			flags;
+	struct csg_instace *	delta;
 
 	u32			brush;			/* brush 			*/
 	u32			node;			/* csg_node (leaf) index 	*/
@@ -51,10 +61,14 @@ struct csg_instance
 	quat			rotation;		/* normalized quaternion 	*/
 	vec3			position;
 
+	LIST_SLOT_STATE;
 	POOL_SLOT_STATE;
 };
 
-/* TODO: */
+/*
+csg_node
+========  
+*/
 struct csg_node
 {
 	//TODO place below into a binary_tree_macro
@@ -64,10 +78,14 @@ struct csg_node
 
 	enum csg_op	op;
 
+	LIST_SLOT_STATE;
 	POOL_SLOT_STATE;
 };
 
-/* TODO: */
+/*
+csg
+===  
+*/
 struct csg
 {
 	struct arena 		frame;		/* frame lifetime */
@@ -75,6 +93,9 @@ struct csg
 	struct string_database	brush_database;
 	struct pool		instance_pool;
 	struct pool		node_pool;
+
+	struct list		brush_marked_list;
+	struct list		instance_marked_list;
 
 	//struct dcel_allocator *	dcel_allocator;
 };
@@ -91,6 +112,16 @@ void		csg_serialize(struct serialize_stream *ss, const struct csg *csg);
 struct csg	csg_deserialize(struct arena *mem, struct serialize_stream *ss, const u32 growable);		
 /* csg main method; apply deltas and update csg internals */
 void		csg_main(struct csg *csg);
+
+
+/* Add a new csg_brush and copy the id onto the heap on success. 
+ *
+ * Failure 1: id requires a buffer size > 256.
+ * Failure 2: An existing brush with the same id already exist.
+ */
+struct slot 	csg_brush_add(struct csg *csg, const utf8 id);
+/* Tag a brush for removal. If the reference count is not zero, this is a no op. */
+void 		csg_brush_mark_for_removal(struct csg *csg, const utf8 id);
 
 /*
 global command identifiers
@@ -203,7 +234,10 @@ csg_update()               \\\\\\\\\\\\\\\\\
 \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 --------------------------------------------
 
-3. Algorithm
+3. API
+======
+
+4. Algorithm
 ============
 
 1. find intersection brushes (DBVH and collision tests)

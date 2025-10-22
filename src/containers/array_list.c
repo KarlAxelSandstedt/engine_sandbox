@@ -109,9 +109,9 @@ static void internal_array_list_realloc(struct array_list *list)
 	ALLOCATOR_DEBUG_INDEX_ALIAS_AND_REPOISON(list, list->slot, list->length);
 }
 
-struct allocation_slot array_list_add(struct array_list *list)
+struct slot array_list_add(struct array_list *list)
 {
-	struct allocation_slot allocation = { .address = NULL, .index = U32_MAX };
+	struct slot allocation = { .address = NULL, .index = U32_MAX };
 
 	if (list->count < list->length)
 	{
@@ -318,9 +318,9 @@ static void internal_array_list_intrusive_realloc(struct array_list_intrusive *l
 	ALLOCATOR_DEBUG_INDEX_ALIAS_AND_REPOISON(list, list->data, list->length);
 }
 
-struct allocation_slot array_list_intrusive_add(struct array_list_intrusive *list)
+struct slot array_list_intrusive_add(struct array_list_intrusive *list)
 {
-	struct allocation_slot allocation = { .address = NULL, .index = U32_MAX };
+	struct slot allocation = { .address = NULL, .index = U32_MAX };
 
 	if (list->count < list->length)
 	{
@@ -545,9 +545,9 @@ static void internal_dll_realloc(struct dll *list)
 	ALLOCATOR_DEBUG_INDEX_ALIAS_AND_REPOISON(list, list->data, list->length);
 }
 
-struct allocation_slot dll_add(struct dll *list)
+struct slot dll_add(struct dll *list)
 {
-	struct allocation_slot allocation = { .address = NULL, .index = DLL_STUB };
+	struct slot allocation = { .address = NULL, .index = DLL_STUB };
 
 	if (list->count < list->length)
 	{
@@ -585,10 +585,10 @@ struct allocation_slot dll_add(struct dll *list)
 	return allocation;
 }
 
-struct allocation_slot dll_prepend(struct dll *list, const u32 next)
+struct slot dll_prepend(struct dll *list, const u32 next)
 {
 	kas_assert(next != DLL_STUB && next != DLL_NULL);
-	struct allocation_slot allocation = dll_add(list);
+	struct slot allocation = dll_add(list);
 	kas_assert(allocation.index);
        	if (allocation.index)
 	{
@@ -601,10 +601,10 @@ struct allocation_slot dll_prepend(struct dll *list, const u32 next)
 	return allocation;
 }
 
-struct allocation_slot dll_append(struct dll *list, const u32 prev)
+struct slot dll_append(struct dll *list, const u32 prev)
 {
 	kas_assert(prev != DLL_STUB && prev != DLL_NULL);
-	struct allocation_slot allocation = dll_add(list);
+	struct slot allocation = dll_add(list);
        	if (allocation.index)
 	{
 		struct dll_node *node_prev = (struct dll_node *) ((u8 *) list->data + prev * list->data_size);

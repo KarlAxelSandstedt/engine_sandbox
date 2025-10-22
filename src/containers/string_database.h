@@ -31,8 +31,8 @@
  * internal database struct state - Place inside of any structure to be stored within the database.
  */
 #define STRING_DATABASE_SLOT_STATE									\
-	utf8 				__string_db_id;		/* identifier of database object */	\
-	u32				__reference_count;	/* Number of references to slot  */	\
+	utf8 				id;			/* identifier of database object */	\
+	u32				reference_count;	/* Number of references to slot  */	\
 	POOL_SLOT_STATE						/* pool slot internal state      */
 
 /*
@@ -60,31 +60,31 @@ struct string_database	string_database_alloc_internal(struct arena *mem, const u
 				       		       hash_size,				\
 						       index_size, 				\
 						       sizeof(STRUCT),				\
-						       ((u64)&((STRUCT *)0)->__string_db_id),	\
-						       ((u64)&((STRUCT *)0)->__reference_count),\
-						       ((u64)&((STRUCT *)0)->__pool_slot_state),\
+						       ((u64)&((STRUCT *)0)->id),		\
+						       ((u64)&((STRUCT *)0)->reference_count),	\
+						       ((u64)&((STRUCT *)0)->pool_slot_state),	\
 						       growable)
 /* free the database. NOTE that none of the database id strings are freed as they are either aliases or arena memory. */
-void			string_database_free(struct string_database *db);
+void		string_database_free(struct string_database *db);
 /* flush or reset the string database */
-void			string_database_flush(struct string_database *db);
+void		string_database_flush(struct string_database *db);
 /* allocate a new database node with the given identifier and return its index (handle). 
    The id will be copied onto the arena. On failure, the stub slot (0, NULL) is returned. 
    the reference count is set to 0. */
-struct allocation_slot	string_database_add(struct arena *mem_db_lifetime, struct string_database *db, const utf8 id);
+struct slot	string_database_add(struct arena *mem_db_lifetime, struct string_database *db, const utf8 id);
 /* allocate a new database node with the given identifier and return its index. 
    The id will alias the given string's content. On failure, the stub slot (0, NULL) is returned. 
    the reference count is set to 0. */
-struct allocation_slot	string_database_add_and_alias(struct string_database *db, const utf8 id);
+struct slot	string_database_add_and_alias(struct string_database *db, const utf8 id);
 /* remove the identifier's corresponding database node if found and update database state, otherwise do nothing. */
-void			string_database_remove(struct string_database *db, const utf8 id);
+void		string_database_remove(struct string_database *db, const utf8 id);
 /* Lookup the identifer in the database. If it exist, return its slot. Otherwise return (0, NULL). */
-struct allocation_slot	string_database_lookup(const struct string_database *db, const utf8 id);
+struct slot	string_database_lookup(const struct string_database *db, const utf8 id);
 /* Return the corresponding address of the index. */
-void *			string_database_address(const struct string_database *db, const u32 handle);
+void *		string_database_address(const struct string_database *db, const u32 handle);
 /* Return the result of the lookup operation. furthermore, if the returned slot is not (0, NULL), increment the corresponding node's reference count.  */
-struct allocation_slot 	string_database_reference(struct string_database *db, const utf8 id);
+struct slot 	string_database_reference(struct string_database *db, const utf8 id);
 /* Lookup the handle in the database. If it exist, decrement the corresponding node's reference count. */
-void			string_database_dereference(struct string_database *db, const u32 handle);
+void		string_database_dereference(struct string_database *db, const u32 handle);
 
 #endif

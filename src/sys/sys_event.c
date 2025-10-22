@@ -28,7 +28,7 @@ void system_process_events(void)
 	struct system_event event;
 	while (system_event_consume(&event)) 
 	{
-		struct allocation_slot slot = system_window_lookup(event.native_handle);
+		struct slot slot = system_window_lookup(event.native_handle);
 		struct system_window *sys_win = slot.address;
 		if (!sys_win)
 		{

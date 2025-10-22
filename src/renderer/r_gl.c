@@ -822,7 +822,7 @@ void kas_glBindTexture(const GLenum target, const GLuint tx)
 			}
 		}
 
-		struct allocation_slot allocation = (texture->binding_first == DLL_NULL)
+		struct slot allocation = (texture->binding_first == DLL_NULL)
 			? dll_add(g_binding_dll)
 			: dll_prepend(g_binding_dll, texture->binding_first);
 		

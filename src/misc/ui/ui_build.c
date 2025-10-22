@@ -41,7 +41,7 @@ void ui_list_push(struct ui_list *list, const char *format, ...)
 	utf8 id = utf8_format_variadic(g_ui->mem_frame, format, args);
 	va_end(args);
 
-	struct allocation_slot slot;
+	struct slot slot;
 	ui_child_layout_axis(list->axis)
 	ui_size(list->axis, ui_size_pixel(list->axis_pixel_size, 1.0f))
 	ui_recursive_interaction(UI_INTER_DRAG)
@@ -74,7 +74,7 @@ void ui_list_pop(struct ui_list *list)
 	}
 }
 
-struct allocation_slot ui_list_entry_alloc(struct ui_list *list)
+struct slot ui_list_entry_alloc(struct ui_list *list)
 {
 	const intv intv_entry =
 	{
@@ -82,7 +82,7 @@ struct allocation_slot ui_list_entry_alloc(struct ui_list *list)
 		.high = list->entry_pixel_size * (list->frame_count + 1),
 	};
 
-	struct allocation_slot entry;
+	struct slot entry;
 	ui_size(list->axis, ui_size_unit(intv_entry))
 	ui_size(1-list->axis, ui_size_perc(1.0f))
 	ui_child_layout_axis(1-list->axis)

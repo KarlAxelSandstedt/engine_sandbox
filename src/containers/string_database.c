@@ -58,7 +58,7 @@ struct string_database string_database_alloc_internal(struct arena *mem, const u
 	const utf8 stub_id = utf8_empty();
 	const u32 key = utf8_hash(stub_id);
 
-	struct allocation_slot slot = pool_add(&db.pool);
+	struct slot slot = pool_add(&db.pool);
 	hash_map_add(db.hash, key, slot.index);
 	struct string_database_node *node = slot.address;
 
@@ -89,7 +89,7 @@ void string_database_flush(struct string_database *db)
 	const utf8 stub_id = utf8_empty();
 	const u32 key = utf8_hash(stub_id);
 
-	struct allocation_slot slot = pool_add(&db->pool);
+	struct slot slot = pool_add(&db->pool);
 	hash_map_add(db->hash, key, slot.index);
 	struct string_database_node *node = slot.address;
 
@@ -102,16 +102,19 @@ void string_database_flush(struct string_database *db)
 	kas_assert(slot.index == STRING_DATABASE_STUB_INDEX);
 }
 
-struct allocation_slot string_database_add(struct arena *mem_db_lifetime, struct string_database *db, const utf8 copy)
+struct slot string_database_add(struct arena *mem_db_lifetime, struct string_database *db, const utf8 copy)
 {
-	kas_assert(string_database_lookup(db, copy).index == STRING_DATABASE_STUB_INDEX);
+	struct slot slot = { .index = STRING_DATABASE_STUB_INDEX, .address = NULL };
+	if (string_database_lookup(db, copy).index == STRING_DATABASE_STUB_INDEX)
+	{
+		return slot;
+	}
 
 	utf8 id = utf8_copy(mem_db_lifetime, copy);
-	struct allocation_slot slot = { .index = STRING_DATABASE_STUB_INDEX, .address = NULL };
 	if (id.buf)
 	{
 		const u32 key = utf8_hash(copy);
-		struct allocation_slot slot = pool_add(&db->pool);
+		struct slot slot = pool_add(&db->pool);
 		hash_map_add(db->hash, key, slot.index);
 
 		utf8 *id_ptr = (utf8 *)(((u8 *) slot.address) + db->id_offset);
@@ -124,11 +127,15 @@ struct allocation_slot string_database_add(struct arena *mem_db_lifetime, struct
 	return slot;
 }
 
-struct allocation_slot string_database_add_and_alias(struct string_database *db, const utf8 id)
+struct slot string_database_add_and_alias(struct string_database *db, const utf8 id)
 {
-	kas_assert(string_database_lookup(db, id).index == STRING_DATABASE_STUB_INDEX);
+	struct slot slot = { .index = STRING_DATABASE_STUB_INDEX, .address = NULL };
+	if (string_database_lookup(db, id).index == STRING_DATABASE_STUB_INDEX)
+	{
+		return slot;
+	}
 
-	struct allocation_slot slot = pool_add(&db->pool);
+	slot = pool_add(&db->pool);
 	const u32 key = utf8_hash(id);
 	hash_map_add(db->hash, key, slot.index);
 
@@ -143,7 +150,7 @@ struct allocation_slot string_database_add_and_alias(struct string_database *db,
 
 void string_database_remove(struct string_database *db, const utf8 id)
 {
-	const struct allocation_slot slot = string_database_lookup(db, id);
+	const struct slot slot = string_database_lookup(db, id);
 	if (slot.index != STRING_DATABASE_STUB_INDEX)
 	{
 		kas_assert(*(u32 *)((u8 *) slot.address + db->reference_count_offset) == 0);
@@ -153,10 +160,10 @@ void string_database_remove(struct string_database *db, const utf8 id)
 	}
 }
 
-struct allocation_slot string_database_lookup(const struct string_database *db, const utf8 id)
+struct slot string_database_lookup(const struct string_database *db, const utf8 id)
 {
 	const u32 key = utf8_hash(id);
-	struct allocation_slot slot = { .index = STRING_DATABASE_STUB_INDEX, .address = NULL };
+	struct slot slot = { .index = STRING_DATABASE_STUB_INDEX, .address = NULL };
 	for (u32 i = hash_map_first(db->hash, key); i != HASH_NULL; i = hash_map_next(db->hash, i))
 	{
 		u8 *address = string_database_address(db, i);
@@ -179,9 +186,9 @@ void *string_database_address(const struct string_database *db, const u32 handle
 	return address;
 }
 
-struct allocation_slot string_database_reference(struct string_database *db, const utf8 id)
+struct slot string_database_reference(struct string_database *db, const utf8 id)
 {
-	struct allocation_slot slot = string_database_lookup(db, id);
+	struct slot slot = string_database_lookup(db, id);
 	if (slot.index != STRING_DATABASE_STUB_INDEX)
 	{
 		u32 *reference_count = (u32 *)(((u8 *) slot.address) + db->reference_count_offset);
