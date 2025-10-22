@@ -1814,3 +1814,4 @@ i64 ss_read_i64_be_partial(struct serialize_stream *ss, const u64 bit_count)
 	trunc.u |= ((0xffffffffffffffff * sign) << (bit_count-1));
 	return trunc.i;
 }
+
