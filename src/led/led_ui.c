@@ -458,7 +458,6 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 								brush->ui_index_cached);
 					brush->ui_index_cached = slot.index;
 
-					if (slot.address)
 					ui_parent(slot.index)
 					{
 						ui_pad(); 

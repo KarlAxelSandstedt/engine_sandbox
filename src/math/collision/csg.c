@@ -34,8 +34,10 @@ struct csg csg_alloc(void)
 	csg.instance_pool = pool_alloc(NULL, 32, struct csg_instance, GROWABLE);
 	csg.node_pool = pool_alloc(NULL, 32, struct csg_instance, GROWABLE);
 	csg.frame = arena_alloc(1024*1024*1024);
-	csg.brush_marked_list = list_init(struct csg_brush);
-	csg.instance_marked_list = list_init(struct csg_instance);
+	csg.brush_marked_list = dll_init(struct csg_brush);
+	csg.instance_marked_list = dll_init(struct csg_instance);
+	csg.brush_non_marked_list = dll_init(struct csg_brush);
+	csg.instance_non_marked_list = dll_init(struct csg_instance);
 	//csg.dcel_allocator = dcel_allocator_alloc(32, 32);
 
 	struct csg_brush *stub_brush = string_database_address(&csg.brush_database, STRING_DATABASE_STUB_INDEX);
@@ -66,8 +68,10 @@ void csg_flush(struct csg *csg)
 	pool_flush(&csg->instance_pool);
 	pool_flush(&csg->node_pool);
 	arena_flush(&csg->frame);
-	list_flush(&csg->brush_marked_list);
-	list_flush(&csg->instance_marked_list);
+	dll_flush(&csg->brush_marked_list);
+	dll_flush(&csg->instance_marked_list);
+	dll_flush(&csg->brush_non_marked_list);
+	dll_flush(&csg->instance_non_marked_list);
 	//dcel_allocator_flush(csg->dcel_allocator);
 }
 
@@ -89,12 +93,14 @@ static void csg_apply_delta(struct csg *csg)
 static void csg_remove_marked_structs(struct csg *csg)
 {
 	struct csg_brush *brush = NULL;
-	for (u32 i = csg->brush_marked_list.first; i != LIST_NULL; i = LIST_NEXT(brush))
+	for (u32 i = csg->brush_marked_list.first; i != DLL_NULL; i = DLL_NEXT(brush))
 	{
 		brush = string_database_address(&csg->brush_database, i);
 		if (brush->flags & CSG_FLAG_CONSTANT || brush->reference_count)
 		{
 			brush->flags &= ~CSG_FLAG_MARKED_FOR_REMOVAL;
+			dll_remove(&csg->brush_marked_list, csg->brush_database.pool.buf, i);
+			dll_append(&csg->brush_non_marked_list, csg->brush_database.pool.buf, i);
 			continue;
 		}
 
@@ -103,8 +109,8 @@ static void csg_remove_marked_structs(struct csg *csg)
 		thread_free_256B(id.buf);
 	}
 
-	list_flush(&csg->brush_marked_list);
-	list_flush(&csg->instance_marked_list);
+	dll_flush(&csg->brush_marked_list);
+	dll_flush(&csg->instance_marked_list);
 }
 
 void csg_main(struct csg *csg)
@@ -138,6 +144,7 @@ struct slot csg_brush_add(struct csg *csg, const utf8 id)
 	else
 	{
 		struct csg_brush *brush = slot.address;
+		dll_append(&csg->brush_non_marked_list, csg->brush_database.pool.buf, slot.index);
 		brush->primitive = CSG_PRIMITIVE_BOX;
 		brush->dcel = dcel_box();
 		brush->flags = CSG_FLAG_NONE;
@@ -155,9 +162,10 @@ void csg_brush_mark_for_removal(struct csg *csg, const utf8 id)
 {
 	struct slot slot = string_database_lookup(&csg->brush_database, id);
 	struct csg_brush *brush = slot.address;
-	if (brush && !(brush->flags & CSG_FLAG_CONSTANT))
+	if (brush && !(brush->flags & (CSG_FLAG_CONSTANT | CSG_FLAG_MARKED_FOR_REMOVAL)))
 	{
 		brush->flags |= CSG_FLAG_MARKED_FOR_REMOVAL;
-		list_append(&csg->brush_marked_list, csg->brush_database.pool.buf, slot.index);
+		dll_remove(&csg->brush_marked_list, csg->brush_database.pool.buf, slot.index);
+		dll_append(&csg->brush_marked_list, csg->brush_database.pool.buf, slot.index);
 	}
 }

@@ -173,8 +173,8 @@ The end of the free chain is represented by POOL_NULL.
 
 #define POOL_NULL			0x7fffffff
 #define POOL_SLOT_STATE 		u32 pool_slot_state
-#define POOL_SLOT_ALLOCATED(ptr)	(ptr->pool_slot_state & 0x80000000)
-#define POOL_SLOT_NEXT(ptr)		(ptr->pool_slot_state & 0x7fffffff)
+#define POOL_SLOT_ALLOCATED(ptr)	((ptr)->pool_slot_state & 0x80000000)
+#define POOL_SLOT_NEXT(ptr)		((ptr)->pool_slot_state & 0x7fffffff)
 
 struct pool
 {

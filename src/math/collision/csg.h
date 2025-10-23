@@ -61,7 +61,7 @@ struct csg_brush
 	enum csg_primitive	primitive;		/* primitive type 	*/
 	struct dcel		dcel;
 
-	LIST_SLOT_STATE;
+	DLL_SLOT_STATE;
 	STRING_DATABASE_SLOT_STATE;
 
 	/* ui caching neeeded for proper list interactions */
@@ -84,7 +84,7 @@ struct csg_instance
 	quat			rotation;		/* normalized quaternion 	*/
 	vec3			position;
 
-	LIST_SLOT_STATE;
+	DLL_SLOT_STATE;
 	POOL_SLOT_STATE;
 };
 
@@ -101,7 +101,7 @@ struct csg_node
 
 	enum csg_op	op;
 
-	LIST_SLOT_STATE;
+	DLL_SLOT_STATE;
 	POOL_SLOT_STATE;
 };
 
@@ -117,8 +117,11 @@ struct csg
 	struct pool		instance_pool;
 	struct pool		node_pool;
 
-	struct list		brush_marked_list;
-	struct list		instance_marked_list;
+	struct dll		brush_non_marked_list;
+	struct dll		instance_non_marked_list;
+
+	struct dll		brush_marked_list;
+	struct dll		instance_marked_list;
 
 	//struct dcel_allocator *	dcel_allocator;
 };

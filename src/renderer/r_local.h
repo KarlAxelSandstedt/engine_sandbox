@@ -29,6 +29,7 @@
 #include "string_database.h"
 #include "kas_profiler.h"
 #include "array_list.h"
+#include "list.h"
 #include "sys_gl.h"
 
 /********************************************************
@@ -240,28 +241,30 @@ struct gl_state
 
 struct texture_unit_binding
 {
-	struct	dll_node	header;
 	u32 			context;
 	GLuint 			tx_unit;
+
+	DLL_SLOT_STATE;
+	POOL_SLOT_STATE;
 };
 
 struct gl_texture
 {
-	GLuint 	name;
-	u32	binding_first;
+	GLuint 		name;
+	struct dll 	binding_list;
 
-	GLenum 	target;
-	GLint 	wrap_s;
-	GLint 	wrap_t;
-	GLint 	min_filter;
-	GLint 	mag_filter;
+	GLenum 		target;
+	GLint 		wrap_s;
+	GLint 		wrap_t;
+	GLint 		min_filter;
+	GLint 		mag_filter;
 
-	GLint 	level;
-	GLint	internalformat;
-	GLsizei	width;
-	GLsizei	height;
-	GLenum	format;
-	GLenum	type;
+	GLint 		level;
+	GLint		internalformat;
+	GLsizei		width;
+	GLsizei		height;
+	GLenum		format;
+	GLenum		type;
 };
 
 struct gl_texture_unit

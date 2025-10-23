@@ -18,53 +18,161 @@
 */
 
 #include "list.h"
+#include "sys_public.h"
 
-struct list list_init_interal(const u64 slot_size, const u64 slot_state_offset)
+struct ll ll_init_interal(const u64 slot_size, const u64 slot_state_offset)
 {
-	struct list list =  
+	struct ll ll =  
 	{ 
 		.count = 0,
-	       	.first = LIST_NULL, 
-		.last = LIST_NULL, 
+	       	.first = LL_NULL, 
+		.last = LL_NULL, 
 		.slot_size = slot_size, 
 		.slot_state_offset = slot_state_offset 
 	};
 
-	return list;
+	return ll;
 }
 
-void list_flush(struct list *list)
+void ll_flush(struct ll *ll)
 {
-	list->count = 0;
-	list->first = LIST_NULL;
-	list->last = LIST_NULL;
+	ll->count = 0;
+	ll->first = LL_NULL;
+	ll->last = LL_NULL;
 }
 
-void list_append(struct list *list, void *array, const u32 index)
+void ll_append(struct ll *ll, void *array, const u32 index)
 {
-	list->count += 1;
-	u32 *first = (u32*) ((u8*) array + index*list->slot_size + list->slot_state_offset);
-	*first = list->first;
-	list->first = index;
-	if (list->last == LIST_NULL)
+	ll->count += 1;
+	u32 *first = (u32*) ((u8*) array + index*ll->slot_size + ll->slot_state_offset);
+	*first = ll->first;
+	ll->first = index;
+	if (ll->last == LL_NULL)
 	{
-		list->last = index;
+		ll->last = index;
 	}
 }
 
-void list_prepend(struct list *list, void *array, const u32 index)
+void ll_prepend(struct ll *ll, void *array, const u32 index)
 {
-	list->count += 1;
-	if (list->last == LIST_NULL)
+	ll->count += 1;
+	if (ll->last == LL_NULL)
 	{
-		list->first = index;
+		ll->first = index;
 	}
 	else
 	{
-		u32 *last = (u32*) ((u8*) array + list->last*list->slot_size + list->slot_state_offset);
+		u32 *last = (u32*) ((u8*) array + ll->last*ll->slot_size + ll->slot_state_offset);
 		*last = index;
 	}
-	list->last = index;
-	u32 *prev = (u32*) ((u8*) array + index*list->slot_size + list->slot_state_offset);
-	*prev = LIST_NULL;	
+	ll->last = index;
+	u32 *prev = (u32*) ((u8*) array + index*ll->slot_size + ll->slot_state_offset);
+	*prev = LL_NULL;	
+}
+
+struct dll dll_init_interal(const u64 slot_size, const u64 prev_offset, const u64 next_offset)
+{
+	struct dll dll =  
+	{ 
+		.count = 0,
+	       	.first = DLL_NULL, 
+		.last = DLL_NULL, 
+		.slot_size = slot_size, 
+		.prev_offset = prev_offset, 
+		.next_offset = next_offset, 
+	};
+
+	return dll;
+}
+
+void dll_flush(struct dll *dll)
+{
+	dll->count = 0;
+	dll->first = DLL_NULL;
+	dll->last = DLL_NULL;
+}
+
+void dll_append(struct dll *dll, void *array, const u32 index)
+{
+	dll->count += 1;
+	u32 *node_prev = (u32*) ((u8*) array + index*dll->slot_size + dll->prev_offset);
+	u32 *node_next = (u32*) ((u8*) array + index*dll->slot_size + dll->next_offset);
+	*node_prev = dll->last;	
+	*node_next = DLL_NULL;	
+
+	if (dll->last == DLL_NULL)
+	{
+		dll->first = index;
+	}
+	else
+	{
+		u32 *prev_next = (u32*) ((u8*) array + dll->last*dll->slot_size + dll->next_offset);
+		*prev_next = index;
+	}
+
+	dll->last = index;
+}
+
+void dll_prepend(struct dll *dll, void *array, const u32 index)
+{
+	dll->count += 1;
+	u32 *node_prev = (u32*) ((u8*) array + index*dll->slot_size + dll->prev_offset);
+	u32 *node_next = (u32*) ((u8*) array + index*dll->slot_size + dll->next_offset);
+	*node_prev = DLL_NULL;	
+	*node_next = dll->first;	
+
+	if (dll->first == DLL_NULL)
+	{
+		dll->last = index;
+	}
+	else
+	{
+		u32 *next_prev = (u32*) ((u8*) array + dll->first*dll->slot_size + dll->prev_offset);
+		*next_prev = index;
+	}
+
+	dll->first = index;
+}
+
+void dll_remove(struct dll *dll, void *array, const u32 index)
+{
+	kas_assert(dll->count);
+	dll->count -= 1;
+
+	const u32 *node_prev = (u32*) ((u8*) array + index*dll->slot_size + dll->prev_offset);
+	const u32 *node_next = (u32*) ((u8*) array + index*dll->slot_size + dll->next_offset);
+
+	u32 *prev_next = (u32*) ((u8*) array + (*node_prev)*dll->slot_size + dll->next_offset);
+	u32 *next_prev = (u32*) ((u8*) array + (*node_next)*dll->slot_size + dll->prev_offset);
+
+	if (*node_prev == DLL_NULL)
+	{
+		/* node was only node in list */
+		if (*node_next == DLL_NULL)
+		{
+			dll->first = DLL_NULL;
+			dll->last = DLL_NULL;
+		}
+		/* node is first  */
+		else
+		{
+			*next_prev = DLL_NULL;
+			dll->first = *node_next;
+		}
+	}
+	else
+	{
+		/* node is last */
+		if (*node_next == DLL_NULL)
+		{
+			*prev_next = DLL_NULL;
+			dll->last = *node_prev;
+		}
+		/* node is inbetween  */
+		else
+		{
+			*prev_next = *node_next;
+			*next_prev = *node_prev;
+		}
+	}
 }
