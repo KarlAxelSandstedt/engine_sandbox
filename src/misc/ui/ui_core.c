@@ -932,7 +932,8 @@ static void ui_identify_hovered_node(void)
 		return;
 	}
 	
-	/* search floating subtree for deepest node we are hovering */
+	/* search floating subtree for deepest node we are hovering that is hashed */
+	u32 deepest_non_hashed_hover_index = index;
 	node = hierarchy_index_address(g_ui->node_hierarchy, index);
 	u32 i = node->header.first;
 	while (i != HI_NULL_INDEX)
@@ -943,19 +944,24 @@ static void ui_identify_hovered_node(void)
 		    (node->flags & UI_SKIP_HOVER_SEARCH) == 0)
 		{
 			index = i;
+			if ((node->flags & UI_NON_HASHED) == 0)
+			{
+				deepest_non_hashed_hover_index = index;
+			}
 			i = node->header.first;
 			continue;
 		}
 
 		i = node->header.next;
-	}	
+	}
 
-	node = hierarchy_index_address(g_ui->node_hierarchy, index);
+	node = hierarchy_index_address(g_ui->node_hierarchy, deepest_non_hashed_hover_index);
 	if ((node->flags & UI_INTER_HOVER) && (node->inter_local == g_ui->inter.inter_stub))
 	{
 		node->inter_local = arena_push(g_ui->mem_frame, sizeof(struct ui_inter_node));
 		memset(node->inter_local, 0, sizeof(struct ui_inter_node));
 		node->inter_local->node_owner = index;
+		utf8_debug_print(node->id);
 	}
 	node->inter_local->hovered = 1;
 	g_ui->inter.node_hovered = node->id;
