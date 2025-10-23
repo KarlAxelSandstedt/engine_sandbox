@@ -46,6 +46,26 @@ u32 sdl3_wrapper_event_consume(struct system_event *event)
 				event->utf8.size = event->utf8.len + 1;
 			} break;
 
+			case SDL_EVENT_WINDOW_MOUSE_ENTER:
+			{
+				event->type = SYSTEM_WINDOW_CURSOR_ENTER;
+			} break;
+
+			case SDL_EVENT_WINDOW_MOUSE_LEAVE:
+			{
+				event->type = SYSTEM_WINDOW_CURSOR_LEAVE;
+			} break;
+
+			case SDL_EVENT_WINDOW_FOCUS_GAINED:
+			{
+				event->type = SYSTEM_WINDOW_FOCUS_IN;
+			} break;
+
+			case SDL_EVENT_WINDOW_FOCUS_LOST:
+			{
+				event->type = SYSTEM_WINDOW_FOCUS_OUT;
+			} break;
+
 			case SDL_EVENT_WINDOW_MOVED:
 			case SDL_EVENT_WINDOW_RESIZED:
 			{
@@ -55,7 +75,8 @@ u32 sdl3_wrapper_event_consume(struct system_event *event)
 			case SDL_EVENT_MOUSE_MOTION:
 			{
 				event->type = SYSTEM_CURSOR_POSITION;
-				vec2u32_set(event->native_cursor_window_position, (u32) ev.motion.x, (u32) ev.motion.y);
+				vec2_set(event->native_cursor_window_position, ev.motion.x, ev.motion.y);
+				vec2_set(event->native_cursor_window_delta,  ev.motion.xrel, ev.motion.yrel);
 			} break;
 
 			case SDL_EVENT_MOUSE_WHEEL:

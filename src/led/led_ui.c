@@ -418,7 +418,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 			csg_brush_add(&led->csg, id);
 		}
 
-		led->brush_list = ui_list_init(AXIS_2_Y, 240.0f, 24.0f); 
+		led->brush_list = ui_list_init(AXIS_2_Y, 512.0f, 24.0f); 
 	}
 
 
@@ -437,12 +437,12 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 		ui_pad_fill();
 
 		ui_child_layout_axis(AXIS_2_X)
-		ui_height(ui_size_pixel(led->brush_list.axis_pixel_size, 1.0f))
+		ui_height(ui_size_pixel(512.0f, 1.0f))
 		ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BORDER).index)
 		{
 			ui_pad_fill();
 
-			ui_width(ui_size_pixel(500.0f, 1.0f))
+			ui_width(ui_size_pixel(128.0f, 1.0f))
 			ui_list(&led->brush_list, "###p", &led->brush_list)
 			/* TODO: dll instead of list so we can track alive and marked brushes */
 			/* skip showing default brush (b = 0) */

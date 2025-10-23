@@ -62,13 +62,13 @@ extern u32 	(*cursor_unlock)(struct native_window *native);
 
 
 /*TODO: Transform native screen position into our system coordinate system */
-extern void 	(*screen_position_native_to_system)(vec2u32 sys_pos, struct native_window *native, const vec2u32 nat_pos);
+extern void 	(*screen_position_native_to_system)(vec2 sys_pos, struct native_window *native, const vec2 nat_pos);
 /*TODO: Transform system screen position into native screen position */
-extern void 	(*screen_position_system_to_native)(vec2u32 nat_pos, struct native_window *native, const vec2u32 sys_pos);
+extern void 	(*screen_position_system_to_native)(vec2 nat_pos, struct native_window *native, const vec2 sys_pos);
 /* Transform native window position into our system coordinate system, return 1 if position is inside window, 0 otherwise */
-extern void 	(*window_position_native_to_system)(vec2u32 sys_pos, struct native_window *native, const vec2u32 nat_pos);
+extern void 	(*window_position_native_to_system)(vec2 sys_pos, struct native_window *native, const vec2 nat_pos);
 /* Transform system window position into native coordinate system return 1 if position is inside window, 0 otherwise */
-extern void 	(*window_position_system_to_native)(vec2u32 nat_pos, struct native_window *native, const vec2u32 sys_pos);
+extern void 	(*window_position_system_to_native)(vec2 nat_pos, struct native_window *native, const vec2 sys_pos);
 
 /* setup system window */
 extern struct native_window *	(*native_window_create)(struct arena *mem, const char *title, const vec2u32 position, const vec2u32 size);

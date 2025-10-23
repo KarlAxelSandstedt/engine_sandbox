@@ -709,12 +709,12 @@ static void ui_set_global_interactions(void)
 
 	if (g_ui->inter.button_pressed[MOUSE_BUTTON_LEFT])
 	{
-		if (g_ui->inter.cursor_delta[0] != 0)
+		if (g_ui->inter.cursor_delta[0] != 0.0f)
 		{
 			g_ui->inter.interactions |= UI_INTER_DRAG;
 		}
  
-		if (g_ui->inter.cursor_delta[1] != 0)
+		if (g_ui->inter.cursor_delta[1] != 0.0f)
 		{
 			g_ui->inter.interactions |= UI_INTER_DRAG;
 		}

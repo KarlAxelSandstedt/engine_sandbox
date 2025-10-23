@@ -223,9 +223,10 @@ struct system_event {
 		u32 count;
 	} scroll;
 
-	vec2u32 cursor_position; 		/* system window coordinate space cursor position */
-	vec2u32 cursor_motion; 			/* system window coordinate space relative motion */
-	vec2u32 native_cursor_window_position;	/* native window coordinate space cursor position */
+	vec2 cursor_position; 			/* system window coordinate space cursor position */
+	vec2 cursor_motion; 			/* system window coordinate space relative motion */
+	vec2 native_cursor_window_position;	/* native window coordinate space cursor position */
+	vec2 native_cursor_window_delta;	/* native window coordinate space cursor delta */
 
 	utf8	utf8;
 };

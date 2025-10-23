@@ -374,8 +374,8 @@ struct ui_interaction
 	u32 			keyboard_text_input : 1;
 	struct text_edit_state 	text_edit;
 
-	vec2i32	cursor_delta;
-	vec2u32 cursor_position; /* window bottom left = (0,0), thus defined for when mouse is inside window */
+	vec2	cursor_delta;
+	vec2 	cursor_position;    /* window bottom left = (0.0f, 0.0f) */
 
 	/* keyboard state */
 	u32 	key_clicked[KAS_KEY_COUNT];	/* frame : Was key clicked this frame? [KAS_KEYCODE_COUNT] 	*/

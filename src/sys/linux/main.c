@@ -73,25 +73,9 @@ int main(int argc, char *argv[])
 	const u64 renderer_framerate = 144;	
 	r_init(&mem_persistent, NSEC_PER_SEC / renderer_framerate, 16*1024*1024, 1024);
 	
-	u64 fsec = time_s();
-	u64 f_count = 0;
-
 	u64 old_time = editor.ns;
 	while (editor.running)
 	{
-		const u64 sec = time_s();
-		if (fsec == sec)
-		{
-			f_count += 1;
-		}
-		else
-		{
-			fsec = sec;
-			fprintf(stderr, "fps: %lu\n", f_count);
-			f_count = 0;
-		}
-
-
 		KAS_NEW_FRAME;
 
 		system_free_tagged_windows();

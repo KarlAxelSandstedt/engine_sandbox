@@ -51,10 +51,10 @@ u32 			(*cursor_is_visible)(struct native_window *native);
 u32 			(*cursor_lock)(struct native_window *native);
 u32 			(*cursor_unlock)(struct native_window *native);
 
-void 			(*screen_position_native_to_system)(vec2u32 sys_pos, struct native_window *native, const vec2u32 nat_pos);
-void 			(*screen_position_system_to_native)(vec2u32 nat_pos, struct native_window *native, const vec2u32 sys_pos);
-void 			(*window_position_native_to_system)(vec2u32 sys_pos, struct native_window *native, const vec2u32 nat_pos);
-void 			(*window_position_system_to_native)(vec2u32 nat_pos, struct native_window *native, const vec2u32 sys_pos);
+void 			(*screen_position_native_to_system)(vec2 sys_pos, struct native_window *native, const vec2 nat_pos);
+void 			(*screen_position_system_to_native)(vec2 nat_pos, struct native_window *native, const vec2 sys_pos);
+void 			(*window_position_native_to_system)(vec2 sys_pos, struct native_window *native, const vec2 nat_pos);
+void 			(*window_position_system_to_native)(vec2 nat_pos, struct native_window *native, const vec2 sys_pos);
 
 utf8 			(*utf8_get_clipboard)(struct arena *mem);
 void 			(*cstr_set_clipboard)(const char *str);
@@ -212,17 +212,17 @@ static u32 sdl3_wrapper_native_window_is_bordered(const struct native_window *na
 	return (SDL_GetWindowFlags(native->sdl_win) & SDL_WINDOW_BORDERLESS) ? 0 : 1;
 }
 
-void sdl3_wrapper_screen_position_native_to_system(vec2u32 sys_pos, struct native_window *native, const vec2u32 nat_pos)
+void sdl3_wrapper_screen_position_native_to_system(vec2 sys_pos, struct native_window *native, const vec2 nat_pos)
 {
        fprintf(stderr, "implement %s\n", __func__);
 }
 
-void sdl3_wrapper_screen_position_system_to_native(vec2u32 nat_pos, struct native_window *native, const vec2u32 sys_pos)
+void sdl3_wrapper_screen_position_system_to_native(vec2 nat_pos, struct native_window *native, const vec2 sys_pos)
 {
        fprintf(stderr, "implement %s\n", __func__);
 }
 
-void sdl3_wrapper_window_position_native_to_system(vec2u32 sys_pos, struct native_window *native, const vec2u32 nat_pos)
+void sdl3_wrapper_window_position_native_to_system(vec2 sys_pos, struct native_window *native, const vec2 nat_pos)
 {
 	int w, h;
 	if (!SDL_GetWindowSize(native->sdl_win, &w, &h))
@@ -232,13 +232,13 @@ void sdl3_wrapper_window_position_native_to_system(vec2u32 sys_pos, struct nativ
 	}
 
 	sys_pos[0] = nat_pos[0];
-	sys_pos[1] = (u32) h - 1 - nat_pos[1];
+	sys_pos[1] = h - 1.0f - nat_pos[1];
 
-	sys_pos[0] = (sys_pos[0] < (u32) w) ? sys_pos[0] : (u32) w-1;
-	sys_pos[1] = (sys_pos[1] < (u32) h) ? sys_pos[1] : (u32) h-1;
+	//sys_pos[0] = (sys_pos[0] < (u32) w) ? sys_pos[0] : (u32) w-1;
+	//sys_pos[1] = (sys_pos[1] < (u32) h) ? sys_pos[1] : (u32) h-1;
 }
 
-void sdl3_wrapper_window_position_system_to_native(vec2u32 nat_pos, struct native_window *native, const vec2u32 sys_pos)
+void sdl3_wrapper_window_position_system_to_native(vec2 nat_pos, struct native_window *native, const vec2 sys_pos)
 {
 	int w, h;
 	if (!SDL_GetWindowSize(native->sdl_win, &w, &h))
@@ -248,10 +248,10 @@ void sdl3_wrapper_window_position_system_to_native(vec2u32 nat_pos, struct nativ
 	}
 
 	nat_pos[0] = sys_pos[0];
-	nat_pos[1] = (u32) h - 1 - sys_pos[1];
+	nat_pos[1] = h - 1.0f - sys_pos[1];
 
-	nat_pos[0] = (nat_pos[0] < (u32) w) ? nat_pos[0] : (u32) w-1;
-	nat_pos[1] = (nat_pos[1] < (u32) h) ? nat_pos[1] : (u32) h-1;
+	//nat_pos[0] = (nat_pos[0] < (u32) w) ? nat_pos[0] : (u32) w-1;
+	//nat_pos[1] = (nat_pos[1] < (u32) h) ? nat_pos[1] : (u32) h-1;
 }
 
 static void sdl3_destroy_gl_context(struct native_window *native)

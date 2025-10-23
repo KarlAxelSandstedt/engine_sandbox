@@ -69,8 +69,16 @@ void ui_list_pop(struct ui_list *list)
 
 	if (list->frame_node_address->inter_recursive->drag)
 	{
-		list->visible.low += g_ui->inter.cursor_delta[list->axis];
-		list->visible.high += g_ui->inter.cursor_delta[list->axis];
+		if (list->axis == AXIS_2_X)
+		{
+			list->visible.low -= g_ui->inter.cursor_delta[list->axis];
+			list->visible.high -= g_ui->inter.cursor_delta[list->axis];
+		}
+		else
+		{
+			list->visible.low += g_ui->inter.cursor_delta[list->axis];
+			list->visible.high += g_ui->inter.cursor_delta[list->axis];
+		}
 	}
 }
 

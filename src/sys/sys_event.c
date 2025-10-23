@@ -238,12 +238,11 @@ void system_process_events(void)
 
 			case SYSTEM_CURSOR_POSITION:
 			{
-
-				vec2u32 cursor_position;
+				vec2 cursor_position;
 				window_position_native_to_system(cursor_position, sys_win->native, event.native_cursor_window_position);
-				sys_win->ui->inter.cursor_delta[0] += (i32) cursor_position[0] - (i32) sys_win->ui->inter.cursor_position[0];
-				sys_win->ui->inter.cursor_delta[1] += (i32) cursor_position[1] - (i32) sys_win->ui->inter.cursor_position[1];
-				vec2u32_copy(sys_win->ui->inter.cursor_position, cursor_position);
+				sys_win->ui->inter.cursor_delta[0] += cursor_position[0] - sys_win->ui->inter.cursor_position[0];
+				sys_win->ui->inter.cursor_delta[1] += cursor_position[1] - sys_win->ui->inter.cursor_position[1];
+				vec2_copy(sys_win->ui->inter.cursor_position, cursor_position);
 			} break;
 
 			case SYSTEM_WINDOW_CLOSE:
@@ -251,26 +250,25 @@ void system_process_events(void)
 				system_window_tag_sub_hierarchy_for_destruction(slot.index);
 			} break;
 
-			//case SYSTEM_WINDOW_CURSOR_ENTER:
-			//{
-			//	gc->win.cursor_in_window = 1;
-			//} break;
+			case SYSTEM_WINDOW_CURSOR_ENTER:
+			{
+				//fprintf(stderr, "cursor_enter\n");
+			} break;
 
-			//case SYSTEM_WINDOW_CURSOR_LEAVE:
-			//{
-			//	gc->win.skip_next_motion = 1;
-			//	gc->win.cursor_in_window = 0;
-			//} break;
+			case SYSTEM_WINDOW_CURSOR_LEAVE:
+			{
+				//fprintf(stderr, "cursor_leave\n");
+			} break;
 
-			//case SYSTEM_WINDOW_FOCUS_IN:
-			//{
-			//	gc->win.focused = 1;
-			//} break;
+			case SYSTEM_WINDOW_FOCUS_IN:
+			{
+				//fprintf(stderr, "window_focus_in\n");
+			} break;
 
-			//case SYSTEM_WINDOW_FOCUS_OUT:
-			//{
-			//	gc->win.focused = 0;
-			//} break;
+			case SYSTEM_WINDOW_FOCUS_OUT:
+			{
+				//fprintf(stderr, "window_focus_out\n");
+			} break;
 
 			//case SYSTEM_WINDOW_EXPOSE:
 			//{
