@@ -233,10 +233,13 @@ struct frame_header *kaspf_next_header(const struct frame_header *fh, const u64 
 
 struct hw_profile
 {
+	utf8	id;
 	u64 	ns_start;
 	u64 	ns_end;
 	u64 	ns_in_children;
+	u32	ui_node_index;
 	u32	parent;
+	u32	id_hash;
 	u32	child_tasks;	/* TODO: number of tasks decendant of profile */
 	u32	depth;		/* depth in task tree, range [0, U32_MAX] */
 	u16	task_id;	/* unique id for every specific task in the codebase. Retrieved at first creation
@@ -262,6 +265,8 @@ struct cpu_frame_header
 /* heavy weight frame header */
 struct hw_frame_header
 {
+	struct arena			persistent;
+
 	struct hw_frame_header *	prev;		/* previous hw_frame in ring buffer, or NULL */
 	struct hw_frame_header *	next;  		/* next hw_frame in ring buffer, or NULL */
 	u64				ns_start;
@@ -279,13 +284,14 @@ struct hw_frame_header
 
 enum kaspf_reader_state
 {
+	KASPF_READER_CLOSED,
 	KASPF_READER_FIXED,
 	KASPF_READER_STREAM,
+	KASPF_READER_COUNT,
 };
 
 struct kaspf_task_info
 {
-	//u32	buf[KASPF_LABEL_BUFSIZE];
 	utf32 			id;
 	struct text_layout *	layout;
 	u8 			initiated;
@@ -294,6 +300,7 @@ struct kaspf_task_info
 
 struct kaspf_reader
 {
+	struct arena		persistent;
 	struct ring 		buf;		/* heavy weight frame data buffer */
 	struct kaspf_task_info *task_info;	/* overview information of every unique task that has been profiled */
 	struct hw_frame_header *low;		/* points to the first processed frame in buf */

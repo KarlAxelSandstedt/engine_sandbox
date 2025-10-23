@@ -105,7 +105,7 @@ void string_database_flush(struct string_database *db)
 struct slot string_database_add(struct arena *mem_db_lifetime, struct string_database *db, const utf8 copy)
 {
 	struct slot slot = { .index = STRING_DATABASE_STUB_INDEX, .address = NULL };
-	if (string_database_lookup(db, copy).index == STRING_DATABASE_STUB_INDEX)
+	if (string_database_lookup(db, copy).index != STRING_DATABASE_STUB_INDEX)
 	{
 		return slot;
 	}
@@ -130,7 +130,7 @@ struct slot string_database_add(struct arena *mem_db_lifetime, struct string_dat
 struct slot string_database_add_and_alias(struct string_database *db, const utf8 id)
 {
 	struct slot slot = { .index = STRING_DATABASE_STUB_INDEX, .address = NULL };
-	if (string_database_lookup(db, id).index == STRING_DATABASE_STUB_INDEX)
+	if (string_database_lookup(db, id).index != STRING_DATABASE_STUB_INDEX)
 	{
 		return slot;
 	}

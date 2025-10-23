@@ -85,6 +85,7 @@ enum system_id
 	T_SYSTEM,
 	T_RENDERER,
 	T_PHYSICS,
+	T_CSG,
 	T_ASSET,
 	T_UTILITY,
 	T_PROFILER,

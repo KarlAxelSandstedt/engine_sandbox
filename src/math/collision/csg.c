@@ -1,5 +1,25 @@
+/*
+==========================================================================
+    Copyright (C) 2025 Axel Sandstedt 
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+==========================================================================
+*/
+
 #include "csg.h"
 #include "sys_public.h"
+#include "log.h"
 
 /*
 global command identifiers
@@ -23,6 +43,9 @@ struct csg csg_alloc(void)
 	stub_brush->dcel = dcel_box();
 	stub_brush->flags = CSG_FLAG_CONSTANT;
 	stub_brush->delta = NULL;
+	stub_brush->id_hash = utf8_hash(stub_brush->id);
+	stub_brush->ui_index_cached = UI_NON_CACHED_INDEX;
+
 	dcel_assert_topology(&stub_brush->dcel);
 
 	return csg;
@@ -100,14 +123,16 @@ struct slot csg_brush_add(struct csg *csg, const utf8 id)
 {
 	if (id.size > 256)
 	{
+		log(T_CSG, S_WARNING, "Failed to create csg_brush, id %k requires size > 256B.", &id);
 		return empty_slot; 
 	}
 
 	void *buf = thread_alloc_256B();
-	utf8 heap_id = utf8_copy_buffered(buf, 256, id);
+	const utf8 heap_id = utf8_copy_buffered(buf, 256, id);
 	struct slot slot = string_database_add_and_alias(&csg->brush_database, heap_id);
 	if (!slot.address)
 	{
+		log(T_CSG, S_WARNING, "Failed to create csg_brush, brush with id %k already exist.", &id);
 		thread_free_256B(buf);
 	}
 	else
@@ -117,6 +142,10 @@ struct slot csg_brush_add(struct csg *csg, const utf8 id)
 		brush->dcel = dcel_box();
 		brush->flags = CSG_FLAG_NONE;
 		brush->delta = NULL;
+
+		brush->id_hash = utf8_hash(brush->id);
+		/* TODO:(Note) must also be reset when modifying brush id later on... */
+		brush->ui_index_cached = UI_NON_CACHED_INDEX;
 	}
 
 	return slot;

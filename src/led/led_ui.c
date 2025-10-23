@@ -177,323 +177,6 @@ static void led_project_menu_ui(struct led *led, const struct ui_visual *visual)
 	ui_frame_end();
 }
 
-//static void draw_kas_profiler(struct arena *mem_frame, struct ui_state *ui)
-//{
-//	if (g_kas->frame_counter == 0) { return; }
-//	
-//	const vec4 bg = { 0.0625f, 0.0625f, 0.0625f, 1.0f };
-//	const vec4 br = { 0.4f, 0.4f, 0.7f, 0.5f };
-//	const vec4 tx = { 0.7f, 0.7f, 0.9f, 1.0f };
-//
-//	const vec2i32 zero2i32 = { 0, 0 };
-//
-//	TEXT_COLOR(ui, tx)
-//	{
-//	BACKGROUND_COLOR(ui, bg)
-//	{
-//	BORDER_COLOR(ui, br)
-//	{
-//
-//	/* PROFILER WINDOW */
-//	const utf8 prof_id = KAS_COMPILE_TIME_STRING("prof_win");
-//	const vec2i32 prof_pos = { 0, 0 };
-//	const vec2i32 prof_size = { (i32) ui->comm.window_size[0], (i32) ui->comm.window_size[1] };
-//	struct ui_unit *profiler_window = ui_area(ui, &prof_id, prof_pos, prof_size, UNIT_DRAW_BACKGROUND | UNIT_DRAW_BORDER | UNIT_DRAW_ROUNDED_CORNER | UNIT_DRAW_EDGE_SOFTNESS, UNIT_INTER_NONE, UNIT_INTER_NONE);
-//
-//	ui_unit_push(ui, profiler_window);
-//	{
-//		const u64 ns_full = g_kas->ns_frame_prev - g_kas->header->l1_table.ns_start;
-//		u64 ns_start = g_kaspf_reader->ns_start;
-//		u64 ns_end = g_kaspf_reader->ns_end;
-//		u64 ns_interval = ns_end - ns_start;
-//		u64 ns_full_interval = g_kaspf_reader->interval_high[1] - g_kaspf_reader->interval_low[0];
-//		
-//		/* PROFILER TITLE */
-//		const utf8 title_center_id = KAS_COMPILE_TIME_STRING("title_center");
-//		const utf8 title_id = KAS_COMPILE_TIME_STRING("title");
-//		const vec2i32 title_pos = { (i32) ui->comm.window_size[0] / 2, -g_prof_config->title_bar_height / 2 };
-//		utf32 title = utf32_duplicate_cstr(mem_frame, "KAS PROFILER");
-//		ui_text_line_centered(ui, &title_id, title_pos, &title, 0);
-//
-//		/* INTERVAL STREAMING BUTTON */
-//		const utf8 s_but_id = KAS_COMPILE_TIME_STRING("s_but_id");
-//		const vec2i32 s_but_pos = { ui->comm.window_size[0] - 1*g_prof_config->worker_bar_x_pad, -g_prof_config->title_bar_height };
-//		const vec2i32 s_but_size = { g_prof_config->scroll_bar_height, g_prof_config->scroll_bar_height };
-//		if (ui_button(ui, &s_but_id, s_but_pos, s_but_size, UNIT_DRAW_BACKGROUND | UNIT_DRAW_BORDER | UNIT_DRAW_ROUNDED_CORNER | UNIT_DRAW_EDGE_SOFTNESS))
-//		{
-//			g_kaspf_reader->read_state = KASPF_READER_STREAM;
-//		}
-//
-//		const vec4 checkbox_background_color = { 0.1f, 0.1f, 0.1f, 1.0f };
-//		const vec4 checkbox_text_color = { 0.9f, 0.9f, 0.9f, 1.0f };
-//		BACKGROUND_COLOR(ui, checkbox_background_color)
-//		{
-//			TEXT_COLOR(ui, checkbox_text_color)
-//			{
-//				/* DRAWING OPTIONS CHECKBOXES */
-//				const vec2i32 checkbox_offset = { 0, 0 };
-//				const i32 bar_height = 24;
-//				const i32 checkbox_side = 20;
-//				const vec2i32 checkbox_size = { checkbox_side, checkbox_side };
-//
-//				const utf8 draw_online_id = KAS_COMPILE_TIME_STRING("draw_online");
-//				const vec2i32 box_online_pos = { g_prof_config->worker_bar_x_pad, -g_prof_config->title_bar_height + 32};
-//				const utf32 box_online_title = utf32_duplicate_cstr(mem_frame, "Draw worker online activity");
-//				const utf32 box_online_description = utf32_duplicate_cstr(mem_frame, "Draw the time intervals of when each worker is swapped in by the operating system scheduler.");
-//				ui_descriptive_checkbox_bar(mem_frame, ui, &draw_online_id, box_online_pos, bar_height, checkbox_offset, checkbox_size, &box_online_title, &box_online_description, 256, UNIT_DRAW_NONE, &g_prof_config->draw_worker_activity_online);
-//
-//			}
-//		}
-//
-//
-//		/* INTERVAL SCROLLER */
-//		const utf8 sc_bar_id = KAS_COMPILE_TIME_STRING("sc_bar");
-//		const vec2i32 sc_pos = { g_prof_config->worker_bar_x_pad, -g_prof_config->title_bar_height };
-//		const vec2i32 sc_bar_size = { ui->comm.window_size[0] - 2*g_prof_config->worker_bar_x_pad,  g_prof_config->scroll_bar_height };
-//		const f64 ns_per_scroll_pixel = (f64) ns_full / sc_bar_size[0];
-//		const vec2 sc_coverage = 
-//		{ 
-//			(f32) (ns_start - g_kas->header->l1_table.ns_start) / ns_full, 
-//			(f32) (ns_end - g_kas->header->l1_table.ns_start) / ns_full 
-//		};
-//		struct ui_unit *timeline_scroll = ui_scroll(mem_frame, ui, &sc_bar_id, sc_pos, sc_bar_size, sc_coverage, UNIT_DRAW_BACKGROUND | UNIT_DRAW_BORDER | UNIT_DRAW_ROUNDED_CORNER | UNIT_DRAW_EDGE_SOFTNESS);
-//		if (timeline_scroll)
-//		{
-//			const i64 ns_new_start = (i64) ns_start + ns_per_scroll_pixel * ui->comm.delta_pixel[0];
-//			//fprintf(stderr, "ns_start before: %li\n", ns_start);
-//			ns_start = (ns_new_start < 0) ? 0
-//			    	 : (ns_new_start + ns_interval > ns_full) ? ns_full - ns_interval : (u64) ns_new_start;
-//			ns_end = ns_start + ns_interval;
-//			//fprintf(stderr, "ns_start after:  %li\n", ns_start);
-//						  
-//			g_kaspf_reader->read_state = KASPF_READER_FIXED;
-//			kaspf_reader_process(mem_frame, ns_start, ns_end);
-//			//fprintf(stderr, "ns_start end:    %li\n", g_kaspf_reader->ns_start);
-//		}
-//		g_prof_config->timeline.time_end = ns_full;
-//		g_prof_config->timeline.interval_start = ns_start;
-//		g_prof_config->timeline.interval_end = ns_end;
-//		g_prof_config->timeline.title_column_width = 128;
-//		
-//		vec2i32_set(g_prof_config->timeline.timeline_size
-//				, ui->comm.window_size[0] - g_prof_config->worker_bar_x_pad - g_prof_config->worker_bar_title_length
-//				, 500);
-//
-//		const utf8 timeline_id = KAS_COMPILE_TIME_STRING("timeline");
-//		const vec2i32 timeline_position = 
-//		{ 
-//			0,
-//			-(g_prof_config->title_bar_height + g_prof_config->scroll_bar_height),
-//		};
-//	
-//		ui_timeline(mem_frame, ui, &timeline_id, timeline_position, &g_prof_config->timeline, UNIT_DRAW_BACKGROUND | UNIT_DRAW_BORDER | UNIT_DRAW_ROUNDED_CORNER | UNIT_DRAW_EDGE_SOFTNESS, UNIT_INTER_NONE, UNIT_INTER_DRAG | UNIT_INTER_SCROLL);
-//		
-//		
-//		u64 frame_task_id = 0;
-//		for (u32 wi = 0; wi < g_task_ctx->worker_count; ++wi)
-//		{
-//			struct timeline_row_config *row_config = g_prof_config->timeline_row + wi;
-//			KAS_TASK("gen worker ui units", T_UI);
-//			ui_timeline_row_create_and_push(mem_frame, ui, row_config, &g_prof_config->timeline);
-//			{
-//				struct hw_frame_header *fh = g_kaspf_reader->low;
-//				for (u64 fi = g_kaspf_reader->frame_low; fi <= g_kaspf_reader->frame_high; ++fi) 
-//				{
-//					struct hw_profile_header *hw_h = fh->hw_profile_h + wi;
-//					for (u64 pi = 0; pi < hw_h->profile_count; ++pi)
-//					{
-//						struct hw_profile *p  = hw_h->profiles + pi;
-//						f32 perc_x0 = (f32) ((i64) p->ns_start - (i64) ns_start) / ns_interval;
-//						f32 perc_x1 = perc_x0 + (f32) (p->ns_end - p->ns_start) / ns_interval;
-//
-//						perc_x0 = f32_max(0.0f, perc_x0);
-//						perc_x1 = f32_min(f32_max(perc_x0, perc_x1), 1.0f);
-//
-//						vec2i32 task_size =
-//						{
-//							(i32) ((perc_x1 - perc_x0) * (g_prof_config->timeline.timeline_size[0] - 2)),
-//							g_prof_config->task_height,
-//						};
-//						if (task_size[0] < 1) 
-//						{ 
-//							continue;
-//						}
-//						
-//						const vec2i32 task_pos =
-//						{
-//							1 + (i32) (perc_x0 * (g_prof_config->timeline.timeline_size[0]-1)),
-//							-1 - g_prof_config->task_height * p->depth, 
-//						};
-//
-//						const vec2i32 baseline =
-//						{
-//							2 + (i32) (perc_x0 * (g_prof_config->timeline.timeline_size[0]-1)),
-//							task_pos[1]-task_size[1] - ui_unit_font(ui, g_prof_config->timeline_row[wi].ui_timeline)->descent
-//						};
-//						
-//						u8 *task_buf = arena_push(mem_frame, BUFSIZE);
-//						u8 *task_text_buf = arena_push(mem_frame, BUFSIZE);
-//						const u64 u = frame_task_id++;
-//						const utf8 task_id = utf8_format_buffered(task_buf, BUFSIZE, "t%lu_%lu", fi, u);
-//						const utf8 task_text_id = utf8_format_buffered(task_buf, BUFSIZE, "tt%lu_%lu", fi, u);
-//							
-//						struct kaspf_task_info *info = g_kaspf_reader->task_info + p->task_id;
-//						if (!info->initiated)
-//						{
-//							info->initiated = 1;
-//							info->system = g_kas->header->mm_task_systems[p->task_id];
-//							info->id = kas_utf32_duplicate_cstr_buffered(info->buf, KASPF_LABEL_BUFSIZE, (const char *) g_kas->header->mm_labels[p->task_id]);
-//						}
-//
-//						const vec4 prof_text = { 0.0f, 0.0f, 0.0f, 0.8f };
-//						const vec4 border_blend_color = { 0.0f, 0.0f, 0.0f, 1.0f };
-//						vec4 border_color;
-//						vec4_interpolate(border_color, border_blend_color, g_prof_config->system_colors[info->system], 0.225f);
-//
-//						BORDER_SIZE(ui, 1)
-//						{
-//						TEXT_COLOR(ui, prof_text)
-//						{
-//						BACKGROUND_COLOR(ui, g_prof_config->system_colors[info->system])
-//						{
-//						BORDER_COLOR(ui, border_color)
-//						{
-//
-//							/* full visibility */
-//							if (-task_pos[1] + task_size[1] < row_config->height)
-//							{
-//								ui_area(ui, &task_id, task_pos, task_size, UNIT_DRAW_BACKGROUND | UNIT_DRAW_BORDER | UNIT_DRAW_ROUNDED_CORNER, UNIT_INTER_NONE, UNIT_INTER_NONE);
-//								const i32 low_pixel = (i32) task_pos[0];
-//								const i32 high_pixel = (i32) task_pos[0] + task_size[0] - 1;
-//								ui_text_line_bounded(ui, &task_text_id, baseline, high_pixel-low_pixel, &info->id, 0);
-//							}
-//							/* partial visibility, save 2 pixels for task bar border */
-//							else if (-task_pos[1] < row_config->height - 2)
-//							{
-//
-//								task_size[1] = row_config->height - 2 + task_pos[1];
-//								ui_area(ui, &task_id, task_pos, task_size, UNIT_DRAW_BACKGROUND | UNIT_DRAW_BORDER | UNIT_DRAW_ROUNDED_CORNER, UNIT_INTER_NONE, UNIT_INTER_NONE);
-//								const i32 low_pixel = (i32) task_pos[0];
-//								const i32 high_pixel = (i32) task_pos[0] + task_size[0] - 1;
-//								ui_text_line_bounded(ui, &task_text_id, baseline, high_pixel-low_pixel, &info->id, 0);
-//							}
-//						}
-//						}
-//						}
-//						}
-//					}
-//
-//					if (g_prof_config->draw_worker_activity_online)
-//					{
-//						const utf8 worker_activity_bar_id = utf8_format(mem_frame, "worker_activity_bar%lu_%lu", wi, fi);
-//						const vec2i32 dummy_size = { 1, 1 };
-//						struct ui_unit *worker_activity_bar = ui_area(ui, &worker_activity_bar_id, zero2i32, dummy_size, UNIT_DRAW_NONE, UNIT_INTER_NONE, UNIT_INTER_NONE);
-//						worker_activity_bar->size.size_type[0] = UNIT_SIZE_PERC_OF_PARENT;
-//						worker_activity_bar->size.size_type[1] = UNIT_SIZE_PERC_OF_PARENT;
-//						worker_activity_bar->size.size[0] = 1.0f;
-//						worker_activity_bar->size.size[1] = 1.0f;
-//						ui_unit_push(ui, worker_activity_bar);
-//						{
-//							for (u64 activity = 0; activity < hw_h->activity_count; ++activity)
-//							{
-//								struct worker_activity *wa = hw_h->activity + activity;
-//
-//								f32 perc_x0 = (f32) ((i64) wa->ns_start - (i64) ns_start) / ns_interval;
-//								f32 perc_x1 = perc_x0 + (f32) (wa->ns_end - wa->ns_start) / ns_interval;
-//								perc_x0 = f32_max(0.0f, perc_x0);
-//								perc_x1 = f32_min(f32_max(perc_x0, perc_x1), 1.0f);
-//								const vec2i32 worker_activity_position =
-//								{
-//									(i32) 1 + llroundf(perc_x0 * (g_prof_config->timeline.timeline_size[0] - 2)),
-//									0,
-//								};
-//								const vec2i32 worker_activity_size =
-//								{
-//									(i32) llroundf((perc_x1 - perc_x0) * (g_prof_config->timeline.timeline_size[0] - 2)),
-//									row_config->height - 4,
-//								};
-//
-//								const vec4 worker_activity_color = { 0.0f, 0.7f, 0.4f, 0.3f };
-//								const i32 low_pixel = (i32) worker_activity_position[0];
-//								const i32 high_pixel = (i32) worker_activity_position[0] + worker_activity_size[0] - 1;
-//								BACKGROUND_COLOR(ui, worker_activity_color)
-//								{
-//
-//									if (worker_activity_size[0] && (high_pixel - low_pixel > 1))
-//									{
-//										const utf8 worker_activity_id = utf8_format(mem_frame, "ac%lu_%lu_%lu", wi, fi, activity);
-//										ui_area(ui, &worker_activity_id, worker_activity_position, worker_activity_size, UNIT_DRAW_BACKGROUND, UNIT_INTER_NONE, UNIT_INTER_NONE);
-//									}
-//								}
-//
-//							}
-//						}
-//						ui_unit_pop(ui);
-//					}
-//					fh = fh->next;
-//				}
-//			}
-//			ui_timeline_row_pop(ui);
-//			KAS_END;
-//		}
-//
-//		//TODO can we skip inheritance completely using a hot stack? we can simply check whatever
-//		// trait we want to act on immediately here...
-//		//TODO We only want to activate something once, so should setup checks?
-//		if (ui_unit_is_in_hot_path(ui, &g_prof_config->timeline.timeline_column_id))
-//		{
-//			if (ui->comm.interactions & UNIT_INTER_DRAG)
-//			{
-//				const f64 ns_per_window_pixel = (f64) (f64) (g_prof_config->timeline.interval_end - g_prof_config->timeline.interval_start) / g_prof_config->timeline.timeline_size[0];
-//				const i64 ns_new_start = (i64) ns_start - ns_per_window_pixel * ui->comm.delta_pixel[0];
-//				//fprintf(stderr, "ns_start before: %li\n", ns_start);
-//				ns_start = (ns_new_start < 0) ? 0
-//				    	 : (ns_new_start + ns_interval > ns_full) ? ns_full - ns_interval : (u64) ns_new_start;
-//				ns_end = ns_start + ns_interval;
-//				//fprintf(stderr, "ns_start after:  %li\n", ns_start);
-//							  
-//				g_kaspf_reader->read_state = KASPF_READER_FIXED;
-//				kaspf_reader_process(mem_frame, ns_start, ns_end);
-//				//fprintf(stderr, "ns_start end:    %li\n", g_kaspf_reader->ns_start);
-//			}
-//			else if (ui->comm.interactions & UNIT_INTER_SCROLL)
-//			{
-//				
-//				const f64 scroll_perc = ((i64) ui->comm.scroll_up_count - (i64) ui->comm.scroll_down_count) * 0.125;
-//				kas_assert(scroll_perc < 0.5);
-//				ns_start += (u64) (scroll_perc * ns_interval);
-//				ns_end   -= (u64) (scroll_perc * ns_interval);
-//				ns_interval = ns_end - ns_start;
-//
-//				if (ns_interval > ns_full)
-//				{
-//					ns_interval = ns_full;
-//					ns_start = 0;
-//					ns_end = ns_full;
-//				}	
-//				else if (ns_end > ns_full)
-//				{
-//					ns_end = ns_full;
-//					ns_start = ns_full-ns_interval;
-//				}
-//				else if ((i64) ns_start < 0)
-//				{
-//					ns_start = 0;
-//					ns_end = ns_interval;
-//				}
-//
-//				kaspf_reader_process(mem_frame, ns_start, ns_end);
-//			}
-//		}
-//	}
-//	ui_unit_pop(ui);
-//
-//	}
-//	}
-//	}
-//}
-//#endif
-
 static void led_profiler_ui(struct led *led, const struct ui_visual *visual)
 {
 #if defined(KAS_PROFILER)
@@ -515,7 +198,7 @@ static void led_profiler_ui(struct led *led, const struct ui_visual *visual)
 
 	if (g_kaspf_reader->read_state == KASPF_READER_STREAM)
 	{	
-		const u64 ns_visible_size = NSEC_PER_SEC;
+		const u64 ns_visible_size = ((u64) 3)*NSEC_PER_SEC;
 		const u64 ns_visible_end = (g_kaspf_reader->interval_high[1] < ns_visible_size)
 			? ns_visible_size 
 			: g_kaspf_reader->interval_high[1];
@@ -557,28 +240,18 @@ static void led_profiler_ui(struct led *led, const struct ui_visual *visual)
 					for (u64 pi = 0; pi < hw_h->profile_count; ++pi)
 					{
 						struct hw_profile *p  = hw_h->profiles + pi;
-						struct kaspf_task_info *info = g_kaspf_reader->task_info + p->task_id;
-						if (!info->initiated)
-						{
-							//TODO Bad, we tie kaspf lifetime with window lifetime, need to fix  
-							info->initiated = 1;
-							info->system = g_kas->header->mm_task_systems[p->task_id];
-							info->id = utf32_cstr(&win->mem_persistent, (const char *) g_kas->header->mm_labels[p->task_id]);
-							struct asset_font *asset = stack_ptr_top(&win->ui->stack_font);
-							info->layout = utf32_text_layout(&win->mem_persistent, &info->id, F32_INFINITY, TAB_SIZE, asset->font);
-						}
-
 						const vec4 prof_text = { 0.0f, 0.0f, 0.0f, 0.8f };
 						const vec4 border_blend_color = { 0.0f, 0.0f, 0.0f, 1.0f };
 						vec4 border_color;
+
+						struct kaspf_task_info *info = g_kaspf_reader->task_info + p->task_id;
 						vec4_interpolate(border_color, border_blend_color, prof->system_colors[info->system], 0.525f);
 						ui_background_color(prof->system_colors[info->system])
 						ui_border_color(border_color)
 						ui_width(ui_size_unit(intv_inline(p->ns_start, p->ns_end)))
 						ui_height(ui_size_unit(intv_inline(p->depth, p->depth+1)))
-						ui_external_text(info->id)
-						ui_external_text_layout(info->layout)
-						ui_node_alloc_f(UI_DRAW_BACKGROUND | UI_DRAW_BORDER | UI_DRAW_GRADIENT | UI_DRAW_TEXT | UI_TEXT_EXTERNAL_LAYOUT | UI_DRAW_TEXT_FADE, "###t%u_%lu_%lu", wi, fi, pi);
+						ui_external_text_layout(info->layout, info->id)
+						p->ui_node_index = ui_node_alloc_cached(UI_DRAW_BACKGROUND | UI_DRAW_BORDER | UI_DRAW_GRADIENT | UI_DRAW_TEXT | UI_TEXT_EXTERNAL_LAYOUT | UI_DRAW_TEXT_FADE, p->id, p->id_hash, utf8_empty(), p->ui_node_index).index;
 					}
 
 					fh = fh->next;
@@ -591,7 +264,7 @@ static void led_profiler_ui(struct led *led, const struct ui_visual *visual)
 #endif
 }
 
-static void led_ui(struct led *led, const struct ui_visual *visual)
+static void led_ui_test(struct led *led, const struct ui_visual *visual)
 {
 	system_window_set_global(led->window);
 	cmd_queue_execute();
@@ -733,6 +406,78 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 	ui_frame_end();
 }
 
+static void led_ui(struct led *led, const struct ui_visual *visual)
+{
+	static u32 once = 1;
+	if (once)
+	{
+		once = 0;
+		for (u32 i = 0; i < 500; i++)
+		{
+			const utf8 id = utf8_format(&led->csg.frame, "brush_%u", i);
+			csg_brush_add(&led->csg, id);
+		}
+
+		led->brush_list = ui_list_init(AXIS_2_Y, 240.0f, 24.0f); 
+	}
+
+
+	system_window_set_global(led->window);
+	cmd_queue_execute();
+
+	struct system_window *win = system_window_address(led->window);
+	ui_frame_begin(win->size, visual);
+
+	ui_text_align_x(ALIGN_LEFT)
+	ui_text_align_y(ALIGN_BOTTOM)
+	ui_child_layout_axis(AXIS_2_Y)
+	ui_parent(ui_node_alloc_f(UI_DRAW_BACKGROUND | UI_DRAW_BORDER, "###window_%u", led->window).index)
+	ui_flags(UI_DRAW_ROUNDED_CORNERS | UI_TEXT_ALLOW_OVERFLOW)
+	{
+		ui_pad_fill();
+
+		ui_child_layout_axis(AXIS_2_X)
+		ui_height(ui_size_pixel(led->brush_list.axis_pixel_size, 1.0f))
+		ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BORDER).index)
+		{
+			ui_pad_fill();
+
+			ui_width(ui_size_pixel(500.0f, 1.0f))
+			ui_list(&led->brush_list, "###p", &led->brush_list)
+			/* TODO: dll instead of list so we can track alive and marked brushes */
+			/* skip showing default brush (b = 0) */
+			for (u32 b = 1; b < led->csg.brush_database.pool.count_max; ++b)
+			{
+				struct csg_brush *brush = pool_address(&led->csg.brush_database.pool, b);
+				if (POOL_SLOT_ALLOCATED(brush))
+				{
+					struct slot slot = ui_list_entry_alloc_cached(&led->brush_list, 
+							       	brush->id,
+							       	brush->id_hash, 
+								brush->id, 
+								brush->ui_index_cached);
+					brush->ui_index_cached = slot.index;
+
+					if (slot.address)
+					ui_parent(slot.index)
+					{
+						ui_pad(); 
+
+						ui_width(ui_size_text(F32_INFINITY, 1.0f))
+						ui_node_alloc_f(UI_DRAW_BORDER | UI_DRAW_TEXT, "%k##%u", &brush->id, b);
+					}
+				}
+			}
+
+			ui_pad_fill();
+		}
+
+		ui_pad_fill();
+	}
+
+	ui_frame_end();
+}
+
 void led_ui_main(struct led *led)
 {
 	KAS_TASK(__func__, T_UI);
@@ -757,6 +502,7 @@ void led_ui_main(struct led *led)
 
 	const struct ui_visual visual = ui_visual_init(bg, br, gr, sp, pad, edge_softness, corner_radius, border_size, FONT_DEFAULT_SMALL, ALIGN_X_CENTER, ALIGN_Y_CENTER, text_pad_x, text_pad_y);
 
+	//led_ui_test(led, &visual);
 	led_ui(led, &visual);
 
 	if (led->project_menu.window)
@@ -767,6 +513,10 @@ void led_ui_main(struct led *led)
 	if (led->profiler.window)
 	{
 		led_profiler_ui(led, &visual);
+	}
+	else
+	{
+		g_kaspf_reader->read_state = KASPF_READER_CLOSED;
 	}
 
 	KAS_END;

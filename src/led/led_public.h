@@ -84,6 +84,7 @@ struct led
 	u32			running;
 
 	struct csg 		csg;
+	struct ui_list 		brush_list;
 };
 
 /* Allocate initial led resources */

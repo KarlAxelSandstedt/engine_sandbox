@@ -1,3 +1,22 @@
+/*
+==========================================================================
+    Copyright (C) 2025 Axel Sandstedt 
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+==========================================================================
+*/
+
 #ifndef __KAS_CSG_H__
 #define __KAS_CSG_H__
 
@@ -44,6 +63,10 @@ struct csg_brush
 
 	LIST_SLOT_STATE;
 	STRING_DATABASE_SLOT_STATE;
+
+	/* ui caching neeeded for proper list interactions */
+	u32			id_hash;
+	u32			ui_index_cached;
 };
 
 /*
@@ -199,10 +222,11 @@ if (brush->flags & CSG_FLAG_DIRTY)
 	//Apply changes... 
 }
 
-This system should work fine for small structs like csg_brush and csg_instance and in scenarios 
-where we won't be applying deltas to often; ui code and such. We must make sure to not mix 
-csg state change; partially modifying structures themselves, partially creating deltas of them.
-One reasonable way of viewing state ownership is:
+This system should work fine for small structs like csg_brush and 
+csg_instance and in scenarios where we won't be applying deltas to often;
+ui code and such. We must make sure to not mix csg state change; partially
+modifying structures themselves, partially creating deltas of them.  One
+reasonable way of viewing state ownership is:
 
 --------------------------------------------
 \\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\

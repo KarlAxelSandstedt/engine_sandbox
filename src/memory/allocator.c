@@ -122,7 +122,6 @@ struct arena arena_alloc_1MB(void)
 	};
 
 	ar.stack_ptr = thread_alloc_1MB();
-
 	if (ar.stack_ptr)
 	{
 		ar.mem_size = 1024*1024;
@@ -357,6 +356,8 @@ void *thread_block_alloc(struct thread_block_allocator *allocator)
 
 	u64 a_next = atomic_load_acq_64(&allocator->a_next);
 	while ((ret = thread_block_try_alloc(&addr, &a_next, allocator)) == ALLOCATOR_FAILURE);
+
+	kas_assert(ret != ALLOCATOR_OUT_OF_MEMORY);
 
 	return (ret != ALLOCATOR_OUT_OF_MEMORY) 
 		? addr 

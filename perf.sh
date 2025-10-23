@@ -10,11 +10,13 @@ else
 	CMAKE_GENERATOR="Unix Makefiles"
 fi
 
-cmake -S . -B build -Dapply_optimization_options=ON -G $CMAKE_GENERATOR
+#cmake -S . -B build -Dapply_optimization_options=ON -G $CMAKE_GENERATOR
+cmake -S . -B build -Dkas_debug=ON  -DCMAKE_BUILD_TYPE=Debug -G $CMAKE_GENERATOR
 cd build
 cmake --build . --parallel
 ./engine_sandbox &
 sleep 1s
 ProcID=$(pidof engine_sandbox)
-perf top -p ${ProcID} -e mmap:vma_store
+perf record -p ${ProcID} --call-graph dwarf
+perf report
 cd ..

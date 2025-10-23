@@ -61,7 +61,7 @@ void system_resources_init(struct arena *mem)
 #endif
 
 	/* 1GB */
-	const u32 count_256B = 1024*1024/256;
+	const u32 count_256B = 1024*1024*4;
 	/* 1GB */
 	const u32 count_1MB = 1024;
 

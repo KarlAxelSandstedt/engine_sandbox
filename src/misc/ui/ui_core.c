@@ -110,6 +110,26 @@ struct ui_visual ui_visual_init(const vec4 background_color
 	return visual;
 }
 
+struct ui_text_selection ui_text_selection_empty(void)
+{
+	struct ui_text_selection sel = { 0 };
+	return sel;
+}
+
+static utf32 text_stub = { 0 };
+
+struct text_edit_state text_edit_state_null(void)
+{
+	struct text_edit_state edit = 
+	{  
+		edit.id = utf8_empty(),
+		edit.text = &text_stub,	
+		edit.cursor = 0,
+		edit.mark = 0,
+	};
+	return edit;
+}
+
 const u32 key_zero_stub[KAS_KEY_COUNT] =  { 0 };
 
 struct ui *ui_alloc(void)
@@ -117,10 +137,10 @@ struct ui *ui_alloc(void)
 	kas_static_assert(sizeof(struct ui_size) == 16, "Expected size");
 
 	struct ui *ui = malloc(sizeof(struct ui));
-	ui->node_hierarchy = hierarchy_index_alloc(NULL, INITIAL_UNIT_COUNT, sizeof(struct ui_node), HI_GROWABLE);
-	ui->node_map = hash_map_alloc(NULL, INITIAL_HASH_COUNT, INITIAL_HASH_COUNT, HASH_GROWABLE);
-	ui->bucket_allocator = array_list_intrusive_alloc(NULL, 64, sizeof(struct ui_draw_bucket), ARRAY_LIST_GROWABLE);
-	ui->bucket_map = hash_map_alloc(NULL, 128, 128, HASH_GROWABLE);
+	ui->node_hierarchy = hierarchy_index_alloc(NULL, INITIAL_UNIT_COUNT, sizeof(struct ui_node), GROWABLE);
+	ui->node_map = hash_map_alloc(NULL, U16_MAX, U16_MAX, GROWABLE);
+	ui->bucket_allocator = array_list_intrusive_alloc(NULL, 64, sizeof(struct ui_draw_bucket), GROWABLE);
+	ui->bucket_map = hash_map_alloc(NULL, 128, 128, GROWABLE);
 	ui->frame = 0;
 	ui->root = HI_ROOT_STUB_INDEX;
 	ui->node_count_prev_frame = 0;
@@ -128,41 +148,41 @@ struct ui *ui_alloc(void)
 	ui->mem_frame_arr[0] = arena_alloc(64*1024*1024);
 	ui->mem_frame_arr[1] = arena_alloc(64*1024*1024);
 	ui->mem_frame = ui->mem_frame_arr + (ui->frame & 0x1);
-	ui->inter.text_edit.id = utf8_empty();
-	ui->stack_parent = stack_u32_alloc(NULL, 32, STACK_GROWABLE);
-	ui->stack_sprite = stack_u32_alloc(NULL, 32, STACK_GROWABLE);
-	ui->stack_font = stack_ptr_alloc(NULL, 8, STACK_GROWABLE);
-	ui->stack_flags = stack_u64_alloc(NULL, 16, STACK_GROWABLE);
-	ui->stack_recursive_interaction_flags = stack_u64_alloc(NULL, 16, STACK_GROWABLE);
-	ui->stack_recursive_interaction = stack_ptr_alloc(NULL, 16, STACK_GROWABLE);
-	ui->stack_external_text = stack_utf32_alloc(NULL, 8, STACK_GROWABLE);
-	ui->stack_external_text_layout = stack_ptr_alloc(NULL, 8, STACK_GROWABLE);
-	ui->stack_floating_node = stack_u32_alloc(NULL, 32, STACK_GROWABLE);
-	ui->stack_floating_depth = stack_u32_alloc(NULL, 32, STACK_GROWABLE);
-	ui->stack_floating[AXIS_2_X] = stack_f32_alloc(NULL, 16, STACK_GROWABLE);
-	ui->stack_floating[AXIS_2_Y] = stack_f32_alloc(NULL, 16, STACK_GROWABLE);
-	ui->stack_ui_size[AXIS_2_X] = stack_ui_size_alloc(NULL, 16, STACK_GROWABLE);
-	ui->stack_ui_size[AXIS_2_Y] = stack_ui_size_alloc(NULL, 16, STACK_GROWABLE);
-	ui->stack_gradient_color[BOX_CORNER_BR] = stack_vec4_alloc(NULL, 16, STACK_GROWABLE);
-	ui->stack_gradient_color[BOX_CORNER_TR] = stack_vec4_alloc(NULL, 16, STACK_GROWABLE);
-	ui->stack_gradient_color[BOX_CORNER_TL] = stack_vec4_alloc(NULL, 16, STACK_GROWABLE);
-	ui->stack_gradient_color[BOX_CORNER_BL] = stack_vec4_alloc(NULL, 16, STACK_GROWABLE);
-	ui->stack_viewable[AXIS_2_X] = stack_intv_alloc(NULL, 8, STACK_GROWABLE);
-	ui->stack_viewable[AXIS_2_Y] = stack_intv_alloc(NULL, 8, STACK_GROWABLE);
-	ui->stack_child_layout_axis = stack_u32_alloc(NULL, 16, STACK_GROWABLE);
-	ui->stack_background_color = stack_vec4_alloc(NULL, 16, STACK_GROWABLE);
-	ui->stack_border_color = stack_vec4_alloc(NULL, 16, STACK_GROWABLE);
-	ui->stack_sprite_color = stack_vec4_alloc(NULL, 16, STACK_GROWABLE);
-	ui->stack_edge_softness = stack_f32_alloc(NULL, 16, STACK_GROWABLE);
-	ui->stack_corner_radius = stack_f32_alloc(NULL, 16, STACK_GROWABLE);
-	ui->stack_border_size = stack_f32_alloc(NULL, 16, STACK_GROWABLE);
-	ui->stack_text_alignment_x = stack_u32_alloc(NULL, 8, STACK_GROWABLE);
-	ui->stack_text_alignment_y = stack_u32_alloc(NULL, 8, STACK_GROWABLE);
-	ui->stack_text_pad[AXIS_2_X] = stack_f32_alloc(NULL, 8, STACK_GROWABLE);
-	ui->stack_text_pad[AXIS_2_Y] = stack_f32_alloc(NULL, 8, STACK_GROWABLE);
-	ui->stack_fixed_depth = stack_u32_alloc(NULL, 16, STACK_GROWABLE);
-	ui->stack_pad = stack_f32_alloc(NULL, 8, STACK_GROWABLE);
-	ui->frame_stack_text_selection = stack_ui_text_selection_alloc(NULL, 128, STACK_GROWABLE);
+	ui->inter.text_edit = text_edit_state_null();
+	ui->stack_parent = stack_u32_alloc(NULL, 32, GROWABLE);
+	ui->stack_sprite = stack_u32_alloc(NULL, 32, GROWABLE);
+	ui->stack_font = stack_ptr_alloc(NULL, 8, GROWABLE);
+	ui->stack_flags = stack_u64_alloc(NULL, 16, GROWABLE);
+	ui->stack_recursive_interaction_flags = stack_u64_alloc(NULL, 16, GROWABLE);
+	ui->stack_recursive_interaction = stack_ptr_alloc(NULL, 16, GROWABLE);
+	ui->stack_external_text = stack_utf32_alloc(NULL, 8, GROWABLE);
+	ui->stack_external_text_layout = stack_ptr_alloc(NULL, 8, GROWABLE);
+	ui->stack_floating_node = stack_u32_alloc(NULL, 32, GROWABLE);
+	ui->stack_floating_depth = stack_u32_alloc(NULL, 32, GROWABLE);
+	ui->stack_floating[AXIS_2_X] = stack_f32_alloc(NULL, 16, GROWABLE);
+	ui->stack_floating[AXIS_2_Y] = stack_f32_alloc(NULL, 16, GROWABLE);
+	ui->stack_ui_size[AXIS_2_X] = stack_ui_size_alloc(NULL, 16, GROWABLE);
+	ui->stack_ui_size[AXIS_2_Y] = stack_ui_size_alloc(NULL, 16, GROWABLE);
+	ui->stack_gradient_color[BOX_CORNER_BR] = stack_vec4_alloc(NULL, 16, GROWABLE);
+	ui->stack_gradient_color[BOX_CORNER_TR] = stack_vec4_alloc(NULL, 16, GROWABLE);
+	ui->stack_gradient_color[BOX_CORNER_TL] = stack_vec4_alloc(NULL, 16, GROWABLE);
+	ui->stack_gradient_color[BOX_CORNER_BL] = stack_vec4_alloc(NULL, 16, GROWABLE);
+	ui->stack_viewable[AXIS_2_X] = stack_intv_alloc(NULL, 8, GROWABLE);
+	ui->stack_viewable[AXIS_2_Y] = stack_intv_alloc(NULL, 8, GROWABLE);
+	ui->stack_child_layout_axis = stack_u32_alloc(NULL, 16, GROWABLE);
+	ui->stack_background_color = stack_vec4_alloc(NULL, 16, GROWABLE);
+	ui->stack_border_color = stack_vec4_alloc(NULL, 16, GROWABLE);
+	ui->stack_sprite_color = stack_vec4_alloc(NULL, 16, GROWABLE);
+	ui->stack_edge_softness = stack_f32_alloc(NULL, 16, GROWABLE);
+	ui->stack_corner_radius = stack_f32_alloc(NULL, 16, GROWABLE);
+	ui->stack_border_size = stack_f32_alloc(NULL, 16, GROWABLE);
+	ui->stack_text_alignment_x = stack_u32_alloc(NULL, 8, GROWABLE);
+	ui->stack_text_alignment_y = stack_u32_alloc(NULL, 8, GROWABLE);
+	ui->stack_text_pad[AXIS_2_X] = stack_f32_alloc(NULL, 8, GROWABLE);
+	ui->stack_text_pad[AXIS_2_Y] = stack_f32_alloc(NULL, 8, GROWABLE);
+	ui->stack_fixed_depth = stack_u32_alloc(NULL, 16, GROWABLE);
+	ui->stack_pad = stack_f32_alloc(NULL, 8, GROWABLE);
+	ui->frame_stack_text_selection = stack_ui_text_selection_alloc(NULL, 128, GROWABLE);
 
 	ui->inter.node_hovered = utf8_empty();
 	ui->inter.inter_stub = malloc(sizeof(struct ui_inter_node));
@@ -762,7 +782,8 @@ static void ui_node_set_interactions(struct ui_inter_node **inter_local, struct 
 		(*inter_local)->clicked = node_clicked;
 		(*inter_local)->drag = node_dragged;
 		(*inter_local)->hovered = inter_local_prev->hovered;
-		(*inter_local)->active = node_active | (local_interaction_flags & UI_INTER_LEFT_CLICK)*node_clicked;
+		(*inter_local)->active = ((local_interaction_flags & UI_INTER_LEFT_CLICK)*node_clicked)
+				       | ((local_interaction_flags & UI_INTER_DRAG)*node_dragged);
 		
 		if ((*inter_local)->active)
 		{
@@ -1048,13 +1069,11 @@ void ui_frame_end(void)
 	struct hierarchy_index_node *node; 
 	for (u32 index = orphan->first; index != HI_NULL_INDEX;)
 	{
-		node = hierarchy_index_address(g_ui->node_hierarchy, index);
-		const u32 next = node->next;
+		struct ui_node *node = hierarchy_index_address(g_ui->node_hierarchy, index);
+		const u32 next = node->header.next;
 		hierarchy_index_apply_custom_free_and_remove(g_ui->mem_frame, g_ui->node_hierarchy, index, &ui_node_remove_hash, NULL);
 		index = next;
 	}
-	kas_assert(orphan->first == HI_NULL_INDEX && orphan->last == HI_NULL_INDEX);
-	kas_assert(orphan->next == HI_NULL_INDEX && orphan->prev == HI_NULL_INDEX);
 	hierarchy_index_adopt_node(g_ui->node_hierarchy, g_ui->root, HI_ORPHAN_STUB_INDEX);
 }
 
@@ -1272,6 +1291,223 @@ struct ui_node *ui_node_lookup(const utf8 *id)
 		: NULL;
 }
 
+struct slot ui_node_alloc_cached(const u64 flags, const utf8 id, const u32 id_hash, const utf8 text, const u32 index_cached)
+{
+	const u32 parent_index = stack_u32_top(&g_ui->stack_parent);
+	struct ui_node *parent = hierarchy_index_address(g_ui->node_hierarchy, parent_index);
+
+	/* Parent failed to alloc */
+	if (parent_index == HI_ORPHAN_STUB_INDEX)
+	{
+		return (struct slot) { .index = HI_ORPHAN_STUB_INDEX, .address = hierarchy_index_address(g_ui->node_hierarchy, HI_ORPHAN_STUB_INDEX) };
+	}
+
+	u64 implied_flags = stack_u64_top(&g_ui->stack_flags);
+
+
+	/* If not cached, index should be != STUB_INDEX */
+	struct ui_node *node = hierarchy_index_address(g_ui->node_hierarchy, index_cached);
+	struct ui_size size_x = stack_ui_size_top(g_ui->stack_ui_size + AXIS_2_X);
+	struct ui_size size_y = stack_ui_size_top(g_ui->stack_ui_size + AXIS_2_Y);
+
+	/* Cull any unit_sized nodes that are not visible except if they are being interacted with */
+	if (size_x.type == UI_SIZE_UNIT)
+	{
+		kas_assert(g_ui->stack_viewable[AXIS_2_X].next);
+		implied_flags |= UI_ALLOW_VIOLATION_X;
+
+		const intv visible = stack_intv_top(g_ui->stack_viewable + AXIS_2_X);
+		if ((size_x.intv.high < visible.low || size_x.intv.low > visible.high) && !node->inter_local->active)
+		{
+			return (struct slot) { .index = HI_ORPHAN_STUB_INDEX, .address = hierarchy_index_address(g_ui->node_hierarchy, HI_ORPHAN_STUB_INDEX) };
+		}
+	}
+
+	if (size_y.type == UI_SIZE_UNIT)
+	{
+		kas_assert(g_ui->stack_viewable[AXIS_2_Y].next);
+		implied_flags |= UI_ALLOW_VIOLATION_Y;
+		
+		const intv visible = stack_intv_top(g_ui->stack_viewable + AXIS_2_Y);
+		if ((size_y.intv.high < visible.low || size_y.intv.low > visible.high) && !node->inter_local->active)
+		{
+			return (struct slot) { .index = HI_ORPHAN_STUB_INDEX, .address = hierarchy_index_address(g_ui->node_hierarchy, HI_ORPHAN_STUB_INDEX) };
+		}
+	}
+
+	struct ui_inter_node *inter_local = g_ui->inter.inter_stub;
+	struct ui_inter_node *inter_recursive = g_ui->inter.inter_stub;
+ 
+	const u64 node_flags = flags | implied_flags | ((struct ui_inter_node *) stack_ptr_top(&g_ui->stack_recursive_interaction))->flags | UI_DEBUG_FLAGS;
+
+	const u32 depth = (g_ui->stack_fixed_depth.next)
+		? stack_u32_top(&g_ui->stack_fixed_depth)
+		: parent->depth + 1;
+
+	struct slot slot;
+	if (index_cached == UI_NON_CACHED_INDEX)
+	{
+		slot = hierarchy_index_add(g_ui->node_hierarchy, stack_u32_top(&g_ui->stack_parent));
+		node = slot.address;
+		hash_map_add(g_ui->node_map, id_hash, slot.index);
+	}
+	else
+	{
+		slot.address = node;
+		slot.index = index_cached;
+		hierarchy_index_adopt_node_exclusive(g_ui->node_hierarchy, slot.index, stack_u32_top(&g_ui->stack_parent));
+		ui_node_set_interactions(&inter_local, &inter_recursive, node, node_flags);
+	}
+	
+
+	g_ui->node_count_frame += 1;
+
+	node->id = id;
+	node->key = id_hash;
+	node->flags = node_flags;
+	node->last_frame_touched = g_ui->frame;
+	node->semantic_size[AXIS_2_X] = size_x;
+	node->semantic_size[AXIS_2_Y] = size_y;
+	node->child_layout_axis = stack_u32_top(&g_ui->stack_child_layout_axis);
+	node->depth = depth;
+	node->inter_local = inter_local;
+	node->inter_recursive = inter_recursive;
+
+	if (node->flags & UI_DRAW_SPRITE)
+	{
+		node->sprite = stack_u32_top(&g_ui->stack_sprite);
+		stack_vec4_top(node->sprite_color, &g_ui->stack_sprite_color);
+	}
+	else
+	{
+		node->sprite = SPRITE_NONE;
+	}
+	
+	if (node->flags & UI_DRAW_FLAGS)
+	{
+		const u32 draw_key = (node->flags & UI_INTER_FLAGS)
+			? UI_DRAW_COMMAND(node->depth, UI_CMD_LAYER_INTER, asset_database_sprite_get_texture_id(node->sprite))
+			: UI_DRAW_COMMAND(node->depth, UI_CMD_LAYER_VISUAL, asset_database_sprite_get_texture_id(node->sprite));
+		ui_draw_bucket_add_node(draw_key, slot.index);
+	}
+
+	if (node->flags & UI_DRAW_TEXT)
+	{
+		const struct asset_font *asset = stack_ptr_top(&g_ui->stack_font);
+		stack_vec4_top(node->sprite_color, &g_ui->stack_sprite_color);
+		node->flags |= UI_TEXT_ATTACHED;
+		node->font = asset->font;
+		node->text_align_x = stack_u32_top(&g_ui->stack_text_alignment_x);
+		node->text_align_y = stack_u32_top(&g_ui->stack_text_alignment_y);
+		node->text_pad[AXIS_2_X] = stack_f32_top(g_ui->stack_text_pad + AXIS_2_X);
+		node->text_pad[AXIS_2_Y] = stack_f32_top(g_ui->stack_text_pad + AXIS_2_Y);
+
+		if (node->flags & UI_TEXT_EXTERNAL_LAYOUT)
+		{
+			node->flags |= UI_TEXT_EXTERNAL | UI_TEXT_ALLOW_OVERFLOW;
+			node->text = stack_utf32_top(&g_ui->stack_external_text); 
+			node->layout_text = stack_ptr_top(&g_ui->stack_external_text_layout); 
+		}
+		else
+		{
+			node->text = (node->flags & UI_TEXT_EXTERNAL)
+				? stack_utf32_top(&g_ui->stack_external_text)
+				: utf32_utf8(g_ui->mem_frame, text);
+
+			/* TODO wonky, would be nice to have it in immediate calculations, but wonky there as well... */
+			if (node->semantic_size[AXIS_2_X].type == UI_SIZE_TEXT)
+			{
+				node->semantic_size[AXIS_2_X].line_width = (node->flags & UI_TEXT_ALLOW_OVERFLOW)
+					? F32_INFINITY
+					: node->semantic_size[AXIS_2_X].line_width;
+				node->layout_text = utf32_text_layout(g_ui->mem_frame, &node->text, node->semantic_size[AXIS_2_X].line_width, TAB_SIZE, node->font);
+			}
+			else
+			{
+				node->flags |= UI_TEXT_LAYOUT_POSTPONED;
+			}
+		}
+
+		/* visual first (10), inter second(01), text last(00) */
+		const u32 draw_key = UI_DRAW_COMMAND(node->depth, UI_CMD_LAYER_TEXT, asset->texture_id);
+		ui_draw_bucket_add_node(draw_key, slot.index);
+	}
+	else
+	{
+		node->text = utf32_empty();
+		vec4_set(node->sprite_color, 0.0f, 0.0f, 0.0f, 0.0f);
+		node->font = NULL;
+		node->layout_text = NULL;
+	}
+
+	/* set possible immediate sizes and positions */
+	ui_node_calculate_immediate_layout(node, AXIS_2_X);
+	ui_node_calculate_immediate_layout(node, AXIS_2_Y);
+
+	u32 floating = 0;
+	if (g_ui->stack_floating[AXIS_2_X].next)
+	{
+		floating = 1;
+		node->layout_position[AXIS_2_X] = stack_f32_top(g_ui->stack_floating + AXIS_2_X);
+		node->flags |= UI_FLOATING_X | UI_FIXED_X;
+	}	
+
+	if (g_ui->stack_floating[AXIS_2_Y].next)
+	{
+		floating = 1;
+		node->layout_position[AXIS_2_Y] = stack_f32_top(g_ui->stack_floating + AXIS_2_Y);
+		node->flags |= UI_FLOATING_Y | UI_FIXED_Y;
+	}
+
+	if (floating)
+	{
+		stack_u32_push(&g_ui->stack_floating_node, slot.index);
+		stack_u32_push(&g_ui->stack_floating_depth, node->depth);
+	}
+
+	(node->flags & UI_DRAW_BACKGROUND)
+		? stack_vec4_top(node->background_color, &g_ui->stack_background_color)
+		: vec4_set(node->background_color, 0.0f, 0.0f, 0.0f, 0.0f);
+
+	if (node->flags & UI_DRAW_BORDER)
+	{
+		node->border_size = stack_f32_top(&g_ui->stack_border_size);
+		stack_vec4_top(node->border_color, &g_ui->stack_border_color);
+	}
+	else
+	{
+		node->border_size = 0.0f;
+		vec4_set(node->border_color, 0.0f, 0.0f, 0.0f, 0.0f);
+	}
+
+	if (node->flags & UI_DRAW_GRADIENT)
+	{
+		stack_vec4_top(node->gradient_color[BOX_CORNER_BR], g_ui->stack_gradient_color + BOX_CORNER_BR);
+		stack_vec4_top(node->gradient_color[BOX_CORNER_TR], g_ui->stack_gradient_color + BOX_CORNER_TR);
+		stack_vec4_top(node->gradient_color[BOX_CORNER_TL], g_ui->stack_gradient_color + BOX_CORNER_TL);
+		stack_vec4_top(node->gradient_color[BOX_CORNER_BL], g_ui->stack_gradient_color + BOX_CORNER_BL);
+	}
+	else
+	{
+		vec4_set(node->gradient_color[BOX_CORNER_BR], 0.0f, 0.0f, 0.0f, 0.0f); 
+                vec4_set(node->gradient_color[BOX_CORNER_TR], 0.0f, 0.0f, 0.0f, 0.0f);
+                vec4_set(node->gradient_color[BOX_CORNER_TL], 0.0f, 0.0f, 0.0f, 0.0f);
+                vec4_set(node->gradient_color[BOX_CORNER_BL], 0.0f, 0.0f, 0.0f, 0.0f);
+	}
+
+	node->edge_softness = (node->flags & UI_DRAW_EDGE_SOFTNESS)
+		? stack_f32_top(&g_ui->stack_edge_softness)
+		: 0.0f;
+
+	node->corner_radius = (node->flags & UI_DRAW_ROUNDED_CORNERS)
+		? stack_f32_top(&g_ui->stack_corner_radius)
+		: 0.0f;
+	
+	kas_assert(node->semantic_size[AXIS_2_Y].type != UI_SIZE_TEXT || node->semantic_size[AXIS_2_X].type == UI_SIZE_TEXT);
+
+	return slot;
+}
+
 struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 {
 	u64 implied_flags = stack_u64_top(&g_ui->stack_flags);
@@ -1283,7 +1519,6 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 
 	if (parent_index == HI_ORPHAN_STUB_INDEX)
 	{
-		//utf8_debug_print(*formatted);
 		return (struct slot) { .index = HI_ORPHAN_STUB_INDEX, .address = hierarchy_index_address(g_ui->node_hierarchy, HI_ORPHAN_STUB_INDEX) };
 	}
 
@@ -1293,7 +1528,6 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 		implied_flags |= UI_ALLOW_VIOLATION_X;
 
 		const intv visible = stack_intv_top(g_ui->stack_viewable + AXIS_2_X);
-		//if (size_x.intv.high < visible.low || size_x.intv.low > visible.high || (size_x.intv.high - size_x.intv.low) < (visible.high - visible.low) / (2.0f * parent->layout_size[0]))
 		if (size_x.intv.high < visible.low || size_x.intv.low > visible.high)
 		{
 			return (struct slot) { .index = HI_ORPHAN_STUB_INDEX, .address = hierarchy_index_address(g_ui->node_hierarchy, HI_ORPHAN_STUB_INDEX) };
@@ -1306,7 +1540,6 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 		implied_flags |= UI_ALLOW_VIOLATION_Y;
 		
 		const intv visible = stack_intv_top(g_ui->stack_viewable + AXIS_2_Y);
-		//if (size_y.intv.high < visible.low || size_y.intv.low > visible.high || (size_y.intv.high - size_y.intv.low) < (visible.high - visible.low) / (2.0f * parent->layout_size[1]))
 		if (size_y.intv.high < visible.low || size_y.intv.low > visible.high)
 		{
 			return (struct slot) { .index = HI_ORPHAN_STUB_INDEX, .address = hierarchy_index_address(g_ui->node_hierarchy, HI_ORPHAN_STUB_INDEX) };
@@ -1936,14 +2169,16 @@ void ui_external_text_pop(void)
 	stack_utf32_pop(&g_ui->stack_external_text);
 }
 
-void ui_external_text_layout_push(struct text_layout *layout)
+void ui_external_text_layout_push(struct text_layout *layout, const utf32 text)
 {
 	stack_ptr_push(&g_ui->stack_external_text_layout, layout);
+	stack_utf32_push(&g_ui->stack_external_text, text);
 }
 
-void ui_external_text_layout_set(struct text_layout *layout)
+void ui_external_text_layout_set(struct text_layout *layout, const utf32 text)
 {
 	stack_ptr_set(&g_ui->stack_external_text_layout, layout);
+	stack_utf32_set(&g_ui->stack_external_text, text);
 }
 
 void ui_external_text_layout_pop(void)

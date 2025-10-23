@@ -588,7 +588,7 @@ void kas_new_frame()
 		{
 			KAS_TASK("kaspf_reader_process", T_PROFILER);
 			const u64 min_time = g_kas->header->l1_table.entries[0].ns_start;
-			if (g_kas->ns_frame_prev < NSEC_PER_SEC + min_time)
+			if (g_kas->ns_frame_prev < ((u64) 3)*NSEC_PER_SEC + min_time)
 			{
 				KASPF_READER_PROCESS(&g_kas->mem, min_time, g_kas->ns_frame_prev);
 			}

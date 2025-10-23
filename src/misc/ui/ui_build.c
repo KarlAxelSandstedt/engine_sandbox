@@ -92,6 +92,24 @@ struct slot ui_list_entry_alloc(struct ui_list *list)
 	return entry;
 }
 
+struct slot ui_list_entry_alloc_cached(struct ui_list *list, const utf8 id, const u32 id_hash, const utf8 text, const u32 index_cached)
+{
+	const intv intv_entry =
+	{
+		.low = list->entry_pixel_size * list->frame_count,
+		.high = list->entry_pixel_size * (list->frame_count + 1),
+	};
+
+	struct slot entry;
+	ui_size(list->axis, ui_size_unit(intv_entry))
+	ui_size(1-list->axis, ui_size_perc(1.0f))
+	ui_child_layout_axis(1-list->axis)
+	entry = ui_node_alloc_cached(UI_UNIT_POSITIVE_DOWN | UI_DRAW_BORDER, id, id_hash, text, index_cached);
+
+	list->frame_count += 1;
+	return entry;
+}
+
 //U+3bc == 01110 111100
 //	=> 1100 1110  1011 1100
 
@@ -429,10 +447,7 @@ void ui_text_input_mode_disable(void)
 	}
 
 	g_ui->inter.keyboard_text_input = 0;
-	g_ui->inter.text_edit.id = utf8_empty();
-	g_ui->inter.text_edit.text = &text_stub;
-	g_ui->inter.text_edit.cursor = 0;
-	g_ui->inter.text_edit.mark = 0;
+	g_ui->inter.text_edit = text_edit_state_null();
 }
 
 void ui_text_op(void)

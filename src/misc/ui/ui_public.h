@@ -102,9 +102,10 @@ struct ui_list
 
 #define ui_list(list, fmt, ...)		UI_SCOPE(ui_list_push(list, fmt,  __VA_ARGS__), ui_list_pop(list))
 
-struct ui_list 		ui_list_init(enum axis_2 axis, const f32 axis_pixel_size, const f32 entry_pixel_size);
-void			ui_list_push(struct ui_list *list, const char *format, ...);
-void			ui_list_pop(struct ui_list *list);
+struct ui_list 	ui_list_init(enum axis_2 axis, const f32 axis_pixel_size, const f32 entry_pixel_size);
+void		ui_list_push(struct ui_list *list, const char *format, ...);
+void		ui_list_pop(struct ui_list *list);
+struct slot 	ui_list_entry_alloc_cached(struct ui_list *list, const utf8 id, const u32 id_hash, const utf8 text, const u32 index_cached);
 struct slot 	ui_list_entry_alloc(struct ui_list *list);
 
 /***************************************** ui_timeline ******************************************/
@@ -305,6 +306,8 @@ typedef struct ui_text_selection
 } ui_text_selection;
 DECLARE_STACK(ui_text_selection);
 
+struct ui_text_selection ui_text_selection_empty(void);
+
 struct ui_draw_node
 {
 	struct ui_draw_node *	next;
@@ -353,6 +356,8 @@ struct text_edit_state
 	u32	cursor;		/* cursor position */
 	u32	mark;		/* marked position, selection area is the interval between cursor and mark  */
 };
+
+struct text_edit_state	text_edit_state_null(void);
 
 /* UI Interaction state, contains both persistent and frame state */
 struct ui_interaction
@@ -663,6 +668,10 @@ struct ui_node
 	f32		corner_radius;
 };
 
+#define UI_NON_CACHED_INDEX 	HI_ORPHAN_STUB_INDEX
+/* QUICKPATH: TODO  */
+struct slot 	ui_node_alloc_cached(const u64 flags, const utf8 id, const u32 id_hash, const utf8 text, const u32 index_cached);
+
 /* allocate new node, values are set according to stack values */
 struct slot	ui_node_alloc(const u64 flags, const utf8 *formatted);
 /* format input string and allocate new node, values are set according to stack values */
@@ -704,40 +713,40 @@ u32	ui_pad_fill(void);
 /*					 Push/Pop global state  					*/
 /********************************************************************************************************/
 
-#define ui_parent(parent)		UI_SCOPE(ui_node_push(parent), ui_node_pop())
-#define ui_size(axis, size)		UI_SCOPE(ui_size_push(axis, size), ui_size_pop(axis))
-#define ui_width(size)			UI_SCOPE(ui_width_push(size), ui_width_pop())
-#define ui_height(size)			UI_SCOPE(ui_height_push(size), ui_height_pop())
-#define ui_floating(axis, pixel)	UI_SCOPE(ui_floating_push(axis, pixel), ui_floating_pop(axis))
-#define ui_floating_x(pixel)		ui_floating(AXIS_2_X, pixel)
-#define ui_floating_y(pixel)		ui_floating(AXIS_2_Y, pixel)
-#define ui_child_layout_axis(axis)	UI_SCOPE(ui_child_layout_axis_push(axis), ui_child_layout_axis_pop(axis))
-#define ui_background_color(color)	UI_SCOPE(ui_background_color_push(color), ui_background_color_pop())
-#define ui_border_color(color)		UI_SCOPE(ui_border_color_push(color), ui_border_color_pop())
-#define ui_sprite_color(color)		UI_SCOPE(ui_sprite_color_push(color), ui_sprite_color_pop())
-#define ui_gradient_color_br(color)	UI_SCOPE(ui_gradient_color_push(BOX_CORNER_BR, color), ui_gradient_color_pop(BOX_CORNER_BR))
-#define ui_gradient_color_tr(color)	UI_SCOPE(ui_gradient_color_push(BOX_CORNER_TR, color), ui_gradient_color_pop(BOX_CORNER_TR))
-#define ui_gradient_color_tl(color)	UI_SCOPE(ui_gradient_color_push(BOX_CORNER_TL, color), ui_gradient_color_pop(BOX_CORNER_TL))
-#define ui_gradient_color_bl(color)	UI_SCOPE(ui_gradient_color_push(BOX_CORNER_BL, color), ui_gradient_color_pop(BOX_CORNER_BL))
-#define ui_edge_softness(val)		UI_SCOPE(ui_edge_softness_push(val), ui_edge_softness_pop())
-#define ui_corner_radius(val)		UI_SCOPE(ui_corner_radius_push(val), ui_corner_radius_pop())
-#define ui_border_size(val)		UI_SCOPE(ui_border_size_push(val), ui_border_size_pop())
-#define ui_font(font)			UI_SCOPE(ui_font_push(font), ui_font_pop())
-#define ui_sprite(sprite)		UI_SCOPE(ui_sprite_push(sprite), ui_sprite_pop())
-#define ui_sprite_color(color)		UI_SCOPE(ui_sprite_color_push(color), ui_sprite_color_pop())
-#define ui_intv_viewable(axis, inv)	UI_SCOPE(ui_intv_viewable_push(axis,(inv)), ui_intv_viewable_pop(axis))
-#define ui_intv_viewable_x(inv)		ui_intv_viewable(AXIS_2_X, (inv))
-#define ui_intv_viewable_y(inv)		ui_intv_viewable(AXIS_2_Y, (inv))
-#define ui_text_align_x(align)		UI_SCOPE(ui_text_align_x_push(align), ui_text_align_x_pop())
-#define ui_text_align_y(align)		UI_SCOPE(ui_text_align_y_push(align), ui_text_align_y_pop())
-#define ui_text_pad(axis, pad)		UI_SCOPE(ui_text_pad_push(axis, pad), ui_text_pad_pop(axis))
-#define ui_text_pad_x(pad)		ui_text_pad(AXIS_2_X, pad)
-#define ui_text_pad_y(pad)		ui_text_pad(AXIS_2_Y, pad)
-#define ui_flags(flags)			UI_SCOPE(ui_flags_push(flags), ui_flags_pop())
-#define ui_fixed_depth(depth)		UI_SCOPE(ui_fixed_depth_push(depth), ui_fixed_depth_pop())
-#define ui_recursive_interaction(flags) UI_SCOPE(ui_recursive_interaction_push(flags), ui_recursive_interaction_pop())
-#define ui_external_text(text)		UI_SCOPE(ui_external_text_push(text), ui_external_text_pop())
-#define ui_external_text_layout(layout)	UI_SCOPE(ui_external_text_layout_push(layout), ui_external_text_layout_pop())
+#define ui_parent(parent)			UI_SCOPE(ui_node_push(parent), ui_node_pop())
+#define ui_size(axis, size)			UI_SCOPE(ui_size_push(axis, size), ui_size_pop(axis))
+#define ui_width(size)				UI_SCOPE(ui_width_push(size), ui_width_pop())
+#define ui_height(size)				UI_SCOPE(ui_height_push(size), ui_height_pop())
+#define ui_floating(axis, pixel)		UI_SCOPE(ui_floating_push(axis, pixel), ui_floating_pop(axis))
+#define ui_floating_x(pixel)			ui_floating(AXIS_2_X, pixel)
+#define ui_floating_y(pixel)			ui_floating(AXIS_2_Y, pixel)
+#define ui_child_layout_axis(axis)		UI_SCOPE(ui_child_layout_axis_push(axis), ui_child_layout_axis_pop(axis))
+#define ui_background_color(color)		UI_SCOPE(ui_background_color_push(color), ui_background_color_pop())
+#define ui_border_color(color)			UI_SCOPE(ui_border_color_push(color), ui_border_color_pop())
+#define ui_sprite_color(color)			UI_SCOPE(ui_sprite_color_push(color), ui_sprite_color_pop())
+#define ui_gradient_color_br(color)		UI_SCOPE(ui_gradient_color_push(BOX_CORNER_BR, color), ui_gradient_color_pop(BOX_CORNER_BR))
+#define ui_gradient_color_tr(color)		UI_SCOPE(ui_gradient_color_push(BOX_CORNER_TR, color), ui_gradient_color_pop(BOX_CORNER_TR))
+#define ui_gradient_color_tl(color)		UI_SCOPE(ui_gradient_color_push(BOX_CORNER_TL, color), ui_gradient_color_pop(BOX_CORNER_TL))
+#define ui_gradient_color_bl(color)		UI_SCOPE(ui_gradient_color_push(BOX_CORNER_BL, color), ui_gradient_color_pop(BOX_CORNER_BL))
+#define ui_edge_softness(val)			UI_SCOPE(ui_edge_softness_push(val), ui_edge_softness_pop())
+#define ui_corner_radius(val)			UI_SCOPE(ui_corner_radius_push(val), ui_corner_radius_pop())
+#define ui_border_size(val)			UI_SCOPE(ui_border_size_push(val), ui_border_size_pop())
+#define ui_font(font)				UI_SCOPE(ui_font_push(font), ui_font_pop())
+#define ui_sprite(sprite)			UI_SCOPE(ui_sprite_push(sprite), ui_sprite_pop())
+#define ui_sprite_color(color)			UI_SCOPE(ui_sprite_color_push(color), ui_sprite_color_pop())
+#define ui_intv_viewable(axis, inv)		UI_SCOPE(ui_intv_viewable_push(axis,(inv)), ui_intv_viewable_pop(axis))
+#define ui_intv_viewable_x(inv)			ui_intv_viewable(AXIS_2_X, (inv))
+#define ui_intv_viewable_y(inv)			ui_intv_viewable(AXIS_2_Y, (inv))
+#define ui_text_align_x(align)			UI_SCOPE(ui_text_align_x_push(align), ui_text_align_x_pop())
+#define ui_text_align_y(align)			UI_SCOPE(ui_text_align_y_push(align), ui_text_align_y_pop())
+#define ui_text_pad(axis, pad)			UI_SCOPE(ui_text_pad_push(axis, pad), ui_text_pad_pop(axis))
+#define ui_text_pad_x(pad)			ui_text_pad(AXIS_2_X, pad)
+#define ui_text_pad_y(pad)			ui_text_pad(AXIS_2_Y, pad)
+#define ui_flags(flags)				UI_SCOPE(ui_flags_push(flags), ui_flags_pop())
+#define ui_fixed_depth(depth)			UI_SCOPE(ui_fixed_depth_push(depth), ui_fixed_depth_pop())
+#define ui_recursive_interaction(flags) 	UI_SCOPE(ui_recursive_interaction_push(flags), ui_recursive_interaction_pop())
+#define ui_external_text(text)			UI_SCOPE(ui_external_text_push(text), ui_external_text_pop())
+#define ui_external_text_layout(layout, text)	UI_SCOPE(ui_external_text_layout_push(layout, text), ui_external_text_layout_pop())
 
 void 	ui_size_push(const enum axis_2 axis, const struct ui_size size);
 void 	ui_size_set(const enum axis_2 axis, const struct ui_size size);
@@ -835,8 +844,8 @@ void	ui_external_text_push(const utf32 text);
 void	ui_external_text_set(const utf32 text);
 void	ui_external_text_pop();
 
-void	ui_external_text_layout_push(struct text_layout *text_layout);
-void	ui_external_text_layout_set(struct text_layout *text_layout);
+void	ui_external_text_layout_push(struct text_layout *text_layout, const utf32 text);
+void	ui_external_text_layout_set(struct text_layout *text_layout, const utf32 text);
 void	ui_external_text_layout_pop();
 
 /********************************************************************************************************/
