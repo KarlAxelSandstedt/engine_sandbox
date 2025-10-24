@@ -409,6 +409,10 @@ static void led_ui_test(struct led *led, const struct ui_visual *visual)
 static void led_ui(struct led *led, const struct ui_visual *visual)
 {
 	system_window_set_global(led->window);
+	cmd_queue_execute();
+
+	struct system_window *win = system_window_address(led->window);
+	ui_frame_begin(win->size, visual);
 
 	static u32 count = 0;
 	u32 once = 1;
@@ -417,17 +421,12 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 		once = 0;
 		for (; count < 50; count++)
 		{
-			const utf8 id = utf8_format(&led->frame, "node_%u", count);
-			cmd_submit_f(&led->frame, "led_node_add \"%k\"", &id);
+			const utf8 id = utf8_format(g_ui->mem_frame, "node_%u", count);
+			cmd_submit_f(g_ui->mem_frame, "led_node_add \"%k\"", &id);
 		}
 
 		led->node_list = ui_list_init(AXIS_2_Y, 256.0f, 24.0f); 
 	}
-
-	cmd_queue_execute();
-
-	struct system_window *win = system_window_address(led->window);
-	ui_frame_begin(win->size, visual);
 
 	ui_text_align_x(ALIGN_LEFT)
 	ui_text_align_y(ALIGN_BOTTOM)
@@ -463,8 +462,8 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 
 				if (inter->clicked)
 				{
-					const utf8 id = utf8_format(&led->frame, "node_%u", count++);
-					cmd_submit_f(&led->frame, "led_node_add \"%k\"", &id);
+					const utf8 id = utf8_format(g_ui->mem_frame, "node_%u", count++);
+					cmd_submit_f(g_ui->mem_frame, "led_node_add \"%k\"", &id);
 				}
 			}
 		}

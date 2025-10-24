@@ -68,7 +68,7 @@ typedef struct				\
 	u32	growable;		\
 	type *	arr;			\
 					\
-	/*ALLOCATOR_DEBUG_INDEX_STRUCT*/	\
+	/*ALLOCATOR_DEBUG_INDEX_STRUCT*/\
 } stack_ ## type
 
 #define DECLARE_STACK_ALLOC(type)	stack_ ## type stack_ ## type ## _alloc(struct arena *arena, const u32 length, const u32 growable)
@@ -77,6 +77,7 @@ typedef struct				\
 #define DECLARE_STACK_SET(type)		void stack_ ## type ## _set(stack_ ## type *stack, const type val)
 #define DECLARE_STACK_POP(type)		type stack_ ## type ## _pop(stack_ ## type *stack)
 #define DECLARE_STACK_TOP(type)		type stack_ ## type ## _top(stack_ ## type *stack)
+#define DECLARE_STACK_FLUSH(type)	void stack_ ## type ## _flush(stack_ ## type *stack)
 
 #define DECLARE_STACK(type)		\
 	DECLARE_STACK_STRUCT(type);	\
@@ -85,6 +86,7 @@ typedef struct				\
 	DECLARE_STACK_POP(type);	\
 	DECLARE_STACK_TOP(type);	\
 	DECLARE_STACK_SET(type);	\
+	DECLARE_STACK_FLUSH(type);	\
 	DECLARE_STACK_FREE(type)
 
 #define DEFINE_STACK_ALLOC(type)									\
@@ -159,6 +161,12 @@ DECLARE_STACK_POP(type)						\
 	return val;						\
 }
 
+#define DEFINE_STACK_FLUSH(type)				\
+DECLARE_STACK_FLUSH(type)					\
+{								\
+	stack->next = 0;					\
+}
+
 #define DEFINE_STACK_TOP(type)			\
 DECLARE_STACK_TOP(type)				\
 {						\
@@ -172,6 +180,7 @@ DECLARE_STACK_TOP(type)				\
 	DEFINE_STACK_POP(type)		\
 	DEFINE_STACK_TOP(type)		\
 	DEFINE_STACK_SET(type)		\
+	DEFINE_STACK_FLUSH(type)	\
 	DEFINE_STACK_FREE(type)
 
 #define DECLARE_STACK_VEC_STRUCT(vectype)\
@@ -190,6 +199,7 @@ typedef struct				\
 #define DECLARE_STACK_VEC_PUSH(vectype)		void stack_ ## vectype ## _push(stack_ ## vectype *stack, const vectype val)
 #define DECLARE_STACK_VEC_SET(vectype)		void stack_ ## vectype ## _set(stack_ ## vectype *stack, const vectype val)
 #define DECLARE_STACK_VEC_POP(vectype)		void stack_ ## vectype ## _pop(stack_ ## vectype *stack)
+#define DECLARE_STACK_VEC_FLUSH(vectype)	void stack_ ## vectype ## _flush(stack_ ## vectype *stack)
 #define DECLARE_STACK_VEC_TOP(vectype)		void stack_ ## vectype ## _top(vectype ret_val, stack_ ## vectype *stack)
 
 #define DECLARE_STACK_VEC(vectype)		\
@@ -199,6 +209,7 @@ typedef struct				\
 	DECLARE_STACK_VEC_POP(vectype);		\
 	DECLARE_STACK_VEC_TOP(vectype);		\
 	DECLARE_STACK_VEC_SET(vectype);		\
+	DECLARE_STACK_VEC_FLUSH(vectype);	\
 	DECLARE_STACK_VEC_FREE(vectype)
 
 #define DEFINE_STACK_VEC_ALLOC(vectype)									\
@@ -271,6 +282,12 @@ DECLARE_STACK_VEC_POP(vectype)					\
 	/*ALLOCATOR_DEBUG_INDEX_POISON(stack, stack->next);*/	\
 }
 
+#define DEFINE_STACK_VEC_FLUSH(vectype)				\
+DECLARE_STACK_VEC_FLUSH(vectype)				\
+{								\
+	stack->next = 0;					\
+}
+
 #define DEFINE_STACK_VEC_TOP(vectype)				\
 DECLARE_STACK_VEC_TOP(vectype)					\
 {								\
@@ -284,6 +301,7 @@ DECLARE_STACK_VEC_TOP(vectype)					\
 	DEFINE_STACK_VEC_POP(vectype)		\
 	DEFINE_STACK_VEC_TOP(vectype)		\
 	DEFINE_STACK_VEC_SET(vectype)		\
+	DEFINE_STACK_VEC_FLUSH(vectype)		\
 	DEFINE_STACK_VEC_FREE(vectype)
 
 typedef void * ptr;

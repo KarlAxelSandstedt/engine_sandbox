@@ -844,7 +844,7 @@ void ui_frame_begin(const vec2u32 window_size, const struct ui_visual *base)
 	struct ui_node *root = hierarchy_index_address(g_ui->node_hierarchy, g_ui->root);
 	root->pixel_visible[AXIS_2_X] = intv_inline(0.0f, (f32) window_size[0]);
 	root->pixel_visible[AXIS_2_Y] = intv_inline(0.0f, (f32) window_size[1]);
-
+	
 	ui_node_push(g_ui->root);
 }
 
@@ -981,6 +981,9 @@ void ui_frame_end(void)
 	ui_solve_violations();
 	ui_layout_absolute_position();
 	ui_identify_hovered_node();
+
+	stack_u32_flush(&g_ui->stack_floating_node);
+	stack_u32_flush(&g_ui->stack_floating_depth);
 
 	for (u32 i = 0; i < KAS_KEY_COUNT; ++i)
 	{

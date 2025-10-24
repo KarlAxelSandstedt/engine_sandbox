@@ -69,6 +69,7 @@ void ui_list_pop(struct ui_list *list)
 
 	if (list->frame_node_address->inter->drag)
 	{
+		UNPOISON_ADDRESS(g_ui->inter.cursor_delta, sizeof(vec2));
 		if (list->axis == AXIS_2_X)
 		{
 			list->visible.low -= g_ui->inter.cursor_delta[0];
@@ -79,6 +80,7 @@ void ui_list_pop(struct ui_list *list)
 			list->visible.low += g_ui->inter.cursor_delta[1];
 			list->visible.high += g_ui->inter.cursor_delta[1];
 		}
+		POISON_ADDRESS(g_ui->inter.cursor_delta, sizeof(vec2));
 	}
 	else if (list->frame_node_address->inter->scrolled)
 	{
