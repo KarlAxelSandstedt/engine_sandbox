@@ -67,7 +67,7 @@ void ui_list_pop(struct ui_list *list)
 	ui_intv_viewable_pop(list->axis);
 	ui_node_pop();
 
-	if (list->frame_node_address->inter_recursive->drag)
+	if (list->frame_node_address->inter->drag)
 	{
 		if (list->axis == AXIS_2_X)
 		{
@@ -358,7 +358,7 @@ void timeline_drag(void)
 void ui_timeline_row_pop(struct timeline_config *config)
 {
 	struct timeline_row_config *row_config = config->row + config->row_pushed;
-	if (ui_node_top()->inter_recursive->drag)
+	if (ui_node_top()->inter->drag)
 	{
 		if (!g_ui->inter.key_pressed[KAS_CTRL])
 		{
@@ -392,7 +392,7 @@ void ui_timeline_row_pop(struct timeline_config *config)
 		ui_background_color(config->draggable_color)
 		ui_width(ui_size_perc(1.0f - config->perc_width_row_title_column))
 		drag_node = ui_node_alloc_f(UI_DRAW_BACKGROUND | UI_DRAW_BORDER | UI_DRAW_ROUNDED_CORNERS | UI_INTER_DRAG, "drag_area_%u", config->row_pushed).address;
-		if (drag_node->inter_local->drag)
+		if (drag_node->inter->drag)
 		{
 			row_config->height -= (g_ui->inter.cursor_delta[1] <= row_config->height)
 				? g_ui->inter.cursor_delta[1]
@@ -414,7 +414,7 @@ struct ui_inter_node *ui_button_f(const char *fmt, ...)
 	va_end(args);
 
 	struct ui_node *button = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_DRAW_BORDER | UI_DRAW_BACKGROUND | UI_DRAW_GRADIENT | UI_DRAW_ROUNDED_CORNERS | UI_DRAW_TEXT, &id).address;
-	return button->inter_local;
+	return button->inter;
 }
 
 void ui_text_input_mode_enable(void)
@@ -451,7 +451,7 @@ void ui_text_input_mode_disable(void)
 	struct ui_node *node = ui_node_lookup(&g_ui->inter.text_edit.id);
 	if (node)
 	{
-		node->inter_local->active = 0;
+		node->inter->active = 0;
 	}
 
 	g_ui->inter.keyboard_text_input = 0;
@@ -689,7 +689,7 @@ struct ui_node *ui_input_line(const utf32 external_text, const utf8 id)
 
 	ui_external_text(external_text)
 	line = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW | UI_TEXT_EXTERNAL, &id).address;
-	if (line->inter_local->active)
+	if (line->inter->active)
 	{
 		line->background_color[0] += 0.03125f;
 		line->background_color[1] += 0.03125f;
@@ -723,12 +723,12 @@ void ui_cmd_console(struct cmd_console *console, const char *fmt, ...)
 	ui_flags(UI_DRAW_BACKGROUND | UI_DRAW_BORDER | UI_DRAW_ROUNDED_CORNERS)
 	line = ui_input_line(console->prompt.text, id);
 
-	if (line->inter_local->clicked)
+	if (line->inter->clicked)
 	{
 		cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_enable \"%k\" %p", &line->id, &console->prompt);
 	}
 
-	if (line->inter_local->active && line->inter_local->key_clicked[KAS_ENTER])
+	if (line->inter->active && line->inter->key_clicked[KAS_ENTER])
 	{
 		cmd_submit_utf8(utf8_utf32(g_ui->mem_frame, console->prompt.text));
 		cmd_submit_f(g_ui->mem_frame, "ui_text_edit_clear \"%k\"", &line->id);
@@ -788,12 +788,12 @@ void ui_popup_build(void)
 					ui_text_align_x(ALIGN_LEFT)
 					line = ui_input_line_f(popup->prompt->text, "###popup_input_%u", popup->window);
 						
-					if (line->inter_local->clicked)
+					if (line->inter->clicked)
 					{
 						cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_enable \"%k\" %p", &line->id, popup->prompt);
 					}
 
-					if (line->inter_local->active && line->inter_local->key_clicked[KAS_ENTER] && popup->state != UI_POPUP_STATE_PENDING_VERIFICATION)
+					if (line->inter->active && line->inter->key_clicked[KAS_ENTER] && popup->state != UI_POPUP_STATE_PENDING_VERIFICATION)
 					{
 						cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_disable");
 						*popup->input = utf8_utf32_buffered(popup->input->buf, popup->input->size, popup->prompt->text);

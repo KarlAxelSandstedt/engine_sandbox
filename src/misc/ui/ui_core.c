@@ -188,6 +188,8 @@ struct ui *ui_alloc(void)
 	ui->inter.inter_stub = malloc(sizeof(struct ui_inter_node));
 	memset(ui->inter.inter_stub, 0, sizeof(struct ui_inter_node));
 	ui->inter.inter_stub->key_clicked = key_zero_stub;
+	ui->inter.inter_stub->key_pressed = key_zero_stub;
+	ui->inter.inter_stub->key_released = key_zero_stub;
 
 	/* setup root stub values */
 	stack_u32_push(&ui->stack_parent, HI_ROOT_STUB_INDEX);
@@ -198,8 +200,7 @@ struct ui *ui_alloc(void)
 	stub->child_layout_axis = AXIS_2_X;
 	stub->depth = 0;
 	stub->flags = UI_FLAG_NONE;
-	stub->inter_local = ui->inter.inter_stub;
-	stub->inter_recursive = ui->inter.inter_stub;
+	stub->inter = ui->inter.inter_stub;
 
 	struct ui_node *orphan_root = hierarchy_index_address(ui->node_hierarchy, HI_ORPHAN_STUB_INDEX);
 	orphan_root->id = utf8_empty();
@@ -208,8 +209,7 @@ struct ui *ui_alloc(void)
 	orphan_root->child_layout_axis = AXIS_2_X;
 	orphan_root->depth = 0;
 	orphan_root->flags = UI_FLAG_NONE;
-	orphan_root->inter_local = ui->inter.inter_stub;
-	orphan_root->inter_recursive = ui->inter.inter_stub;
+	orphan_root->inter = ui->inter.inter_stub;
 
 	ui->stack_flags.next = 1;
 	ui->stack_flags.arr[0] = UI_FLAG_NONE;
@@ -728,105 +728,82 @@ static void ui_set_global_interactions(void)
 	//ui_debug_print_interactions();
 }
 
-static void ui_node_set_interactions(struct ui_inter_node **inter_local, struct ui_inter_node **inter_recursive, const struct ui_node *node, const u64 local_interaction_flags)
+static void ui_node_set_interactions(struct ui_inter_node **inter, const struct ui_node *node, const u64 local_interaction_flags)
 {
 	/*
-	 * NOTE: By setting node->flags |= stack_u64_top(&g_ui->stack_recursive_interaction_flags), we simplify the logic
-	 * by always making sure that the set of recursive interactions of the node is a subset of its local
-	 * interactions. By doing this, we will of course trigger local interactions for non local interactions,
-	 * but that doesn't matter, we simply don't code for such local interations. 
+	 * NOTE: By setting node->flags |= 
+	 * ((struct ui_inter_node *) stack_ptr_top(&g_ui->stack_recursive_interaction))->flags, we simplify the 
+	 * logic by always making sure that the set of recursive interactions of the node is a subset of its local
+	 * interactions.	
 	 */ 
-
-	const struct ui_inter_node *inter_local_prev = node->inter_local; 
-	const struct ui_inter_node *inter_rec_prev = node->inter_recursive; 
+	const struct ui_inter_node *inter_prev = node->inter; 
 
 	u64 interactions = UI_FLAG_NONE;
 	const u32 *key_clicked = key_zero_stub;	
 	u32 node_clicked = 0;
 	u32 node_dragged = 0;
-	u32 node_active = inter_local_prev->active;
-	u32 node_hovered = inter_local_prev->hovered | inter_rec_prev->hovered;
 
-	if (node_hovered)
+	if (inter_prev->hovered)
 	{
 		interactions |= UI_INTER_HOVER | (UI_INTER_LEFT_CLICK*g_ui->inter.button_clicked[MOUSE_BUTTON_LEFT]);
 		node_clicked = g_ui->inter.button_clicked[MOUSE_BUTTON_LEFT];
 		node_dragged = g_ui->inter.button_clicked[MOUSE_BUTTON_LEFT] * g_ui->inter.button_pressed[MOUSE_BUTTON_LEFT];
 	}
 
-	if (node_dragged || ((inter_local_prev->drag | inter_rec_prev->drag) && !g_ui->inter.button_released[MOUSE_BUTTON_LEFT]))
+	if (node_dragged || (inter_prev->drag && !g_ui->inter.button_released[MOUSE_BUTTON_LEFT]))
 	{
 		interactions |= UI_INTER_DRAG;
 		node_dragged = 1;
 	}
 
-	/* TODO: Should we even use a seperate recursive inter_node? Why not just push our local one... */
-	if (node->flags & UI_INTER_RECURSIVE_ROOT)
+	if (inter_prev->active || (interactions & local_interaction_flags) != UI_FLAG_NONE || (node->flags & UI_INTER_RECURSIVE_ROOT))
 	{
-		*inter_recursive = arena_push(g_ui->mem_frame, sizeof(struct ui_inter_node));
+		*inter = arena_push(g_ui->mem_frame, sizeof(struct ui_inter_node));
 		const u32 node_index = array_list_index(g_ui->node_hierarchy->list, node);
-		(*inter_recursive)->flags = stack_u64_top(&g_ui->stack_recursive_interaction_flags);
-		(*inter_recursive)->node_owner = node_index;
-		(*inter_recursive)->clicked = node_clicked;
-		(*inter_recursive)->drag = node_dragged;
-		(*inter_recursive)->hovered = node_hovered; 
-		(*inter_recursive)->active = ((local_interaction_flags & UI_INTER_LEFT_CLICK)*node_clicked)
-				       	   | ((local_interaction_flags & UI_INTER_DRAG)*node_dragged);
-
-
-		if ((*inter_recursive)->active)
-		{
-			(*inter_recursive)->key_pressed = key_zero_stub;
-			(*inter_recursive)->key_released = key_zero_stub;
-			(*inter_recursive)->key_clicked = key_zero_stub;
-		}
-	}
-
-	if (node_active || (interactions & local_interaction_flags) != UI_FLAG_NONE)
-	{
-		*inter_local = arena_push(g_ui->mem_frame, sizeof(struct ui_inter_node));
-		const u32 node_index = array_list_index(g_ui->node_hierarchy->list, node);
-		(*inter_local)->flags = local_interaction_flags;
-		(*inter_local)->node_owner = node_index;
-		(*inter_local)->clicked = node_clicked;
-		(*inter_local)->drag = node_dragged;
-		(*inter_local)->hovered = inter_local_prev->hovered;
-		(*inter_local)->active = ((local_interaction_flags & UI_INTER_LEFT_CLICK)*node_clicked)
-				       | ((local_interaction_flags & UI_INTER_DRAG)*node_dragged);
+		(*inter)->recursive_flags = stack_u64_top(&g_ui->stack_recursive_interaction_flags);
+		(*inter)->local_flags = local_interaction_flags;
+		(*inter)->node_owner = node_index;
+		(*inter)->clicked = node_clicked;
+		(*inter)->drag = node_dragged;
+		(*inter)->hovered = inter_prev->hovered;
+		(*inter)->active = ((local_interaction_flags & UI_INTER_LEFT_CLICK)*node_clicked)
+				 | ((local_interaction_flags & UI_INTER_DRAG)*node_dragged);
 		
-		if ((*inter_local)->active)
+		if ((*inter)->active)
 		{
-			(*inter_local)->key_clicked = g_ui->inter.key_clicked;
-			(*inter_local)->key_pressed = g_ui->inter.key_pressed;
-			(*inter_local)->key_released = g_ui->inter.key_released;
+			(*inter)->key_clicked = g_ui->inter.key_clicked;
+			(*inter)->key_pressed = g_ui->inter.key_pressed;
+			(*inter)->key_released = g_ui->inter.key_released;
 		}
 	}
 
 	for (u32 i = g_ui->stack_recursive_interaction.next-1; i; --i)
 	{
 		struct ui_inter_node *inherited = g_ui->stack_recursive_interaction.arr[i];
-		kas_assert((inherited->flags & local_interaction_flags) == inherited->flags);
-		if ((inherited->flags & interactions) == 0)
+		kas_assert((inherited->recursive_flags & local_interaction_flags) == inherited->recursive_flags);
+		if ((inherited->recursive_flags & interactions) == 0)
 		{
 			break;
 		}
 
 		inherited->clicked |= node_clicked;
 		inherited->drag |= node_dragged;
-		inherited->hovered |= inter_local_prev->hovered;
-		inherited->active = ((inherited->flags & UI_INTER_LEFT_CLICK)*node_clicked)
-				  | ((inherited->flags & UI_INTER_DRAG)*node_dragged);
+		inherited->hovered |= inter_prev->hovered;
+		inherited->active = ((inherited->local_flags & UI_INTER_LEFT_CLICK)*node_clicked)
+				  | ((inherited->local_flags & UI_INTER_DRAG)*node_dragged);
 	}
 }
 
 static void assert_inter_stub(void)
 {
 	const struct ui_inter_node *stub = g_ui->inter.inter_stub;
-	kas_assert(stub->flags == 0);	
+	kas_assert(stub->local_flags == 0);	
 	kas_assert(stub->node_owner == 0);	
 	kas_assert(stub->hovered == 0);
-	kas_assert(stub->key_clicked == key_zero_stub);
 	kas_assert(stub->clicked == 0);
+	kas_assert(stub->key_clicked == key_zero_stub);
+	kas_assert(stub->key_released == key_zero_stub);
+	kas_assert(stub->key_pressed == key_zero_stub);
 	kas_assert(stub->drag == 0);
 	kas_assert(stub->drag_delta[0] == 0);
 	kas_assert(stub->drag_delta[1] == 0);
@@ -912,7 +889,7 @@ static void ui_identify_hovered_node(void)
 	struct ui_node *node = ui_node_lookup(&g_ui->inter.node_hovered);
 	if (node)
 	{
-		node->inter_local->hovered = 0;
+		node->inter->hovered = 0;
 	}
 
 	const f32 x = (f32) g_ui->inter.cursor_position[0];
@@ -967,14 +944,13 @@ static void ui_identify_hovered_node(void)
 	}
 
 	node = hierarchy_index_address(g_ui->node_hierarchy, deepest_non_hashed_hover_index);
-	if ((node->flags & UI_INTER_HOVER) && (node->inter_local == g_ui->inter.inter_stub))
+	if ((node->flags & UI_INTER_HOVER) && (node->inter == g_ui->inter.inter_stub))
 	{
-		node->inter_local = arena_push(g_ui->mem_frame, sizeof(struct ui_inter_node));
-		memset(node->inter_local, 0, sizeof(struct ui_inter_node));
-		node->inter_local->node_owner = index;
-		utf8_debug_print(node->id);
+		node->inter = arena_push(g_ui->mem_frame, sizeof(struct ui_inter_node));
+		memset(node->inter, 0, sizeof(struct ui_inter_node));
+		node->inter->node_owner = index;
 	}
-	node->inter_local->hovered = 1;
+	node->inter->hovered = 1;
 	g_ui->inter.node_hovered = node->id;
 }
 
@@ -1042,6 +1018,8 @@ void ui_frame_end(void)
 	for (u32 i = 0; i < KAS_KEY_COUNT; ++i)
 	{
 		g_ui->inter.key_clicked[i] = 0;
+		g_ui->inter.key_pressed[i] = 0;
+		g_ui->inter.key_released[i] = 0;
 	}
 
 	for (u32 i = 0; i < MOUSE_BUTTON_COUNT; ++i)
@@ -1188,8 +1166,7 @@ static u32 internal_ui_pad(const u64 flags, const f32 value, const enum ui_size_
 	node->depth = (g_ui->stack_fixed_depth.next)
 		? stack_u32_top(&g_ui->stack_fixed_depth)
 		: parent->depth + 1;
-	node->inter_local = g_ui->inter.inter_stub;
-	node->inter_recursive = g_ui->inter.inter_stub;
+	node->inter = g_ui->inter.inter_stub;
 
 	if (node->flags & UI_DRAW_SPRITE)
 	{
@@ -1333,8 +1310,7 @@ struct slot ui_node_alloc_cached(const u64 flags, const utf8 id, const u32 id_ha
 		implied_flags |= UI_ALLOW_VIOLATION_X;
 
 		const intv visible = stack_intv_top(g_ui->stack_viewable + AXIS_2_X);
-		if ((size_x.intv.high < visible.low || size_x.intv.low > visible.high) 
-				&& !(node->inter_local->active | node->inter_recursive->active))
+		if ((size_x.intv.high < visible.low || size_x.intv.low > visible.high) && !node->inter->active)
 		{
 			return (struct slot) { .index = HI_ORPHAN_STUB_INDEX, .address = hierarchy_index_address(g_ui->node_hierarchy, HI_ORPHAN_STUB_INDEX) };
 		}
@@ -1346,17 +1322,15 @@ struct slot ui_node_alloc_cached(const u64 flags, const utf8 id, const u32 id_ha
 		implied_flags |= UI_ALLOW_VIOLATION_Y;
 		
 		const intv visible = stack_intv_top(g_ui->stack_viewable + AXIS_2_Y);
-		if ((size_y.intv.high < visible.low || size_y.intv.low > visible.high)
-				&& !(node->inter_local->active | node->inter_recursive->active))
+		if ((size_y.intv.high < visible.low || size_y.intv.low > visible.high) && !node->inter->active)
 		{
 			return (struct slot) { .index = HI_ORPHAN_STUB_INDEX, .address = hierarchy_index_address(g_ui->node_hierarchy, HI_ORPHAN_STUB_INDEX) };
 		}
 	}
 
-	struct ui_inter_node *inter_local = g_ui->inter.inter_stub;
-	struct ui_inter_node *inter_recursive = g_ui->inter.inter_stub;
+	struct ui_inter_node *inter = g_ui->inter.inter_stub;
  
-	const u64 node_flags = flags | implied_flags | ((struct ui_inter_node *) stack_ptr_top(&g_ui->stack_recursive_interaction))->flags | UI_DEBUG_FLAGS;
+	const u64 node_flags = flags | implied_flags | UI_DEBUG_FLAGS | ((struct ui_inter_node *) stack_ptr_top(&g_ui->stack_recursive_interaction))->recursive_flags;
 
 	const u32 depth = (g_ui->stack_fixed_depth.next)
 		? stack_u32_top(&g_ui->stack_fixed_depth)
@@ -1374,7 +1348,7 @@ struct slot ui_node_alloc_cached(const u64 flags, const utf8 id, const u32 id_ha
 		slot.address = node;
 		slot.index = index_cached;
 		hierarchy_index_adopt_node_exclusive(g_ui->node_hierarchy, slot.index, stack_u32_top(&g_ui->stack_parent));
-		ui_node_set_interactions(&inter_local, &inter_recursive, node, node_flags);
+		ui_node_set_interactions(&inter, node, node_flags);
 	}
 	
 
@@ -1388,8 +1362,7 @@ struct slot ui_node_alloc_cached(const u64 flags, const utf8 id, const u32 id_ha
 	node->semantic_size[AXIS_2_Y] = size_y;
 	node->child_layout_axis = stack_u32_top(&g_ui->stack_child_layout_axis);
 	node->depth = depth;
-	node->inter_local = inter_local;
-	node->inter_recursive = inter_recursive;
+	node->inter = inter;
 
 	if (node->flags & UI_DRAW_SPRITE)
 	{
@@ -1599,10 +1572,9 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 	}
 
 	const utf8 id = (utf8) { .buf = formatted->buf + hash_begin_offset, .len = formatted->len - hash_begin_index, .size = formatted->size - hash_begin_offset };
-	struct ui_inter_node *inter_local = g_ui->inter.inter_stub;
-	struct ui_inter_node *inter_recursive = g_ui->inter.inter_stub;
+	struct ui_inter_node *inter = g_ui->inter.inter_stub;
  
-	const u64 node_flags = flags | implied_flags | ((struct ui_inter_node *) stack_ptr_top(&g_ui->stack_recursive_interaction))->flags | UI_DEBUG_FLAGS;
+	const u64 node_flags = flags | implied_flags | UI_DEBUG_FLAGS | ((struct ui_inter_node *) stack_ptr_top(&g_ui->stack_recursive_interaction))->recursive_flags;
 	u32 key = 0;
 	struct slot slot;
 	u32 index;
@@ -1638,7 +1610,7 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 		else
 		{
 			hierarchy_index_adopt_node_exclusive(g_ui->node_hierarchy, index, stack_u32_top(&g_ui->stack_parent));
-			ui_node_set_interactions(&inter_local, &inter_recursive, node, node_flags);
+			ui_node_set_interactions(&inter, node, node_flags);
 		}
 	}
 
@@ -1654,8 +1626,7 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 	node->depth = (g_ui->stack_fixed_depth.next)
 		? stack_u32_top(&g_ui->stack_fixed_depth)
 		: parent->depth + 1;
-	node->inter_local = inter_local;
-	node->inter_recursive = inter_recursive;
+	node->inter = inter;
 
 	if (node->flags & UI_DRAW_SPRITE)
 	{
@@ -1812,7 +1783,7 @@ void ui_node_push(const u32 node)
 	struct ui_node *node_ptr = hierarchy_index_address(g_ui->node_hierarchy, node);
 	if (node_ptr->flags & UI_INTER_RECURSIVE_ROOT)
 	{
-		ui_inter_node_recursive_push(node_ptr->inter_recursive);
+		ui_inter_node_recursive_push(node_ptr->inter);
 	}
 	stack_u32_push(&g_ui->stack_parent, node);
 }

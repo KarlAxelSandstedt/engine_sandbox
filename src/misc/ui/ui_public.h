@@ -398,20 +398,21 @@ struct ui_interaction
  */
 struct ui_inter_node
 {
-	u64	flags;		/* Interaction flags of the node / recursive interaction flags */
-	u32	node_owner;	/* Recursive owner of interaction (if non-recursive, set to trigger) */
+	u64	local_flags;		/* local interaction flags of the node */
+	u64	recursive_flags;	/* recursive interaction flags of the node */
+	u32	node_owner;		/* index of node owner */
 
-	u32	hovered;	/* uniquely set/unset at end of frame; propagated to the next frame. */
-	u32	active;		/* Context dependent: nodes are activated by certain interactions 
-					- left_click => activate unit 
-				*/
+	u32	hovered;		/* uniquely set/unset at end of frame; propagated to the next frame. */
+	u32	active;			/* Context dependent: nodes are activated by certain interactions 
+						- left_click => activate unit 
+					*/
 
 	/* keyboard state */
 	const u32 *	key_clicked;	/* frame      : Was key clicked this frame? [KAS_KEYCODE_COUNT] */
 	const u32 *	key_pressed;	/* persistent : Is key currently pressed? [KAS_KEYCODE_COUNT] */
 	const u32 *	key_released;	/* frame      : Was key clicked this frame? [KAS_KEYCODE_COUNT] */
 
-	//TODO TMP;
+	//TODO tmp...
 	u32	clicked;
 	u32	drag;
 	vec2i32 drag_delta;
@@ -568,11 +569,12 @@ void		ui_frame_end(void);				/* end ui frame 		*/
 
 /******************** Interaction flags ********************/
 
-#define		UI_INTER_RECURSIVE_ROOT		((u64) 1 << 18)	/* When this is set for a node, the node allocates an
-								   inter_recursive node which is then set according to
-								   the node's recurisve interaction flags and any 
-								   interactions with the node and any decendants of
-								   it. */
+#define		UI_INTER_RECURSIVE_ROOT		((u64) 1 << 18)	/* When this is set for a node, the node will, 
+								   regardless of if we interact with it locally, 
+								   allocate an inter_node. the inter_node is then
+								   also modified according to the node's recursive
+								   interaction flags by any of the node's children.
+								  */
 #define		UI_INTER_HOVER				((u64) 1 << 19)
 #define 	UI_INTER_LEFT_CLICK			((u64) 1 << 20)
 #define 	UI_INTER_LEFT_DOUBLE_CLICK		((u64) 1 << 21) 
@@ -633,8 +635,7 @@ struct ui_node
 	u32		key;			/* hashed key */
 	u32		depth;			/* parent->depth + 1 */
 
-	struct ui_inter_node *	inter_local;	/*  local interaction node */
-	struct ui_inter_node *	inter_recursive;/*  pointer to (owned!) recursive interaction node */
+	struct ui_inter_node *	inter;		/*  interaction node */
 
 	const struct font *font;
 	enum sprite_id	sprite;
