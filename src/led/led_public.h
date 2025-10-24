@@ -25,6 +25,7 @@
 #include "sys_public.h"
 #include "allocator.h"
 #include "csg.h"
+#include "physics_pipeline.h"
 
 /*******************************************/
 /*                 led_init.c              */
@@ -83,6 +84,10 @@ struct led
 	u64			ns;		/* current time in ns */
 	u32			running;
 
+	utf8			physics_viewport_id;
+	struct physics_pipeline physics;
+
+	utf8			csg_viewport_id;
 	struct csg 		csg;
 	struct ui_list 		brush_list;
 };

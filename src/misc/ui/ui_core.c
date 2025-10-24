@@ -861,7 +861,7 @@ static void ui_identify_hovered_node(void)
 	const f32 y = (f32) g_ui->inter.cursor_position[1];
 	i32 depth = -1;
 	u32 index = HI_NULL_INDEX;
-	/* find deepest floating subtree which we are hovering */
+	/* find deepest hashed floating subtree which we are hovering */
 	for (u32 i = 0; i < g_ui->stack_floating_node.next; ++i)
 	{
 		const u32 new_depth = g_ui->stack_floating_depth.arr[i];
@@ -871,7 +871,7 @@ static void ui_identify_hovered_node(void)
 			node = hierarchy_index_address(g_ui->node_hierarchy, new_index);
 			if (node->pixel_visible[0].low <= x && x <= node->pixel_visible[0].high &&  
 		    	    node->pixel_visible[1].low <= y && y <= node->pixel_visible[1].high &&
-			    (node->flags & UI_SKIP_HOVER_SEARCH) == 0)
+			    (node->flags & (UI_NON_HASHED | UI_SKIP_HOVER_SEARCH)) == 0)
 			{
 				depth = (i32) new_depth;
 				index = new_index;
@@ -888,32 +888,34 @@ static void ui_identify_hovered_node(void)
 	/* search floating subtree for deepest node we are hovering that is hashed */
 	u32 deepest_non_hashed_hover_index = index;
 	node = hierarchy_index_address(g_ui->node_hierarchy, index);
-	u32 i = node->header.first;
-	while (i != HI_NULL_INDEX)
+	kas_assert((node->flags & (UI_NON_HASHED | UI_SKIP_HOVER_SEARCH)) == 0);
+	index = node->header.first;
+	while (index != HI_NULL_INDEX)
 	{
-		node = hierarchy_index_address(g_ui->node_hierarchy, i);
+		node = hierarchy_index_address(g_ui->node_hierarchy, index);
 		if (node->pixel_visible[0].low <= x && x <= node->pixel_visible[0].high &&  
 	    	    node->pixel_visible[1].low <= y && y <= node->pixel_visible[1].high &&
 		    (node->flags & UI_SKIP_HOVER_SEARCH) == 0)
 		{
-			index = i;
 			if ((node->flags & UI_NON_HASHED) == 0)
 			{
 				deepest_non_hashed_hover_index = index;
 			}
-			i = node->header.first;
+
+			index = node->header.first;
 			continue;
 		}
 
-		i = node->header.next;
+		index = node->header.next;
 	}
 
 	node = hierarchy_index_address(g_ui->node_hierarchy, deepest_non_hashed_hover_index);
-	if ((node->flags & UI_INTER_HOVER) && (node->inter == g_ui->inter.inter_stub))
+	kas_assert((node->flags & (UI_NON_HASHED | UI_SKIP_HOVER_SEARCH)) == 0);
+	if ((node->flags & UI_INTER_HOVER) && node->inter == g_ui->inter.inter_stub)
 	{
 		node->inter = arena_push(g_ui->mem_frame, sizeof(struct ui_inter_node));
 		memset(node->inter, 0, sizeof(struct ui_inter_node));
-		node->inter->node_owner = index;
+		node->inter->node_owner = deepest_non_hashed_hover_index;
 	}
 	node->inter->hovered = 1;
 	g_ui->inter.node_hovered = node->id;
@@ -1072,7 +1074,7 @@ static void ui_node_calculate_immediate_layout(struct ui_node *node, const enum 
 			}
 			else
 			{
-				node->layout_size[axis] = node->semantic_size[axis].percentage * parent->layout_size[axis];
+				node->layout_size[axis] = node->semantic_size[axis].percentage * parent->layout_size[axis];	
 			}
 		} break;
 

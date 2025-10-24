@@ -418,7 +418,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 			csg_brush_add(&led->csg, id);
 		}
 
-		led->brush_list = ui_list_init(AXIS_2_Y, 512.0f, 24.0f); 
+		led->brush_list = ui_list_init(AXIS_2_Y, 256.0f, 24.0f); 
 	}
 
 
@@ -432,12 +432,58 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 	ui_text_align_y(ALIGN_BOTTOM)
 	ui_child_layout_axis(AXIS_2_Y)
 	ui_parent(ui_node_alloc_f(UI_DRAW_BACKGROUND | UI_DRAW_BORDER, "###window_%u", led->window).index)
-	ui_flags(UI_DRAW_ROUNDED_CORNERS | UI_TEXT_ALLOW_OVERFLOW)
+	ui_child_layout_axis(AXIS_2_X)
 	{
-		ui_pad_fill();
+		ui_height(ui_size_perc(0.5f))
+		ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
+		ui_height(ui_size_perc(1.0f))
+		ui_width(ui_size_perc(0.5f))
+		ui_text_align_y(ALIGN_TOP)
+		{
+			struct slot slot1, slot2;
+			const utf32 external_text1 = utf32_cstr(g_ui->mem_frame, "Physics Viewport");
+			const utf32 external_text2 = utf32_cstr(g_ui->mem_frame, "CSG Viewport");
 
-		ui_child_layout_axis(AXIS_2_X)
-		ui_height(ui_size_pixel(512.0f, 1.0f))
+			slot1 = ui_node_alloc(UI_DRAW_BORDER | UI_INTER_FLAGS, &led->physics_viewport_id);
+			if (slot1.index != HI_ORPHAN_STUB_INDEX)
+			ui_parent(slot1.index)
+			{
+				struct ui_inter_node *inter = ((struct ui_node *) slot1.address)->inter;
+				if (inter->hovered)
+				{	
+					ui_external_text(external_text1)
+					ui_background_color(vec4_inline(0.8f, 0.8f, 0.8f, 1.0f))
+					ui_sprite_color(vec4_inline(0.1f, 0.1f, 0.1f, 1.0f))
+					ui_height(ui_size_pixel(24.0f, 1.0f))
+					ui_width(ui_size_text(F32_INFINITY, 1.0f))
+					ui_floating_x(g_ui->inter.cursor_position[0])
+					ui_floating_y(g_ui->inter.cursor_position[1])
+					ui_node_alloc_non_hashed(UI_DRAW_BACKGROUND | UI_DRAW_BORDER | UI_TEXT_EXTERNAL | UI_DRAW_TEXT | UI_SKIP_HOVER_SEARCH);
+				}
+			}
+
+			ui_external_text(external_text2)
+			slot2 = ui_node_alloc(UI_DRAW_BORDER | UI_INTER_FLAGS, &led->csg_viewport_id);
+			if (slot2.index != HI_ORPHAN_STUB_INDEX)
+			ui_parent(slot2.index)
+			{	
+				struct ui_inter_node *inter = ((struct ui_node *) slot2.address)->inter;
+				if (inter->hovered)
+				{	
+					ui_external_text(external_text2)
+					ui_background_color(vec4_inline(0.8f, 0.8f, 0.8f, 1.0f))
+					ui_sprite_color(vec4_inline(0.1f, 0.1f, 0.1f, 1.0f))
+					ui_height(ui_size_pixel(24.0f, 1.0f))
+					ui_width(ui_size_text(F32_INFINITY, 1.0f))
+					ui_floating_x(g_ui->inter.cursor_position[0])
+					ui_floating_y(g_ui->inter.cursor_position[1])
+					ui_node_alloc_non_hashed(UI_DRAW_BACKGROUND | UI_DRAW_BORDER | UI_TEXT_EXTERNAL | UI_DRAW_TEXT | UI_SKIP_HOVER_SEARCH);
+				}
+			}
+		}
+
+		ui_flags(UI_DRAW_ROUNDED_CORNERS | UI_TEXT_ALLOW_OVERFLOW)
+		ui_height(ui_size_pixel(256.0f, 1.0f))
 		ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BORDER).index)
 		{
 			ui_pad_fill();

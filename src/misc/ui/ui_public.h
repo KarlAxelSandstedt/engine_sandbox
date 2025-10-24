@@ -251,7 +251,6 @@ void 		ui_popup_utf8_display(struct ui_popup *popup, const utf8 display, const c
 void 		ui_popup_utf8_input(struct ui_popup *popup, utf8 *input, struct ui_input_line *line, const utf8 description, const utf8 prefix, const char *title, const struct ui_visual *visual);
 void 		ui_popup_choice(struct ui_popup *popup, const utf8 description, const utf8 positive, const utf8 negative, const char *title, const struct ui_visual *visual);
 
-
 /********************************************************************************************************/
 /*					       UI CORE							*/
 /********************************************************************************************************/
@@ -577,8 +576,9 @@ void		ui_frame_end(void);				/* end ui frame 		*/
 #define 	UI_INTER_LEFT_DOUBLE_CLICK		((u64) 1 << 21) 
 #define		UI_INTER_DRAG				((u64) 1 << 22)
 #define		UI_INTER_SCROLL				((u64) 1 << 23)
-#define		UI_INTER_FLAGS	(				\
-			  UI_INTER_LEFT_CLICK			\
+#define		UI_INTER_FLAGS	(0				\
+			| UI_INTER_HOVER			\
+			| UI_INTER_LEFT_CLICK			\
 			| UI_INTER_LEFT_DOUBLE_CLICK		\
 			| UI_INTER_DRAG				\
 			| UI_INTER_SCROLL			\

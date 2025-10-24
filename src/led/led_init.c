@@ -75,6 +75,9 @@ struct led led_alloc(void)
 			fatal_cleanup_and_exit(kas_thread_self_tid());
 		}
 	}
+	
+	editor.physics_viewport_id = utf8_format(&sys_win->mem_persistent, "physics_viewport_%u", editor.window);
+	editor.csg_viewport_id = utf8_format(&sys_win->mem_persistent, "csg_viewport_%u", editor.window);
 
 	return editor;
 }
