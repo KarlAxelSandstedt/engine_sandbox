@@ -686,48 +686,6 @@ static void ui_layout_absolute_position(void)
 	KAS_END;
 }
 
-static void ui_debug_print_interactions(void)
-{
-	fprintf(stderr, "ui interactions: | ");
-
-	if (g_ui->inter.interactions == UI_FLAG_NONE) { fprintf(stderr, "NONE | "); }
-	if (g_ui->inter.interactions & UI_INTER_LEFT_CLICK) { fprintf(stderr, "LEFT_CLICK | "); }
-	if (g_ui->inter.interactions & UI_INTER_DRAG) { fprintf(stderr, "DRAG | "); }
-	if (g_ui->inter.interactions & UI_INTER_SCROLL) { fprintf(stderr, "SCROLL | "); }
-
-	fprintf(stderr, "\n");
-}
-
-static void ui_set_global_interactions(void)
-{
-	g_ui->inter.interactions = UI_FLAG_NONE;
-
-	if (g_ui->inter.button_clicked[MOUSE_BUTTON_LEFT])
-	{
-		g_ui->inter.interactions |= UI_INTER_LEFT_CLICK;
-	}
-
-	if (g_ui->inter.button_pressed[MOUSE_BUTTON_LEFT])
-	{
-		if (g_ui->inter.cursor_delta[0] != 0.0f)
-		{
-			g_ui->inter.interactions |= UI_INTER_DRAG;
-		}
- 
-		if (g_ui->inter.cursor_delta[1] != 0.0f)
-		{
-			g_ui->inter.interactions |= UI_INTER_DRAG;
-		}
-	}
-
-	if (g_ui->inter.scroll_up_count || g_ui->inter.scroll_down_count)
-	{
-		g_ui->inter.interactions = UI_INTER_SCROLL;
-	}
-
-	//ui_debug_print_interactions();
-}
-
 static void ui_node_set_interactions(struct ui_inter_node **inter, const struct ui_node *node, const u64 local_interaction_flags)
 {
 	/*
@@ -742,12 +700,16 @@ static void ui_node_set_interactions(struct ui_inter_node **inter, const struct 
 	const u32 *key_clicked = key_zero_stub;	
 	u32 node_clicked = 0;
 	u32 node_dragged = 0;
+	u32 node_scrolled = 0;
 
 	if (inter_prev->hovered)
 	{
-		interactions |= UI_INTER_HOVER | (UI_INTER_LEFT_CLICK*g_ui->inter.button_clicked[MOUSE_BUTTON_LEFT]);
+		interactions |=  UI_INTER_HOVER 
+			      | (UI_INTER_LEFT_CLICK*g_ui->inter.button_clicked[MOUSE_BUTTON_LEFT])
+			      | (UI_INTER_SCROLL*(!!(g_ui->inter.scroll_up_count + g_ui->inter.scroll_down_count)));
 		node_clicked = g_ui->inter.button_clicked[MOUSE_BUTTON_LEFT];
 		node_dragged = g_ui->inter.button_clicked[MOUSE_BUTTON_LEFT] * g_ui->inter.button_pressed[MOUSE_BUTTON_LEFT];
+		node_scrolled = g_ui->inter.scroll_up_count + g_ui->inter.scroll_down_count;
 	}
 
 	if (node_dragged || (inter_prev->drag && !g_ui->inter.button_released[MOUSE_BUTTON_LEFT]))
@@ -765,9 +727,11 @@ static void ui_node_set_interactions(struct ui_inter_node **inter, const struct 
 		(*inter)->node_owner = node_index;
 		(*inter)->clicked = node_clicked;
 		(*inter)->drag = node_dragged;
+		(*inter)->scrolled = node_scrolled;
 		(*inter)->hovered = inter_prev->hovered;
 		(*inter)->active = ((local_interaction_flags & UI_INTER_LEFT_CLICK)*node_clicked)
-				 | ((local_interaction_flags & UI_INTER_DRAG)*node_dragged);
+				 | ((local_interaction_flags & UI_INTER_DRAG)*node_dragged)
+				 | ((local_interaction_flags & UI_INTER_SCROLL)*node_scrolled);
 		
 		if ((*inter)->active)
 		{
@@ -775,23 +739,27 @@ static void ui_node_set_interactions(struct ui_inter_node **inter, const struct 
 			(*inter)->key_pressed = g_ui->inter.key_pressed;
 			(*inter)->key_released = g_ui->inter.key_released;
 		}
-	}
 
-	for (u32 i = g_ui->stack_recursive_interaction.next-1; i; --i)
-	{
-		struct ui_inter_node *inherited = g_ui->stack_recursive_interaction.arr[i];
-		kas_assert((inherited->recursive_flags & local_interaction_flags) == inherited->recursive_flags);
-		if ((inherited->recursive_flags & interactions) == 0)
+		for (u32 i = g_ui->stack_recursive_interaction.next-1; i; --i)
 		{
-			break;
-		}
+			struct ui_inter_node *inherited = g_ui->stack_recursive_interaction.arr[i];
+			kas_assert((inherited->recursive_flags & local_interaction_flags) == inherited->recursive_flags);
+			if ((inherited->recursive_flags & interactions) == 0)
+			{
+				break;
+			}
 
-		inherited->clicked |= node_clicked;
-		inherited->drag |= node_dragged;
-		inherited->hovered |= inter_prev->hovered;
-		inherited->active = ((inherited->local_flags & UI_INTER_LEFT_CLICK)*node_clicked)
-				  | ((inherited->local_flags & UI_INTER_DRAG)*node_dragged);
+			inherited->clicked |= node_clicked;
+			inherited->drag |= node_dragged;
+			inherited->scrolled |= node_scrolled;
+			inherited->hovered |= inter_prev->hovered;
+			inherited->active = ((inherited->local_flags & UI_INTER_LEFT_CLICK)*node_clicked)
+					  | ((inherited->local_flags & UI_INTER_DRAG)*node_dragged)
+					  | ((inherited->local_flags & UI_INTER_SCROLL)*node_scrolled);
+		}
 	}
+
+	
 }
 
 static void assert_inter_stub(void)
@@ -817,9 +785,6 @@ void ui_frame_begin(const vec2u32 window_size, const struct ui_visual *base)
 	array_list_intrusive_flush(g_ui->bucket_allocator);
 	hash_map_flush(g_ui->bucket_map);
 	
-	/* set potential ui interactions happening */
-	ui_set_global_interactions();
-
 	/* setup stub bucket */
 	g_ui->bucket_first = array_list_intrusive_reserve(g_ui->bucket_allocator);
 	g_ui->bucket_last = g_ui->bucket_first;

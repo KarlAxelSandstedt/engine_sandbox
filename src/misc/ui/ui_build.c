@@ -44,7 +44,7 @@ void ui_list_push(struct ui_list *list, const char *format, ...)
 	struct slot slot;
 	ui_child_layout_axis(list->axis)
 	ui_size(list->axis, ui_size_pixel(list->axis_pixel_size, 1.0f))
-	ui_recursive_interaction(UI_INTER_DRAG)
+	ui_recursive_interaction(UI_INTER_DRAG | UI_INTER_SCROLL)
 	slot = ui_node_alloc(UI_INTER_RECURSIVE_ROOT | UI_INTER_DRAG | UI_DRAW_BACKGROUND | UI_DRAW_BORDER, &id);
 
 	list->cache_count = list->frame_count;
@@ -80,6 +80,22 @@ void ui_list_pop(struct ui_list *list)
 			list->visible.high += g_ui->inter.cursor_delta[list->axis];
 		}
 	}
+	else if (list->frame_node_address->inter->scrolled)
+	{
+		const f32 scroll_offset = 24.0f * ((f32) g_ui->inter.scroll_up_count - (f32) g_ui->inter.scroll_down_count);
+		if (list->axis == AXIS_2_X)
+		{
+
+			list->visible.low += scroll_offset;
+			list->visible.high += scroll_offset;
+		}
+		else
+		{
+			list->visible.low -= scroll_offset;
+			list->visible.high -= scroll_offset;
+		}
+	}
+
 }
 
 struct slot ui_list_entry_alloc(struct ui_list *list)

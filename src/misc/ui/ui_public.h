@@ -83,10 +83,6 @@ struct ui_visual ui_visual_init(const vec4 background_color
 
 /******************************************* ui_list ********************************************/
 
-/*
- * TODO: draggable
- * TODO: scrollable 
- */
 struct ui_list
 {
 	u32		cache_count;		/* cached count from previous frame */
@@ -402,6 +398,7 @@ struct ui_inter_node
 	u64	recursive_flags;	/* recursive interaction flags of the node */
 	u32	node_owner;		/* index of node owner */
 
+	u32	scrolled;		/* Was the button scrolled? */
 	u32	hovered;		/* uniquely set/unset at end of frame; propagated to the next frame. */
 	u32	active;			/* Context dependent: nodes are activated by certain interactions 
 						- left_click => activate unit 
