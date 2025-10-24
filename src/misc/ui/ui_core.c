@@ -745,20 +745,22 @@ static void ui_node_set_interactions(struct ui_inter_node **inter_local, struct 
 	u32 node_clicked = 0;
 	u32 node_dragged = 0;
 	u32 node_active = inter_local_prev->active;
+	u32 node_hovered = inter_local_prev->hovered | inter_rec_prev->hovered;
 
-	if (inter_local_prev->hovered)
+	if (node_hovered)
 	{
 		interactions |= UI_INTER_HOVER | (UI_INTER_LEFT_CLICK*g_ui->inter.button_clicked[MOUSE_BUTTON_LEFT]);
 		node_clicked = g_ui->inter.button_clicked[MOUSE_BUTTON_LEFT];
 		node_dragged = g_ui->inter.button_clicked[MOUSE_BUTTON_LEFT] * g_ui->inter.button_pressed[MOUSE_BUTTON_LEFT];
 	}
 
-	if (node_dragged || (inter_local_prev->drag && !g_ui->inter.button_released[MOUSE_BUTTON_LEFT]))
+	if (node_dragged || ((inter_local_prev->drag | inter_rec_prev->drag) && !g_ui->inter.button_released[MOUSE_BUTTON_LEFT]))
 	{
 		interactions |= UI_INTER_DRAG;
 		node_dragged = 1;
 	}
 
+	/* TODO: Should we even use a seperate recursive inter_node? Why not just push our local one... */
 	if (node->flags & UI_INTER_RECURSIVE_ROOT)
 	{
 		*inter_recursive = arena_push(g_ui->mem_frame, sizeof(struct ui_inter_node));
@@ -767,10 +769,17 @@ static void ui_node_set_interactions(struct ui_inter_node **inter_local, struct 
 		(*inter_recursive)->node_owner = node_index;
 		(*inter_recursive)->clicked = node_clicked;
 		(*inter_recursive)->drag = node_dragged;
-		(*inter_recursive)->hovered = inter_local_prev->hovered;
-		(*inter_recursive)->key_pressed = key_zero_stub;
-		(*inter_recursive)->key_released = key_zero_stub;
-		(*inter_recursive)->key_clicked = key_zero_stub;
+		(*inter_recursive)->hovered = node_hovered; 
+		(*inter_recursive)->active = ((local_interaction_flags & UI_INTER_LEFT_CLICK)*node_clicked)
+				       	   | ((local_interaction_flags & UI_INTER_DRAG)*node_dragged);
+
+
+		if ((*inter_recursive)->active)
+		{
+			(*inter_recursive)->key_pressed = key_zero_stub;
+			(*inter_recursive)->key_released = key_zero_stub;
+			(*inter_recursive)->key_clicked = key_zero_stub;
+		}
 	}
 
 	if (node_active || (interactions & local_interaction_flags) != UI_FLAG_NONE)
@@ -805,6 +814,8 @@ static void ui_node_set_interactions(struct ui_inter_node **inter_local, struct 
 		inherited->clicked |= node_clicked;
 		inherited->drag |= node_dragged;
 		inherited->hovered |= inter_local_prev->hovered;
+		inherited->active = ((inherited->flags & UI_INTER_LEFT_CLICK)*node_clicked)
+				  | ((inherited->flags & UI_INTER_DRAG)*node_dragged);
 	}
 }
 
@@ -1310,7 +1321,6 @@ struct slot ui_node_alloc_cached(const u64 flags, const utf8 id, const u32 id_ha
 
 	u64 implied_flags = stack_u64_top(&g_ui->stack_flags);
 
-
 	/* If not cached, index should be != STUB_INDEX */
 	struct ui_node *node = hierarchy_index_address(g_ui->node_hierarchy, index_cached);
 	struct ui_size size_x = stack_ui_size_top(g_ui->stack_ui_size + AXIS_2_X);
@@ -1323,7 +1333,8 @@ struct slot ui_node_alloc_cached(const u64 flags, const utf8 id, const u32 id_ha
 		implied_flags |= UI_ALLOW_VIOLATION_X;
 
 		const intv visible = stack_intv_top(g_ui->stack_viewable + AXIS_2_X);
-		if ((size_x.intv.high < visible.low || size_x.intv.low > visible.high) && !node->inter_local->active)
+		if ((size_x.intv.high < visible.low || size_x.intv.low > visible.high) 
+				&& !(node->inter_local->active | node->inter_recursive->active))
 		{
 			return (struct slot) { .index = HI_ORPHAN_STUB_INDEX, .address = hierarchy_index_address(g_ui->node_hierarchy, HI_ORPHAN_STUB_INDEX) };
 		}
@@ -1335,7 +1346,8 @@ struct slot ui_node_alloc_cached(const u64 flags, const utf8 id, const u32 id_ha
 		implied_flags |= UI_ALLOW_VIOLATION_Y;
 		
 		const intv visible = stack_intv_top(g_ui->stack_viewable + AXIS_2_Y);
-		if ((size_y.intv.high < visible.low || size_y.intv.low > visible.high) && !node->inter_local->active)
+		if ((size_y.intv.high < visible.low || size_y.intv.low > visible.high)
+				&& !(node->inter_local->active | node->inter_recursive->active))
 		{
 			return (struct slot) { .index = HI_ORPHAN_STUB_INDEX, .address = hierarchy_index_address(g_ui->node_hierarchy, HI_ORPHAN_STUB_INDEX) };
 		}
