@@ -89,4 +89,27 @@ void			led_project_menu_main(struct led *led);
 /*                 led_ui.c                */
 /*******************************************/
 
+/*******************************************/
+/*                 led_core.c              */
+/*******************************************/
+
+/* TODO: tmp, until we implenent cvars or something */
+extern struct led *g_editor;
+
+/* initate global commands and identifers */
+void 		led_core_init_commands(void);
+/* run level editor systems */
+void 		led_core(struct led *led);
+
+/* Allocate node with the given id. Returns (NULL, U32_MAX) if id.size > 256B or id.len == 0 */
+struct slot 	led_node_add(struct led *led, const utf8 id);
+/* Mark node for remval if it exist; otherwise no-op.  */
+void 		led_node_remove(struct led *led, const utf8 id);
+/* Return node with the given id if it exist; otherwise return (NULL, U32_MAX).  */
+struct slot 	led_node_lookup(struct led *led, const utf8 id);
+
+/* command identifiers */
+extern u32 	cmd_led_node_add_id;
+extern u32 	cmd_led_node_remove_id;
+
 #endif

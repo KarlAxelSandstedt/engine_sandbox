@@ -28,11 +28,11 @@
 #include "quaternion.h"
 #include "geometry.h"
 
-#define CSG_FLAG_NONE			((u64) 0)
-#define CSG_FLAG_CONSTANT		((u64) 1 << 0)	/* If set, the struct's state is to be viewed as constant   */
-#define CSG_FLAG_DIRTY			((u64) 1 << 1)	/* If set, the struct's state has been modified and a delta 
-						   	   is available. */
-#define CSG_FLAG_MARKED_FOR_REMOVAL	((u64) 1 << 2)	/* If set, the struct should be removed as soon as possible */
+#define CSG_FLAG_NONE		((u64) 0)
+#define CSG_CONSTANT		((u64) 1 << 0)	/* If set, the struct's state is to be viewed as constant   */
+#define CSG_DIRTY		((u64) 1 << 1)	/* If set, the struct's state has been modified and a delta 
+	           			   	   is available. */
+#define CSG_MARKED_FOR_REMOVAL	((u64) 1 << 2)	/* If set, the struct should be removed as soon as possible */
 
 enum csg_primitive
 {

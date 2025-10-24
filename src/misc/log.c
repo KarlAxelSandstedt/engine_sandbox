@@ -94,6 +94,7 @@ void log_init(struct arena *mem, const char *filepath)
 	systems[T_ASSERT] = utf8_inline("Assert");
 	systems[T_GAME] = utf8_inline("Game");
 	systems[T_UI] = utf8_inline("Ui");
+	systems[T_LED] = utf8_inline("Led");
 
 	severities[S_SUCCESS] = utf8_inline("success");
 	severities[S_NOTE] = utf8_inline("note");

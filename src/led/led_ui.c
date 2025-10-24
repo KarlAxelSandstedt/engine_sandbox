@@ -408,21 +408,22 @@ static void led_ui_test(struct led *led, const struct ui_visual *visual)
 
 static void led_ui(struct led *led, const struct ui_visual *visual)
 {
-	static u32 once = 1;
+	system_window_set_global(led->window);
+
+	static u32 count = 0;
+	u32 once = 1;
 	if (once)
 	{
 		once = 0;
-		for (u32 i = 0; i < 500; i++)
+		for (; count < 50; count++)
 		{
-			const utf8 id = utf8_format(&led->csg.frame, "brush_%u", i);
-			csg_brush_add(&led->csg, id);
+			const utf8 id = utf8_format(&led->frame, "node_%u", count);
+			cmd_submit_f(&led->frame, "led_node_add \"%k\"", &id);
 		}
 
-		led->brush_list = ui_list_init(AXIS_2_Y, 256.0f, 24.0f); 
+		led->node_list = ui_list_init(AXIS_2_Y, 256.0f, 24.0f); 
 	}
 
-
-	system_window_set_global(led->window);
 	cmd_queue_execute();
 
 	struct system_window *win = system_window_address(led->window);
@@ -437,21 +438,20 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 		ui_height(ui_size_perc(0.5f))
 		ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
 		ui_height(ui_size_perc(1.0f))
-		ui_width(ui_size_perc(0.5f))
+		ui_width(ui_size_perc(1.0f))
 		ui_text_align_y(ALIGN_TOP)
 		{
-			struct slot slot1, slot2;
-			const utf32 external_text1 = utf32_cstr(g_ui->mem_frame, "Physics Viewport");
-			const utf32 external_text2 = utf32_cstr(g_ui->mem_frame, "CSG Viewport");
+			struct slot slot;
+			const utf32 external_text = utf32_cstr(g_ui->mem_frame, "Viewport");
 
-			slot1 = ui_node_alloc(UI_DRAW_BORDER | UI_INTER_FLAGS, &led->physics_viewport_id);
-			if (slot1.index != HI_ORPHAN_STUB_INDEX)
-			ui_parent(slot1.index)
+			slot = ui_node_alloc(UI_DRAW_BORDER | UI_INTER_FLAGS, &led->viewport_id);
+			if (slot.index != HI_ORPHAN_STUB_INDEX)
+			ui_parent(slot.index)
 			{
-				struct ui_inter_node *inter = ((struct ui_node *) slot1.address)->inter;
+				struct ui_inter_node *inter = ((struct ui_node *) slot.address)->inter;
 				if (inter->hovered)
 				{	
-					ui_external_text(external_text1)
+					ui_external_text(external_text)
 					ui_background_color(vec4_inline(0.8f, 0.8f, 0.8f, 1.0f))
 					ui_sprite_color(vec4_inline(0.1f, 0.1f, 0.1f, 1.0f))
 					ui_height(ui_size_pixel(24.0f, 1.0f))
@@ -460,24 +460,11 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 					ui_floating_y(g_ui->inter.cursor_position[1])
 					ui_node_alloc_non_hashed(UI_DRAW_BACKGROUND | UI_DRAW_BORDER | UI_TEXT_EXTERNAL | UI_DRAW_TEXT | UI_SKIP_HOVER_SEARCH);
 				}
-			}
 
-			ui_external_text(external_text2)
-			slot2 = ui_node_alloc(UI_DRAW_BORDER | UI_INTER_FLAGS, &led->csg_viewport_id);
-			if (slot2.index != HI_ORPHAN_STUB_INDEX)
-			ui_parent(slot2.index)
-			{	
-				struct ui_inter_node *inter = ((struct ui_node *) slot2.address)->inter;
-				if (inter->hovered)
-				{	
-					ui_external_text(external_text2)
-					ui_background_color(vec4_inline(0.8f, 0.8f, 0.8f, 1.0f))
-					ui_sprite_color(vec4_inline(0.1f, 0.1f, 0.1f, 1.0f))
-					ui_height(ui_size_pixel(24.0f, 1.0f))
-					ui_width(ui_size_text(F32_INFINITY, 1.0f))
-					ui_floating_x(g_ui->inter.cursor_position[0])
-					ui_floating_y(g_ui->inter.cursor_position[1])
-					ui_node_alloc_non_hashed(UI_DRAW_BACKGROUND | UI_DRAW_BORDER | UI_TEXT_EXTERNAL | UI_DRAW_TEXT | UI_SKIP_HOVER_SEARCH);
+				if (inter->clicked)
+				{
+					const utf8 id = utf8_format(&led->frame, "node_%u", count++);
+					cmd_submit_f(&led->frame, "led_node_add \"%k\"", &id);
 				}
 			}
 		}
@@ -488,29 +475,26 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 		{
 			ui_pad_fill();
 
+			struct led_node *node = NULL;
+
 			ui_width(ui_size_pixel(128.0f, 1.0f))
-			ui_list(&led->brush_list, "###p", &led->brush_list)
-			/* TODO: dll instead of list so we can track alive and marked brushes */
-			/* skip showing default brush (b = 0) */
-			for (u32 b = 1; b < led->csg.brush_database.pool.count_max; ++b)
+			ui_list(&led->node_list, "###p", &led->node_list)
+			for (u32 i = led->node_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(node))
 			{
-				struct csg_brush *brush = pool_address(&led->csg.brush_database.pool, b);
-				if (POOL_SLOT_ALLOCATED(brush))
+				node = gpool_address(&led->node_pool, i);
+				struct slot slot = ui_list_entry_alloc_cached(&led->node_list, 
+						       	node->id,
+						       	node->key, 
+							node->id, 
+							node->ui_index_cached);
+				node->ui_index_cached = slot.index;
+
+				ui_parent(slot.index)
 				{
-					struct slot slot = ui_list_entry_alloc_cached(&led->brush_list, 
-							       	brush->id,
-							       	brush->id_hash, 
-								brush->id, 
-								brush->ui_index_cached);
-					brush->ui_index_cached = slot.index;
+					ui_pad(); 
 
-					ui_parent(slot.index)
-					{
-						ui_pad(); 
-
-						ui_width(ui_size_text(F32_INFINITY, 1.0f))
-						ui_node_alloc_f(UI_DRAW_BORDER | UI_DRAW_TEXT, "%k##%u", &brush->id, b);
-					}
+					ui_width(ui_size_text(F32_INFINITY, 1.0f))
+					ui_node_alloc_f(UI_DRAW_BORDER | UI_DRAW_TEXT, "%k##%u", &node->id, i);
 				}
 			}
 

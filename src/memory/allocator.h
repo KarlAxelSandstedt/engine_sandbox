@@ -22,6 +22,19 @@
 
 #include "kas_common.h"
 
+#ifdef KAS_ASAN
+#include "sanitizer/asan_interface.h"
+
+#define POISON_ADDRESS(addr, size)	ASAN_POISON_MEMORY_REGION((addr), (size))
+#define UNPOISON_ADDRESS(addr, size)	ASAN_UNPOISON_MEMORY_REGION((addr), (size))
+
+#else
+
+#define POISON_ADDRESS(addr, size)		
+#define UNPOISON_ADDRESS(addr, size)
+
+#endif
+
 /************************************* arena allocator  *************************************/
 
 #define DEFAULT_MEMORY_ALIGNMENT	((u64) 8)
@@ -172,15 +185,21 @@ The end of the free chain is represented by POOL_NULL.
 */
 
 #define POOL_NULL			0x7fffffff
-#define POOL_SLOT_STATE 		u32 pool_slot_state
-#define POOL_SLOT_ALLOCATED(ptr)	((ptr)->pool_slot_state & 0x80000000)
-#define POOL_SLOT_NEXT(ptr)		((ptr)->pool_slot_state & 0x7fffffff)
+#define POOL_SLOT_STATE 		u32 slot_allocation_state
+#define POOL_SLOT_ALLOCATED(ptr)	((ptr)->slot_allocation_state & 0x80000000)
+#define POOL_SLOT_NEXT(ptr)		((ptr)->slot_allocation_state & 0x7fffffff)
+#define POOL_SLOT_GENERATION(ptr)	((ptr)->slot_generation_state)
+
+#define GENERATIONAL_POOL_SLOT_STATE	u32 slot_allocation_state;	\
+					u32 slot_generation_state
 
 struct pool
 {
 	u64	slot_size;		/* size of struct containing POOL_SLOT_STATE 	*/
-	u64	slot_state_offset;	/* offset of pool_slot_state of struct 	*/
-	u8 *	buf;
+	u64	slot_allocation_offset;	/* offset of pool_slot_state of struct 		*/
+	u64	slot_generation_offset; /* Optional: set if slots contain generations, 
+					   else == U64_MAX 				*/
+	u8 *	buf;			
 	u32 	length;			/* array length 				*/
 	u32 	count;			/* current count of occupied slots 		*/
 	u32 	count_max;		/* max count used over the object's lifetime 	*/
@@ -190,9 +209,9 @@ struct pool
 };
 
 /* internal allocation of pool, use pool_alloc macro instead */
-struct pool 	pool_alloc_internal(struct arena *mem, const u32 length, const u64 slot_size, const u64 pool_slot_state_offset, const u32 growable);
+struct pool 	pool_alloc_internal(struct arena *mem, const u32 length, const u64 slot_size, const u64 slot_allocation_offset, const u64 slot_generation_offset, const u32 growable);
 /* allocation of pool; on error, an empty pool (length == 0), is returned.  */
-#define 	pool_alloc(mem, length, STRUCT, growable)	pool_alloc_internal(mem, length, sizeof(STRUCT), ((u64)&((STRUCT *)0)->pool_slot_state), growable)
+#define 	pool_alloc(mem, length, STRUCT, growable)	pool_alloc_internal(mem, length, sizeof(STRUCT), ((u64)&((STRUCT *)0)->slot_allocation_state), U64_MAX, growable)
 /* dealloc pool */
 void		pool_dealloc(struct pool *pool);
 /* dealloc all slot allocations */
@@ -207,6 +226,17 @@ void		pool_remove_address(struct pool *pool, void *slot);
 void *		pool_address(const struct pool *pool, const u32 index);
 /* return index of address */
 u32		pool_index(const struct pool *pool, const void *slot);
+
+#define gpool_alloc(mem, length, STRUCT, growable)	pool_alloc_internal(mem, length, sizeof(STRUCT), ((u64)&((STRUCT *)0)->slot_allocation_state), ((u64)&((STRUCT *)0)->slot_generation_state), growable)
+#define gpool_dealloc(pool_addr)			pool_dealloc(pool_addr)
+#define	gpool_flush(pool_addr)				pool_flush(pool_addr)
+/* alloc new generational slot; on error		 return (NULL, U32_MAX) */
+struct slot						gpool_add_generational(struct pool *pool);
+#define gpool_add(pol_addr)				gpool_add_generational(pol_addr)
+#define	gpool_remove(pool_addr, index)			pool_remove(pool_addr, index)
+#define	gpool_remove_address(pool_addr, addr)		pool_remove_address(pool_addr, addr)
+#define gpool_address(pool_addr, index)			pool_address(pool_addr, index)
+#define gpool_index(pool_addr, addr)			pool_index(pool_addr, addr)
 
 /*
 Pool External Allocator 

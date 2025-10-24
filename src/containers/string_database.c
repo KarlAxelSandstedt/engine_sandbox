@@ -33,13 +33,13 @@ struct string_database string_database_alloc_internal(struct arena *mem, const u
 	{
 		heap_allocated = 0;
 		hash = hash_map_alloc(mem, hash_size, index_size, 0);
-		pool = pool_alloc_internal(mem, index_size, data_size, pool_state_offset, 0);
+		pool = pool_alloc_internal(mem, index_size, data_size, pool_state_offset, U64_MAX, 0);
 	}
 	else
 	{
 		heap_allocated = 1;
 		hash = hash_map_alloc(NULL, hash_size, index_size, growable);
-		pool = pool_alloc_internal(mem, index_size, data_size, pool_state_offset, growable);
+		pool = pool_alloc_internal(mem, index_size, data_size, pool_state_offset, U64_MAX, growable);
 	}
 
 	if (!hash || !pool.length)
@@ -182,7 +182,7 @@ struct slot string_database_lookup(const struct string_database *db, const utf8 
 void *string_database_address(const struct string_database *db, const u32 handle)
 {
 	u8 *address = pool_address(&db->pool, handle);
-	kas_assert((*(u32 *)(address + db->pool.slot_state_offset)) & 0x80000000);
+	kas_assert((*(u32 *)(address + db->pool.slot_allocation_offset)) & 0x80000000);
 	return address;
 }
 

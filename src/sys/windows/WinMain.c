@@ -76,13 +76,13 @@ int CALLBACK WinMain(HINSTANCE h_instance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 #if defined(KAS_TEST_CORRECTNESS) || defined(KAS_TEST_PERFORMANCE)
 	test_main();
 #else
-	struct led editor = led_alloc();
+	struct led *editor = led_alloc();
 	
 	const u64 renderer_framerate = 144;	
 	r_init(&mem_persistent, NSEC_PER_SEC / renderer_framerate, 16*1024*1024, 1024);
 	
-	u64 old_time = editor.ns;
-	while (editor.running)
+	u64 old_time = editor->ns;
+	while (editor->running)
 	{
 		KAS_NEW_FRAME;
 
@@ -96,12 +96,12 @@ int CALLBACK WinMain(HINSTANCE h_instance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 
 		system_process_events();
 
-		led_main(&editor, ns_tick);
-		led_ui_main(&editor);
-		r_led_main(&editor);
+		led_main(editor, ns_tick);
+		led_ui_main(editor);
+		r_led_main(editor);
 	}
 
-	led_dealloc(&editor);
+	led_dealloc(editor);
 	asset_database_cleanup();
 	ui_free_global_state();
 	cmd_free();

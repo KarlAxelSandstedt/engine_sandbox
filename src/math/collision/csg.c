@@ -43,7 +43,7 @@ struct csg csg_alloc(void)
 	struct csg_brush *stub_brush = string_database_address(&csg.brush_database, STRING_DATABASE_STUB_INDEX);
 	stub_brush->primitive = CSG_PRIMITIVE_BOX;
 	stub_brush->dcel = dcel_box();
-	stub_brush->flags = CSG_FLAG_CONSTANT;
+	stub_brush->flags = CSG_CONSTANT;
 	stub_brush->delta = NULL;
 	stub_brush->id_hash = utf8_hash(stub_brush->id);
 	stub_brush->ui_index_cached = UI_NON_CACHED_INDEX;
@@ -96,9 +96,9 @@ static void csg_remove_marked_structs(struct csg *csg)
 	for (u32 i = csg->brush_marked_list.first; i != DLL_NULL; i = DLL_NEXT(brush))
 	{
 		brush = string_database_address(&csg->brush_database, i);
-		if (brush->flags & CSG_FLAG_CONSTANT || brush->reference_count)
+		if ((brush->flags & CSG_CONSTANT) || brush->reference_count)
 		{
-			brush->flags &= ~CSG_FLAG_MARKED_FOR_REMOVAL;
+			brush->flags &= ~CSG_MARKED_FOR_REMOVAL;
 			dll_remove(&csg->brush_marked_list, csg->brush_database.pool.buf, i);
 			dll_append(&csg->brush_non_marked_list, csg->brush_database.pool.buf, i);
 			continue;
@@ -162,9 +162,9 @@ void csg_brush_mark_for_removal(struct csg *csg, const utf8 id)
 {
 	struct slot slot = string_database_lookup(&csg->brush_database, id);
 	struct csg_brush *brush = slot.address;
-	if (brush && !(brush->flags & (CSG_FLAG_CONSTANT | CSG_FLAG_MARKED_FOR_REMOVAL)))
+	if (brush && !(brush->flags & (CSG_CONSTANT | CSG_MARKED_FOR_REMOVAL)))
 	{
-		brush->flags |= CSG_FLAG_MARKED_FOR_REMOVAL;
+		brush->flags |= CSG_MARKED_FOR_REMOVAL;
 		dll_remove(&csg->brush_marked_list, csg->brush_database.pool.buf, slot.index);
 		dll_append(&csg->brush_marked_list, csg->brush_database.pool.buf, slot.index);
 	}

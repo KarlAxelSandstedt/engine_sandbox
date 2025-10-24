@@ -111,6 +111,7 @@ static void led_profiler_main(struct led *led)
 		vec4_set(prof->system_colors[T_RENDERER], 204.0f/256.0f, 48.0f/256.0f, 64.0f/256.0f, prof->transparency);
 		vec4_set(prof->system_colors[T_CSG], 44.0f/256.0f, 148.0f/256.0f, 164.0f/256.0f, prof->transparency);
 		vec4_set(prof->system_colors[T_UI], 194.0f/256.0f, 68.0f/256.0f, 191.0f/256.0f, prof->transparency);
+		vec4_set(prof->system_colors[T_LED], 24.0f/256.0f, 118.0f/256.0f, 161.0f/256.0f, prof->transparency);
 		vec4_set(prof->system_colors[T_PROFILER], 235.0f/256.0f, 155.0f/256.0f, 74.0f/256.0f, prof->transparency);
 		vec4_set(prof->system_colors[T_ASSET], 35.0f/256.0f, 155.0f/256.0f, 74.0f/256.0f, prof->transparency);
 
@@ -153,7 +154,11 @@ static void led_profiler_main(struct led *led)
 
 void led_main(struct led *led, const u64 ns_delta)
 {
+	KAS_TASK(__func__, T_LED);
+
 	led->ns += ns_delta;
+	arena_flush(&led->frame);
+
 	led_project_main(led);
 
 	if (!led->project.initialized)
@@ -165,4 +170,11 @@ void led_main(struct led *led, const u64 ns_delta)
 	{
 		led_profiler_main(led);
 	}
+
+	/*
+	 * (1) process user input => (2) build ui => (3) led_core(): process systems in order
+	 */
+	led_core(led);
+
+	KAS_END;
 }

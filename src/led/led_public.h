@@ -26,6 +26,9 @@
 #include "allocator.h"
 #include "csg.h"
 #include "physics_pipeline.h"
+#include "hash_map.h"
+#include "list.h"
+#include "cmd.h"
 
 /*******************************************/
 /*                 led_init.c              */
@@ -36,7 +39,7 @@ struct led_project_menu
 {
 	u32		window;
 
-	utf8	selected_path;		/* selected path in menu, or empty string */
+	utf8		selected_path;		/* selected path in menu, or empty string */
 
 	u32		projects_folder_allocated; /* Boolean : Is directory contents allocated */
 	u32		projects_folder_refresh; /* Boolean : on main entry, refresh projects folder contents */
@@ -70,7 +73,43 @@ struct led_project
 	struct file		file;		/* project main file 				*/
 };
 
-/* Level editor main struct */
+/*
+led_node
+==========
+General level editor node; TODO
+*/
+
+#define LED_FLAG_NONE			((u64) 0)
+#define LED_CONSTANT			((u64) 1 << 0)	/* node state is constant 			   	*/
+#define LED_MARKED_FOR_REMOVAL		((u64) 1 << 1)	/* node is marked for removal; Whenever possible, 
+							   remove the node. 					*/
+#define LED_PHYSICS			((u64) 1 << 2)	/* node contains a physics constructor handle		*/
+#define LED_CSG				((u64) 1 << 3)	/* node contains a csg constructor handle		*/
+
+struct led_node
+{
+	GENERATIONAL_POOL_SLOT_STATE;
+	DLL_SLOT_STATE;
+
+	u64	flags;
+	utf8	id;
+	u32	key;
+	u32	ui_index_cached;
+
+	/* Initial values fed into physics/csg */
+	vec3	position;
+	quat	rotation;
+
+	u32	physics_handle; 
+	u32 	render_handle;	
+	u32	csg_handle;	
+};
+
+/*
+led
+===
+level editor main structure; TODO
+ */
 struct led
 {
 	u32			window;
@@ -84,16 +123,23 @@ struct led
 	u64			ns;		/* current time in ns */
 	u32			running;
 
-	utf8			physics_viewport_id;
-	struct physics_pipeline physics;
 
-	utf8			csg_viewport_id;
+	/* TODO move stuff into led project/led_core or something */
+	struct arena 		frame;
+	utf8			viewport_id;
+	struct physics_pipeline physics;
 	struct csg 		csg;
 	struct ui_list 		brush_list;
+
+	struct hash_map *	node_map;
+	struct pool		node_pool;
+	struct dll		node_marked_list;
+	struct dll		node_non_marked_list;
+	struct ui_list		node_list;
 };
 
 /* Allocate initial led resources */
-struct led 	led_alloc(void);
+struct led *	led_alloc(void);
 /* deallocate led resources */
 void		led_dealloc(struct led *led);
 

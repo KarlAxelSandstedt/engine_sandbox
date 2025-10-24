@@ -55,14 +55,14 @@ struct string_database
 /* allocate and return database with entries of data_size (simply sizeof(struct)). 
  * If growable, allows the database to increase size when required. */
 struct string_database	string_database_alloc_internal(struct arena *mem, const u32 hash_size, const u32 index_size, const u64 data_size, const u64 id_offset, const u64 reference_count_offset, const u64 pool_state_offset, const u32 growable);
-#define 		string_database_alloc(mem, hash_size, index_size, STRUCT, growable)	\
-			string_database_alloc_internal(mem,					\
-				       		       hash_size,				\
-						       index_size, 				\
-						       sizeof(STRUCT),				\
-						       ((u64)&((STRUCT *)0)->id),		\
-						       ((u64)&((STRUCT *)0)->reference_count),	\
-						       ((u64)&((STRUCT *)0)->pool_slot_state),	\
+#define 		string_database_alloc(mem, hash_size, index_size, STRUCT, growable)		\
+			string_database_alloc_internal(mem,						\
+				       		       hash_size,					\
+						       index_size, 					\
+						       sizeof(STRUCT),					\
+						       ((u64)&((STRUCT *)0)->id),			\
+						       ((u64)&((STRUCT *)0)->reference_count),		\
+						       ((u64)&((STRUCT *)0)->slot_allocation_state),	\
 						       growable)
 /* free the database. NOTE that none of the database id strings are freed as they are either aliases or arena memory. */
 void		string_database_free(struct string_database *db);

@@ -240,8 +240,10 @@ void system_process_events(void)
 			{
 				vec2 cursor_position;
 				window_position_native_to_system(cursor_position, sys_win->native, event.native_cursor_window_position);
+				UNPOISON_ADDRESS(sys_win->ui->inter.cursor_delta, sizeof(vec2));
 				sys_win->ui->inter.cursor_delta[0] += cursor_position[0] - sys_win->ui->inter.cursor_position[0];
 				sys_win->ui->inter.cursor_delta[1] += cursor_position[1] - sys_win->ui->inter.cursor_position[1];
+				POISON_ADDRESS(sys_win->ui->inter.cursor_delta, sizeof(vec2));
 				vec2_copy(sys_win->ui->inter.cursor_position, cursor_position);
 			} break;
 

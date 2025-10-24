@@ -857,8 +857,8 @@ static void ui_identify_hovered_node(void)
 		node->inter->hovered = 0;
 	}
 
-	const f32 x = (f32) g_ui->inter.cursor_position[0];
-	const f32 y = (f32) g_ui->inter.cursor_position[1];
+	const f32 x = g_ui->inter.cursor_position[0];
+	const f32 y = g_ui->inter.cursor_position[1];
 	i32 depth = -1;
 	u32 index = HI_NULL_INDEX;
 	/* find deepest hashed floating subtree which we are hovering */
@@ -985,7 +985,6 @@ void ui_frame_end(void)
 	for (u32 i = 0; i < KAS_KEY_COUNT; ++i)
 	{
 		g_ui->inter.key_clicked[i] = 0;
-		g_ui->inter.key_pressed[i] = 0;
 		g_ui->inter.key_released[i] = 0;
 	}
 
@@ -998,8 +997,10 @@ void ui_frame_end(void)
 	g_ui->inter.scroll_up_count = 0;
 	g_ui->inter.scroll_down_count = 0;
 
+	UNPOISON_ADDRESS(g_ui->inter.cursor_delta, sizeof(vec2));
 	g_ui->inter.cursor_delta[0] = 0;
 	g_ui->inter.cursor_delta[1] = 0;
+	POISON_ADDRESS(g_ui->inter.cursor_delta, sizeof(vec2));
 
 	kas_assert(g_ui->stack_parent.next == 1);
 

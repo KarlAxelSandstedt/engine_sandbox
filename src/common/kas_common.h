@@ -92,6 +92,7 @@ enum system_id
 	T_ASSERT,
 	T_GAME,
 	T_UI,
+	T_LED,
 	T_COUNT
 };
 

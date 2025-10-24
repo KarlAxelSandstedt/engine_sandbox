@@ -23,19 +23,6 @@
 #include "kas_math.h"
 #include "log.h"
 
-#ifdef KAS_ASAN
-#include "sanitizer/asan_interface.h"
-
-#define POISON_ADDRESS(addr, size)	ASAN_POISON_MEMORY_REGION((addr), (size))
-#define UNPOISON_ADDRESS(addr, size)	ASAN_UNPOISON_MEMORY_REGION((addr), (size))
-
-#else
-
-#define POISON_ADDRESS(addr, size)		
-#define UNPOISON_ADDRESS(addr, size)
-
-#endif
-
 void arena_push_record(struct arena *ar)
 {
 	const u64 rec_mem_left = ar->mem_left;
@@ -657,7 +644,7 @@ void ring_pop_end(struct ring *ring, const u64 size)
 }
 
 /* internal allocation of pool, use pool_alloc macro instead */
-struct pool pool_alloc_internal(struct arena *mem, const u32 length, const u64 slot_size, const u64 __pool_slot_state_offset, const u32 growable)
+struct pool pool_alloc_internal(struct arena *mem, const u32 length, const u64 slot_size, const u64 slot_allocation_offset, const u64 slot_generation_offset, const u32 growable)
 {
 	kas_assert(!growable || !mem);
 
@@ -679,7 +666,8 @@ struct pool pool_alloc_internal(struct arena *mem, const u32 length, const u64 s
 	if (buf)
 	{
 		pool.slot_size = slot_size;
-		pool.slot_state_offset = __pool_slot_state_offset;
+		pool.slot_allocation_offset = slot_allocation_offset;
+		pool.slot_generation_offset = slot_generation_offset;
 		pool.buf = buf;
 		pool.length = length;
 		pool.count = 0;
@@ -738,6 +726,8 @@ static void internal_pool_realloc(struct pool *pool)
 
 struct slot pool_add(struct pool *pool)
 {
+	kas_assert(pool->slot_generation_offset == U64_MAX);
+
 	struct slot allocation = { .address = NULL, .index = POOL_NULL };
 
 	u32* slot_state;
@@ -749,7 +739,7 @@ struct slot pool_add(struct pool *pool)
 			allocation.address = pool->buf + pool->next_free*pool->slot_size;
 			allocation.index = pool->next_free;
 
-			slot_state = (u32 *) ((u8 *) allocation.address + pool->slot_state_offset);
+			slot_state = (u32 *) ((u8 *) allocation.address + pool->slot_allocation_offset);
 			pool->next_free = *slot_state & 0x7fffffff;
 			kas_assert((*slot_state & 0x80000000) == 0);
 		}
@@ -758,7 +748,7 @@ struct slot pool_add(struct pool *pool)
 			UNPOISON_ADDRESS(pool->buf + pool->count_max*pool->slot_size, pool->slot_size);
 			allocation.address = (u8 *) pool->buf + pool->slot_size * pool->count_max;
 			allocation.index = pool->count_max;
-			slot_state = (u32 *) ((u8 *) allocation.address + pool->slot_state_offset);
+			slot_state = (u32 *) ((u8 *) allocation.address + pool->slot_allocation_offset);
 			pool->count_max += 1;
 		}	
 		*slot_state = 0x80000000;
@@ -770,8 +760,59 @@ struct slot pool_add(struct pool *pool)
 		UNPOISON_ADDRESS(pool->buf + pool->count_max*pool->slot_size, pool->slot_size);
 		allocation.address = pool->buf + pool->slot_size*pool->count_max;
 		allocation.index = pool->count_max;
-		slot_state = (u32 *) ((u8 *) allocation.address + pool->slot_state_offset);
+		slot_state = (u32 *) ((u8 *) allocation.address + pool->slot_allocation_offset);
 		*slot_state = 0x80000000;
+		pool->count_max += 1;
+		pool->count += 1;
+	}
+
+	return allocation;
+}
+
+struct slot gpool_add(struct pool *pool)
+{
+	kas_assert(pool->slot_generation_offset != U64_MAX);
+
+	struct slot allocation = { .address = NULL, .index = POOL_NULL };
+
+	u32* slot_state;
+	if (pool->count < pool->length)
+	{
+		if (pool->next_free != POOL_NULL)
+		{
+			UNPOISON_ADDRESS(pool->buf + pool->next_free*pool->slot_size, pool->slot_size);
+			allocation.address = pool->buf + pool->next_free*pool->slot_size;
+			allocation.index = pool->next_free;
+
+			slot_state = (u32 *) ((u8 *) allocation.address + pool->slot_allocation_offset);
+			pool->next_free = *slot_state & 0x7fffffff;
+			u32 *gen_state = (u32 *) ((u8 *) allocation.address + pool->slot_generation_offset);
+			*gen_state += 1;
+			kas_assert((*slot_state & 0x80000000) == 0);
+		}
+		else
+		{
+			UNPOISON_ADDRESS(pool->buf + pool->count_max*pool->slot_size, pool->slot_size);
+			allocation.address = (u8 *) pool->buf + pool->slot_size * pool->count_max;
+			allocation.index = pool->count_max;
+			slot_state = (u32 *) ((u8 *) allocation.address + pool->slot_allocation_offset);
+			u32 *gen_state = (u32 *) ((u8 *) allocation.address + pool->slot_generation_offset);
+			*gen_state = 0;
+			pool->count_max += 1;
+		}	
+		*slot_state = 0x80000000;
+		pool->count += 1;
+	}
+	else if (pool->growable)
+	{
+		internal_pool_realloc(pool);
+		UNPOISON_ADDRESS(pool->buf + pool->count_max*pool->slot_size, pool->slot_size);
+		allocation.address = pool->buf + pool->slot_size*pool->count_max;
+		allocation.index = pool->count_max;
+		slot_state = (u32 *) ((u8 *) allocation.address + pool->slot_allocation_offset);
+		u32 *gen_state = (u32 *) ((u8 *) allocation.address + pool->slot_generation_offset);
+		*slot_state = 0x80000000;
+		*gen_state = 0;
 		pool->count_max += 1;
 		pool->count += 1;
 	}
@@ -784,7 +825,7 @@ void pool_remove(struct pool *pool, const u32 index)
 	kas_assert(index < pool->length);
 
 	u8 *address = pool->buf + index*pool->slot_size;
-	u32 *slot_state = (u32 *) (address + pool->slot_state_offset);
+	u32 *slot_state = (u32 *) (address + pool->slot_allocation_offset);
 	kas_assert(*slot_state);
 
 	*slot_state = pool->next_free;
