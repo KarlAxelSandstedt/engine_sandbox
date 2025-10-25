@@ -45,8 +45,7 @@ struct csg csg_alloc(void)
 	stub_brush->dcel = dcel_box();
 	stub_brush->flags = CSG_CONSTANT;
 	stub_brush->delta = NULL;
-	stub_brush->id_hash = utf8_hash(stub_brush->id);
-	stub_brush->ui_index_cached = UI_NON_CACHED_INDEX;
+	stub_brush->cache = ui_node_cache_null();
 
 	dcel_assert_topology(&stub_brush->dcel);
 
@@ -150,9 +149,7 @@ struct slot csg_brush_add(struct csg *csg, const utf8 id)
 		brush->flags = CSG_FLAG_NONE;
 		brush->delta = NULL;
 
-		brush->id_hash = utf8_hash(brush->id);
-		/* TODO:(Note) must also be reset when modifying brush id later on... */
-		brush->ui_index_cached = UI_NON_CACHED_INDEX;
+		brush->cache = ui_node_cache_null();
 	}
 
 	return slot;

@@ -27,6 +27,7 @@
 #include "list.h"
 #include "quaternion.h"
 #include "geometry.h"
+#include "ui_public.h"
 
 #define CSG_FLAG_NONE		((u64) 0)
 #define CSG_CONSTANT		((u64) 1 << 0)	/* If set, the struct's state is to be viewed as constant   */
@@ -65,8 +66,7 @@ struct csg_brush
 	STRING_DATABASE_SLOT_STATE;
 
 	/* ui caching neeeded for proper list interactions */
-	u32			id_hash;
-	u32			ui_index_cached;
+	struct ui_node_cache	cache;
 };
 
 /*

@@ -98,11 +98,11 @@ struct ui_list
 
 #define ui_list(list, fmt, ...)		UI_SCOPE(ui_list_push(list, fmt,  __VA_ARGS__), ui_list_pop(list))
 
-struct ui_list 	ui_list_init(enum axis_2 axis, const f32 axis_pixel_size, const f32 entry_pixel_size);
-void		ui_list_push(struct ui_list *list, const char *format, ...);
-void		ui_list_pop(struct ui_list *list);
-struct slot 	ui_list_entry_alloc_cached(struct ui_list *list, const utf8 id, const u32 id_hash, const utf8 text, const u32 index_cached);
-struct slot 	ui_list_entry_alloc(struct ui_list *list);
+struct ui_list 		ui_list_init(enum axis_2 axis, const f32 axis_pixel_size, const f32 entry_pixel_size);
+void			ui_list_push(struct ui_list *list, const char *format, ...);
+void			ui_list_pop(struct ui_list *list);
+struct ui_node_cache	ui_list_entry_alloc_cached(struct ui_list *list, const utf8 id, const utf8 text, const struct ui_node_cache cache);
+struct slot 		ui_list_entry_alloc(struct ui_list *list);
 
 /***************************************** ui_timeline ******************************************/
 
@@ -660,8 +660,17 @@ struct ui_node
 	f32		corner_radius;
 };
 
-#define 	UI_NON_CACHED_INDEX 	HI_ORPHAN_STUB_INDEX
-struct slot 	ui_node_alloc_cached(const u64 flags, const utf8 id, const u32 id_hash, const utf8 text, const u32 index_cached);
+struct ui_node_cache
+{
+	u64		last_frame_touched;
+	struct ui_node *frame_node;	
+	u32		index;	
+};
+
+struct ui_node_cache	ui_node_cache_null(void);
+
+#define UI_NON_CACHED_INDEX 	HI_ORPHAN_STUB_INDEX
+struct ui_node_cache 	ui_node_alloc_cached(const u64 flags, const utf8 id, const utf8 text, const struct ui_node_cache cache);
 
 /* allocate new node, values are set according to stack values */
 struct slot	ui_node_alloc(const u64 flags, const utf8 *formatted);

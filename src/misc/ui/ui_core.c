@@ -1224,7 +1224,31 @@ struct slot ui_node_lookup(const utf8 *id)
 	return slot; 
 }
 
-struct slot ui_node_alloc_cached(const u64 flags, const utf8 id, const u32 id_hash, const utf8 text, const u32 index_cached)
+struct ui_node_cache ui_node_cache_null(void)
+{
+	struct ui_node_cache cache =
+	{
+		.last_frame_touched = 0,
+		.frame_node = NULL,
+		.index = UI_NON_CACHED_INDEX,
+	};
+
+	return cache;
+}
+
+struct ui_node_cache ui_node_cache_orphan_root(void)
+{
+	struct ui_node_cache cache =
+	{
+		.last_frame_touched = 0,
+		.frame_node = hierarchy_index_address(g_ui->node_hierarchy, UI_NON_CACHED_INDEX),
+		.index = UI_NON_CACHED_INDEX,
+	};
+
+	return cache;
+}
+
+struct ui_node_cache ui_node_alloc_cached(const u64 flags, const utf8 id, const utf8 text, const struct ui_node_cache cache)
 {
 	const u32 parent_index = stack_u32_top(&g_ui->stack_parent);
 	struct ui_node *parent = hierarchy_index_address(g_ui->node_hierarchy, parent_index);
@@ -1232,13 +1256,16 @@ struct slot ui_node_alloc_cached(const u64 flags, const utf8 id, const u32 id_ha
 	/* Parent failed to alloc */
 	if (parent_index == HI_ORPHAN_STUB_INDEX)
 	{
-		return (struct slot) { .index = HI_ORPHAN_STUB_INDEX, .address = hierarchy_index_address(g_ui->node_hierarchy, HI_ORPHAN_STUB_INDEX) };
+		return ui_node_cache_orphan_root();
 	}
 
 	u64 implied_flags = stack_u64_top(&g_ui->stack_flags);
 
 	/* If not cached, index should be != STUB_INDEX */
-	struct ui_node *node = hierarchy_index_address(g_ui->node_hierarchy, index_cached);
+	struct ui_node *node = (cache.last_frame_touched+1 == g_ui->frame)
+				? hierarchy_index_address(g_ui->node_hierarchy, cache.index)
+				: hierarchy_index_address(g_ui->node_hierarchy, HI_ORPHAN_STUB_INDEX);
+
 	struct ui_size size_x = stack_ui_size_top(g_ui->stack_ui_size + AXIS_2_X);
 	struct ui_size size_y = stack_ui_size_top(g_ui->stack_ui_size + AXIS_2_Y);
 
@@ -1251,7 +1278,7 @@ struct slot ui_node_alloc_cached(const u64 flags, const utf8 id, const u32 id_ha
 		const intv visible = stack_intv_top(g_ui->stack_viewable + AXIS_2_X);
 		if ((size_x.intv.high < visible.low || size_x.intv.low > visible.high) && !(node->inter & UI_INTER_ACTIVE))
 		{
-			return (struct slot) { .index = HI_ORPHAN_STUB_INDEX, .address = hierarchy_index_address(g_ui->node_hierarchy, HI_ORPHAN_STUB_INDEX) };
+			return ui_node_cache_orphan_root();
 		}
 	}
 
@@ -1263,7 +1290,7 @@ struct slot ui_node_alloc_cached(const u64 flags, const utf8 id, const u32 id_ha
 		const intv visible = stack_intv_top(g_ui->stack_viewable + AXIS_2_Y);
 		if ((size_y.intv.high < visible.low || size_y.intv.low > visible.high) && !(node->inter & UI_INTER_ACTIVE))
 		{
-			return (struct slot) { .index = HI_ORPHAN_STUB_INDEX, .address = hierarchy_index_address(g_ui->node_hierarchy, HI_ORPHAN_STUB_INDEX) };
+			return ui_node_cache_orphan_root();
 		}
 	}
 
@@ -1278,17 +1305,22 @@ struct slot ui_node_alloc_cached(const u64 flags, const utf8 id, const u32 id_ha
 		? stack_u32_top(&g_ui->stack_fixed_depth)
 		: parent->depth + 1;
 
+	u32 key;
 	struct slot slot;
-	if (index_cached == UI_NON_CACHED_INDEX)
+	if (cache.last_frame_touched+1 != g_ui->frame)
 	{
+		fprintf(stderr, "invalid cache, allocating new: ");
+		utf8_debug_print(id);
+		key = utf8_hash(id);
 		slot = hierarchy_index_add(g_ui->node_hierarchy, stack_u32_top(&g_ui->stack_parent));
 		node = slot.address;
-		hash_map_add(g_ui->node_map, id_hash, slot.index);
+		hash_map_add(g_ui->node_map, key, slot.index);
 	}
 	else
 	{
+		key = node->key;
 		slot.address = node;
-		slot.index = index_cached;
+		slot.index = cache.index;
 		hierarchy_index_adopt_node_exclusive(g_ui->node_hierarchy, slot.index, stack_u32_top(&g_ui->stack_parent));
 		inter = ui_node_set_interactions(node, node_flags, inter_recursive_mask);
 	}
@@ -1297,7 +1329,7 @@ struct slot ui_node_alloc_cached(const u64 flags, const utf8 id, const u32 id_ha
 	g_ui->node_count_frame += 1;
 
 	node->id = id;
-	node->key = id_hash;
+	node->key = key;
 	node->flags = node_flags;
 	node->inter_recursive_flags = inter_recursive_flags;
 	node->inter_recursive_mask = inter_recursive_mask;
@@ -1440,7 +1472,14 @@ struct slot ui_node_alloc_cached(const u64 flags, const utf8 id, const u32 id_ha
 	
 	kas_assert(node->semantic_size[AXIS_2_Y].type != UI_SIZE_TEXT || node->semantic_size[AXIS_2_X].type == UI_SIZE_TEXT);
 
-	return slot;
+	const struct ui_node_cache new_cache =
+	{
+		.index = slot.index,
+		.frame_node = node,
+		.last_frame_touched = g_ui->frame,
+	};
+
+	return new_cache;
 }
 
 struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)

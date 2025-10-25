@@ -357,7 +357,7 @@ static void internal_process_worker_profiles(struct arena *frame_persistent, str
 		hw_p->task_id = lw_p->task_id;
 		hw_p->parent = lw_p->parent-1;	/* parent index, U32_MAX for no parent */
 		hw_p->child_tasks = 0;
-		hw_p->ui_node_index = UI_NON_CACHED_INDEX;
+		hw_p->cache = ui_node_cache_null();
 
 		hw_p->id = utf8_format(frame_persistent, "t%u_%lu_%u", worker, frame, i);
 		struct kaspf_task_info *info = g_kaspf_reader->task_info + lw_p->task_id;

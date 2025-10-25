@@ -24,6 +24,7 @@
 
 #ifdef KAS_PROFILER
 #include "sys_public.h"
+#include "ui_public.h"
 
 /************************** Karl Axel Sandstedt Profiler **************************/
 
@@ -233,11 +234,11 @@ struct frame_header *kaspf_next_header(const struct frame_header *fh, const u64 
 
 struct hw_profile
 {
+	struct ui_node_cache	cache;
 	utf8	id;
 	u64 	ns_start;
 	u64 	ns_end;
 	u64 	ns_in_children;
-	u32	ui_node_index;
 	u32	parent;
 	u32	id_hash;
 	u32	child_tasks;	/* TODO: number of tasks decendant of profile */

@@ -123,7 +123,7 @@ struct slot ui_list_entry_alloc(struct ui_list *list)
 	return entry;
 }
 
-struct slot ui_list_entry_alloc_cached(struct ui_list *list, const utf8 id, const u32 id_hash, const utf8 text, const u32 index_cached)
+struct ui_node_cache ui_list_entry_alloc_cached(struct ui_list *list, const utf8 id, const utf8 text, const struct ui_node_cache cache)
 {
 	const intv intv_entry =
 	{
@@ -131,21 +131,22 @@ struct slot ui_list_entry_alloc_cached(struct ui_list *list, const utf8 id, cons
 		.high = list->entry_pixel_size * (list->frame_count + 1),
 	};
 
-	struct slot entry;
+	struct ui_node_cache new_cache;
 	ui_size(list->axis, ui_size_unit(intv_entry))
 	ui_size(1-list->axis, ui_size_perc(1.0f))
 	ui_child_layout_axis(1-list->axis)
 	ui_recursive_interaction(UI_INTER_RECURSIVE_SELECT)
-	entry = ui_node_alloc_cached(UI_INTER_RECURSIVE_ROOT | UI_UNIT_POSITIVE_DOWN | UI_DRAW_BORDER, id, id_hash, text, index_cached);
+	new_cache = ui_node_alloc_cached(UI_INTER_RECURSIVE_ROOT | UI_UNIT_POSITIVE_DOWN | UI_DRAW_BORDER, id, text, cache);
 
-	struct ui_node *node = entry.address;
+	struct ui_node *node = new_cache.frame_node;
 	if (node->inter & UI_INTER_SELECT)
 	{
 		vec4_set(node->border_color, 0.1f, 0.32f, 0.68f, 0.8f);
 	}
 
 	list->frame_count += 1;
-	return entry;
+
+	return new_cache;
 }
 
 //U+3bc == 01110 111100

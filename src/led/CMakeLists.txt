@@ -9,6 +9,8 @@ add_library(led STATIC
 	led_visual.c
 	led_ui.c
 	led_core.c
+	csg.c
+	csg.h
 	)
 
 target_link_libraries(led

@@ -91,18 +91,18 @@ struct led_node
 	GENERATIONAL_POOL_SLOT_STATE;
 	DLL_SLOT_STATE;
 
-	u64	flags;
-	utf8	id;
-	u32	key;
-	u32	ui_index_cached;
+	u64			flags;
+	utf8			id;
+	struct ui_node_cache	cache;
+	u32			key;
 
 	/* Initial values fed into physics/csg */
-	vec3	position;
-	quat	rotation;
+	vec3			position;
+	quat			rotation;
 
-	u32	physics_handle; 
-	u32 	render_handle;	
-	u32	csg_handle;	
+	u32			physics_handle; 
+	u32 			render_handle;	
+	u32			csg_handle;	
 };
 
 /*

@@ -251,7 +251,7 @@ static void led_profiler_ui(struct led *led, const struct ui_visual *visual)
 						ui_width(ui_size_unit(intv_inline(p->ns_start, p->ns_end)))
 						ui_height(ui_size_unit(intv_inline(p->depth, p->depth+1)))
 						ui_external_text_layout(info->layout, info->id)
-						p->ui_node_index = ui_node_alloc_cached(UI_DRAW_BACKGROUND | UI_DRAW_BORDER | UI_DRAW_GRADIENT | UI_DRAW_TEXT | UI_TEXT_EXTERNAL_LAYOUT | UI_DRAW_TEXT_FADE, p->id, p->id_hash, utf8_empty(), p->ui_node_index).index;
+						p->cache = ui_node_alloc_cached(UI_DRAW_BACKGROUND | UI_DRAW_BORDER | UI_DRAW_GRADIENT | UI_DRAW_TEXT | UI_TEXT_EXTERNAL_LAYOUT | UI_DRAW_TEXT_FADE, p->id, utf8_empty(), p->cache);
 					}
 
 					fh = fh->next;
@@ -499,14 +499,12 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 			for (u32 i = led->node_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(node))
 			{
 				node = gpool_address(&led->node_pool, i);
-				struct slot slot = ui_list_entry_alloc_cached(&led->node_list, 
+				node->cache = ui_list_entry_alloc_cached(&led->node_list, 
 						       	node->id,
-						       	node->key, 
 							node->id, 
-							node->ui_index_cached);
-				node->ui_index_cached = slot.index;
+							node->cache);
 
-				ui_parent(slot.index)
+				ui_parent(node->cache.index)
 				{
 					ui_pad(); 
 
@@ -514,7 +512,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 					ui_node_alloc_f(UI_DRAW_TEXT, "%k##%u", &node->id, i);
 				}
 
-				struct ui_node *ui_node = slot.address;
+				struct ui_node *ui_node = node->cache.frame_node;
 				if (ui_node->inter & UI_INTER_SELECT)
 				{
 					last->address = arena_push(g_ui->mem_frame, sizeof(struct slot));

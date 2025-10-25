@@ -56,7 +56,7 @@ struct slot led_node_add(struct led *led, const utf8 id)
 		node->flags = LED_FLAG_NONE;
 		node->id = copy;
 		node->key = key;
-		node->ui_index_cached = UI_NON_CACHED_INDEX;
+		node->cache = ui_node_cache_null();
 
 		const vec3 axis = { 0.0f, 1.0f, 0.0f };
 		vec3_set(node->position, 0.0f, 0.0f, 0.0f);
