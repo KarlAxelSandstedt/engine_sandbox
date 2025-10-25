@@ -660,8 +660,7 @@ struct ui_node
 	f32		corner_radius;
 };
 
-#define UI_NON_CACHED_INDEX 	HI_ORPHAN_STUB_INDEX
-/* QUICKPATH: TODO  */
+#define 	UI_NON_CACHED_INDEX 	HI_ORPHAN_STUB_INDEX
 struct slot 	ui_node_alloc_cached(const u64 flags, const utf8 id, const u32 id_hash, const utf8 text, const u32 index_cached);
 
 /* allocate new node, values are set according to stack values */
@@ -672,8 +671,8 @@ struct slot	ui_node_alloc_f(const u64 flags, const char *format, ...);
 struct slot	ui_node_alloc_non_hashed(const u64 flags);
 /* get node address */
 struct ui_node *ui_node_address(const u32 node);
-/* lookup node using id; returns NULL on not found. */
-struct ui_node *ui_node_lookup(const utf8 *id);
+/* lookup node using id; returns (NULL, U32_MAX) on not found. */
+struct slot	ui_node_lookup(const utf8 *id);
 /* push node stack; any new node created becomes a decendant */
 void 		ui_node_push(const u32 node);		
 /* pop node stack */

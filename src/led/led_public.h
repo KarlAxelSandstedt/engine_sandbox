@@ -136,6 +136,7 @@ struct led
 	struct dll		node_marked_list;
 	struct dll		node_non_marked_list;
 	struct ui_list		node_list;
+	struct ui_list		node_selection_list;
 };
 
 /* Allocate initial led resources */

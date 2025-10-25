@@ -826,7 +826,7 @@ void ui_frame_begin(const vec2u32 window_size, const struct ui_visual *base)
 static void ui_identify_hovered_node(void)
 {
 	//TODO Consider returning stub constant if if-statements occur; 
-	struct ui_node *node = ui_node_lookup(&g_ui->inter.node_hovered);
+	struct ui_node *node = ui_node_lookup(&g_ui->inter.node_hovered).address;
 	if (node)
 	{
 		node->inter &= ~UI_INTER_HOVER;
@@ -972,7 +972,7 @@ void ui_frame_end(void)
 
 	kas_assert(g_ui->stack_parent.next == 1);
 
-	struct ui_node *text_input = ui_node_lookup(&g_ui->inter.text_edit.id);
+	struct ui_node *text_input = ui_node_lookup(&g_ui->inter.text_edit.id).address;
 	if (text_input)
 	{
 		/* update id to current frame memory and generate text selection draw commands */ 
@@ -1204,8 +1204,9 @@ struct ui_node *ui_node_address(const u32 node)
 	return array_list_address(g_ui->node_hierarchy->list, node);
 }
 
-struct ui_node *ui_node_lookup(const utf8 *id)
+struct slot ui_node_lookup(const utf8 *id)
 {
+	struct slot slot = { .address = NULL, .index = U32_MAX };
 	struct ui_node *node;
 	const u32 key = utf8_hash(*id);
 	u32 index = hash_map_first(g_ui->node_map, key);
@@ -1214,13 +1215,13 @@ struct ui_node *ui_node_lookup(const utf8 *id)
 		node = hierarchy_index_address(g_ui->node_hierarchy, index);
 		if (utf8_equivalence(node->id, *id))
 		{
+			slot.address = node;
+			slot.index = index;
 			break;
 		}
 	}
 
-	return ((index != HASH_NULL) && (node->last_frame_touched == g_ui->frame))
-		? node
-		: NULL;
+	return slot; 
 }
 
 struct slot ui_node_alloc_cached(const u64 flags, const utf8 id, const u32 id_hash, const utf8 text, const u32 index_cached)
@@ -1444,42 +1445,12 @@ struct slot ui_node_alloc_cached(const u64 flags, const utf8 id, const u32 id_ha
 
 struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 {
-	u64 implied_flags = stack_u64_top(&g_ui->stack_flags);
-	struct ui_size size_x = stack_ui_size_top(g_ui->stack_ui_size + AXIS_2_X);
-	struct ui_size size_y = stack_ui_size_top(g_ui->stack_ui_size + AXIS_2_Y);
-
 	const u32 parent_index = stack_u32_top(&g_ui->stack_parent);
 	struct ui_node *parent = hierarchy_index_address(g_ui->node_hierarchy, parent_index);
 
 	if (parent_index == HI_ORPHAN_STUB_INDEX)
 	{
 		return (struct slot) { .index = HI_ORPHAN_STUB_INDEX, .address = hierarchy_index_address(g_ui->node_hierarchy, HI_ORPHAN_STUB_INDEX) };
-	}
-
-	//TODO DO this checks correctly with UI_INTER_ACTIVE 
-	if (size_x.type == UI_SIZE_UNIT)
-	{
-		kas_assert(g_ui->stack_viewable[AXIS_2_X].next);
-		implied_flags |= UI_ALLOW_VIOLATION_X;
-
-		const intv visible = stack_intv_top(g_ui->stack_viewable + AXIS_2_X);
-		if (size_x.intv.high < visible.low || size_x.intv.low > visible.high)
-		{
-			return (struct slot) { .index = HI_ORPHAN_STUB_INDEX, .address = hierarchy_index_address(g_ui->node_hierarchy, HI_ORPHAN_STUB_INDEX) };
-		}
-	}
-
-	//TODO DO this checks correctly with UI_INTER_ACTIVE 
-	if (size_y.type == UI_SIZE_UNIT)
-	{
-		kas_assert(g_ui->stack_viewable[AXIS_2_Y].next);
-		implied_flags |= UI_ALLOW_VIOLATION_Y;
-		
-		const intv visible = stack_intv_top(g_ui->stack_viewable + AXIS_2_Y);
-		if (size_y.intv.high < visible.low || size_y.intv.low > visible.high)
-		{
-			return (struct slot) { .index = HI_ORPHAN_STUB_INDEX, .address = hierarchy_index_address(g_ui->node_hierarchy, HI_ORPHAN_STUB_INDEX) };
-		}
 	}
 
 	u32 hash_count = 0;
@@ -1517,53 +1488,61 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 	}
 
 	const utf8 id = (utf8) { .buf = formatted->buf + hash_begin_offset, .len = formatted->len - hash_begin_index, .size = formatted->size - hash_begin_offset };
- 
+	struct slot slot = ui_node_lookup(&id);
+	struct ui_node *node = slot.address;
+	u32 key = 0;
+
 	const u64 inter_recursive_flags = (flags & UI_INTER_RECURSIVE_ROOT)
 		? stack_u64_top(&g_ui->stack_recursive_interaction_flags)
 		: 0;
-	const u64 node_flags = flags | implied_flags | UI_DEBUG_FLAGS | inter_recursive_flags;
+	u64 node_flags = flags | stack_u64_top(&g_ui->stack_flags) | UI_DEBUG_FLAGS | inter_recursive_flags;
 	const u64 inter_recursive_mask = parent->inter_recursive_mask | inter_recursive_flags;
+
+	struct ui_size size_x = stack_ui_size_top(g_ui->stack_ui_size + AXIS_2_X);
+	struct ui_size size_y = stack_ui_size_top(g_ui->stack_ui_size + AXIS_2_Y);
+
+	if (size_x.type == UI_SIZE_UNIT)
+	{
+		kas_assert(g_ui->stack_viewable[AXIS_2_X].next);
+		node_flags |= UI_ALLOW_VIOLATION_X;
+
+		const intv visible = stack_intv_top(g_ui->stack_viewable + AXIS_2_X);
+		if ((size_x.intv.high < visible.low || size_x.intv.low > visible.high) && node && !(node->inter & UI_INTER_ACTIVE))
+		{
+			return (struct slot) { .index = HI_ORPHAN_STUB_INDEX, .address = hierarchy_index_address(g_ui->node_hierarchy, HI_ORPHAN_STUB_INDEX) };
+		}
+	}
+
+	if (size_y.type == UI_SIZE_UNIT)
+	{
+		kas_assert(g_ui->stack_viewable[AXIS_2_Y].next);
+		node_flags |= UI_ALLOW_VIOLATION_Y;
+		
+		const intv visible = stack_intv_top(g_ui->stack_viewable + AXIS_2_Y);
+		if ((size_y.intv.high < visible.low || size_y.intv.low > visible.high) && node && !(node->inter & UI_INTER_ACTIVE))
+		{
+			utf8_debug_print(*formatted);
+			return (struct slot) { .index = HI_ORPHAN_STUB_INDEX, .address = hierarchy_index_address(g_ui->node_hierarchy, HI_ORPHAN_STUB_INDEX) };
+		}
+	}
+
 	u64 inter = 0;
-
-
-
-	u32 key = 0;
-	struct slot slot;
-	u32 index;
-	struct ui_node *node;
-	if (flags & UI_NON_HASHED)
+	if (!slot.address)
 	{
 		slot = hierarchy_index_add(g_ui->node_hierarchy, parent_index);
 		parent = hierarchy_index_address(g_ui->node_hierarchy, parent_index);
 		node = slot.address;
-		index = slot.index;
+		if ((flags & UI_NON_HASHED) == 0)
+		{
+			key = utf8_hash(id);
+			hash_map_add(g_ui->node_map, key, slot.index);
+		}
 	}
 	else
 	{
-		key = utf8_hash(id);
-		for (index = hash_map_first(g_ui->node_map, key); index != HASH_NULL; index = hash_map_next(g_ui->node_map, index))
-		{
-			node = hierarchy_index_address(g_ui->node_hierarchy, index);
-			if (utf8_equivalence(node->id, id))
-			{
-				kas_assert(node->last_frame_touched != g_ui->frame);
-				break;
-			}
-		}
-
-		if (index == HASH_NULL)
-		{
-			slot = hierarchy_index_add(g_ui->node_hierarchy, stack_u32_top(&g_ui->stack_parent));
-			node = slot.address;
-			index = slot.index;
-			hash_map_add(g_ui->node_map, key, index);
-			parent = hierarchy_index_address(g_ui->node_hierarchy, parent_index);
-		}
-		else
-		{
-			hierarchy_index_adopt_node_exclusive(g_ui->node_hierarchy, index, stack_u32_top(&g_ui->stack_parent));
-			inter = ui_node_set_interactions(node, node_flags, inter_recursive_mask);
-		}
+		key = node->key;
+		hierarchy_index_adopt_node_exclusive(g_ui->node_hierarchy, slot.index, stack_u32_top(&g_ui->stack_parent));
+		inter = ui_node_set_interactions(node, node_flags, inter_recursive_mask);
 	}
 
 	g_ui->node_count_frame += 1;
@@ -1597,7 +1576,7 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 		const u32 draw_key = (node->flags & UI_INTER_FLAGS)
 			? UI_DRAW_COMMAND(node->depth, UI_CMD_LAYER_INTER, asset_database_sprite_get_texture_id(node->sprite))
 			: UI_DRAW_COMMAND(node->depth, UI_CMD_LAYER_VISUAL, asset_database_sprite_get_texture_id(node->sprite));
-		ui_draw_bucket_add_node(draw_key, index);
+		ui_draw_bucket_add_node(draw_key, slot.index);
 	}
 
 	if (node->flags & UI_DRAW_TEXT)
@@ -1639,7 +1618,7 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 
 		/* visual first (10), inter second(01), text last(00) */
 		const u32 draw_key = UI_DRAW_COMMAND(node->depth, UI_CMD_LAYER_TEXT, asset->texture_id);
-		ui_draw_bucket_add_node(draw_key, index);
+		ui_draw_bucket_add_node(draw_key, slot.index);
 	}
 	else
 	{
@@ -1671,7 +1650,7 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 
 	if (floating)
 	{
-		stack_u32_push(&g_ui->stack_floating_node, index);
+		stack_u32_push(&g_ui->stack_floating_node, slot.index);
 		stack_u32_push(&g_ui->stack_floating_depth, node->depth);
 	}
 
@@ -1715,7 +1694,7 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 	
 	kas_assert(node->semantic_size[AXIS_2_Y].type != UI_SIZE_TEXT || node->semantic_size[AXIS_2_X].type == UI_SIZE_TEXT);
 
-	return (struct slot) { .index = index, .address = node };
+	return slot;
 }
 
 struct slot ui_node_alloc_f(const u64 flags, const char *format, ...)

@@ -113,6 +113,12 @@ struct slot ui_list_entry_alloc(struct ui_list *list)
 	ui_recursive_interaction(UI_INTER_RECURSIVE_SELECT)
 	entry = ui_node_alloc_f(UI_INTER_RECURSIVE_ROOT | UI_UNIT_POSITIVE_DOWN | UI_DRAW_BORDER, "###%p_%u", list->frame_node_address, list->frame_count);
 
+	struct ui_node *node = entry.address;
+	if (node->inter & UI_INTER_SELECT)
+	{
+		vec4_set(node->border_color, 0.1f, 0.32f, 0.68f, 0.8f);
+	}
+
 	list->frame_count += 1;
 	return entry;
 }
@@ -130,7 +136,6 @@ struct slot ui_list_entry_alloc_cached(struct ui_list *list, const utf8 id, cons
 	ui_size(1-list->axis, ui_size_perc(1.0f))
 	ui_child_layout_axis(1-list->axis)
 	ui_recursive_interaction(UI_INTER_RECURSIVE_SELECT)
-	ui_background_color(vec4_inline(0.1f, 0.25f, 0.75f, 0.8f))
 	entry = ui_node_alloc_cached(UI_INTER_RECURSIVE_ROOT | UI_UNIT_POSITIVE_DOWN | UI_DRAW_BORDER, id, id_hash, text, index_cached);
 
 	struct ui_node *node = entry.address;
@@ -473,7 +478,7 @@ void ui_text_input_mode_disable(void)
 {
 	system_window_text_input_mode_disable();
 
-	struct ui_node *node = ui_node_lookup(&g_ui->inter.text_edit.id);
+	struct ui_node *node = ui_node_lookup(&g_ui->inter.text_edit.id).address;
 	if (node)
 	{
 		node->inter &= ~UI_INTER_FOCUS;

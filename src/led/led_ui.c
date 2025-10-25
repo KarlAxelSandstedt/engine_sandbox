@@ -426,6 +426,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 		}
 
 		led->node_list = ui_list_init(AXIS_2_Y, 256.0f, 24.0f); 
+		led->node_selection_list = ui_list_init(AXIS_2_Y, 256.0f, 24.0f);
 	}
 
 	ui_text_align_x(ALIGN_LEFT)
@@ -489,8 +490,12 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 
 			struct led_node *node = NULL;
 
-			ui_width(ui_size_pixel(128.0f, 1.0f))
-			ui_list(&led->node_list, "###p", &led->node_list)
+			struct slot stub = empty_slot;
+			struct slot *first = &stub;
+			struct slot *last = &stub;
+	
+			ui_width(ui_size_pixel(168.0f, 1.0f))
+			ui_list(&led->node_list, "###%p", &led->node_list)
 			for (u32 i = led->node_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(node))
 			{
 				node = gpool_address(&led->node_pool, i);
@@ -507,6 +512,30 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 
 					ui_width(ui_size_text(F32_INFINITY, 1.0f))
 					ui_node_alloc_f(UI_DRAW_TEXT, "%k##%u", &node->id, i);
+				}
+
+				struct ui_node *ui_node = slot.address;
+				if (ui_node->inter & UI_INTER_SELECT)
+				{
+					last->address = arena_push(g_ui->mem_frame, sizeof(struct slot));
+					last = last->address;	
+					last->address = NULL;
+					last->index = i;
+				}
+			}
+
+			ui_width(ui_size_pixel(168.0f, 1.0f))
+			ui_list(&led->node_selection_list, "###%p", &led->node_selection_list)
+			for (struct slot *slot = first->address; slot; slot = slot->address)
+			{
+				node = gpool_address(&led->node_pool, slot->index);
+				struct slot sel = ui_list_entry_alloc(&led->node_selection_list);
+				ui_parent(sel.index)
+				{
+					ui_pad(); 
+
+					ui_width(ui_size_text(F32_INFINITY, 1.0f))
+					ui_node_alloc_f(UI_DRAW_TEXT, "%k selection##%u", &node->id, slot->index);
 				}
 			}
 
