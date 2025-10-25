@@ -53,7 +53,7 @@ static void led_project_menu_ui(struct led *led, const struct ui_visual *visual)
 			ui_pad();
 
 			ui_width(ui_size_text(F32_INFINITY, 1.0f))
-			if (ui_button_f("Refresh###ref")->clicked)
+			if (ui_button_f("Refresh###ref") & UI_INTER_LEFT_CLICK)
 			{
 				menu->projects_folder_refresh = 1;
 			}
@@ -108,7 +108,7 @@ static void led_project_menu_ui(struct led *led, const struct ui_visual *visual)
 		{
 			ui_pad();
 
-			if (ui_button_f("New Project")->clicked && menu->popup_new_project.state == UI_POPUP_STATE_NULL)
+			if ((ui_button_f("New Project") & UI_INTER_LEFT_CLICK) && menu->popup_new_project.state == UI_POPUP_STATE_NULL)
 			{
 				ui_popup_utf8_input(&menu->popup_new_project, &menu->utf8_new_project, &menu->input_line_new_project, utf8_inline("Please enter the new project's name"), utf8_inline("New Project:"), "New Project", visual);
 			} 
@@ -160,14 +160,14 @@ static void led_project_menu_ui(struct led *led, const struct ui_visual *visual)
 
 			ui_pad();
 
-			if (ui_button_f("Load")->clicked)
+			if (ui_button_f("Load") & UI_INTER_LEFT_CLICK)
 			{
 				fprintf(stderr, "Load!\n");
 			}
 
 			ui_pad();
 
-			if (ui_button_f("Delete")->clicked)
+			if (ui_button_f("Delete") & UI_INTER_LEFT_CLICK)
 			{
 				fprintf(stderr, "Delete!\n");
 			}
@@ -415,7 +415,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 	ui_frame_begin(win->size, visual);
 
 	static u32 count = 0;
-	u32 once = 1;
+	static u32 once = 1;
 	if (once)
 	{
 		once = 0;
@@ -447,8 +447,8 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 			if (slot.index != HI_ORPHAN_STUB_INDEX)
 			ui_parent(slot.index)
 			{
-				struct ui_inter_node *inter = ((struct ui_node *) slot.address)->inter;
-				if (inter->hovered)
+				struct ui_node *node = slot.address;
+				if (node->inter & UI_INTER_HOVER)
 				{	
 					ui_external_text(external_text)
 					ui_background_color(vec4_inline(0.8f, 0.8f, 0.8f, 1.0f))
@@ -460,13 +460,26 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 					ui_node_alloc_non_hashed(UI_DRAW_BACKGROUND | UI_DRAW_BORDER | UI_TEXT_EXTERNAL | UI_DRAW_TEXT | UI_SKIP_HOVER_SEARCH);
 				}
 
-				if (inter->clicked)
+				if (node->inter & UI_INTER_LEFT_CLICK)
 				{
 					const utf8 id = utf8_format(g_ui->mem_frame, "node_%u", count++);
 					cmd_submit_f(g_ui->mem_frame, "led_node_add \"%k\"", &id);
 				}
 			}
 		}
+
+		win->cmd_console->visible = 1;
+		ui_fixed_depth(64)
+		ui_floating_x(0.0f)
+		ui_floating_y(win->size[1] - 32.0f)
+		ui_width(ui_size_perc(1.0f))
+		if (win->cmd_console->visible)
+		{
+			ui_cmd_console(win->cmd_console, "###console_%p", win->ui);
+		};
+
+
+
 
 		ui_flags(UI_DRAW_ROUNDED_CORNERS | UI_TEXT_ALLOW_OVERFLOW)
 		ui_height(ui_size_pixel(256.0f, 1.0f))
@@ -493,7 +506,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 					ui_pad(); 
 
 					ui_width(ui_size_text(F32_INFINITY, 1.0f))
-					ui_node_alloc_f(UI_DRAW_BORDER | UI_DRAW_TEXT, "%k##%u", &node->id, i);
+					ui_node_alloc_f(UI_DRAW_TEXT, "%k##%u", &node->id, i);
 				}
 			}
 

@@ -92,7 +92,7 @@ static void led_remove_marked_structs(struct led *led)
 	struct led_node *node = NULL;
 	for (u32 i = led->node_marked_list.first; i != DLL_NULL; i = DLL_NEXT(node))
 	{
-		struct led_node *node = gpool_address(&led->node_pool, i);
+		node = gpool_address(&led->node_pool, i);
 		if (node->flags & LED_CONSTANT)
 		{
 			node->flags &= ~LED_MARKED_FOR_REMOVAL;

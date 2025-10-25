@@ -187,7 +187,7 @@ struct cmd_console
 
 void 			ui_cmd_console(struct cmd_console *console, const char *fmt, ...);
 
-struct ui_inter_node *	ui_button_f(const char *fmt, ...);
+u64			ui_button_f(const char *fmt, ...);
 
 struct ui_node *	ui_input_line_f(const utf32 external_text, const char *fmt, ...);
 struct ui_node *	ui_input_line(const utf32 external_text, const utf8 id);
@@ -360,8 +360,6 @@ struct ui_interaction
 	/* ui interactions */
 	u64 	interactions;
 
-	struct ui_inter_node *inter_stub;
-
 	/* current mouse hovered node */
 	utf8 	node_hovered;
 
@@ -386,32 +384,6 @@ struct ui_interaction
 	u32 	button_pressed[MOUSE_BUTTON_COUNT];		/* persistent : Is button still pressed?  */
 	u32 	scroll_up_count;				/* frame */
 	u32 	scroll_down_count;				/* frame */
-};
-
-/*
- * list node containing information about a node's interactions
- */
-struct ui_inter_node
-{
-	u64	local_flags;		/* local interaction flags of the node */
-	u64	recursive_flags;	/* recursive interaction flags of the node */
-	u32	node_owner;		/* index of node owner */
-
-	u32	scrolled;		/* Was the button scrolled? */
-	u32	hovered;		/* uniquely set/unset at end of frame; propagated to the next frame. */
-	u32	active;			/* Context dependent: nodes are activated by certain interactions 
-						- left_click => activate unit 
-					*/
-
-	/* keyboard state */
-	const u32 *	key_clicked;	/* frame      : Was key clicked this frame? [KAS_KEYCODE_COUNT] */
-	const u32 *	key_pressed;	/* persistent : Is key currently pressed? [KAS_KEYCODE_COUNT] */
-	const u32 *	key_released;	/* frame      : Was key clicked this frame? [KAS_KEYCODE_COUNT] */
-
-	//TODO tmp...
-	u32	clicked;
-	u32	drag;
-	vec2i32 drag_delta;
 };
 
 /********************************************************************************************************/
@@ -492,7 +464,6 @@ struct ui
 	stack_u32	stack_sprite;
 	stack_u64	stack_flags;
 	stack_u64 	stack_recursive_interaction_flags;
-	stack_ptr	stack_recursive_interaction;
 	stack_ptr	stack_font;
 
 	/* external text usage; used for skipping layout calculations for a string that is used in multiple nodes */
@@ -565,24 +536,45 @@ void		ui_frame_end(void);				/* end ui frame 		*/
 
 /******************** Interaction flags ********************/
 
-#define		UI_INTER_RECURSIVE_ROOT		((u64) 1 << 18)	/* When this is set for a node, the node will, 
+#define		UI_INTER_RECURSIVE_ROOT		((u64) 1 << 17)	/* When this is set for a node, the node will, 
 								   regardless of if we interact with it locally, 
 								   allocate an inter_node. the inter_node is then
 								   also modified according to the node's recursive
 								   interaction flags by any of the node's children.
 								  */
+#define		UI_INTER_ACTIVE				((u64) 1 << 18)	/* The node can be activated or focused. */
 #define		UI_INTER_HOVER				((u64) 1 << 19)
 #define 	UI_INTER_LEFT_CLICK			((u64) 1 << 20)
 #define 	UI_INTER_LEFT_DOUBLE_CLICK		((u64) 1 << 21) 
 #define		UI_INTER_DRAG				((u64) 1 << 22)
 #define		UI_INTER_SCROLL				((u64) 1 << 23)
+#define		UI_INTER_SELECT				((u64) 1 << 24) /* Selection actions (Lclick, ...), on the
+									   node makes the node selected, and a repeat
+									   selection of the node deselects it. */
+#define		UI_INTER_FOCUS				((u64) 1 << 25) /* Similar to UI_INTER_SELECT, expect that
+									   refocusing, or reselecting the node does
+									   not remove the focus. Useful for clicking
+									   on input lines. Remove focus on ESCAPE */
+
 #define		UI_INTER_FLAGS	(0				\
+			| UI_INTER_ACTIVE			\
 			| UI_INTER_HOVER			\
 			| UI_INTER_LEFT_CLICK			\
 			| UI_INTER_LEFT_DOUBLE_CLICK		\
 			| UI_INTER_DRAG				\
 			| UI_INTER_SCROLL			\
+			| UI_INTER_SELECT			\
+			| UI_INTER_FOCUS			\
 		)
+
+#define		UI_INTER_ACTIVATION_FLAGS (0			\
+			| UI_INTER_DRAG				\
+			| UI_INTER_SELECT			\
+			| UI_INTER_FOCUS			\
+		)
+
+/* When recursively checking for select, we must specify UI_INTER_LEFT_CLICK to propagate interactions correctly */
+#define		UI_INTER_RECURSIVE_SELECT	(UI_INTER_SELECT | UI_INTER_LEFT_CLICK)
 
 /******************** General control flags ********************/
 #define		UI_UNIT_POSITIVE_DOWN		((u64) 1 << 37) /* Default Y-layout of ui_size_unit's is that y grow
@@ -632,7 +624,9 @@ struct ui_node
 	u32		key;			/* hashed key */
 	u32		depth;			/* parent->depth + 1 */
 
-	struct ui_inter_node *	inter;		/*  interaction node */
+	u64		inter_recursive_mask;	/* union of ancestor and node recursive_flags */
+	u64		inter_recursive_flags;	/* recursive interactions checked by children */
+	u64		inter;			/* interactions during frame */
 
 	const struct font *font;
 	enum sprite_id	sprite;
@@ -826,9 +820,6 @@ void 	ui_flags_pop(void);
 
 void 	ui_recursive_interaction_push(const u64 flags);
 void 	ui_recursive_interaction_pop(void);
-
-void 	ui_inter_node_recursive_push(struct ui_inter_node *node);
-void 	ui_inter_node_recursive_pop(void);
 
 void 	ui_padding_push(const f32 pad);
 void 	ui_padding_set(const f32 pad);

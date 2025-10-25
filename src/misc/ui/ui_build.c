@@ -45,7 +45,7 @@ void ui_list_push(struct ui_list *list, const char *format, ...)
 	ui_child_layout_axis(list->axis)
 	ui_size(list->axis, ui_size_pixel(list->axis_pixel_size, 1.0f))
 	ui_recursive_interaction(UI_INTER_DRAG | UI_INTER_SCROLL)
-	slot = ui_node_alloc(UI_INTER_RECURSIVE_ROOT | UI_INTER_DRAG | UI_DRAW_BACKGROUND | UI_DRAW_BORDER, &id);
+	slot = ui_node_alloc(UI_INTER_RECURSIVE_ROOT | UI_DRAW_BACKGROUND | UI_DRAW_BORDER, &id);
 
 	list->cache_count = list->frame_count;
 	list->frame_count = 0;
@@ -67,9 +67,8 @@ void ui_list_pop(struct ui_list *list)
 	ui_intv_viewable_pop(list->axis);
 	ui_node_pop();
 
-	if (list->frame_node_address->inter->drag)
+	if (list->frame_node_address->inter & UI_INTER_DRAG)
 	{
-		UNPOISON_ADDRESS(g_ui->inter.cursor_delta, sizeof(vec2));
 		if (list->axis == AXIS_2_X)
 		{
 			list->visible.low -= g_ui->inter.cursor_delta[0];
@@ -80,10 +79,10 @@ void ui_list_pop(struct ui_list *list)
 			list->visible.low += g_ui->inter.cursor_delta[1];
 			list->visible.high += g_ui->inter.cursor_delta[1];
 		}
-		POISON_ADDRESS(g_ui->inter.cursor_delta, sizeof(vec2));
 	}
-	else if (list->frame_node_address->inter->scrolled)
+	else if (list->frame_node_address->inter & UI_INTER_SCROLL)
 	{
+		
 		const f32 scroll_offset = 24.0f * ((f32) g_ui->inter.scroll_up_count - (f32) g_ui->inter.scroll_down_count);
 		if (list->axis == AXIS_2_X)
 		{
@@ -97,7 +96,6 @@ void ui_list_pop(struct ui_list *list)
 			list->visible.high -= scroll_offset;
 		}
 	}
-
 }
 
 struct slot ui_list_entry_alloc(struct ui_list *list)
@@ -112,7 +110,8 @@ struct slot ui_list_entry_alloc(struct ui_list *list)
 	ui_size(list->axis, ui_size_unit(intv_entry))
 	ui_size(1-list->axis, ui_size_perc(1.0f))
 	ui_child_layout_axis(1-list->axis)
-	entry = ui_node_alloc_f(UI_UNIT_POSITIVE_DOWN | UI_DRAW_BORDER, "###%p_%u", list->frame_node_address, list->frame_count);
+	ui_recursive_interaction(UI_INTER_RECURSIVE_SELECT)
+	entry = ui_node_alloc_f(UI_INTER_RECURSIVE_ROOT | UI_UNIT_POSITIVE_DOWN | UI_DRAW_BORDER, "###%p_%u", list->frame_node_address, list->frame_count);
 
 	list->frame_count += 1;
 	return entry;
@@ -130,7 +129,15 @@ struct slot ui_list_entry_alloc_cached(struct ui_list *list, const utf8 id, cons
 	ui_size(list->axis, ui_size_unit(intv_entry))
 	ui_size(1-list->axis, ui_size_perc(1.0f))
 	ui_child_layout_axis(1-list->axis)
-	entry = ui_node_alloc_cached(UI_UNIT_POSITIVE_DOWN | UI_DRAW_BORDER, id, id_hash, text, index_cached);
+	ui_recursive_interaction(UI_INTER_RECURSIVE_SELECT)
+	ui_background_color(vec4_inline(0.1f, 0.25f, 0.75f, 0.8f))
+	entry = ui_node_alloc_cached(UI_INTER_RECURSIVE_ROOT | UI_UNIT_POSITIVE_DOWN | UI_DRAW_BORDER, id, id_hash, text, index_cached);
+
+	struct ui_node *node = entry.address;
+	if (node->inter & UI_INTER_SELECT)
+	{
+		vec4_set(node->border_color, 0.1f, 0.32f, 0.68f, 0.8f);
+	}
 
 	list->frame_count += 1;
 	return entry;
@@ -376,7 +383,7 @@ void timeline_drag(void)
 void ui_timeline_row_pop(struct timeline_config *config)
 {
 	struct timeline_row_config *row_config = config->row + config->row_pushed;
-	if (ui_node_top()->inter->drag)
+	if (ui_node_top()->inter & UI_INTER_DRAG)
 	{
 		if (!g_ui->inter.key_pressed[KAS_CTRL])
 		{
@@ -410,7 +417,7 @@ void ui_timeline_row_pop(struct timeline_config *config)
 		ui_background_color(config->draggable_color)
 		ui_width(ui_size_perc(1.0f - config->perc_width_row_title_column))
 		drag_node = ui_node_alloc_f(UI_DRAW_BACKGROUND | UI_DRAW_BORDER | UI_DRAW_ROUNDED_CORNERS | UI_INTER_DRAG, "drag_area_%u", config->row_pushed).address;
-		if (drag_node->inter->drag)
+		if (drag_node->inter & UI_INTER_DRAG)
 		{
 			row_config->height -= (g_ui->inter.cursor_delta[1] <= row_config->height)
 				? g_ui->inter.cursor_delta[1]
@@ -424,7 +431,7 @@ void ui_timeline_row_pop(struct timeline_config *config)
 	ui_node_pop();
 }
 
-struct ui_inter_node *ui_button_f(const char *fmt, ...)
+u64 ui_button_f(const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
@@ -469,7 +476,7 @@ void ui_text_input_mode_disable(void)
 	struct ui_node *node = ui_node_lookup(&g_ui->inter.text_edit.id);
 	if (node)
 	{
-		node->inter->active = 0;
+		node->inter &= ~UI_INTER_FOCUS;
 	}
 
 	g_ui->inter.keyboard_text_input = 0;
@@ -706,8 +713,8 @@ struct ui_node *ui_input_line(const utf32 external_text, const utf8 id)
 	struct ui_node *line;
 
 	ui_external_text(external_text)
-	line = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW | UI_TEXT_EXTERNAL, &id).address;
-	if (line->inter->active)
+	line = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS | UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW | UI_TEXT_EXTERNAL, &id).address;
+	if (line->inter & UI_INTER_FOCUS)
 	{
 		line->background_color[0] += 0.03125f;
 		line->background_color[1] += 0.03125f;
@@ -741,12 +748,12 @@ void ui_cmd_console(struct cmd_console *console, const char *fmt, ...)
 	ui_flags(UI_DRAW_BACKGROUND | UI_DRAW_BORDER | UI_DRAW_ROUNDED_CORNERS)
 	line = ui_input_line(console->prompt.text, id);
 
-	if (line->inter->clicked)
+	if (line->inter & UI_INTER_LEFT_CLICK)
 	{
 		cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_enable \"%k\" %p", &line->id, &console->prompt);
 	}
 
-	if (line->inter->active && line->inter->key_clicked[KAS_ENTER])
+	if ((line->inter & UI_INTER_FOCUS) && g_ui->inter.key_clicked[KAS_ENTER])
 	{
 		cmd_submit_utf8(utf8_utf32(g_ui->mem_frame, console->prompt.text));
 		cmd_submit_f(g_ui->mem_frame, "ui_text_edit_clear \"%k\"", &line->id);
@@ -806,12 +813,12 @@ void ui_popup_build(void)
 					ui_text_align_x(ALIGN_LEFT)
 					line = ui_input_line_f(popup->prompt->text, "###popup_input_%u", popup->window);
 						
-					if (line->inter->clicked)
+					if (line->inter & UI_INTER_LEFT_CLICK)
 					{
 						cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_enable \"%k\" %p", &line->id, popup->prompt);
 					}
 
-					if (line->inter->active && line->inter->key_clicked[KAS_ENTER] && popup->state != UI_POPUP_STATE_PENDING_VERIFICATION)
+					if ((line->inter & UI_INTER_FOCUS) && g_ui->inter.key_clicked[KAS_ENTER] && popup->state != UI_POPUP_STATE_PENDING_VERIFICATION)
 					{
 						cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_disable");
 						*popup->input = utf8_utf32_buffered(popup->input->buf, popup->input->size, popup->prompt->text);
@@ -837,7 +844,7 @@ void ui_popup_build(void)
 					ui_pad_fill();
 
 					ui_width(ui_size_pixel(128.0f, 1.0f))
-					if (ui_button_f("%k###popup_display2_%u", &popup->display2, popup->window)->clicked)
+					if (ui_button_f("%k###popup_display2_%u", &popup->display2, popup->window) & UI_INTER_LEFT_CLICK)
 					{
 						if (popup->state != UI_POPUP_STATE_PENDING_VERIFICATION)
 						{
@@ -850,7 +857,7 @@ void ui_popup_build(void)
 					ui_pad_fill();
 
 					ui_width(ui_size_pixel(128.0f, 1.0f))
-					if (ui_button_f("%k###popup_display3_%u", &popup->display3, popup->window)->clicked)
+					if (ui_button_f("%k###popup_display3_%u", &popup->display3, popup->window) & UI_INTER_LEFT_CLICK)
 					{
 						if (popup->state != UI_POPUP_STATE_PENDING_VERIFICATION)
 						{
