@@ -89,7 +89,8 @@ General level editor node; TODO
 struct led_node
 {
 	GENERATIONAL_POOL_SLOT_STATE;
-	DLL_SLOT_STATE;
+	DLL_SLOT_STATE;		/* marked/non_marked state */
+	DLL2_SLOT_STATE;	/* selected list state */
 
 	u64			flags;
 	utf8			id;
@@ -135,8 +136,9 @@ struct led
 	struct pool		node_pool;
 	struct dll		node_marked_list;
 	struct dll		node_non_marked_list;
-	struct ui_list		node_list;
-	struct ui_list		node_selection_list;
+	struct dll		node_selected_list;
+	struct ui_list		node_ui_list;
+	struct ui_list		node_selected_ui_list;
 };
 
 /* Allocate initial led resources */

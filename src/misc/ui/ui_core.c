@@ -1309,8 +1309,6 @@ struct ui_node_cache ui_node_alloc_cached(const u64 flags, const utf8 id, const 
 	struct slot slot;
 	if (cache.last_frame_touched+1 != g_ui->frame)
 	{
-		fprintf(stderr, "invalid cache, allocating new: ");
-		utf8_debug_print(id);
 		key = utf8_hash(id);
 		slot = hierarchy_index_add(g_ui->node_hierarchy, stack_u32_top(&g_ui->stack_parent));
 		node = slot.address;
@@ -1560,7 +1558,6 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 		const intv visible = stack_intv_top(g_ui->stack_viewable + AXIS_2_Y);
 		if ((size_y.intv.high < visible.low || size_y.intv.low > visible.high) && node && !(node->inter & UI_INTER_ACTIVE))
 		{
-			utf8_debug_print(*formatted);
 			return (struct slot) { .index = HI_ORPHAN_STUB_INDEX, .address = hierarchy_index_address(g_ui->node_hierarchy, HI_ORPHAN_STUB_INDEX) };
 		}
 	}

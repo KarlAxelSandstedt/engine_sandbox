@@ -84,6 +84,7 @@ struct led *led_alloc(void)
 	g_editor->node_map = hash_map_alloc(NULL, 4096, 4096, GROWABLE);
 	g_editor->node_marked_list = dll_init(struct led_node);
 	g_editor->node_non_marked_list = dll_init(struct led_node);
+	g_editor->node_selected_list = dll2_init(struct led_node);
 	g_editor->csg = csg_alloc();
 
 	return g_editor;

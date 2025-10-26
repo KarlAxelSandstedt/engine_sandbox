@@ -51,6 +51,7 @@ struct slot led_node_add(struct led *led, const utf8 id)
 		slot = gpool_add(&led->node_pool);
 		hash_map_add(led->node_map, key, slot.index);
 		dll_append(&led->node_non_marked_list, led->node_pool.buf, slot.index);
+		dll_slot_set_not_in_list(&led->node_selected_list, slot.address);
 
 		struct led_node *node = slot.address;
 		node->flags = LED_FLAG_NONE;
@@ -101,8 +102,14 @@ static void led_remove_marked_structs(struct led *led)
 			continue;
 		}
 
-		const u32 key = utf8_hash(node->id);
-		hash_map_remove(led->node_map, key, i);
+		if (DLL2_IN_LIST(node))
+		{
+			fprintf(stderr, "Was selected, removing from list - ");
+			utf8_debug_print(node->id);
+			dll_remove(&led->node_selected_list, led->node_pool.buf, i);
+		}
+
+		hash_map_remove(led->node_map, node->key, i);
 		thread_free_256B(node->id.buf);
 		gpool_remove(&led->node_pool, i);
 	}

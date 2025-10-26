@@ -139,8 +139,8 @@ void dll_remove(struct dll *dll, void *array, const u32 index)
 	kas_assert(dll->count);
 	dll->count -= 1;
 
-	const u32 *node_prev = (u32*) ((u8*) array + index*dll->slot_size + dll->prev_offset);
-	const u32 *node_next = (u32*) ((u8*) array + index*dll->slot_size + dll->next_offset);
+	u32 *node_prev = (u32*) ((u8*) array + index*dll->slot_size + dll->prev_offset);
+	u32 *node_next = (u32*) ((u8*) array + index*dll->slot_size + dll->next_offset);
 
 	u32 *prev_next = (u32*) ((u8*) array + (*node_prev)*dll->slot_size + dll->next_offset);
 	u32 *next_prev = (u32*) ((u8*) array + (*node_next)*dll->slot_size + dll->prev_offset);
@@ -175,4 +175,16 @@ void dll_remove(struct dll *dll, void *array, const u32 index)
 			*next_prev = *node_prev;
 		}
 	}
+
+	*node_prev = DLL_NOT_IN_LIST;
+	*node_next = DLL_NOT_IN_LIST;
+}
+
+void dll_slot_set_not_in_list(struct dll *dll, void *slot)
+{
+	u32 *node_prev = (u32*) ((u8*) slot + dll->prev_offset);
+	u32 *node_next = (u32*) ((u8*) slot + dll->next_offset);
+
+	*node_prev = DLL_NOT_IN_LIST;
+	*node_next = DLL_NOT_IN_LIST;
 }
