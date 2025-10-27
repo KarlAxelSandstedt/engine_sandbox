@@ -22,161 +22,62 @@
 #include "ui_local.h"
 #include "sys_public.h"
 
-f32 ui_field_f32(struct ui_text_input *input, const f32 value, const intv range, const utf8 id)
+void ui_field_init(struct ui_field *field, void *value, const enum ui_field_type type, const b64 low, const b64 high);
 {
-	struct utf32 text = utf32_empty();
-	if (!input->focused)
-	{
-		text = utf32_f32(g_ui->mem_frame, 7, value);
-	}
-
-	struct slot slot = ui_text_input(input, text, id);
-	struct ui_node *node = slot.address;
-
-	if ((node->inter & UI_INTER_FOCUS) && input->focused == 0)
-	{
-		input->mark = 0;
-		input->cursor = text.len;
-		input->text = utf32_copy_buffered(input->text.buf, input->text.max_len, text);
-	}
-	input->focused = node->inter & UI_INTER_FOCUS;
-
-	f32 ret = value;
-	if ((node->inter & UI_INTER_FOCUS) && g_ui->inter.key_pressed[KAS_ENTER])
-	{
-		const f32 parse_value = f32_utf32(g_ui->mem_frame, input->text);
-		if (!f32_test_nan(ret))
-		{
-			ret = f32_clamp(parse_value, range.low, range.high);
-			cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_disable \"%k\"", &id);
-		}
-		else
-		{
-			/* TODO: Animation to indicate bad input */
-		}
-	}
-
-	return ret;
+	field->input = ui_input_line_buffered(field->buf, sizeof(field->buf) / sizeof(field->buf[0]));
+	field->low = low;
+	field->high = high;
+	field->value = value;
+	field->type = type;
+	field->focused = 0;
 }
 
-u64 ui_field_u64(struct ui_text_input *input, const u64 value, const intvu64 range, const utf8 id)
+void ui_field_f(struct ui_field *field, const char *fmt, ...)
 {
-	struct utf32 text = utf32_empty();
-	if (!input->focused)
+	struct utf32 external_text = utf32_empty();
+	if (field->focused)
 	{
-		text = utf32_u64(g_ui->mem_frame, value);
+		external_text = field->input.text;
 	}
-
-	struct slot slot = ui_text_input(input, text, id);
-	struct ui_node *node = slot.address;
-
-	if ((node->inter & UI_INTER_FOCUS) && input->focused == 0)
+	else
 	{
-		input->mark = 0;
-		input->cursor = text.len;
-		input->text = utf32_copy_buffered(input->text.buf, input->text.max_len, text);
-	}
-
-	u64 ret = value;
-	if ((node->inter & UI_INTER_FOCUS) && g_ui->inter.key_pressed[KAS_ENTER])
-	{
-		struct parse_retval parse = u64_utf32(input->text);
-		if (parse.op_result != PARSE_STRING_INVALID) 
-		{ 
-			if (parse.op_result == PARSE_OVERFLOW || range.high < parse.u64)
-			{
-				parse.u64 = range.high;
-			}
-			else if (parse.u64 < range.low)
-			{
-				parse.u64 = range.low;
-			}
-			ret = parse.u64;
-			cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_disable \"%k\"", &id);
-		}
-		else
+		switch (field->type)
 		{
-			/* TODO: Animation to indicate bad input */
+			case UI_FIELD_U8:  { external_text = utf32_u64(g_ui->frame, *((u8 *)  field->value)); } break;
+			case UI_FIELD_U16: { external_text = utf32_u64(g_ui->frame, *((u16 *) field->value)); } break;
+			case UI_FIELD_U32: { external_text = utf32_u64(g_ui->frame, *((u32 *) field->value)); } break;
+			case UI_FIELD_U64: { external_text = utf32_u64(g_ui->frame, *((u64 *) field->value)); } break;
+			case UI_FIELD_I8:  { external_text = utf32_i64(g_ui->frame, *((i8 *)  field->value)); } break;
+			case UI_FIELD_I16: { external_text = utf32_i64(g_ui->frame, *((i16 *) field->value)); } break;
+			case UI_FIELD_I32: { external_text = utf32_i64(g_ui->frame, *((i32 *) field->value)); } break;
+			case UI_FIELD_I64: { external_text = utf32_i64(g_ui->frame, *((i64 *) field->value)); } break;
+			case UI_FIELD_F32: { external_text = utf32_f32(g_ui->frame, *((f32 *) field->value)); } break;
+			case UI_FIELD_F64: { external_text = utf32_f64(g_ui->frame, *((f64 *) field->value)); } break;
 		}
 	}
-	return ret;
-}
-
-i64 ui_field_i64(struct ui_text_input *input, const i64 value, const intvi64 range, const utf8 id)
-{
-	struct utf32 text = utf32_empty();
-	if (!input->focused)
-	{
-		text = utf32_i64(g_ui->mem_frame, value);
-	}
-
-	struct slot slot = ui_text_input(input, text, id);
-	struct ui_node *node = slot.address;
-
-	if ((node->inter & UI_INTER_FOCUS) && input->focused == 0)
-	{
-		input->mark = 0;
-		input->cursor = text.len;
-		input->text = utf32_copy_buffered(input->text.buf, input->text.max_len, text);
-	}
-
-	i64 ret = value;
-	if ((node->inter & UI_INTER_FOCUS) && g_ui->inter.key_pressed[KAS_ENTER])
-	{
-		struct parse_retval parse = i64_utf32(input->text);
-		if (parse.op_result != PARSE_STRING_INVALID) 
-		{ 
-			if (parse.op_result == PARSE_UNDERFLOW || parse.i64 < range.low)
-			{
-				parse.i64 = range.low;
-			}
-			else if (parse.op_result == PARSE_OVERFLOW || range.high < parse.i64)
-			{
-				parse.i64 = range.high;
-			}
-			ret = parse.i64;
-			cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_disable \"%k\"", &id);
-		}
-		else
-		{
-			/* TODO: Animation to indicate bad input */
-		}
-	}
-
-	return ret;
-}
-
-f32 ui_field_f32_f(struct ui_text_input *input, const f32 value, const intv range, const char *fmt, ...)
-{
 
 	va_list args;
 	va_start(args, fmt);
-	const utf8 id = utf8_format_variadic(g_ui->mem_frame, fmt, args);
+	utf8 id = utf8_format_variadic(g_ui->mem_frame, fmt, args);
 	va_end(args);
 
-	return ui_field_f32(input, value, range, id);
-}
+	struct ui_node *line = ui_input_line(external_text, id);
 
-u64 ui_field_u64_f(struct ui_text_input *input, const u64 value, const intvu64 range, const char *fmt, ...)
-{
+	
+	//struct ui_node *ui_input_line(const utf32 external_text, const utf8 id)
+	//{
+	//	struct ui_node *line;
 
-	va_list args;
-	va_start(args, fmt);
-	const utf8 id = utf8_format_variadic(g_ui->mem_frame, fmt, args);
-	va_end(args);
+	//	ui_external_text(external_text)
+	//	line = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS | UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW | UI_TEXT_EXTERNAL, &id).address;
+	
+	
 
-	return ui_field_u64(input, value, range, id);
-}
+	//ui_external_text(external_text)
+	//line = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS | UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW | UI_TEXT_EXTERNAL, &id).address;
+	//if (line->inter & UI_INTER_FOCUS)
+	//{
 
-i64 ui_field_i64_f(struct ui_text_input *input, const i64 value, const intvi64 range, const char *fmt, ...)
-{
-
-	va_list args;
-	va_start(args, fmt);
-	const utf8 id = utf8_format_variadic(g_ui->mem_frame, fmt, args);
-	va_end(args);
-
-	return ui_field_i64(input, value, range, id);
 }
 
 struct ui_list ui_list_init(enum axis_2 axis, const f32 axis_pixel_size, const f32 entry_pixel_size)
@@ -604,225 +505,45 @@ u64 ui_button_f(const char *fmt, ...)
 	return button->inter;
 }
 
-void ui_cmd_console(struct cmd_console *console, const char *fmt, ...)
+void ui_text_input_mode_enable(void)
 {
-	va_list args;
-	va_start(args, fmt);
-	utf8 id = utf8_format_variadic(g_ui->mem_frame, fmt, args);
-	va_end(args);
+	const utf8 id = g_queue->cmd_exec->arg[0].utf8;
+	struct ui_input_line *line = g_queue->cmd_exec->arg[1].ptr;
 
-	struct slot slot;
-	struct ui_node *line;
-	ui_flags(UI_DRAW_BACKGROUND | UI_DRAW_BORDER | UI_DRAW_ROUNDED_CORNERS)
-	slot = ui_text_input(&console->prompt, console->prompt.text, id);
-	line = slot.address;
+	system_window_text_input_mode_enable();
 
-	if ((line->inter & UI_INTER_FOCUS) && g_ui->inter.key_clicked[KAS_ENTER])
+	g_ui->inter.keyboard_text_input = 1;
+	g_ui->inter.text_edit.id = id;
+	g_ui->inter.text_edit.text = &line->text;
+	g_ui->inter.text_edit.cursor = 0;
+	g_ui->inter.text_edit.mark = 0;
+}
+
+void ui_text_edit_clear(void)
+{
+	const utf8 id = g_queue->cmd_exec->arg[0].utf8;
+	if (utf8_equivalence(g_ui->inter.text_edit.id, id))
 	{
-		cmd_submit_utf8(utf8_utf32(g_ui->mem_frame, console->prompt.text));
-		cmd_submit_f(g_ui->mem_frame, "ui_text_input_flush \"%k\"", &line->id);
+		g_ui->inter.text_edit.text->len = 0;
+		g_ui->inter.text_edit.cursor = 0;
+		g_ui->inter.text_edit.mark = 0;
 	}
 }
 
-void ui_popup_build(void)
+static utf32 text_stub = { 0 };
+
+void ui_text_input_mode_disable(void)
 {
-	const u32 parent = g_window;
-	struct ui_popup *popup = g_queue->cmd_exec->arg[0].ptr;
-	struct ui_visual *visual = g_queue->cmd_exec->arg[1].ptr;
+	system_window_text_input_mode_disable();
 
-	if (popup->window == HI_NULL_INDEX)
+	struct ui_node *node = ui_node_lookup(&g_ui->inter.text_edit.id).address;
+	if (node)
 	{
-		*popup = ui_popup_null();
-		return;
+		node->inter &= ~UI_INTER_FOCUS;
 	}
 
-	struct system_window *win = system_window_address(popup->window);
-	if (win->tagged_for_destruction || popup->state == UI_POPUP_STATE_COMPLETED)
-	{
-		system_window_tag_sub_hierarchy_for_destruction(popup->window);
-		*popup = ui_popup_null();
-		return;
-	}
-
-	/* set for the duration of this function, window, ui, cmd globals */
-	system_window_set_global(popup->window);
-	cmd_queue_execute();
-
-	ui_frame_begin(win->size, visual);
-	ui_text_align_x(ALIGN_X_CENTER)
-	ui_text_align_y(ALIGN_Y_CENTER)
-	ui_parent(ui_node_alloc_f(UI_DRAW_BACKGROUND | UI_DRAW_BORDER, "###popup_%u", popup->window).index)
-	{
-		if (popup->type == UI_POPUP_UTF8_DISPLAY)
-		{
-			ui_node_alloc_f(UI_DRAW_TEXT, "%k###popup_display_%u", &popup->display1, popup->window);
-		}
-		else if (popup->type == UI_POPUP_UTF8_INPUT)
-		{
-			ui_child_layout_axis(AXIS_2_Y)
-			ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
-			{
-				ui_height(ui_size_pixel(96.0f, 0.0f))
-				ui_node_alloc_f(UI_DRAW_TEXT, "%k###popup_display1_%u", &popup->display1, popup->window);
-
-				ui_child_layout_axis(AXIS_2_X)
-				ui_height(ui_size_pixel(32.0f, 1.0f))
-				ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
-				{
-					ui_width(ui_size_text(F32_INFINITY, 1.0f))
-					ui_node_alloc_f(UI_DRAW_TEXT, "%k###popup_display2_%u", &popup->display2, popup->window);
-					struct ui_node *line;
-					ui_flags(UI_DRAW_BORDER | UI_DRAW_ROUNDED_CORNERS)
-					ui_width(ui_size_perc(1.0f))
-					ui_text_align_x(ALIGN_LEFT)
-					line = ui_text_input_f(popup->prompt, utf32_empty(), "###popup_input_%u", popup->window).address;
-						
-					if (line->inter & UI_INTER_LEFT_CLICK)
-					{
-						cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_enable \"%k\" %p", &line->id, popup->prompt);
-					}
-
-					if ((line->inter & UI_INTER_FOCUS) && g_ui->inter.key_clicked[KAS_ENTER] && popup->state != UI_POPUP_STATE_PENDING_VERIFICATION)
-					{
-						cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_disable \"%k\"", &line->id);
-						*popup->input = utf8_utf32_buffered(popup->input->buf, popup->input->size, popup->prompt->text);
-						popup->state = UI_POPUP_STATE_PENDING_VERIFICATION;
-					}
-
-					ui_pad();
-				}
-			}
-		}
-		else if (popup->type == UI_POPUP_CHOICE)
-		{
-			ui_child_layout_axis(AXIS_2_Y)
-			ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
-			{
-				ui_height(ui_size_pixel(96.0f, 0.0f))
-				ui_node_alloc_f(UI_DRAW_TEXT, "%k###popup_display1_%u", &popup->display1);
-
-				ui_child_layout_axis(AXIS_2_X)
-				ui_height(ui_size_pixel(48.0f, 1.0f))
-				ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
-				{
-					ui_pad_fill();
-
-					ui_width(ui_size_pixel(128.0f, 1.0f))
-					if (ui_button_f("%k###popup_display2_%u", &popup->display2, popup->window) & UI_INTER_LEFT_CLICK)
-					{
-						if (popup->state != UI_POPUP_STATE_PENDING_VERIFICATION)
-						{
-							popup->positive = 1;
-							popup->negative = 0;
-							popup->state = UI_POPUP_STATE_PENDING_VERIFICATION;
-						}
-					}
-
-					ui_pad_fill();
-
-					ui_width(ui_size_pixel(128.0f, 1.0f))
-					if (ui_button_f("%k###popup_display3_%u", &popup->display3, popup->window) & UI_INTER_LEFT_CLICK)
-					{
-						if (popup->state != UI_POPUP_STATE_PENDING_VERIFICATION)
-						{
-							popup->positive = 0;
-							popup->negative = 1;
-							popup->state = UI_POPUP_STATE_PENDING_VERIFICATION;
-						}
-					}
-					
-					ui_pad_fill();
-				}
-			}
-		}
-	}
-	ui_frame_end();
-
-	system_window_set_global(parent);
-	g_queue->regs[0].ptr = popup;
-	g_queue->regs[1].ptr = visual;
-	cmd_submit_next_frame(cmd_ui_popup_build);
-}
-
-
-struct ui_popup ui_popup_null(void)
-{
-	return (struct ui_popup) { .window = HI_NULL_INDEX, .state = UI_POPUP_STATE_NULL };
-}
-
-void ui_popup_try_destroy_and_set_to_null(struct ui_popup *popup)
-{
-	if (popup->window != HI_NULL_INDEX)
-	{
-		struct system_window *win = system_window_address(popup->window);
-		system_window_tag_sub_hierarchy_for_destruction(popup->window);
-	}
-	*popup = ui_popup_null();
-}
-
-void ui_popup_utf8_display(struct ui_popup *popup, const utf8 display, const char *title, const struct ui_visual *visual)
-{
-	if (popup->state == UI_POPUP_STATE_NULL)
-	{
-		popup->window = system_window_alloc(title, vec2u32_inline(0,0), vec2u32_inline(600, 200), g_window);
-		if (popup->window != HI_NULL_INDEX)
-		{
-			struct system_window *win = system_window_address(popup->window);
-			popup->display1 = utf8_copy(&win->mem_persistent, display);
-			popup->type = UI_POPUP_UTF8_DISPLAY;
-			popup->state = UI_POPUP_STATE_RUNNING,
-
-			g_queue->regs[0].ptr = popup;
-			g_queue->regs[1].ptr = (void *) visual;
-			cmd_submit(cmd_ui_popup_build);
-		}
-	}
-}
-
-void ui_popup_utf8_input(struct ui_popup *popup, utf8 *input, struct ui_text_input *line, const utf8 description, const utf8 prefix, const char *title, const struct ui_visual *visual)
-{
-	if (popup->state == UI_POPUP_STATE_NULL)
-	{
-		popup->window = system_window_alloc(title, vec2u32_inline(0,0), vec2u32_inline(600, 200), g_window);
-		if (popup->window != HI_NULL_INDEX)
-		{
-			struct system_window *win = system_window_address(popup->window);
-			popup->display1 = utf8_copy(&win->mem_persistent, description);
-			popup->display2 = utf8_copy(&win->mem_persistent, prefix);
-			popup->type = UI_POPUP_UTF8_INPUT;
-			popup->state = UI_POPUP_STATE_RUNNING;
-			popup->prompt = line;
-			popup->input = input;
-
-			g_queue->regs[0].ptr = popup;
-			g_queue->regs[1].ptr = (void *) visual;
-			cmd_submit(cmd_ui_popup_build);
-		}
-	}
-}
-
-void ui_popup_choice(struct ui_popup *popup, const utf8 description, const utf8 positive, const utf8 negative, const char *title, const struct ui_visual *visual)
-{
-	if (popup->state == UI_POPUP_STATE_NULL)
-	{
-		popup->window = system_window_alloc(title, vec2u32_inline(0,0), vec2u32_inline(600, 200), g_window);
-		if (popup->window != HI_NULL_INDEX)
-		{
-			struct system_window *win = system_window_address(popup->window);
-
-			popup->display1 = utf8_copy(&win->mem_persistent, description);
-			popup->display2 = utf8_copy(&win->mem_persistent, positive);
-			popup->display3 = utf8_copy(&win->mem_persistent, negative);
-			popup->type = UI_POPUP_CHOICE;
-			popup->state = UI_POPUP_STATE_RUNNING;
-			popup->yes = 0;
-			popup->no = 0;
-
-			g_queue->regs[0].ptr = popup;
-			g_queue->regs[1].ptr = (void *) visual;
-			cmd_submit(cmd_ui_popup_build);
-		}
-	}
+	g_ui->inter.keyboard_text_input = 0;
+	g_ui->inter.text_edit = text_edit_state_null();
 }
 
 void ui_text_op(void)
@@ -833,26 +554,26 @@ void ui_text_op(void)
 
 	u32 key_ctrl = mod & KEY_MOD_CTRL;
 	u32 key_shift = mod & KEY_MOD_SHIFT;
-	utf32 *edit = &g_ui->inter.text_edit->text;
+	utf32 *edit = g_ui->inter.text_edit.text;
 
 	/* start constructing text operation */ 
 	struct text_op op =
 	{
 		.str_copy = utf32_empty(),
 		.str_replace = utf32_empty(),
-		.cursor_new = g_ui->inter.text_edit->cursor,
-		.mark_new = g_ui->inter.text_edit->mark,
+		.cursor_new = g_ui->inter.text_edit.cursor,
+		.mark_new = g_ui->inter.text_edit.mark,
 	};
 
-	if (g_ui->inter.text_edit->mark <= g_ui->inter.text_edit->cursor)
+	if (g_ui->inter.text_edit.mark <= g_ui->inter.text_edit.cursor)
 	{
-		op.low = g_ui->inter.text_edit->mark;
-		op.high = g_ui->inter.text_edit->cursor;
+		op.low = g_ui->inter.text_edit.mark;
+		op.high = g_ui->inter.text_edit.cursor;
 	}
 	else
 	{
-		op.low = g_ui->inter.text_edit->cursor;
-		op.high = g_ui->inter.text_edit->mark;
+		op.low = g_ui->inter.text_edit.cursor;
+		op.high = g_ui->inter.text_edit.mark;
 	}
 
 	/* ordinary text input  */ 
@@ -1039,137 +760,284 @@ void ui_text_op(void)
 			edit->buf[new_len - i] = edit->buf[new_len - i - shift];
 		}
 	}
-	
+
 	for (u32 i = 0; i < op.str_replace.len; ++i)
 	{
 		edit->buf[op.low + i] = op.str_replace.buf[i];
 	}
 
 	edit->len = new_len;
-	g_ui->inter.text_edit->cursor = op.cursor_new;
-	g_ui->inter.text_edit->mark = op.mark_new;
+	g_ui->inter.text_edit.cursor = op.cursor_new;
+	g_ui->inter.text_edit.mark = op.mark_new;
 }
 
-void ui_text_input_mode_enable(void)
+struct ui_node *ui_input_line(const utf32 external_text, const utf8 id)
 {
-	const utf8 id = g_queue->cmd_exec->arg[0].utf8;
-	struct ui_text_input *text_edit = g_queue->cmd_exec->arg[1].ptr;
+	struct ui_node *line;
 
-	struct ui_node *node = ui_node_lookup(&g_ui->inter.text_edit_id).address;
-	if (node)
-	{
-		node->inter &= ~UI_INTER_FOCUS;
-		g_ui->inter.text_edit->focused = 0;
-	}
-	else
-	{
-		system_window_text_input_mode_enable();
-	}
-
-	g_ui->inter.text_edit_mode = 1;
-	g_ui->inter.text_edit_id = utf8_copy(g_ui->mem_frame, id);
-	g_ui->inter.text_edit = text_edit;
-	g_ui->inter.text_edit->focused = 1;
-
-	text_edit->cursor = (text_edit->cursor <= text_edit->text.len) 
-		? text_edit->cursor
-		: text_edit->text.len;
-
-	text_edit->mark = (text_edit->mark <= text_edit->text.len) 
-		? text_edit->mark
-		: text_edit->text.len;
-}
-
-void ui_text_input_flush(void)
-{
-	const utf8 id = g_queue->cmd_exec->arg[0].utf8;
-	if (utf8_equivalence(g_ui->inter.text_edit_id, id))
-	{
-		g_ui->inter.text_edit->text.len = 0;
-		g_ui->inter.text_edit->cursor = 0;
-		g_ui->inter.text_edit->mark = 0;
-	}
-}
-
-void ui_text_input_mode_disable(void)
-{
-	const utf8 id = g_queue->cmd_exec->arg[0].utf8;
-	if (utf8_equivalence(id, g_ui->inter.text_edit_id))
-	{
-		system_window_text_input_mode_disable();
-		struct ui_node *node = ui_node_lookup(&g_ui->inter.text_edit_id).address;
-		if (node)
-		{
-			node->inter &= ~UI_INTER_FOCUS;
-		}
-
-		g_ui->inter.text_edit_mode = 0;
-		g_ui->inter.text_edit_id = utf8_empty();
-		g_ui->inter.text_edit->focused = 0;
-		g_ui->inter.text_edit = text_edit_stub_ptr();
-	}
-}
-
-struct ui_text_input ui_text_input_empty(void)
-{
-	return (struct ui_text_input) { .focused = 0, .cursor = 0, .mark = 0, .text = utf32_empty() };
-}
-
-struct ui_text_input ui_text_input_buffered(u32 buf[], const u32 len)
-{
-	return (struct ui_text_input) { .focused = 0, .cursor = 0, .mark = 0, .text = utf32_buffered(buf, len) };
-}
-
-struct ui_text_input ui_text_input_alloc(struct arena *mem, const u32 max_len)
-{
-	utf32 text = utf32_alloc(mem, max_len);
-	return (text.max_len)
-		? (struct ui_text_input) { .focused = 0, .cursor = 0, .mark = 0, .text = text }
-		: ui_text_input_empty();
-}
-
-struct slot ui_text_input(struct ui_text_input *input, const utf32 unfocused_text, const utf8 id)
-{
-	const utf32 external_text = (input->focused)
-		? input->text
-		: unfocused_text;
-
-	struct slot slot;
 	ui_external_text(external_text)
-	slot = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS | UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW | UI_TEXT_EXTERNAL, &id);
-
-	struct ui_node *node = slot.address;
-	if (node->inter & UI_INTER_FOCUS)
+	line = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS | UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW | UI_TEXT_EXTERNAL, &id).address;
+	if (line->inter & UI_INTER_FOCUS)
 	{
-		if (!input->focused)
-		{
-			cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_enable \"%k\" %p", &node->id, input);
-		}
-
-		node->background_color[0] += 0.03125f;
-		node->background_color[1] += 0.03125f;
-		node->background_color[2] += 0.03125f;
-		node->border_color[0] += 0.25f;
-		node->border_color[1] += 0.25f;
-		node->border_color[2] += 0.25f;
-	}
-	else
-	{
-		if (input->focused)
-		{
-			cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_disable \"%k\"", &id);
-		}
+		line->background_color[0] += 0.03125f;
+		line->background_color[1] += 0.03125f;
+		line->background_color[2] += 0.03125f;
+		line->border_color[0] += 0.25f;
+		line->border_color[1] += 0.25f;
+		line->border_color[2] += 0.25f;
 	}
 
-	return slot;
+	return line;
 }
 
-struct slot ui_text_input_f(struct ui_text_input *input, const utf32 unfocused_text, const char *fmt, ...)
+struct ui_node *ui_input_line_f(const utf32 external_text, const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
 	utf8 id = utf8_format_variadic(g_ui->mem_frame, fmt, args);
 	va_end(args);
 
-	return ui_text_input(input, unfocused_text, id);
+	return ui_input_line(external_text, id);
+}
+
+void ui_cmd_console(struct cmd_console *console, const char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	utf8 id = utf8_format_variadic(g_ui->mem_frame, fmt, args);
+	va_end(args);
+
+	struct ui_node *line;
+	ui_flags(UI_DRAW_BACKGROUND | UI_DRAW_BORDER | UI_DRAW_ROUNDED_CORNERS)
+	line = ui_input_line(console->prompt.text, id);
+
+	if (line->inter & UI_INTER_LEFT_CLICK)
+	{
+		cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_enable \"%k\" %p", &line->id, &console->prompt);
+	}
+
+	if ((line->inter & UI_INTER_FOCUS) && g_ui->inter.key_clicked[KAS_ENTER])
+	{
+		cmd_submit_utf8(utf8_utf32(g_ui->mem_frame, console->prompt.text));
+		cmd_submit_f(g_ui->mem_frame, "ui_text_edit_clear \"%k\"", &line->id);
+	}
+}
+
+void ui_popup_build(void)
+{
+	const u32 parent = g_window;
+	struct ui_popup *popup = g_queue->cmd_exec->arg[0].ptr;
+	struct ui_visual *visual = g_queue->cmd_exec->arg[1].ptr;
+
+	if (popup->window == HI_NULL_INDEX)
+	{
+		*popup = ui_popup_null();
+		return;
+	}
+
+	struct system_window *win = system_window_address(popup->window);
+	if (win->tagged_for_destruction || popup->state == UI_POPUP_STATE_COMPLETED)
+	{
+		system_window_tag_sub_hierarchy_for_destruction(popup->window);
+		*popup = ui_popup_null();
+		return;
+	}
+
+	/* set for the duration of this function, window, ui, cmd globals */
+	system_window_set_global(popup->window);
+	cmd_queue_execute();
+
+	ui_frame_begin(win->size, visual);
+	ui_text_align_x(ALIGN_X_CENTER)
+	ui_text_align_y(ALIGN_Y_CENTER)
+	ui_parent(ui_node_alloc_f(UI_DRAW_BACKGROUND | UI_DRAW_BORDER, "###popup_%u", popup->window).index)
+	{
+		if (popup->type == UI_POPUP_UTF8_DISPLAY)
+		{
+			ui_node_alloc_f(UI_DRAW_TEXT, "%k###popup_display_%u", &popup->display1, popup->window);
+		}
+		else if (popup->type == UI_POPUP_UTF8_INPUT)
+		{
+			ui_child_layout_axis(AXIS_2_Y)
+			ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
+			{
+				ui_height(ui_size_pixel(96.0f, 0.0f))
+				ui_node_alloc_f(UI_DRAW_TEXT, "%k###popup_display1_%u", &popup->display1, popup->window);
+
+				ui_child_layout_axis(AXIS_2_X)
+				ui_height(ui_size_pixel(32.0f, 1.0f))
+				ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
+				{
+					ui_width(ui_size_text(F32_INFINITY, 1.0f))
+					ui_node_alloc_f(UI_DRAW_TEXT, "%k###popup_display2_%u", &popup->display2, popup->window);
+					struct ui_node *line;
+					ui_flags(UI_DRAW_BORDER | UI_DRAW_ROUNDED_CORNERS)
+					ui_width(ui_size_perc(1.0f))
+					ui_text_align_x(ALIGN_LEFT)
+					line = ui_input_line_f(popup->prompt->text, "###popup_input_%u", popup->window);
+						
+					if (line->inter & UI_INTER_LEFT_CLICK)
+					{
+						cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_enable \"%k\" %p", &line->id, popup->prompt);
+					}
+
+					if ((line->inter & UI_INTER_FOCUS) && g_ui->inter.key_clicked[KAS_ENTER] && popup->state != UI_POPUP_STATE_PENDING_VERIFICATION)
+					{
+						cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_disable");
+						*popup->input = utf8_utf32_buffered(popup->input->buf, popup->input->size, popup->prompt->text);
+						popup->state = UI_POPUP_STATE_PENDING_VERIFICATION;
+					}
+
+					ui_pad();
+				}
+			}
+		}
+		else if (popup->type == UI_POPUP_CHOICE)
+		{
+			ui_child_layout_axis(AXIS_2_Y)
+			ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
+			{
+				ui_height(ui_size_pixel(96.0f, 0.0f))
+				ui_node_alloc_f(UI_DRAW_TEXT, "%k###popup_display1_%u", &popup->display1);
+
+				ui_child_layout_axis(AXIS_2_X)
+				ui_height(ui_size_pixel(48.0f, 1.0f))
+				ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
+				{
+					ui_pad_fill();
+
+					ui_width(ui_size_pixel(128.0f, 1.0f))
+					if (ui_button_f("%k###popup_display2_%u", &popup->display2, popup->window) & UI_INTER_LEFT_CLICK)
+					{
+						if (popup->state != UI_POPUP_STATE_PENDING_VERIFICATION)
+						{
+							popup->positive = 1;
+							popup->negative = 0;
+							popup->state = UI_POPUP_STATE_PENDING_VERIFICATION;
+						}
+					}
+
+					ui_pad_fill();
+
+					ui_width(ui_size_pixel(128.0f, 1.0f))
+					if (ui_button_f("%k###popup_display3_%u", &popup->display3, popup->window) & UI_INTER_LEFT_CLICK)
+					{
+						if (popup->state != UI_POPUP_STATE_PENDING_VERIFICATION)
+						{
+							popup->positive = 0;
+							popup->negative = 1;
+							popup->state = UI_POPUP_STATE_PENDING_VERIFICATION;
+						}
+					}
+					
+					ui_pad_fill();
+				}
+			}
+		}
+	}
+	ui_frame_end();
+
+	system_window_set_global(parent);
+	g_queue->regs[0].ptr = popup;
+	g_queue->regs[1].ptr = visual;
+	cmd_submit_next_frame(cmd_ui_popup_build);
+}
+
+
+struct ui_popup ui_popup_null(void)
+{
+	return (struct ui_popup) { .window = HI_NULL_INDEX, .state = UI_POPUP_STATE_NULL };
+}
+
+void ui_popup_try_destroy_and_set_to_null(struct ui_popup *popup)
+{
+	if (popup->window != HI_NULL_INDEX)
+	{
+		struct system_window *win = system_window_address(popup->window);
+		system_window_tag_sub_hierarchy_for_destruction(popup->window);
+	}
+	*popup = ui_popup_null();
+}
+
+void ui_popup_utf8_display(struct ui_popup *popup, const utf8 display, const char *title, const struct ui_visual *visual)
+{
+	if (popup->state == UI_POPUP_STATE_NULL)
+	{
+		popup->window = system_window_alloc(title, vec2u32_inline(0,0), vec2u32_inline(600, 200), g_window);
+		if (popup->window != HI_NULL_INDEX)
+		{
+			struct system_window *win = system_window_address(popup->window);
+			popup->display1 = utf8_copy(&win->mem_persistent, display);
+			popup->type = UI_POPUP_UTF8_DISPLAY;
+			popup->state = UI_POPUP_STATE_RUNNING,
+
+			g_queue->regs[0].ptr = popup;
+			g_queue->regs[1].ptr = (void *) visual;
+			cmd_submit(cmd_ui_popup_build);
+		}
+	}
+}
+
+void ui_popup_utf8_input(struct ui_popup *popup, utf8 *input, struct ui_input_line *line, const utf8 description, const utf8 prefix, const char *title, const struct ui_visual *visual)
+{
+	if (popup->state == UI_POPUP_STATE_NULL)
+	{
+		popup->window = system_window_alloc(title, vec2u32_inline(0,0), vec2u32_inline(600, 200), g_window);
+		if (popup->window != HI_NULL_INDEX)
+		{
+			struct system_window *win = system_window_address(popup->window);
+			popup->display1 = utf8_copy(&win->mem_persistent, description);
+			popup->display2 = utf8_copy(&win->mem_persistent, prefix);
+			popup->type = UI_POPUP_UTF8_INPUT;
+			popup->state = UI_POPUP_STATE_RUNNING;
+			popup->prompt = line;
+			popup->input = input;
+
+			g_queue->regs[0].ptr = popup;
+			g_queue->regs[1].ptr = (void *) visual;
+			cmd_submit(cmd_ui_popup_build);
+		}
+	}
+}
+
+void ui_popup_choice(struct ui_popup *popup, const utf8 description, const utf8 positive, const utf8 negative, const char *title, const struct ui_visual *visual)
+{
+	if (popup->state == UI_POPUP_STATE_NULL)
+	{
+		popup->window = system_window_alloc(title, vec2u32_inline(0,0), vec2u32_inline(600, 200), g_window);
+		if (popup->window != HI_NULL_INDEX)
+		{
+			struct system_window *win = system_window_address(popup->window);
+
+			popup->display1 = utf8_copy(&win->mem_persistent, description);
+			popup->display2 = utf8_copy(&win->mem_persistent, positive);
+			popup->display3 = utf8_copy(&win->mem_persistent, negative);
+			popup->type = UI_POPUP_CHOICE;
+			popup->state = UI_POPUP_STATE_RUNNING;
+			popup->yes = 0;
+			popup->no = 0;
+
+			g_queue->regs[0].ptr = popup;
+			g_queue->regs[1].ptr = (void *) visual;
+			cmd_submit(cmd_ui_popup_build);
+		}
+	}
+}
+
+struct ui_input_line ui_input_line_empty(void)
+{
+	return (struct ui_input_line) { .cursor = 0, .mark = 0, .text = utf32_empty() };
+}
+
+struct ui_input_line ui_input_line_buffered(u32 buf[], const u32 len)
+{
+	return (struct ui_input_line) { .cursor = 0, .mark = 0, .text = utf32_buffered(buf, len) };
+}
+
+struct ui_input_line ui_input_line_alloc(struct arena *mem, const u32 max_len)
+{
+	utf32 text = utf32_alloc(mem, max_len);
+	return (text.max_len)
+		? (struct ui_input_line) { .cursor = 0, .mark = 0, .text = text }
+		: ui_input_line_empty();
 }

@@ -64,14 +64,10 @@ void ui_init_global_state(void)
 {
 	cmd_function_register(utf8_inline("timeline_drag"), 4, &timeline_drag);
 	cmd_function_register(utf8_inline("ui_text_input_mode_enable"), 2, &ui_text_input_mode_enable);
-	cmd_function_register(utf8_inline("ui_text_edit_clear"), 1, &ui_text_edit_clear);
-	cmd_function_register(utf8_inline("ui_text_input_mode_disable"), 0, &ui_text_input_mode_disable);
+	cmd_function_register(utf8_inline("ui_text_input_flush"), 1, &ui_text_input_flush);
+	cmd_function_register(utf8_inline("ui_text_input_mode_disable"), 1, &ui_text_input_mode_disable);
 	cmd_ui_text_op = cmd_function_register(utf8_inline("ui_text_op"), 3, &ui_text_op).index;
 	cmd_ui_popup_build = cmd_function_register(utf8_inline("ui_popup_build"), 2, &ui_popup_build).index;
-}
-
-void ui_free_global_state(void)
-{
 }
 
 struct ui_visual ui_visual_init(const vec4 background_color
@@ -116,21 +112,11 @@ struct ui_text_selection ui_text_selection_empty(void)
 	return sel;
 }
 
-static utf32 text_stub = { 0 };
-
-struct text_edit_state text_edit_state_null(void)
+struct ui_text_input  text_edit_stub = { 0 };
+struct ui_text_input *text_edit_stub_ptr(void)
 {
-	struct text_edit_state edit = 
-	{  
-		edit.id = utf8_empty(),
-		edit.text = &text_stub,	
-		edit.cursor = 0,
-		edit.mark = 0,
-	};
-	return edit;
+	return &text_edit_stub;
 }
-
-const u32 key_zero_stub[KAS_KEY_COUNT] =  { 0 };
 
 struct ui *ui_alloc(void)
 {
@@ -148,7 +134,6 @@ struct ui *ui_alloc(void)
 	ui->mem_frame_arr[0] = arena_alloc(64*1024*1024);
 	ui->mem_frame_arr[1] = arena_alloc(64*1024*1024);
 	ui->mem_frame = ui->mem_frame_arr + (ui->frame & 0x1);
-	ui->inter.text_edit = text_edit_state_null();
 	ui->stack_parent = stack_u32_alloc(NULL, 32, GROWABLE);
 	ui->stack_sprite = stack_u32_alloc(NULL, 32, GROWABLE);
 	ui->stack_font = stack_ptr_alloc(NULL, 8, GROWABLE);
@@ -184,6 +169,9 @@ struct ui *ui_alloc(void)
 	ui->frame_stack_text_selection = stack_ui_text_selection_alloc(NULL, 128, GROWABLE);
 
 	ui->inter.node_hovered = utf8_empty();
+	ui->inter.text_edit_mode = 0;
+	ui->inter.text_edit_id = utf8_empty();
+	ui->inter.text_edit = text_edit_stub_ptr();
 
 	/* setup root stub values */
 	stack_u32_push(&ui->stack_parent, HI_ROOT_STUB_INDEX);
@@ -972,28 +960,30 @@ void ui_frame_end(void)
 
 	kas_assert(g_ui->stack_parent.next == 1);
 
-	struct ui_node *text_input = ui_node_lookup(&g_ui->inter.text_edit.id).address;
+	struct ui_node *text_input = ui_node_lookup(&g_ui->inter.text_edit_id).address;	
 	if (text_input)
 	{
-		/* update id to current frame memory and generate text selection draw commands */ 
-		g_ui->inter.text_edit.id = text_input->id;
-
-		/* draw cursor highlight */
-		ui_text_selection_alloc(text_input, g_ui->text_cursor_color, g_ui->inter.text_edit.cursor, g_ui->inter.text_edit.cursor+1);
-
-		if (g_ui->inter.text_edit.cursor+1 < g_ui->inter.text_edit.mark)
+		if (text_input->last_frame_touched != g_ui->frame)
 		{
-			ui_text_selection_alloc(text_input, g_ui->text_selection_color, g_ui->inter.text_edit.cursor + 1, g_ui->inter.text_edit.mark);
+			cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_disable \"%k\"", &g_ui->inter.text_edit_id);
 		}
-		else if (g_ui->inter.text_edit.mark < g_ui->inter.text_edit.cursor)
+		else
 		{
-			ui_text_selection_alloc(text_input, g_ui->text_selection_color, g_ui->inter.text_edit.mark, g_ui->inter.text_edit.cursor);
-		}
+			/* update id to current frame memory and generate text selection draw commands */ 
+			g_ui->inter.text_edit_id = text_input->id;
 
-	}
-	else if (g_ui->inter.keyboard_text_input)
-	{
-		cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_disable");	
+			/* draw cursor highlight */
+			ui_text_selection_alloc(text_input, g_ui->text_cursor_color, g_ui->inter.text_edit->cursor, g_ui->inter.text_edit->cursor+1);
+
+			if (g_ui->inter.text_edit->cursor+1 < g_ui->inter.text_edit->mark)
+			{
+				ui_text_selection_alloc(text_input, g_ui->text_selection_color, g_ui->inter.text_edit->cursor + 1, g_ui->inter.text_edit->mark);
+			}
+			else if (g_ui->inter.text_edit->mark < g_ui->inter.text_edit->cursor)
+			{
+				ui_text_selection_alloc(text_input, g_ui->text_selection_color, g_ui->inter.text_edit->mark, g_ui->inter.text_edit->cursor);
+			}
+		}
 	}
 
 	struct hierarchy_index_node *orphan = hierarchy_index_address(g_ui->node_hierarchy, HI_ORPHAN_STUB_INDEX);
@@ -1228,7 +1218,7 @@ struct ui_node_cache ui_node_cache_null(void)
 {
 	struct ui_node_cache cache =
 	{
-		.last_frame_touched = 0,
+		.last_frame_touched = U64_MAX,
 		.frame_node = NULL,
 		.index = UI_NON_CACHED_INDEX,
 	};
@@ -1240,7 +1230,7 @@ struct ui_node_cache ui_node_cache_orphan_root(void)
 {
 	struct ui_node_cache cache =
 	{
-		.last_frame_touched = 0,
+		.last_frame_touched = U64_MAX,
 		.frame_node = hierarchy_index_address(g_ui->node_hierarchy, UI_NON_CACHED_INDEX),
 		.index = UI_NON_CACHED_INDEX,
 	};
@@ -1266,6 +1256,7 @@ struct ui_node_cache ui_node_alloc_cached(const u64 flags, const utf8 id, const 
 				? hierarchy_index_address(g_ui->node_hierarchy, cache.index)
 				: hierarchy_index_address(g_ui->node_hierarchy, HI_ORPHAN_STUB_INDEX);
 
+	kas_assert(node->last_frame_touched != g_ui->frame);
 	struct ui_size size_x = stack_ui_size_top(g_ui->stack_ui_size + AXIS_2_X);
 	struct ui_size size_y = stack_ui_size_top(g_ui->stack_ui_size + AXIS_2_Y);
 
@@ -1576,6 +1567,7 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 	}
 	else
 	{
+		kas_assert(node->last_frame_touched != g_ui->frame);
 		key = node->key;
 		hierarchy_index_adopt_node_exclusive(g_ui->node_hierarchy, slot.index, stack_u32_top(&g_ui->stack_parent));
 		inter = ui_node_set_interactions(node, node_flags, inter_recursive_mask);

@@ -169,6 +169,52 @@ typedef struct
 } intv;
 #define intv_inline(_low, _high) (intv) { .low = (_low), .high = (_high) }
 
+typedef struct
+{
+	union
+	{
+		struct
+		{
+			u64	low;
+			u64	high;
+		};
+
+		vec2u64	v;
+	};
+} intvu64;
+#define intvu64_inline(_low, _high) (intvu64) { .low = (_low), .high = (_high) }
+
+typedef struct
+{
+	union
+	{
+		struct
+		{
+			i64	low;
+			i64	high;
+		};
+
+		vec2i64	v;
+	};
+} intvi64;
+#define intvi64_inline(_low, _high) (intvi64) { .low = (_low), .high = (_high) }
+
+union reg
+{
+	u8	u8;
+	u16	u16;
+	u32	u32;
+	u64	u64;
+	i8	i8;
+	i16	i16;
+	i32	i32;
+	i64	i64;
+	f32	f32;
+	f64	f64;
+	void *	ptr;
+	intv	intv;
+};
+
 typedef enum axis_2
 {
 	AXIS_2_X = 0,

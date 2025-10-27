@@ -27,10 +27,13 @@
 void 	timeline_drag(void);
 void	ui_text_input_mode_enable(void);
 void	ui_text_input_mode_disable(void);
-void 	ui_text_edit_clear(void);
+void 	ui_text_input_flush(void);
 void 	ui_text_op(void);
 
 void 		ui_popup_build(void);
 extern u32	cmd_ui_popup_build;
+
+/* internal */
+struct ui_text_input *text_edit_stub_ptr(void);
 
 #endif

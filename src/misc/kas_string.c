@@ -1134,12 +1134,22 @@ utf8 utf8_alloc(struct arena *mem, const u64 bufsize)
 		: utf8_empty();
 }
 
+utf8 utf8_buffered(u8 buf[], const u64 bufsize)
+{
+	return (utf8) { .len = 0, .size = bufsize, .buf = buf };
+}
+
 utf32 utf32_alloc(struct arena *mem, const u32 len)
 {
 	u32 *buf = arena_push(mem, len*sizeof(u32));
 	return (buf)
 		? (utf32) { .len = 0, .max_len = len, .buf = buf }
 		: utf32_empty();
+}
+
+utf32 utf32_buffered(u32 buf[], const u32 len)
+{
+	return (utf32) { .len = 0, .max_len = len, .buf = buf };
 }
 
 void utf8_debug_print(const utf8 str)

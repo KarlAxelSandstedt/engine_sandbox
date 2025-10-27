@@ -91,7 +91,7 @@ void system_process_events(void)
 				sys_win->ui->inter.key_clicked[event.keycode] = 1;
 				sys_win->ui->inter.key_pressed[event.keycode] = 1;
 
-				if (sys_win->ui->inter.keyboard_text_input)
+				if (sys_win->ui->inter.text_edit_mode)
 				{
 					switch (event.scancode)
 					{
@@ -179,7 +179,7 @@ void system_process_events(void)
 
 						case KAS_ESCAPE: 
 						{ 
-							cmd_queue_submit_f(sys_win->ui->mem_frame, sys_win->cmd_queue, "ui_text_input_mode_disable");
+							cmd_queue_submit_f(sys_win->ui->mem_frame, sys_win->cmd_queue, "ui_text_input_mode_disable \"%k\"", &sys_win->ui->inter.text_edit_id);
 						 } break;
 
 						default: { } break;

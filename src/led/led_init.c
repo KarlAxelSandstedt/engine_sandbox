@@ -35,7 +35,7 @@ struct led_project_menu	led_project_menu_alloc(void)
 		.window = HI_NULL_INDEX,
 		.popup_new_project = ui_popup_null(),
 		.utf8_new_project = utf8_empty(),
-		.input_line_new_project = ui_input_line_empty(),
+		.input_line_new_project = ui_text_input_empty(),
 	};
 
 	return menu;	

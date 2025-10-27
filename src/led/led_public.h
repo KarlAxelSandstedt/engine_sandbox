@@ -50,7 +50,7 @@ struct led_project_menu
 	struct ui_popup		popup_new_project;
 	struct ui_popup		popup_new_project_extra;
 	utf8			utf8_new_project;
-	struct ui_input_line 	input_line_new_project;
+	struct ui_text_input 	input_line_new_project;
 };
 
 struct led_profiler
@@ -75,7 +75,7 @@ struct led_project
 
 /*
 led_node
-==========
+========
 General level editor node; TODO
 */
 
@@ -98,12 +98,32 @@ struct led_node
 	u32			key;
 
 	/* Initial values fed into physics/csg */
+	/* TODO: Should not be here, instead csg or rigid_body_prefab */
 	vec3			position;
 	quat			rotation;
+
+	//TODO TMP, does not work, g_ui will alias these addresses, which are invalidated on realloc
+	struct ui_text_input	x;
+	struct ui_text_input	y;
+	struct ui_text_input	z;
+
+	f32			xv;
+	u64			yv;
+	i64			zv;
 
 	u32			physics_handle; 
 	u32 			render_handle;	
 	u32			csg_handle;	
+};
+
+/*
+ui_led_node
+===========
+ui struct for displaying led_node information and storing intermediate information. 
+*/
+struct ui_led_node
+{
+
 };
 
 /*

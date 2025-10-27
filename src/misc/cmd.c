@@ -116,7 +116,7 @@ static void cmd_tokenize_string(struct cmd *cmd)
 		codepoints_left -= 1;
 	}
 
-	token_string = (utf8) { .buf = token_start, .len = token_length };
+	token_string = (utf8) { .buf = token_start, .len = token_length, .size = token_length };
 	cmd->function = cmd_function_lookup(token_string).address;
 
 	if (cmd->function == NULL)
@@ -232,7 +232,7 @@ static void cmd_tokenize_string(struct cmd *cmd)
 			token_type = CMD_TOKEN_INVALID;
 		}
 
-		token_string = (utf8) { .buf = token_start, .len = token_length, };
+		token_string = (utf8) { .buf = token_start, .len = token_length, .size = token_length };
 		struct parse_retval ret = { .op_result = PARSE_SUCCESS };
 		switch (token_type)
 		{

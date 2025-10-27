@@ -95,7 +95,6 @@ int main(int argc, char *argv[])
 
 	led_dealloc(editor);
 	asset_database_cleanup();
-	ui_free_global_state();
 	cmd_free();
 	system_graphics_destroy();
 	system_resources_cleanup();

@@ -426,16 +426,15 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 		}
 
 		led->node_ui_list = ui_list_init(AXIS_2_Y, 256.0f, 24.0f); 
-		led->node_selected_ui_list = ui_list_init(AXIS_2_Y, 256.0f, 24.0f);
+		led->node_selected_ui_list = ui_list_init(AXIS_2_Y, 512.0f, 24.0f + 3*24.0f + 12.0f);
 	}
 
 	ui_text_align_x(ALIGN_LEFT)
 	ui_text_align_y(ALIGN_BOTTOM)
-	ui_child_layout_axis(AXIS_2_Y)
-	ui_parent(ui_node_alloc_f(UI_DRAW_BACKGROUND | UI_DRAW_BORDER, "###window_%u", led->window).index)
 	ui_child_layout_axis(AXIS_2_X)
+	ui_parent(ui_node_alloc_f(UI_DRAW_BACKGROUND | UI_DRAW_BORDER, "###window_%u", led->window).index)
 	{
-		ui_height(ui_size_perc(0.5f))
+		ui_width(ui_size_perc(0.825f))
 		ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
 		ui_height(ui_size_perc(1.0f))
 		ui_width(ui_size_perc(1.0f))
@@ -479,17 +478,14 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 			ui_cmd_console(win->cmd_console, "###console_%p", win->ui);
 		};
 
-
-
-
+		ui_width(ui_size_perc(0.175f))
+		ui_child_layout_axis(AXIS_2_Y)
+		ui_parent(ui_node_alloc_non_hashed(0).index)
 		ui_flags(UI_DRAW_ROUNDED_CORNERS | UI_TEXT_ALLOW_OVERFLOW)
-		ui_height(ui_size_pixel(256.0f, 1.0f))
-		ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BORDER).index)
+		ui_width(ui_size_perc(1.0f))
 		{
-			ui_pad_fill();
-
 			struct led_node *node = NULL;
-			ui_width(ui_size_pixel(168.0f, 1.0f))
+			ui_height(ui_size_pixel(256.0f, 1.0f))
 			ui_list(&led->node_ui_list, "###%p", &led->node_ui_list)
 			for (u32 i = led->node_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(node))
 			{
@@ -513,29 +509,81 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 					if (!DLL2_IN_LIST(node))
 					{
 						dll_append(&led->node_selected_list, led->node_pool.buf, i);
+						node->xv = 0.0f;
+						node->yv = 0;
+						node->zv = 0;
+
+						u32 *buf1 = malloc(256);
+						u32 *buf2 = malloc(256);
+						u32 *buf3 = malloc(256);
+
+						node->x = ui_text_input_buffered(buf1, 64);
+						node->y = ui_text_input_buffered(buf2, 64);
+						node->z = ui_text_input_buffered(buf3, 64);
+					}
+				}
+				else
+				{
+					if (DLL2_IN_LIST(node))
+					{
+						dll_remove(&led->node_selected_list, led->node_pool.buf, i);
 					}
 				}
 			}
 
-			ui_width(ui_size_pixel(168.0f, 1.0f))
 			ui_list(&led->node_selected_ui_list, "###%p", &led->node_selected_ui_list)
 			for (u32 i = led->node_selected_list.first; i != DLL_NULL; i = DLL2_NEXT(node))
 			{
 				node = gpool_address(&led->node_pool, i);
-				struct slot sel = ui_list_entry_alloc(&led->node_selected_ui_list);
-				ui_parent(sel.index)
+				ui_child_layout_axis(AXIS_2_Y)
+				ui_parent(ui_list_entry_alloc(&led->node_selected_ui_list).index)
 				{
-					ui_pad(); 
+					ui_height(ui_size_pixel(24.0f, 1.0f))
+					ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, "%k##sel_%u", &node->id, i);
+					ui_height(ui_size_pixel(3*24.0f + 12.0f, 1.0f))
+					ui_child_layout_axis(AXIS_2_X)
+					ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BORDER).index)
+					ui_child_layout_axis(AXIS_2_Y)
+					{
+						ui_text_align_y(ALIGN_TOP)	
+						ui_width(ui_size_pixel(128.0f, 0.0f))
+						ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
+						ui_height(ui_size_pixel(24.0f, 1.0f))
+						{
+							ui_pad_pixel(6.0f);
 
-					ui_width(ui_size_text(F32_INFINITY, 1.0f))
-					ui_node_alloc_f(UI_DRAW_TEXT, "%k selection##%u", &node->id, sel.index);
+							ui_height(ui_size_pixel(3*24.0f, 1.0f))
+							ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, "position##%u", i);
+							ui_pad_pixel(6.0f);
+						}
+
+						ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
+						ui_height(ui_size_pixel(24.0f, 1.0f))
+						{
+							ui_pad_pixel(6.0f);
+							
+							//node->position[0] = ui_field_f32_f(&node->x, node->position[0], intv_inline(-300.0f, 400.0f), "##field_x_%u", i);
+							//node->position[1] = ui_field_f32_f(&node->y, node->position[1], intv_inline(-300.0f, 400.0f), "##field_y_%u", i);
+							//node->position[2] = ui_field_f32_f(&node->z, node->position[2], intv_inline(-300.0f, 400.0f), "##field_z_%u", i);
+							node->xv = ui_field_f32_f(&node->x, node->xv, intv_inline(-300.0f, 400.0f), "##field_x_%u", i);
+							node->yv = ui_field_i64_f(&node->y, node->yv, intvi64_inline(-10, 20), "##field_y_%u", i);
+							node->zv = ui_field_u64_f(&node->z, node->zv, intvu64_inline(1, 20), "##field_z_%u", i);
+							fprintf(stderr, "%f, %li, %lu\n"
+									, node->xv
+									, node->yv
+									, node->zv);
+
+
+							ui_pad_pixel(6.0f);
+						}
+
+						ui_pad_fill();
+					}
 				}
 			}
 
 			ui_pad_fill();
 		}
-
-		ui_pad_fill();
 	}
 
 	ui_frame_end();
@@ -546,13 +594,13 @@ void led_ui_main(struct led *led)
 	KAS_TASK(__func__, T_UI);
 
 	const vec4 bg = { 0.0625f, 0.0625f, 0.0625f, 1.0f };
-	const vec4 br = { 0.3f, 0.0f, 0.3f, 1.0f };
+	const vec4 br = { 0.0f, 0.15f, 0.25f, 1.0f };
 	const vec4 gr[BOX_CORNER_COUNT] = 
 	{
-		{0.3f, 0.0f, 0.8f, 0.7f },
-		{0.8f, 0.0f, 0.3f, 0.7f },
-		{0.8f, 0.0f, 0.3f, 0.7f },
-		{0.3f, 0.0f, 0.8f, 0.7f },
+		{0.0f, 0.15f, 0.8f, 0.8f },
+		{0.0f, 0.7f, 0.25f, 0.8f },
+		{0.0f, 0.7f, 0.25f, 0.8f },
+		{0.0f, 0.15f, 0.8f, 0.8f },
 	};
 	const vec4 sp = { 0.9f, 0.9f, 0.9f, 1.0f };
 

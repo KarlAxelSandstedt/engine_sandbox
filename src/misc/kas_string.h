@@ -65,12 +65,13 @@ enum parse_retval_type
 	PARSE_UNDERFLOW,
 	PARSE_OVERFLOW,
 	PARSE_STRING_INVALID,
+	PARSE_NO_OP,
 	PARSE_COUNT
 };
 
 struct parse_retval
 {
-	enum parse_retval_type op_result;	/* 0 on success, >= 1 on failure */
+	enum parse_retval_type 	op_result;	/* 0 on success, >= 1 on failure */
 	union 
 	{
 		u8	u8;
@@ -82,9 +83,6 @@ struct parse_retval
 		i32	i32;
 		i64	i64;
 		f32	f32;
-		f64	f64;
-		void *	ptr;
-		intv	intv;
 	};
 };
 
@@ -119,6 +117,7 @@ void			utf8_debug_print(const utf8 str);
 
 utf8 			utf8_empty(void);
 utf8			utf8_alloc(struct arena *mem, const u64 bufsize);
+utf8			utf8_buffered(u8 buf[], const u64 bufsize);
 
 utf8			utf8_copy_buffered(u8 buf[], const u64 bufsize, const utf8 str);
 utf8			utf8_copy_buffered_and_return_required_size(u64 *reqsize, u8 buf[], const u64 bufsize, const utf8 str);
@@ -190,6 +189,7 @@ void			utf32_debug_print(const utf32 str);
 
 utf32 			utf32_empty(void);
 utf32			utf32_alloc(struct arena *mem, const u32 len);
+utf32			utf32_buffered(u32 buf[], const u32 len);
 
 utf32			utf32_copy_buffered(u32 buf[], const u64 buflen, const utf32 str);
 utf32			utf32_cstr_buffered(u32 buf[], const u64 buflen, const char *cstr);

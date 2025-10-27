@@ -32,11 +32,10 @@
 
 #define TAB_SIZE	8
 
-extern struct ui *g_ui;
-
-/********************************************************************************************************/
-/*       			            ui default visual struct 					*/
-/********************************************************************************************************/
+/*
+ui_visual
+=========
+*/
 
 /* Visual values push at the start of every ui_frame. */
 struct ui_visual
@@ -80,6 +79,69 @@ struct ui_visual ui_visual_init(const vec4 background_color
 /********************************************************************************************************/
 /*					       UI_BUILD							*/
 /********************************************************************************************************/
+
+/*
+ui_text_input
+=============
+ui_text_input widgets are input areas to display and edit string. When the widget is clicked, it gains focus and
+generates a command for entering text input mode and removes any current ui_node being text edited.
+
+USAGE: Initalize the struct with ui_text_input_empty, _buffered or _alloc. build the ui_node as per usual.
+WARNING: The text buffer is aliased by the ui context, so may sure it is always valid when building the ui.
+*/
+
+struct ui_text_input
+{
+	u32	focused;	/* cached ui_node focus state from last time built */
+	u32	cursor;		/* cursor position */
+	u32	mark;		/* marked position, selection area is the interval between cursor and mark */
+	utf32	text;
+};
+
+struct ui_text_input 	ui_text_input_empty(void);
+struct ui_text_input 	ui_text_input_buffered(u32 buf[], const u32 len);
+struct ui_text_input 	ui_text_input_alloc(struct arena *mem, const u32 max_len);
+
+struct slot 		ui_text_input_f(struct ui_text_input *input, const utf32 unfocused_text, const char *fmt, ...);
+struct slot 		ui_text_input(struct ui_text_input *input, const utf32 unfocused_text, const utf8 id);
+
+/*
+ui_field
+========
+ui_field widgets are Input areas to display various types as strings. If interacted with, you can edit and return
+a modification of the input value.
+
+USAGE: You initalize a field by calling one of the macros ui_field_**type**_init() macros, which initalizes the
+field with proper limits and type value. You may not use the field for any other type than the type specified at
+you last call to ui_field_**type**_init(). To construct the field, just call ui_field or ui_field_f; Internally
+the methods display either the current value (unfocused) or the current input string (focused). When the string
+is finished, it is converted to the proper type, clamped against the field limits. 
+*/
+
+f32	ui_field_f32(struct ui_text_input *input, const f32 value, const intv range, const utf8 id);
+f32	ui_field_f32_f(struct ui_text_input *input, const f32 value, const intv range, const char *fmt, ...);
+
+u64	ui_field_u64(struct ui_text_input *input, const u64 value, const intvu64 range, const utf8 id);
+u64	ui_field_u64_f(struct ui_text_input *input, const u64 value, const intvu64 range, const char *fmt, ...);
+
+i64	ui_field_i64(struct ui_text_input *input, const i64 value, const intvi64 range, const utf8 id);
+i64	ui_field_i64_f(struct ui_text_input *input, const i64 value, const intvi64 range, const char *fmt, ...);
+
+
+/***************************************** ######TODO *****************************************/
+
+struct cmd_console
+{
+	struct ui_text_input	prompt;
+	u32			visible;
+};
+
+void 			ui_cmd_console(struct cmd_console *console, const char *fmt, ...);
+
+u64			ui_button_f(const char *fmt, ...);
+
+
+
 
 /******************************************* ui_list ********************************************/
 
@@ -167,31 +229,6 @@ void 			ui_timeline(struct timeline_config *config);
 void 			ui_timeline_row_push(struct timeline_config *config, const u32 row, const char *format, ...);
 void 			ui_timeline_row_pop(struct timeline_config *config);
 
-/***************************************** ###### *****************************************/
-
-struct ui_input_line
-{
-	u32	cursor;		/* cursor position */
-	u32	mark;		/* marked position, selection area is the interval between cursor and mark */
-	utf32	text;
-};
-
-struct ui_input_line ui_input_line_empty(void);
-struct ui_input_line ui_input_line_alloc(struct arena *mem, const u32 max_len);
-
-struct cmd_console
-{
-	struct ui_input_line	prompt;
-	u32			visible;
-};
-
-void 			ui_cmd_console(struct cmd_console *console, const char *fmt, ...);
-
-u64			ui_button_f(const char *fmt, ...);
-
-struct ui_node *	ui_input_line_f(const utf32 external_text, const char *fmt, ...);
-struct ui_node *	ui_input_line(const utf32 external_text, const utf8 id);
-
 /***************************************** Popup Windows *****************************************/
 
 enum ui_popup_type
@@ -224,7 +261,7 @@ struct ui_popup
 	utf8			display2;
 	utf8			display3;
 
-	struct ui_input_line	*prompt;
+	struct ui_text_input	*prompt;
 	utf8			*input;
 
 	union
@@ -248,7 +285,7 @@ struct ui_popup ui_popup_null(void);
 void		ui_popup_try_destroy_and_set_to_null(struct ui_popup *popup);
 
 void 		ui_popup_utf8_display(struct ui_popup *popup, const utf8 display, const char *title, const struct ui_visual *visual);
-void 		ui_popup_utf8_input(struct ui_popup *popup, utf8 *input, struct ui_input_line *line, const utf8 description, const utf8 prefix, const char *title, const struct ui_visual *visual);
+void 		ui_popup_utf8_input(struct ui_popup *popup, utf8 *input, struct ui_text_input *line, const utf8 description, const utf8 prefix, const char *title, const struct ui_visual *visual);
 void 		ui_popup_choice(struct ui_popup *popup, const utf8 description, const utf8 positive, const utf8 negative, const char *title, const struct ui_visual *visual);
 
 /********************************************************************************************************/
@@ -344,16 +381,6 @@ struct text_op
 	u32	high;		/* upper limit (exclusive) of interval to replace 	*/
 };
 
-struct text_edit_state
-{
-	utf8	id;		/* node id owning text to edit */
-	utf32	*text;		/* text buffer, lifetime MUST be greater than the lifetime of the node */
-	u32	cursor;		/* cursor position */
-	u32	mark;		/* marked position, selection area is the interval between cursor and mark  */
-};
-
-struct text_edit_state	text_edit_state_null(void);
-
 /* UI Interaction state, contains both persistent and frame state */
 struct ui_interaction
 {
@@ -363,9 +390,9 @@ struct ui_interaction
 	/* current mouse hovered node */
 	utf8 	node_hovered;
 
-	/* user input */
-	u32 			keyboard_text_input : 1;
-	struct text_edit_state 	text_edit;
+	u32 			text_edit_mode;
+	utf8			text_edit_id;		
+	struct ui_text_input *	text_edit;	/* aliasing external ui_text_input. */
 
 	vec2	cursor_delta;
 	vec2 	cursor_position;    /* window bottom left = (0.0f, 0.0f) */
@@ -494,6 +521,8 @@ struct ui
 	stack_f32	stack_corner_radius;
 	stack_f32	stack_border_size;
 };
+
+extern struct ui *g_ui;
 
 struct ui *	ui_alloc(void);					/* allocate a new ui 		*/
 void		ui_dealloc(struct ui *ui);			/* dealloc an ui 		*/
