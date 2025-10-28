@@ -83,16 +83,17 @@ struct ui_visual ui_visual_init(const vec4 background_color
 /*
 ui_text_input
 =============
-ui_text_input widgets are input areas to display and edit string. When the widget is clicked, it gains focus and
-generates a command for entering text input mode and removes any current ui_node being text edited.
+ui_text_input is a helper struct that contains text and text selection state. The ui core stores an ui_text_input
+alias when editing text. This alias either points to a ui_node's internal ui_text_input (if the flag
+UI_TEXT_EDIT_INTER_BUF_ON_FOCUS is set in the node) or an externally provided ui_text_input. 
+If an external structure is provided, make sure the structure cannot be freed or reallocated during the time
+from when it was last built in a ui frame to the time of the next command queue execution.
 
-USAGE: Initalize the struct with ui_text_input_empty, _buffered or _alloc. build the ui_node as per usual.
-WARNING: The text buffer is aliased by the ui context, so may sure it is always valid when building the ui.
 */
 
 struct ui_text_input
 {
-	u32	focused;	/* cached ui_node focus state from last time built */
+	u32	focused; 	
 	u32	cursor;		/* cursor position */
 	u32	mark;		/* marked position, selection area is the interval between cursor and mark */
 	utf32	text;
@@ -102,6 +103,7 @@ struct ui_text_input 	ui_text_input_empty(void);
 struct ui_text_input 	ui_text_input_buffered(u32 buf[], const u32 len);
 struct ui_text_input 	ui_text_input_alloc(struct arena *mem, const u32 max_len);
 
+/*TODO RENAME OR SOMETHING */
 struct slot 		ui_text_input_f(struct ui_text_input *input, const utf32 unfocused_text, const char *fmt, ...);
 struct slot 		ui_text_input(struct ui_text_input *input, const utf32 unfocused_text, const utf8 id);
 
@@ -110,22 +112,16 @@ ui_field
 ========
 ui_field widgets are Input areas to display various types as strings. If interacted with, you can edit and return
 a modification of the input value.
-
-USAGE: You initalize a field by calling one of the macros ui_field_**type**_init() macros, which initalizes the
-field with proper limits and type value. You may not use the field for any other type than the type specified at
-you last call to ui_field_**type**_init(). To construct the field, just call ui_field or ui_field_f; Internally
-the methods display either the current value (unfocused) or the current input string (focused). When the string
-is finished, it is converted to the proper type, clamped against the field limits. 
 */
 
-f32	ui_field_f32(struct ui_text_input *input, const f32 value, const intv range, const utf8 id);
-f32	ui_field_f32_f(struct ui_text_input *input, const f32 value, const intv range, const char *fmt, ...);
+f32	ui_field_f32(const f32 value, const intv range, const utf8 id);
+f32	ui_field_f32_f(const f32 value, const intv range, const char *fmt, ...);
 
-u64	ui_field_u64(struct ui_text_input *input, const u64 value, const intvu64 range, const utf8 id);
-u64	ui_field_u64_f(struct ui_text_input *input, const u64 value, const intvu64 range, const char *fmt, ...);
+u64	ui_field_u64(const u64 value, const intvu64 range, const utf8 id);
+u64	ui_field_u64_f(const u64 value, const intvu64 range, const char *fmt, ...);
 
-i64	ui_field_i64(struct ui_text_input *input, const i64 value, const intvi64 range, const utf8 id);
-i64	ui_field_i64_f(struct ui_text_input *input, const i64 value, const intvi64 range, const char *fmt, ...);
+i64	ui_field_i64(const i64 value, const intvi64 range, const utf8 id);
+i64	ui_field_i64_f(const i64 value, const intvi64 range, const char *fmt, ...);
 
 
 /***************************************** ######TODO *****************************************/
@@ -139,9 +135,6 @@ struct cmd_console
 void 			ui_cmd_console(struct cmd_console *console, const char *fmt, ...);
 
 u64			ui_button_f(const char *fmt, ...);
-
-
-
 
 /******************************************* ui_list ********************************************/
 
@@ -390,6 +383,7 @@ struct ui_interaction
 	/* current mouse hovered node */
 	utf8 	node_hovered;
 
+	u32			text_internal_buf[256];
 	u32 			text_edit_mode;
 	utf8			text_edit_id;		
 	struct ui_text_input *	text_edit;	/* aliasing external ui_text_input. */
@@ -496,6 +490,7 @@ struct ui
 	/* external text usage; used for skipping layout calculations for a string that is used in multiple nodes */
 	stack_utf32	stack_external_text;
 	stack_ptr	stack_external_text_layout;
+	stack_ptr	stack_external_text_input;
 
 	/* push all floating nodes so that we can linear search which floating subtree we are hovering */
 	stack_u32	stack_floating_node;
@@ -606,13 +601,22 @@ void		ui_frame_end(void);				/* end ui frame 		*/
 #define		UI_INTER_RECURSIVE_SELECT	(UI_INTER_SELECT | UI_INTER_LEFT_CLICK)
 
 /******************** General control flags ********************/
-#define		UI_UNIT_POSITIVE_DOWN		((u64) 1 << 37) /* Default Y-layout of ui_size_unit's is that y grow
+#define		UI_UNIT_POSITIVE_DOWN		((u64) 1 << 34) /* Default Y-layout of ui_size_unit's is that y grow
 							  	   upwards, by setting this flag, node unit sizes
 								   will be interpreted with Y growing downwards.  */
-#define		UI_SKIP_HOVER_SEARCH		((u64) 1 << 38) /* Skip searching if cursor is hovering the node 
+#define		UI_SKIP_HOVER_SEARCH		((u64) 1 << 35) /* Skip searching if cursor is hovering the node 
 								   (and subsequently its sub-hierarchy). Useful for
 								   when two children occupies the same space, one
 								   which we interact with, the other only visual.  */
+
+#define		UI_TEXT_EDIT			((u64) 1 << 36) /* Node sets text edit state on focus */
+#define		UI_TEXT_EDIT_INTER_BUF_ON_FOCUS	((u64) 1 << 37) /* Node aliases an cleared internal ui buffer on
+								   focus instead of external text buffer. Since we
+								   can only text edit a single widget at a time, the
+								   whole system can rely upon a single buffer. */
+#define		UI_TEXT_EDIT_COPY_ON_FOCUS	((u64) 1 << 38)	/* If UI_TEXT_EDIT, copy whatever text was served 
+								   to the node into the text edit buffer and select
+								   the whole string. */
 #define		UI_TEXT_ATTACHED		((u64) 1 << 39) /* text is attached to node */
 #define		UI_TEXT_ALLOW_OVERFLOW		((u64) 1 << 40) /* calculate text_layout using an infinite line width  */
 #define		UI_TEXT_EXTERNAL		((u64) 1 << 41) /* Ignore any text given in node identifier string
@@ -646,12 +650,13 @@ void		ui_frame_end(void);				/* end ui frame 		*/
 struct ui_node
 {
 	struct hierarchy_index_node header; 	/* DO NOT MOVE */
-	utf8		id;			/* unique identifier  */
-	utf32		text;			
+	utf8			id;		/* unique identifier  */
+	struct ui_text_input	input;		/* text to display OR text to edit */
+
 	u64		flags;			/* interaction, draw flags */
 	u64		last_frame_touched;	/* if not touched within new frame, the node is pruned at the end */
 	u32		key;			/* hashed key */
-	u32		depth;			/* parent->depth + 1 */
+	u32		depth;			/* parent->depth + 1 or fixed depth */
 
 	u64		inter_recursive_mask;	/* union of ancestor and node recursive_flags */
 	u64		inter_recursive_flags;	/* recursive interactions checked by children */
@@ -776,6 +781,7 @@ u32	ui_pad_fill(void);
 #define ui_recursive_interaction(flags) 	UI_SCOPE(ui_recursive_interaction_push(flags), ui_recursive_interaction_pop())
 #define ui_external_text(text)			UI_SCOPE(ui_external_text_push(text), ui_external_text_pop())
 #define ui_external_text_layout(layout, text)	UI_SCOPE(ui_external_text_layout_push(layout, text), ui_external_text_layout_pop())
+#define ui_external_text_input(input)		UI_SCOPE(ui_external_text_input_push(input), ui_external_text_input_pop())
 
 void 	ui_size_push(const enum axis_2 axis, const struct ui_size size);
 void 	ui_size_set(const enum axis_2 axis, const struct ui_size size);
@@ -873,6 +879,9 @@ void	ui_external_text_pop();
 void	ui_external_text_layout_push(struct text_layout *text_layout, const utf32 text);
 void	ui_external_text_layout_set(struct text_layout *text_layout, const utf32 text);
 void	ui_external_text_layout_pop();
+
+void	ui_external_text_input_push(struct ui_text_input *text_input);
+void	ui_external_text_input_pop();
 
 /********************************************************************************************************/
 /*					  SIZES AND AUTOLAYOUT						*/
@@ -1260,6 +1269,76 @@ we need several values. The process looks like
 	A helper could be created to help with this:
 
 		ui_node_inter_rec_alloc_f(FLAGS, INTER_FLAGS, format, ...) => ui_node_alloc(FLAGS, INTER_FLAGS, id)
+
+Text input handling
+===================
+
+Context: The ui aliases some ui_text_input state owned by some external system. 
+Whenever a text operation happens, the ui will in its command queue execute these
+operation on that alias. We show issues with this approach and develop a better
+solution.
+
+
+Issue 1: (aliasing ui_text_input in reallocatable address space)
+----------------------------------------------------------------
+Suppose we have nodes in some subsystem where each node contains a ui_text_input
+struct. Furthermore, suppose that the subsystem is growable and may reallocate the
+node's address. If we only provide the ui an alias of the node's ui_text_input when
+focus is gained, the alias will be invalidated on a future reallocation.
+
+
+Solution:
+---------
+We reset the ui's ui_text_input alias each frame: 
+
+	ui_text_input_push(&subsystem_node.ui_text_input)
+	ui_node_alloc()		<----- ui alises ui_text_input if node focused 
+	ui_text_input_pop()
+
+
+Issue 2: (Freeing aliased ui_text_input)
+----------------------------------------
+Suppose we have nodes in some subsystem where each node contains a ui_text_input
+struct. When the node is being focused, the ui aliases the ui_text_input struct
+to modify the text edit state. It follows that the subsystem node's lifetime MUST
+AT LEAST extent 1 ui frame into the future. The following example illustrates the
+aliasing:
+
+FRAME N: 
+	--- UI_FRAME ---
+	ui_text_input_push(&subsystem_node.ui_text_input)
+	ui_node_alloc()		<----- ui alises ui_text_input if node focused 
+	ui_text_input_pop()
+	(...)
+	--- SUBSYSTEM_FRAME ---
+	(...)
+	subsystem_node_free(subsystem_node)	<----- the subsystem determines that it should free the
+						       aliased node, invalidating the ui's ui_text_input
+						       alias.
+FRAME N+1:
+	--- UI_FRAME ---
+	ui_process_commands() <---- text_ops executed; WILL modify invalid ui_text_input! 
+
+
+Workaround 2:
+-------------
+We first give some context to when and where text editting will happen.  The common 
+case for text editing will be editting small utf32 strings; for example, when 
+modifying u64/i64/f32 values. In those cases we only require buffers containing 32 
+codepoints. Issue 2 would most certainly come up here; suppose we are editing some
+level editor node's positional value, and while editing we remove the node. We are
+now keeping an invalid ui_text_input alias going into the next frame.
+
+Since the common case is modifying / creating small strings, and since we can only
+edit one text at a time, we may as well just store an internal buffer in the ui
+that is used if no external ui_text_input is provided. The only downside to
+this is that when we lose focus of a node that "owns" the internal buffer, the
+buffer contents is lost. 
+
+We can still provide the ui system an external ui_text_input, we just have to make
+sure in those few cases that the address stays valid for the remainder to the last
+frame it was provided. This works fine for cases like per-window command consoles
+whose address stays constant for the lifetime of the window.
 */
 
 #endif

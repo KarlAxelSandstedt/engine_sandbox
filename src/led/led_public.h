@@ -102,14 +102,10 @@ struct led_node
 	vec3			position;
 	quat			rotation;
 
-	//TODO TMP, does not work, g_ui will alias these addresses, which are invalidated on realloc
-	struct ui_text_input	x;
-	struct ui_text_input	y;
-	struct ui_text_input	z;
+	f32			x;
+	u64			y;
+	i64			z;
 
-	f32			xv;
-	u64			yv;
-	i64			zv;
 
 	u32			physics_handle; 
 	u32 			render_handle;	

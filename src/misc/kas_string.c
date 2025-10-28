@@ -1613,7 +1613,7 @@ utf32 utf32_utf8_buffered(u32 buf[], const u64 buflen, const utf8 str)
 		u64 offset = 0;
 		for (u32 i = 0; i < str.len; ++i)
 		{
-			conv.buf[i] = utf8_read_codepoint(&offset, &str, offset);	
+			buf[i] = utf8_read_codepoint(&offset, &str, offset);	
 		}
 
 		conv = (utf32) { .len = str.len, .max_len = buflen, .buf = buf, };

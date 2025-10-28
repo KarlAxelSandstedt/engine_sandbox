@@ -22,33 +22,19 @@
 #include "ui_local.h"
 #include "sys_public.h"
 
-f32 ui_field_f32(struct ui_text_input *input, const f32 value, const intv range, const utf8 id)
+f32 ui_field_f32(const f32 value, const intv range, const utf8 formatted)
 {
-	struct utf32 text = utf32_empty();
-	if (!input->focused)
-	{
-		text = utf32_f32(g_ui->mem_frame, 7, value);
-	}
-
-	struct slot slot = ui_text_input(input, text, id);
+	struct slot slot = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS | UI_TEXT_EDIT | UI_TEXT_EDIT_INTER_BUF_ON_FOCUS | UI_TEXT_EDIT_COPY_ON_FOCUS | UI_DRAW_BORDER | UI_DRAW_TEXT, &formatted);
 	struct ui_node *node = slot.address;
 
-	if ((node->inter & UI_INTER_FOCUS) && input->focused == 0)
-	{
-		input->mark = 0;
-		input->cursor = text.len;
-		input->text = utf32_copy_buffered(input->text.buf, input->text.max_len, text);
-	}
-	input->focused = node->inter & UI_INTER_FOCUS;
-
 	f32 ret = value;
-	if ((node->inter & UI_INTER_FOCUS) && g_ui->inter.key_pressed[KAS_ENTER])
+	if (node->input.focused && g_ui->inter.key_pressed[KAS_ENTER])
 	{
-		const f32 parse_value = f32_utf32(g_ui->mem_frame, input->text);
-		if (!f32_test_nan(ret))
+		const f32 parse_value = f32_utf32(g_ui->mem_frame, node->input.text);
+		if (!f32_test_nan(parse_value))
 		{
 			ret = f32_clamp(parse_value, range.low, range.high);
-			cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_disable \"%k\"", &id);
+			cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_disable \"%k\"", &node->id);
 		}
 		else
 		{
@@ -59,28 +45,15 @@ f32 ui_field_f32(struct ui_text_input *input, const f32 value, const intv range,
 	return ret;
 }
 
-u64 ui_field_u64(struct ui_text_input *input, const u64 value, const intvu64 range, const utf8 id)
+u64 ui_field_u64(const u64 value, const intvu64 range, const utf8 formatted)
 {
-	struct utf32 text = utf32_empty();
-	if (!input->focused)
-	{
-		text = utf32_u64(g_ui->mem_frame, value);
-	}
-
-	struct slot slot = ui_text_input(input, text, id);
+	struct slot slot = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS | UI_TEXT_EDIT | UI_TEXT_EDIT_INTER_BUF_ON_FOCUS | UI_TEXT_EDIT_COPY_ON_FOCUS | UI_DRAW_BORDER | UI_DRAW_TEXT, &formatted);
 	struct ui_node *node = slot.address;
-
-	if ((node->inter & UI_INTER_FOCUS) && input->focused == 0)
-	{
-		input->mark = 0;
-		input->cursor = text.len;
-		input->text = utf32_copy_buffered(input->text.buf, input->text.max_len, text);
-	}
 
 	u64 ret = value;
 	if ((node->inter & UI_INTER_FOCUS) && g_ui->inter.key_pressed[KAS_ENTER])
 	{
-		struct parse_retval parse = u64_utf32(input->text);
+		struct parse_retval parse = u64_utf32(node->input.text);
 		if (parse.op_result != PARSE_STRING_INVALID) 
 		{ 
 			if (parse.op_result == PARSE_OVERFLOW || range.high < parse.u64)
@@ -92,7 +65,7 @@ u64 ui_field_u64(struct ui_text_input *input, const u64 value, const intvu64 ran
 				parse.u64 = range.low;
 			}
 			ret = parse.u64;
-			cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_disable \"%k\"", &id);
+			cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_disable \"%k\"", &node->id);
 		}
 		else
 		{
@@ -102,28 +75,15 @@ u64 ui_field_u64(struct ui_text_input *input, const u64 value, const intvu64 ran
 	return ret;
 }
 
-i64 ui_field_i64(struct ui_text_input *input, const i64 value, const intvi64 range, const utf8 id)
+i64 ui_field_i64(const i64 value, const intvi64 range, const utf8 formatted)
 {
-	struct utf32 text = utf32_empty();
-	if (!input->focused)
-	{
-		text = utf32_i64(g_ui->mem_frame, value);
-	}
-
-	struct slot slot = ui_text_input(input, text, id);
+	struct slot slot = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS | UI_TEXT_EDIT | UI_TEXT_EDIT_INTER_BUF_ON_FOCUS | UI_TEXT_EDIT_COPY_ON_FOCUS | UI_DRAW_BORDER | UI_DRAW_TEXT, &formatted);
 	struct ui_node *node = slot.address;
-
-	if ((node->inter & UI_INTER_FOCUS) && input->focused == 0)
-	{
-		input->mark = 0;
-		input->cursor = text.len;
-		input->text = utf32_copy_buffered(input->text.buf, input->text.max_len, text);
-	}
 
 	i64 ret = value;
 	if ((node->inter & UI_INTER_FOCUS) && g_ui->inter.key_pressed[KAS_ENTER])
 	{
-		struct parse_retval parse = i64_utf32(input->text);
+		struct parse_retval parse = i64_utf32(node->input.text);
 		if (parse.op_result != PARSE_STRING_INVALID) 
 		{ 
 			if (parse.op_result == PARSE_UNDERFLOW || parse.i64 < range.low)
@@ -135,7 +95,7 @@ i64 ui_field_i64(struct ui_text_input *input, const i64 value, const intvi64 ran
 				parse.i64 = range.high;
 			}
 			ret = parse.i64;
-			cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_disable \"%k\"", &id);
+			cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_disable \"%k\"", &node->id);
 		}
 		else
 		{
@@ -146,7 +106,7 @@ i64 ui_field_i64(struct ui_text_input *input, const i64 value, const intvi64 ran
 	return ret;
 }
 
-f32 ui_field_f32_f(struct ui_text_input *input, const f32 value, const intv range, const char *fmt, ...)
+f32 ui_field_f32_f(const f32 value, const intv range, const char *fmt, ...)
 {
 
 	va_list args;
@@ -154,10 +114,10 @@ f32 ui_field_f32_f(struct ui_text_input *input, const f32 value, const intv rang
 	const utf8 id = utf8_format_variadic(g_ui->mem_frame, fmt, args);
 	va_end(args);
 
-	return ui_field_f32(input, value, range, id);
+	return ui_field_f32(value, range, id);
 }
 
-u64 ui_field_u64_f(struct ui_text_input *input, const u64 value, const intvu64 range, const char *fmt, ...)
+u64 ui_field_u64_f(const u64 value, const intvu64 range, const char *fmt, ...)
 {
 
 	va_list args;
@@ -165,10 +125,10 @@ u64 ui_field_u64_f(struct ui_text_input *input, const u64 value, const intvu64 r
 	const utf8 id = utf8_format_variadic(g_ui->mem_frame, fmt, args);
 	va_end(args);
 
-	return ui_field_u64(input, value, range, id);
+	return ui_field_u64(value, range, id);
 }
 
-i64 ui_field_i64_f(struct ui_text_input *input, const i64 value, const intvi64 range, const char *fmt, ...)
+i64 ui_field_i64_f(const i64 value, const intvi64 range, const char *fmt, ...)
 {
 
 	va_list args;
@@ -176,7 +136,7 @@ i64 ui_field_i64_f(struct ui_text_input *input, const i64 value, const intvi64 r
 	const utf8 id = utf8_format_variadic(g_ui->mem_frame, fmt, args);
 	va_end(args);
 
-	return ui_field_i64(input, value, range, id);
+	return ui_field_i64(value, range, id);
 }
 
 struct ui_list ui_list_init(enum axis_2 axis, const f32 axis_pixel_size, const f32 entry_pixel_size)
@@ -614,7 +574,7 @@ void ui_cmd_console(struct cmd_console *console, const char *fmt, ...)
 	struct slot slot;
 	struct ui_node *line;
 	ui_flags(UI_DRAW_BACKGROUND | UI_DRAW_BORDER | UI_DRAW_ROUNDED_CORNERS)
-	slot = ui_text_input(&console->prompt, console->prompt.text, id);
+	slot = ui_text_input(&console->prompt, utf32_utf8(g_ui->mem_frame, utf8_inline("Command Line...")), id);
 	line = slot.address;
 
 	if ((line->inter & UI_INTER_FOCUS) && g_ui->inter.key_clicked[KAS_ENTER])
@@ -1050,84 +1010,6 @@ void ui_text_op(void)
 	g_ui->inter.text_edit->mark = op.mark_new;
 }
 
-void ui_text_input_mode_enable(void)
-{
-	const utf8 id = g_queue->cmd_exec->arg[0].utf8;
-	struct ui_text_input *text_edit = g_queue->cmd_exec->arg[1].ptr;
-
-	struct ui_node *node = ui_node_lookup(&g_ui->inter.text_edit_id).address;
-	if (node)
-	{
-		node->inter &= ~UI_INTER_FOCUS;
-		g_ui->inter.text_edit->focused = 0;
-	}
-	else
-	{
-		system_window_text_input_mode_enable();
-	}
-
-	g_ui->inter.text_edit_mode = 1;
-	g_ui->inter.text_edit_id = utf8_copy(g_ui->mem_frame, id);
-	g_ui->inter.text_edit = text_edit;
-	g_ui->inter.text_edit->focused = 1;
-
-	text_edit->cursor = (text_edit->cursor <= text_edit->text.len) 
-		? text_edit->cursor
-		: text_edit->text.len;
-
-	text_edit->mark = (text_edit->mark <= text_edit->text.len) 
-		? text_edit->mark
-		: text_edit->text.len;
-}
-
-void ui_text_input_flush(void)
-{
-	const utf8 id = g_queue->cmd_exec->arg[0].utf8;
-	if (utf8_equivalence(g_ui->inter.text_edit_id, id))
-	{
-		g_ui->inter.text_edit->text.len = 0;
-		g_ui->inter.text_edit->cursor = 0;
-		g_ui->inter.text_edit->mark = 0;
-	}
-}
-
-void ui_text_input_mode_disable(void)
-{
-	const utf8 id = g_queue->cmd_exec->arg[0].utf8;
-	if (utf8_equivalence(id, g_ui->inter.text_edit_id))
-	{
-		system_window_text_input_mode_disable();
-		struct ui_node *node = ui_node_lookup(&g_ui->inter.text_edit_id).address;
-		if (node)
-		{
-			node->inter &= ~UI_INTER_FOCUS;
-		}
-
-		g_ui->inter.text_edit_mode = 0;
-		g_ui->inter.text_edit_id = utf8_empty();
-		g_ui->inter.text_edit->focused = 0;
-		g_ui->inter.text_edit = text_edit_stub_ptr();
-	}
-}
-
-struct ui_text_input ui_text_input_empty(void)
-{
-	return (struct ui_text_input) { .focused = 0, .cursor = 0, .mark = 0, .text = utf32_empty() };
-}
-
-struct ui_text_input ui_text_input_buffered(u32 buf[], const u32 len)
-{
-	return (struct ui_text_input) { .focused = 0, .cursor = 0, .mark = 0, .text = utf32_buffered(buf, len) };
-}
-
-struct ui_text_input ui_text_input_alloc(struct arena *mem, const u32 max_len)
-{
-	utf32 text = utf32_alloc(mem, max_len);
-	return (text.max_len)
-		? (struct ui_text_input) { .focused = 0, .cursor = 0, .mark = 0, .text = text }
-		: ui_text_input_empty();
-}
-
 struct slot ui_text_input(struct ui_text_input *input, const utf32 unfocused_text, const utf8 id)
 {
 	const utf32 external_text = (input->focused)
@@ -1136,29 +1018,18 @@ struct slot ui_text_input(struct ui_text_input *input, const utf32 unfocused_tex
 
 	struct slot slot;
 	ui_external_text(external_text)
-	slot = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS | UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW | UI_TEXT_EXTERNAL, &id);
+	ui_external_text_input(input)
+	slot = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS | UI_TEXT_EDIT | UI_TEXT_EXTERNAL | UI_DRAW_TEXT, &id);
 
 	struct ui_node *node = slot.address;
 	if (node->inter & UI_INTER_FOCUS)
 	{
-		if (!input->focused)
-		{
-			cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_enable \"%k\" %p", &node->id, input);
-		}
-
 		node->background_color[0] += 0.03125f;
 		node->background_color[1] += 0.03125f;
 		node->background_color[2] += 0.03125f;
 		node->border_color[0] += 0.25f;
 		node->border_color[1] += 0.25f;
 		node->border_color[2] += 0.25f;
-	}
-	else
-	{
-		if (input->focused)
-		{
-			cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_disable \"%k\"", &id);
-		}
 	}
 
 	return slot;

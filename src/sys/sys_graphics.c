@@ -51,9 +51,7 @@ u32 system_window_alloc(const char *title, const vec2u32 position, const vec2u32
 	sys_win->r_scene = r_scene_alloc();
 	sys_win->cmd_queue = cmd_queue_alloc();
 	sys_win->cmd_console = arena_push_zero(&sys_win->mem_persistent, sizeof(struct cmd_console));
-	sys_win->cmd_console->prompt.text = utf32_alloc(&sys_win->mem_persistent, 1024);
-	sys_win->cmd_console->prompt.cursor = 0;
-	sys_win->cmd_console->prompt.mark = 0;
+	sys_win->cmd_console->prompt = ui_text_input_alloc(&sys_win->mem_persistent, 256);
 	sys_win->tagged_for_destruction = 0;
 	sys_win->text_input_mode = 0;
 	

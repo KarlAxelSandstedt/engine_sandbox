@@ -434,6 +434,16 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 	ui_child_layout_axis(AXIS_2_X)
 	ui_parent(ui_node_alloc_f(UI_DRAW_BACKGROUND | UI_DRAW_BORDER, "###window_%u", led->window).index)
 	{
+		win->cmd_console->visible = 1;
+		ui_fixed_depth(64)
+		ui_floating_x(0.0f)
+		ui_floating_y(win->size[1] - 32.0f)
+		ui_width(ui_size_perc(1.0f))
+		if (win->cmd_console->visible)
+		{
+			ui_cmd_console(win->cmd_console, "###console_%p", win->ui);
+		};
+
 		ui_width(ui_size_perc(0.825f))
 		ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
 		ui_height(ui_size_perc(1.0f))
@@ -468,16 +478,6 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 			}
 		}
 
-		win->cmd_console->visible = 1;
-		ui_fixed_depth(64)
-		ui_floating_x(0.0f)
-		ui_floating_y(win->size[1] - 32.0f)
-		ui_width(ui_size_perc(1.0f))
-		if (win->cmd_console->visible)
-		{
-			ui_cmd_console(win->cmd_console, "###console_%p", win->ui);
-		};
-
 		ui_width(ui_size_perc(0.175f))
 		ui_child_layout_axis(AXIS_2_Y)
 		ui_parent(ui_node_alloc_non_hashed(0).index)
@@ -509,17 +509,6 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 					if (!DLL2_IN_LIST(node))
 					{
 						dll_append(&led->node_selected_list, led->node_pool.buf, i);
-						node->xv = 0.0f;
-						node->yv = 0;
-						node->zv = 0;
-
-						u32 *buf1 = malloc(256);
-						u32 *buf2 = malloc(256);
-						u32 *buf3 = malloc(256);
-
-						node->x = ui_text_input_buffered(buf1, 64);
-						node->y = ui_text_input_buffered(buf2, 64);
-						node->z = ui_text_input_buffered(buf3, 64);
 					}
 				}
 				else
@@ -562,18 +551,17 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 						{
 							ui_pad_pixel(6.0f);
 							
-							//node->position[0] = ui_field_f32_f(&node->x, node->position[0], intv_inline(-300.0f, 400.0f), "##field_x_%u", i);
-							//node->position[1] = ui_field_f32_f(&node->y, node->position[1], intv_inline(-300.0f, 400.0f), "##field_y_%u", i);
-							//node->position[2] = ui_field_f32_f(&node->z, node->position[2], intv_inline(-300.0f, 400.0f), "##field_z_%u", i);
-							node->xv = ui_field_f32_f(&node->x, node->xv, intv_inline(-300.0f, 400.0f), "##field_x_%u", i);
-							node->yv = ui_field_i64_f(&node->y, node->yv, intvi64_inline(-10, 20), "##field_y_%u", i);
-							node->zv = ui_field_u64_f(&node->z, node->zv, intvu64_inline(1, 20), "##field_z_%u", i);
-							fprintf(stderr, "%f, %li, %lu\n"
-									, node->xv
-									, node->yv
-									, node->zv);
+							//node->position[0] = ui_field_f32_f(node->position[0], intv_inline(-10.0f, 10.0f), "%f###field_x_%u", node->position[0], i);
+							//node->position[1] = ui_field_f32_f(node->position[1], intv_inline(-10.0f, 10.0f), "%f###field_y_%u", node->position[1], i);
+							//node->position[2] = ui_field_f32_f(node->position[2], intv_inline(-10.0f, 10.0f), "%f###field_z_%u", node->position[2], i);
 
+							//vec3_print("position", node->position);
+							
+							node->x = ui_field_f32_f(node->x, intv_inline(-10.0f, 10.0f), "%f###field_x_%u", node->x, i);
+							node->y = ui_field_u64_f(node->y, intvu64_inline(10, 20), "%lu###field_y_%u", node->y, i);
+							node->z = ui_field_i64_f(node->z, intvi64_inline(-10, 10), "%li###field_z_%u", node->z, i);
 
+							
 							ui_pad_pixel(6.0f);
 						}
 

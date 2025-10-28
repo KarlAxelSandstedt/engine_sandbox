@@ -13,7 +13,7 @@
     GNU General Public License for more details.
 
     You should have received a copy of the GNU General Public License
-    along with this program.  If not, see <https://www.gnu.org/licenses/>.
+    along with this program.  If not, see <https://www.gnu.org/licenses/>.  
 ==========================================================================
 */
 
@@ -137,6 +137,7 @@ struct ui *ui_alloc(void)
 	ui->stack_parent = stack_u32_alloc(NULL, 32, GROWABLE);
 	ui->stack_sprite = stack_u32_alloc(NULL, 32, GROWABLE);
 	ui->stack_font = stack_ptr_alloc(NULL, 8, GROWABLE);
+	ui->stack_external_text_input = stack_ptr_alloc(NULL, 8, GROWABLE);
 	ui->stack_flags = stack_u64_alloc(NULL, 16, GROWABLE);
 	ui->stack_recursive_interaction_flags = stack_u64_alloc(NULL, 16, GROWABLE);
 	ui->stack_external_text = stack_utf32_alloc(NULL, 8, GROWABLE);
@@ -185,6 +186,7 @@ struct ui *ui_alloc(void)
 	stub->inter = 0;
 	stub->inter_recursive_flags = 0;
 	stub->inter_recursive_mask = 0;
+	stub->last_frame_touched = U64_MAX;
 
 	struct ui_node *orphan_root = hierarchy_index_address(ui->node_hierarchy, HI_ORPHAN_STUB_INDEX);
 	orphan_root->id = utf8_empty();
@@ -196,6 +198,7 @@ struct ui *ui_alloc(void)
 	orphan_root->inter = 0;
 	orphan_root->inter_recursive_flags = 0;
 	orphan_root->inter_recursive_mask = 0;
+	orphan_root->last_frame_touched = U64_MAX;
 
 	ui->stack_flags.next = 1;
 	ui->stack_flags.arr[0] = UI_FLAG_NONE;
@@ -223,6 +226,7 @@ void ui_dealloc(struct ui *ui)
 	stack_u64_free(&ui->stack_recursive_interaction_flags);
 	stack_utf32_free(&ui->stack_external_text);
 	stack_ptr_free(&ui->stack_external_text_layout);
+	stack_ptr_free(&ui->stack_external_text_input);
 	stack_u32_free(&ui->stack_text_alignment_x);
 	stack_u32_free(&ui->stack_text_alignment_y);
 	stack_f32_free(ui->stack_text_pad + AXIS_2_X);
@@ -316,7 +320,7 @@ static struct slot ui_root_f(const char *format, ...)
 	return ui_node_alloc(UI_FLAG_NONE, &id);
 }
 
-static void ui_node_remove_hash(const struct hierarchy_index *node_hierarchy, const u32 index, void *data)
+static void ui_node_dealloc(const struct hierarchy_index *node_hierarchy, const u32 index, void *data)
 {
 	const struct ui_node *node = hierarchy_index_address(node_hierarchy, index);
 	if ((node->flags & UI_NON_HASHED) == 0)
@@ -324,6 +328,84 @@ static void ui_node_remove_hash(const struct hierarchy_index *node_hierarchy, co
 		//fprintf(stderr, "pruning hashed orphan %s\n",(char*) ((struct ui_node *) node)->id.buf);
 		hash_map_remove(g_ui->node_map, node->key, index);
 	}
+}
+
+void ui_text_input_mode_enable(void)
+{
+	const utf8 id = g_queue->cmd_exec->arg[0].utf8;
+	struct ui_text_input *text_edit = g_queue->cmd_exec->arg[1].ptr;
+
+	struct ui_node *node = ui_node_lookup(&g_ui->inter.text_edit_id).address;
+	if (node)
+	{
+		node->inter &= ~UI_INTER_FOCUS;
+		g_ui->inter.text_edit->focused = 0;
+	}
+	else
+	{
+		system_window_text_input_mode_enable();
+	}
+
+	g_ui->inter.text_edit_mode = 1;
+	g_ui->inter.text_edit_id = utf8_copy(g_ui->mem_frame, id);
+	g_ui->inter.text_edit = text_edit;
+	g_ui->inter.text_edit->focused = 1;
+
+	text_edit->cursor = (text_edit->cursor <= text_edit->text.len) 
+		? text_edit->cursor
+		: text_edit->text.len;
+
+	text_edit->mark = (text_edit->mark <= text_edit->text.len) 
+		? text_edit->mark
+		: text_edit->text.len;
+}
+
+void ui_text_input_mode_disable(void)
+{
+	const utf8 id = g_queue->cmd_exec->arg[0].utf8;
+	if (utf8_equivalence(id, g_ui->inter.text_edit_id))
+	{
+		system_window_text_input_mode_disable();
+		struct ui_node *node = ui_node_lookup(&g_ui->inter.text_edit_id).address;
+		if (node)
+		{
+			node->inter &= ~UI_INTER_FOCUS;
+		}
+
+		g_ui->inter.text_edit_mode = 0;
+		g_ui->inter.text_edit_id = utf8_empty();
+		g_ui->inter.text_edit->focused = 0;
+		g_ui->inter.text_edit = text_edit_stub_ptr();
+	}
+}
+
+void ui_text_input_flush(void)
+{
+	const utf8 id = g_queue->cmd_exec->arg[0].utf8;
+	if (utf8_equivalence(g_ui->inter.text_edit_id, id))
+	{
+		g_ui->inter.text_edit->text.len = 0;
+		g_ui->inter.text_edit->cursor = 0;
+		g_ui->inter.text_edit->mark = 0;
+	}
+}
+
+struct ui_text_input ui_text_input_empty(void)
+{
+	return (struct ui_text_input) { .focused = 0, .cursor = 0, .mark = 0, .text = utf32_empty() };
+}
+
+struct ui_text_input ui_text_input_buffered(u32 buf[], const u32 len)
+{
+	return (struct ui_text_input) { .focused = 0, .cursor = 0, .mark = 0, .text = utf32_buffered(buf, len) };
+}
+
+struct ui_text_input ui_text_input_alloc(struct arena *mem, const u32 max_len)
+{
+	utf32 text = utf32_alloc(mem, max_len);
+	return (text.max_len)
+		? (struct ui_text_input) { .focused = 0, .cursor = 0, .mark = 0, .text = text }
+		: ui_text_input_empty();
 }
 
 static void ui_childsum_layout_size_and_prune_nodes(void)
@@ -660,7 +742,7 @@ static void ui_layout_absolute_position(void)
 				const f32 line_width = (child->flags & UI_TEXT_ALLOW_OVERFLOW)
 					? F32_INFINITY
 					: f32_max(0.0f, child->pixel_size[0] - 2.0f*child->text_pad[0]);
-				child->layout_text = utf32_text_layout(g_ui->mem_frame, &child->text, line_width, TAB_SIZE, child->font);
+				child->layout_text = utf32_text_layout(g_ui->mem_frame, &child->input.text, line_width, TAB_SIZE, child->font);
 			}
 		}
 	}
@@ -769,6 +851,7 @@ void ui_frame_begin(const vec2u32 window_size, const struct ui_visual *base)
 	g_ui->window_size[1] = window_size[1];
 
 	ui_external_text_push((utf32) { .len = 0, .max_len = 0, .buf = NULL });
+	ui_external_text_input_push(text_edit_stub_ptr());
 
 	ui_flags_push(UI_INTER_HOVER | UI_INTER_ACTIVE);
 
@@ -886,7 +969,7 @@ static struct slot ui_text_selection_alloc(const struct ui_node *node, const vec
 	const struct ui_text_selection selection = 
 	{
 		.node = node,
-		.layout = utf32_text_layout_include_whitespace(g_ui->mem_frame, &node->text, line_width, TAB_SIZE, node->font),
+		.layout = utf32_text_layout_include_whitespace(g_ui->mem_frame, &node->input.text, line_width, TAB_SIZE, node->font),
 		.color = { color[0], color[1], color[2], color[3], },
 		.low = low,
 		.high = high,
@@ -909,6 +992,7 @@ void ui_frame_end(void)
 	ui_child_layout_axis_pop();
 
 	ui_external_text_pop();
+	ui_external_text_input_pop();
 
 	ui_border_size_pop();
 	ui_corner_radius_pop();
@@ -963,15 +1047,20 @@ void ui_frame_end(void)
 	struct ui_node *text_input = ui_node_lookup(&g_ui->inter.text_edit_id).address;	
 	if (text_input)
 	{
-		if (text_input->last_frame_touched != g_ui->frame)
+		g_ui->inter.text_edit_id = text_input->id;
+
+		if (text_input->last_frame_touched != g_ui->frame || (text_input->inter & UI_INTER_FOCUS) == 0)
 		{
 			cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_disable \"%k\"", &g_ui->inter.text_edit_id);
 		}
 		else
 		{
-			/* update id to current frame memory and generate text selection draw commands */ 
-			g_ui->inter.text_edit_id = text_input->id;
-
+			/* If ui is aliasing ui_node's ui_text_input, we must renew the pointer since 
+			 * the old address may have been reallocated.  */
+			if (text_input->flags & UI_TEXT_EDIT_INTER_BUF_ON_FOCUS)
+			{
+				g_ui->inter.text_edit = &text_input->input;
+			}
 			/* draw cursor highlight */
 			ui_text_selection_alloc(text_input, g_ui->text_cursor_color, g_ui->inter.text_edit->cursor, g_ui->inter.text_edit->cursor+1);
 
@@ -992,7 +1081,7 @@ void ui_frame_end(void)
 	{
 		struct ui_node *node = hierarchy_index_address(g_ui->node_hierarchy, index);
 		const u32 next = node->header.next;
-		hierarchy_index_apply_custom_free_and_remove(g_ui->mem_frame, g_ui->node_hierarchy, index, &ui_node_remove_hash, NULL);
+		hierarchy_index_apply_custom_free_and_remove(g_ui->mem_frame, g_ui->node_hierarchy, index, &ui_node_dealloc, NULL);
 		index = next;
 	}
 	hierarchy_index_adopt_node(g_ui->node_hierarchy, g_ui->root, HI_ORPHAN_STUB_INDEX);
@@ -1114,7 +1203,7 @@ static u32 internal_ui_pad(const u64 flags, const f32 value, const enum ui_size_
 		ui_draw_bucket_add_node(draw_key, slot.index);
 	}
 
-	node->text = utf32_empty();
+	node->input.text = utf32_empty();
 	node->font = NULL;
 	node->layout_text = NULL;
 
@@ -1291,6 +1380,7 @@ struct ui_node_cache ui_node_alloc_cached(const u64 flags, const utf8 id, const 
 	const u64 node_flags = flags | implied_flags | UI_DEBUG_FLAGS | inter_recursive_flags;
 	const u64 inter_recursive_mask = parent->inter_recursive_mask | inter_recursive_flags;
 	u64 inter = 0;
+	u64 inter_prev = 0;
 
 	const u32 depth = (g_ui->stack_fixed_depth.next)
 		? stack_u32_top(&g_ui->stack_fixed_depth)
@@ -1311,6 +1401,7 @@ struct ui_node_cache ui_node_alloc_cached(const u64 flags, const utf8 id, const 
 		slot.address = node;
 		slot.index = cache.index;
 		hierarchy_index_adopt_node_exclusive(g_ui->node_hierarchy, slot.index, stack_u32_top(&g_ui->stack_parent));
+		u64 inter_prev = node->inter;
 		inter = ui_node_set_interactions(node, node_flags, inter_recursive_mask);
 	}
 	
@@ -1358,29 +1449,77 @@ struct ui_node_cache ui_node_alloc_cached(const u64 flags, const utf8 id, const 
 		node->text_pad[AXIS_2_X] = stack_f32_top(g_ui->stack_text_pad + AXIS_2_X);
 		node->text_pad[AXIS_2_Y] = stack_f32_top(g_ui->stack_text_pad + AXIS_2_Y);
 
-		if (node->flags & UI_TEXT_EXTERNAL_LAYOUT)
+		u32 text_editing = 0;
+		if ((node->flags & UI_TEXT_EDIT) && (node->inter & UI_INTER_FOCUS))
 		{
-			node->flags |= UI_TEXT_EXTERNAL | UI_TEXT_ALLOW_OVERFLOW;
-			node->text = stack_utf32_top(&g_ui->stack_external_text); 
-			node->layout_text = stack_ptr_top(&g_ui->stack_external_text_layout); 
-		}
-		else
-		{
-			node->text = (node->flags & UI_TEXT_EXTERNAL)
-				? stack_utf32_top(&g_ui->stack_external_text)
-				: utf32_utf8(g_ui->mem_frame, text);
-
-			/* TODO wonky, would be nice to have it in immediate calculations, but wonky there as well... */
-			if (node->semantic_size[AXIS_2_X].type == UI_SIZE_TEXT)
+			text_editing = 1;
+			node->flags |= UI_TEXT_ALLOW_OVERFLOW | UI_TEXT_LAYOUT_POSTPONED;
+			if ((inter_prev & UI_INTER_FOCUS) == 0)  
 			{
-				node->semantic_size[AXIS_2_X].line_width = (node->flags & UI_TEXT_ALLOW_OVERFLOW)
-					? F32_INFINITY
-					: node->semantic_size[AXIS_2_X].line_width;
-				node->layout_text = utf32_text_layout(g_ui->mem_frame, &node->text, node->semantic_size[AXIS_2_X].line_width, TAB_SIZE, node->font);
+				if (node->flags & UI_TEXT_EDIT_INTER_BUF_ON_FOCUS)
+				{
+					const u32 buflen = sizeof(g_ui->inter.text_internal_buf) / sizeof(u32);
+					u32 *buf = g_ui->inter.text_internal_buf;
+					node->input = ui_text_input_buffered(buf, buflen);
+					if (node->flags & UI_TEXT_EDIT_COPY_ON_FOCUS)
+					{
+						utf32 copy = (node->flags & (UI_TEXT_EXTERNAL | UI_TEXT_EXTERNAL_LAYOUT))
+							? utf32_copy_buffered(buf, buflen, stack_utf32_top(&g_ui->stack_external_text))
+							: utf32_utf8_buffered(buf, buflen, text);
+
+						if (copy.len)
+						{
+							node->input.text = copy;
+							node->input.mark = 0;
+							node->input.cursor = copy.len;
+						}
+					}
+					cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_enable \"%k\" %p", &node->id, &node->input);
+				}
+				else
+				{
+					cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_enable \"%k\" %p", &node->id, stack_ptr_top(&g_ui->stack_external_text_input));
+				}
 			}
 			else
 			{
-				node->flags |= UI_TEXT_LAYOUT_POSTPONED;
+				/* renew ui_text_input pointer to external resource; for internal
+				 * buffers we must renew them on frame end! */
+				if ((node->flags & UI_TEXT_EDIT_INTER_BUF_ON_FOCUS) == 0)
+				{
+					g_ui->inter.text_edit = stack_ptr_top(&g_ui->stack_external_text_input);
+					node->input = *g_ui->inter.text_edit;
+				}
+			}
+		}
+
+
+		if (!text_editing)
+		{
+			if (node->flags & UI_TEXT_EXTERNAL_LAYOUT)
+			{
+				node->flags |= UI_TEXT_EXTERNAL | UI_TEXT_ALLOW_OVERFLOW;
+				node->input.text = stack_utf32_top(&g_ui->stack_external_text); 
+				node->layout_text = stack_ptr_top(&g_ui->stack_external_text_layout); 
+			}
+			else
+			{
+				node->input.text = (node->flags & UI_TEXT_EXTERNAL)
+					? stack_utf32_top(&g_ui->stack_external_text)
+					: utf32_utf8(g_ui->mem_frame, text);
+
+				/* TODO wonky, would be nice to have it in immediate calculations, but wonky there as well... */
+				if (node->semantic_size[AXIS_2_X].type == UI_SIZE_TEXT)
+				{
+					node->semantic_size[AXIS_2_X].line_width = (node->flags & UI_TEXT_ALLOW_OVERFLOW)
+						? F32_INFINITY
+						: node->semantic_size[AXIS_2_X].line_width;
+					node->layout_text = utf32_text_layout(g_ui->mem_frame, &node->input.text, node->semantic_size[AXIS_2_X].line_width, TAB_SIZE, node->font);
+				}
+				else
+				{
+					node->flags |= UI_TEXT_LAYOUT_POSTPONED;
+				}
 			}
 		}
 
@@ -1390,7 +1529,7 @@ struct ui_node_cache ui_node_alloc_cached(const u64 flags, const utf8 id, const 
 	}
 	else
 	{
-		node->text = utf32_empty();
+		node->input.text = utf32_empty();
 		vec4_set(node->sprite_color, 0.0f, 0.0f, 0.0f, 0.0f);
 		node->font = NULL;
 		node->layout_text = NULL;
@@ -1553,6 +1692,7 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 		}
 	}
 
+	u64 inter_prev = 0;
 	u64 inter = 0;
 	if (!slot.address)
 	{
@@ -1570,6 +1710,7 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 		kas_assert(node->last_frame_touched != g_ui->frame);
 		key = node->key;
 		hierarchy_index_adopt_node_exclusive(g_ui->node_hierarchy, slot.index, stack_u32_top(&g_ui->stack_parent));
+		inter_prev = node->inter;
 		inter = ui_node_set_interactions(node, node_flags, inter_recursive_mask);
 	}
 
@@ -1618,29 +1759,76 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 		node->text_pad[AXIS_2_X] = stack_f32_top(g_ui->stack_text_pad + AXIS_2_X);
 		node->text_pad[AXIS_2_Y] = stack_f32_top(g_ui->stack_text_pad + AXIS_2_Y);
 
-		if (node->flags & UI_TEXT_EXTERNAL_LAYOUT)
+		u32 text_editing = 0;
+		if ((node->flags & UI_TEXT_EDIT) && (node->inter & UI_INTER_FOCUS))
 		{
-			node->flags |= UI_TEXT_EXTERNAL | UI_TEXT_ALLOW_OVERFLOW;
-			node->text = stack_utf32_top(&g_ui->stack_external_text); 
-			node->layout_text = stack_ptr_top(&g_ui->stack_external_text_layout); 
-		}
-		else
-		{
-			node->text = (node->flags & UI_TEXT_EXTERNAL)
-				? stack_utf32_top(&g_ui->stack_external_text)
-				: utf32_utf8(g_ui->mem_frame, (utf8) { .buf = formatted->buf, .len = text_len, .size = formatted->size });
-
-			/* TODO wonky, would be nice to have it in immediate calculations, but wonky there as well... */
-			if (node->semantic_size[AXIS_2_X].type == UI_SIZE_TEXT)
+			text_editing = 1;
+			node->flags |= UI_TEXT_ALLOW_OVERFLOW | UI_TEXT_LAYOUT_POSTPONED;
+			if ((inter_prev & UI_INTER_FOCUS) == 0)  
 			{
-				node->semantic_size[AXIS_2_X].line_width = (node->flags & UI_TEXT_ALLOW_OVERFLOW)
-					? F32_INFINITY
-					: node->semantic_size[AXIS_2_X].line_width;
-				node->layout_text = utf32_text_layout(g_ui->mem_frame, &node->text, node->semantic_size[AXIS_2_X].line_width, TAB_SIZE, node->font);
+				if (node->flags & UI_TEXT_EDIT_INTER_BUF_ON_FOCUS)
+				{
+					const u32 buflen = sizeof(g_ui->inter.text_internal_buf) / sizeof(u32);
+					u32 *buf = g_ui->inter.text_internal_buf;
+					node->input = ui_text_input_buffered(buf, buflen);
+					if (node->flags & UI_TEXT_EDIT_COPY_ON_FOCUS)
+					{
+						utf32 copy = (node->flags & (UI_TEXT_EXTERNAL | UI_TEXT_EXTERNAL_LAYOUT))
+							? utf32_copy_buffered(buf, buflen, stack_utf32_top(&g_ui->stack_external_text))
+							: utf32_utf8_buffered(buf, buflen, (utf8) { .buf = formatted->buf, .len = text_len, .size = formatted->size });
+
+						if (copy.len)
+						{
+							node->input.text = copy;
+							node->input.mark = 0;
+							node->input.cursor = copy.len;
+						}
+					}
+					cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_enable \"%k\" %p", &node->id, &node->input);
+				}
+				else
+				{
+					cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_enable \"%k\" %p", &node->id, stack_ptr_top(&g_ui->stack_external_text_input));
+				}
 			}
 			else
 			{
-				node->flags |= UI_TEXT_LAYOUT_POSTPONED;
+				/* renew ui_text_input pointer to external resource; for internal
+				 * buffers we must renew them on frame end! */
+				if ((node->flags & UI_TEXT_EDIT_INTER_BUF_ON_FOCUS) == 0)
+				{
+					g_ui->inter.text_edit = stack_ptr_top(&g_ui->stack_external_text_input);
+					node->input = *g_ui->inter.text_edit;
+				}
+			}
+		}
+
+		if (!text_editing)
+		{
+			if (node->flags & UI_TEXT_EXTERNAL_LAYOUT)
+			{
+				node->flags |= UI_TEXT_EXTERNAL | UI_TEXT_ALLOW_OVERFLOW;
+				node->input.text = stack_utf32_top(&g_ui->stack_external_text); 
+				node->layout_text = stack_ptr_top(&g_ui->stack_external_text_layout); 
+			}
+			else
+			{
+				node->input.text = (node->flags & UI_TEXT_EXTERNAL)
+					? stack_utf32_top(&g_ui->stack_external_text)
+					: utf32_utf8(g_ui->mem_frame, (utf8) { .buf = formatted->buf, .len = text_len, .size = formatted->size });
+
+				/* TODO wonky, would be nice to have it in immediate calculations, but wonky there as well... */
+				if (node->semantic_size[AXIS_2_X].type == UI_SIZE_TEXT)
+				{
+					node->semantic_size[AXIS_2_X].line_width = (node->flags & UI_TEXT_ALLOW_OVERFLOW)
+						? F32_INFINITY
+						: node->semantic_size[AXIS_2_X].line_width;
+					node->layout_text = utf32_text_layout(g_ui->mem_frame, &node->input.text, node->semantic_size[AXIS_2_X].line_width, TAB_SIZE, node->font);
+				}
+				else
+				{
+					node->flags |= UI_TEXT_LAYOUT_POSTPONED;
+				}
 			}
 		}
 
@@ -1650,7 +1838,7 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 	}
 	else
 	{
-		node->text = utf32_empty();
+		node->input.text = utf32_empty();
 		vec4_set(node->sprite_color, 0.0f, 0.0f, 0.0f, 0.0f);
 		node->font = NULL;
 		node->layout_text = NULL;
@@ -2105,6 +2293,16 @@ void ui_external_text_layout_pop(void)
 	stack_ptr_pop(&g_ui->stack_external_text_layout);
 }
 
+void ui_external_text_input_push(struct ui_text_input *input)
+{
+	stack_ptr_push(&g_ui->stack_external_text_input, input);
+}
+
+void ui_external_text_input_pop(void)
+{
+	stack_ptr_pop(&g_ui->stack_external_text_input);
+}
+
 void ui_recursive_interaction_push(const u64 flags)
 {
 	stack_u64_push(&g_ui->stack_recursive_interaction_flags, flags);
@@ -2114,4 +2312,3 @@ void ui_recursive_interaction_pop(void)
 {
 	stack_u64_pop(&g_ui->stack_recursive_interaction_flags);
 }
-
