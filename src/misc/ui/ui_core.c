@@ -346,6 +346,16 @@ void ui_text_input_mode_enable(void)
 		system_window_text_input_mode_enable();
 	}
 
+	node = ui_node_lookup(&id).address;
+	const u64 copy_flags = (UI_TEXT_EDIT_INTER_BUF_ON_FOCUS | UI_TEXT_EDIT_COPY_ON_FOCUS);
+	if ((node->flags & copy_flags) == copy_flags)
+	{
+		const u32 buflen = sizeof(g_ui->inter.text_internal_buf) / sizeof(u32);
+		u32 *buf = g_ui->inter.text_internal_buf;
+		node->input.text = utf32_copy_buffered(buf, buflen, node->input.text);
+		kas_assert(&node->input == text_edit);
+	}
+
 	g_ui->inter.text_edit_mode = 1;
 	g_ui->inter.text_edit_id = utf8_copy(g_ui->mem_frame, id);
 	g_ui->inter.text_edit = text_edit;
@@ -1458,14 +1468,18 @@ struct ui_node_cache ui_node_alloc_cached(const u64 flags, const utf8 id, const 
 			{
 				if (node->flags & UI_TEXT_EDIT_INTER_BUF_ON_FOCUS)
 				{
+					/* we should not modify the possibly aliased text_internal_buf here; If we would, some other
+					 * node could technically see our changes while still being focused... instead we just copy
+					 * it if we actually become focused later on. */
 					const u32 buflen = sizeof(g_ui->inter.text_internal_buf) / sizeof(u32);
-					u32 *buf = g_ui->inter.text_internal_buf;
-					node->input = ui_text_input_buffered(buf, buflen);
+					node->input = ui_text_input_alloc(g_ui->mem_frame, buflen);
+					node->input.cursor = 0;
+					node->input.mark = 0;
 					if (node->flags & UI_TEXT_EDIT_COPY_ON_FOCUS)
 					{
 						utf32 copy = (node->flags & (UI_TEXT_EXTERNAL | UI_TEXT_EXTERNAL_LAYOUT))
-							? utf32_copy_buffered(buf, buflen, stack_utf32_top(&g_ui->stack_external_text))
-							: utf32_utf8_buffered(buf, buflen, text);
+							? utf32_copy_buffered(node->input.text.buf, buflen, stack_utf32_top(&g_ui->stack_external_text))
+							: utf32_utf8_buffered(node->input.text.buf, buflen, text);
 
 						if (copy.len)
 						{
@@ -1768,14 +1782,18 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 			{
 				if (node->flags & UI_TEXT_EDIT_INTER_BUF_ON_FOCUS)
 				{
+					/* we should not modify the possibly aliased text_internal_buf here; If we would, some other
+					 * node could technically see our changes while still being focused... instead we just copy
+					 * it if we actually become focused later on. */
 					const u32 buflen = sizeof(g_ui->inter.text_internal_buf) / sizeof(u32);
-					u32 *buf = g_ui->inter.text_internal_buf;
-					node->input = ui_text_input_buffered(buf, buflen);
+					node->input = ui_text_input_alloc(g_ui->mem_frame, buflen);
+					node->input.cursor = 0;
+					node->input.mark = 0;
 					if (node->flags & UI_TEXT_EDIT_COPY_ON_FOCUS)
 					{
 						utf32 copy = (node->flags & (UI_TEXT_EXTERNAL | UI_TEXT_EXTERNAL_LAYOUT))
-							? utf32_copy_buffered(buf, buflen, stack_utf32_top(&g_ui->stack_external_text))
-							: utf32_utf8_buffered(buf, buflen, (utf8) { .buf = formatted->buf, .len = text_len, .size = formatted->size });
+							? utf32_copy_buffered(node->input.text.buf, buflen, stack_utf32_top(&g_ui->stack_external_text))
+							: utf32_utf8_buffered(node->input.text.buf, buflen, (utf8) { .buf = formatted->buf, .len = text_len, .size = formatted->size });
 
 						if (copy.len)
 						{
