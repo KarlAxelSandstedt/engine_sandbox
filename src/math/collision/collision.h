@@ -25,6 +25,7 @@
 #include "kas_math.h"
 #include "geometry.h"
 #include "sys_public.h"
+#include "string_database.h"
 
 /********************************** COLLISION GLOBALS AND FRAME STATE **********************************/
 
@@ -187,7 +188,7 @@ struct collision_hull
 
 struct collision_shape
 {
-	u32 	reference_count;
+	STRING_DATABASE_SLOT_STATE;
 	enum	collision_shape_type type;
 	union
 	{

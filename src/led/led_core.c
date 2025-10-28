@@ -147,3 +147,245 @@ void led_core(struct led *led)
 
 	KAS_END;
 }
+
+void cmd_led_physics_prefab_add(void)
+{
+	led_node_add(g_editor, g_queue->cmd_exec->arg[0].utf8);
+}
+
+void cmd_led_physics_prefab_remove(void)
+{
+	led_node_remove(g_editor, g_queue->cmd_exec->arg[0].utf8);
+}
+
+void led_wall_smash_simulation_setup(struct led *led)
+{
+	struct arena tmp1 = arena_alloc_1MB();
+
+	struct r_proxy3d_draw_config config =
+	{
+		.blend = 0.5f, 
+		.transparency = 0.5f,
+		.spec_mov = PROXY3D_SPEC_LINEAR,
+		.pos_type = PROXY3D_POSITION_RELATIVE,
+	};
+
+	const u32 tower1_box_count = 40;
+	const u32 tower2_box_count = 10;
+	const u32 pyramid_layers = 10;
+	const u32 bodies = tower1_box_count + tower2_box_count + 3 + pyramid_layers*(pyramid_layers+1) / 2;
+
+	/* Setup rigid bodies */
+	const f32 box_friction = 0.8f;
+	const f32 ramp_friction = 0.1f;
+	const f32 ball_friction = 0.1f;
+	const f32 floor_friction = 0.8f;
+
+	const f32 alpha1 = 0.7f;
+	const f32 alpha2 = 0.5f;
+	const vec4 tower1_color = { 154.0f/256.0f, 101.0f/256.0f, 182.0f/256.0f,alpha1 };
+	const vec4 tower2_color = { 54.0f/256.0f, 183.0f/256.0f, 122.0f/256.0f, alpha2 };
+	const vec4 pyramid_color = { 254.0f/256.0f, 181.0f/256.0f, 82.0f/256.0f,alpha2 };
+	const vec4 floor_color = { 0.8f, 0.6f, 0.6f,                            alpha2 };
+	const vec4 ramp_color = { 165.0f/256.0f, 242.0f/256.0f, 243.0f/256.0f,  alpha2 };
+	const vec4 ball_color = { 0.2f, 0.9f, 0.5f,                             alpha1 };
+
+	const f32 ramp_width = 10.0f;
+	const f32 ramp_length = 60.0f;
+	const f32 ramp_height = 34.0f;
+	const u32 v_count = 6;
+	vec3 ramp_vertices[6] = 
+	{
+		{0.0f, 		ramp_height,	-ramp_length},
+		{ramp_width, 	ramp_height, 	-ramp_length},
+		{0.0f, 		0.0f, 		-ramp_length},
+		{ramp_width, 	0.0f, 		-ramp_length},
+		{0.0f, 		0.0f, 		0.0f},
+		{ramp_width, 	0.0f, 		0.0f},
+	};
+	
+	//u64 index = 0;
+	//struct entity *e;
+	//
+	//const u32 floor_handle = physics_pipeline_collision_shape_alloc(&game->physics);
+	//struct AABB floor_aabb = { .center = { 0.0f, 0.0f, 0.0f }, .hw = { 8.0f * ramp_width, 0.5f, ramp_length } };
+	//struct collision_shape *floor = physics_pipeline_collision_shape_lookup(&game->physics, floor_handle);
+	//floor->type = COLLISION_SHAPE_CONVEX_HULL;
+	//floor->hull = collision_box(mem_persistent, &mem_tmp, &floor_aabb);
+	//
+	//const f32 box_side = 1.0f;
+	//const u32 box_handle = physics_pipeline_collision_shape_alloc(&game->physics);
+	//struct AABB box_aabb = { .center = { 0.0f, 0.0f, 0.0f }, .hw = { box_side / 2.0f, box_side / 4.0f, box_side / 2.0f} };
+	//struct collision_shape *box = physics_pipeline_collision_shape_lookup(&game->physics, box_handle);
+	//box->type = COLLISION_SHAPE_CONVEX_HULL;
+	//box->hull = collision_box(mem_persistent, &mem_tmp, &box_aabb);
+
+	//const u32 ramp_handle = physics_pipeline_collision_shape_alloc(&game->physics);
+	//struct collision_shape *ramp = physics_pipeline_collision_shape_lookup(&game->physics, ramp_handle);
+	//ramp->type = COLLISION_SHAPE_CONVEX_HULL;
+	//ramp->hull = collision_hull_construct(mem_persistent, 
+	//	&mem_tmp.arenas[0], 
+	//	&mem_tmp.arenas[1], 
+	//	&mem_tmp.arenas[2], 
+	//	&mem_tmp.arenas[3], 
+	//	&mem_tmp.arenas[4], 
+	//	ramp_vertices,
+	//       	v_count,
+	//       	0.001f);
+
+	//const u32 ball_handle = physics_pipeline_collision_shape_alloc(&game->physics);
+	//struct collision_shape *ball = physics_pipeline_collision_shape_lookup(&game->physics, ball_handle);
+	//ball->type = COLLISION_SHAPE_SPHERE;
+	//ball->sphere.radius = 2.0f;
+
+//	const kas_string floor_id = KAS_COMPILE_TIME_STRING("floor");
+//	const u32 r_floor_handle = r_mesh_alloc(mem_persistent, &floor_id);
+//	struct r_mesh *mesh_floor = r_mesh_address(r_floor_handle);
+//	r_mesh_set_hull(mem_persistent, mesh_floor, &floor->hull);
+//
+//	const kas_string ramp_id = KAS_COMPILE_TIME_STRING("ramp");
+//	const u32 r_ramp_handle = r_mesh_alloc(mem_persistent, &ramp_id);
+//	struct r_mesh *mesh_ramp = r_mesh_address(r_ramp_handle);
+//	r_mesh_set_hull(mem_persistent, mesh_ramp, &ramp->hull);
+//	
+//	const kas_string tower1_id = KAS_COMPILE_TIME_STRING("tower1");
+//	const u32 r_tower1_handle = r_mesh_alloc(mem_persistent, &tower1_id);
+//	struct r_mesh *mesh_tower1 = r_mesh_address(r_tower1_handle);
+//	r_mesh_set_hull(mem_persistent, mesh_tower1, &box->hull);
+//
+//	const kas_string tower2_id = KAS_COMPILE_TIME_STRING("tower2");
+//	const u32 r_tower2_handle = r_mesh_alloc(mem_persistent, &tower2_id);
+//	struct r_mesh *mesh_tower2 = r_mesh_address(r_tower2_handle);
+//	r_mesh_set_hull(mem_persistent, mesh_tower2, &box->hull);
+//
+//	const kas_string pyramid_id = KAS_COMPILE_TIME_STRING("pyramid");
+//	const u32 r_pyramid_handle = r_mesh_alloc(mem_persistent, &pyramid_id);
+//	struct r_mesh *mesh_pyramid = r_mesh_address(r_pyramid_handle);
+//	r_mesh_set_hull(mem_persistent, mesh_pyramid, &box->hull);
+//
+//	const kas_string ball_id = KAS_COMPILE_TIME_STRING("ball");
+//	const u32 r_ball_handle = r_mesh_alloc(mem_persistent, &ball_id);
+//	struct r_mesh *mesh_ball = r_mesh_address(r_ball_handle);
+//	r_mesh_set_sphere(mem_persistent, mesh_ball, ball->sphere.radius, 12);
+//
+//	vec3 ball_translation = { -0.5, 0.5f + ramp_height, -ramp_length };
+//	vec3 box_translation =  {-0.5f, 0.0f, -0.5f};
+//	vec3 ramp_translation = {-ramp_width/2.0f, -ramp_width/2.0f, -ramp_width/2.0f};
+//	vec3 floor_translation = { 0.0f, -ramp_width/2.0f - 1.0f, ramp_length / 2.0f -ramp_width/2.0f};
+//	vec3 box_base_translation = { 0.0f, floor_translation[1] + 1.0f, floor_translation[2] / 2.0f};
+//
+//	const vec3 y_axis = { 0.0f, 1.0f, 0.0f };
+//	axis_angle_to_quaternion(config.rotation, y_axis, 0.0f);
+//	vec3_set(config.linear_velocity, 0.0f, 0.0f, 0.0f);
+//	vec3_set(config.angular_velocity, 0.0f, 0.0f, 0.0f);
+//
+//	config.mesh_id_alias = &floor_id;
+//	vec4_copy(config.color, floor_color);
+//	vec3_copy(config.position, floor_translation);
+//	index = array_list_intrusive_reserve_index(game->entity_list);
+//	e = array_list_intrusive_address(game->entity_list, index);
+//	e->r_handle = r_proxy3d_alloc(R_UNIT_PARENT_NONE, R_CMD_SCREEN_LAYER_GAME, R_CMD_TRANSPARENCY_OPAQUE, TEXTURE_NONE, R_UNIT_DRAW_COLOR, &config);
+//	e->physics_handle = physics_pipeline_rigid_body_add(&game->physics, floor_handle, floor_translation, 1.0f, 0, 0.0f, floor_friction);
+//	hash_map_add(game->physics_handle_to_entity_map, e->physics_handle, index);
+//#ifdef	KAS_PHYSICS_DEBUG
+//	struct rigid_body *body = array_list_intrusive_address(game->physics.body_list, e->physics_handle);
+//	vec4_copy(body->color, floor_color);
+//#endif
+//
+//	config.mesh_id_alias = &ramp_id;
+//	vec4_copy(config.color, ramp_color);
+//	vec3_copy(config.position, ramp_translation);
+//	index = array_list_intrusive_reserve_index(game->entity_list);
+//	e = array_list_intrusive_address(game->entity_list, index);
+//	e->r_handle = r_proxy3d_alloc(R_UNIT_PARENT_NONE, R_CMD_SCREEN_LAYER_GAME, R_CMD_TRANSPARENCY_OPAQUE, TEXTURE_NONE, R_UNIT_DRAW_COLOR, &config);
+//	e->physics_handle = physics_pipeline_rigid_body_add(&game->physics, ramp_handle, ramp_translation, 1.0f, 0, 0.0f, ramp_friction);
+//	hash_map_add(game->physics_handle_to_entity_map, e->physics_handle, index);
+//#ifdef	KAS_PHYSICS_DEBUG
+//	body = array_list_intrusive_address(game->physics.body_list, e->physics_handle);
+//	vec4_copy(body->color, ramp_color);
+//#endif
+//	config.mesh_id_alias = &ball_id;
+//	vec4_copy(config.color, ball_color);
+//	vec3_copy(config.position, ball_translation);
+//	index = array_list_intrusive_reserve_index(game->entity_list);
+//	e = array_list_intrusive_address(game->entity_list, index);
+//	e->r_handle = r_proxy3d_alloc(R_UNIT_PARENT_NONE, R_CMD_SCREEN_LAYER_GAME, R_CMD_TRANSPARENCY_ADDITIVE, TEXTURE_NONE, R_UNIT_DRAW_COLOR | R_UNIT_DRAW_TRANSPARENT, &config);
+//	e->physics_handle = physics_pipeline_rigid_body_add(&game->physics, ball_handle, ball_translation, 100.0f, 1, 0.0f, ball_friction);
+//	hash_map_add(game->physics_handle_to_entity_map, e->physics_handle, index);
+//#ifdef	KAS_PHYSICS_DEBUG
+//	body = array_list_intrusive_address(game->physics.body_list, e->physics_handle);
+//	vec4_copy(body->color, ball_color);
+//#endif
+//	
+//	for (u32 i = 0; i < pyramid_layers; ++i)
+//	{
+//		const f32 local_y = i * box_side;
+//		for (u32 j = 0; j < pyramid_layers-i; ++j)
+//		{
+//			const f32 local_x = j -(pyramid_layers-i-1) * box_side / 2.0f;
+//			vec3 translation;
+//			vec3_copy(translation, box_base_translation);
+//			translation[0] += local_x;
+//			translation[1] += local_y;
+//			vec3_copy(config.position, translation);
+//
+//			config.mesh_id_alias = &pyramid_id;
+//			vec4_copy(config.color, pyramid_color);
+//			index = array_list_intrusive_reserve_index(game->entity_list);
+//			e = array_list_intrusive_address(game->entity_list, index);
+//			e->r_handle = r_proxy3d_alloc(R_UNIT_PARENT_NONE, R_CMD_SCREEN_LAYER_GAME, R_CMD_TRANSPARENCY_OPAQUE, TEXTURE_NONE, R_UNIT_DRAW_COLOR, &config);
+//			e->physics_handle = physics_pipeline_rigid_body_add(&game->physics, box_handle, translation, 1.0f, 1, 0.0f, box_friction);
+//			hash_map_add(game->physics_handle_to_entity_map, e->physics_handle, index);
+//#ifdef	KAS_PHYSICS_DEBUG
+//			body = array_list_intrusive_address(game->physics.body_list, e->physics_handle);
+//			vec4_copy(body->color, pyramid_color);
+//#endif
+//		}
+//	}
+//
+//	for (u32 i = 0; i < tower1_box_count; ++i)
+//	{
+//		vec3 translation;
+//		vec3_copy(translation, box_base_translation);
+//		translation[2] += 15.0f;
+//		translation[1] += (f32) i * box_aabb.hw[1] * 2.10f;
+//		translation[0] += 15.0f;
+//
+//		config.mesh_id_alias = &tower1_id;
+//		vec4_copy(config.color, tower1_color);
+//		vec3_copy(config.position, translation);
+//		index = array_list_intrusive_reserve_index(game->entity_list);
+//		e = array_list_intrusive_address(game->entity_list, index);
+//		e->r_handle = r_proxy3d_alloc(R_UNIT_PARENT_NONE, R_CMD_SCREEN_LAYER_GAME, R_CMD_TRANSPARENCY_OPAQUE, TEXTURE_NONE, R_UNIT_DRAW_COLOR, &config);
+//		e->physics_handle = physics_pipeline_rigid_body_add(&game->physics, box_handle, translation, 1.0f, 1, 0.0f, box_friction);
+//		hash_map_add(game->physics_handle_to_entity_map, e->physics_handle, index);
+//#ifdef	KAS_PHYSICS_DEBUG
+//			body = array_list_intrusive_address(game->physics.body_list, e->physics_handle);
+//			vec4_copy(body->color, tower1_color);
+//#endif
+//	}
+//
+//	for (u32 i = 0; i < tower2_box_count; ++i)
+//	{
+//		vec3 translation;
+//		vec3_copy(translation, box_base_translation);
+//		translation[2] += 15.0f;
+//		translation[1] += (f32) i * box_aabb.hw[1] * 2.10f;
+//		translation[0] -= 15.0f;
+//		
+//		config.mesh_id_alias = &tower2_id;
+//		vec4_copy(config.color, tower2_color);
+//		index = array_list_intrusive_reserve_index(game->entity_list);
+//		vec3_copy(config.position, translation);
+//		e = array_list_intrusive_address(game->entity_list, index);
+//		e->r_handle = r_proxy3d_alloc(R_UNIT_PARENT_NONE, R_CMD_SCREEN_LAYER_GAME, R_CMD_TRANSPARENCY_ADDITIVE, TEXTURE_NONE, R_UNIT_DRAW_COLOR | R_UNIT_DRAW_TRANSPARENT, &config);
+//		e->physics_handle = physics_pipeline_rigid_body_add(&game->physics, box_handle, translation, 1.0f, 1, 0.0f, box_friction);
+//		hash_map_add(game->physics_handle_to_entity_map, e->physics_handle, index);
+//#ifdef	KAS_PHYSICS_DEBUG
+//			body = array_list_intrusive_address(game->physics.body_list, e->physics_handle);
+//			vec4_copy(body->color, tower2_color);
+//#endif
+//	}
+
+	arena_free_1MB(&tmp1);
+}

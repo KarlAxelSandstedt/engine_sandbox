@@ -24,6 +24,7 @@
 #include "kas_string.h"
 #include "allocator.h"
 #include "hash_map.h"
+#include "list.h"
 
 #define STRING_DATABASE_STUB_INDEX	0
 
@@ -33,7 +34,12 @@
 #define STRING_DATABASE_SLOT_STATE									\
 	utf8 				id;			/* identifier of database object */	\
 	u32				reference_count;	/* Number of references to slot  */	\
+	DLL3_SLOT_STATE;					/* allocated list state	         */	\
 	POOL_SLOT_STATE						/* pool slot internal state      */
+
+#define DB_NEXT(structure_addr)		DLL3_NEXT(structure_addr)
+#define DB_PREV(structure_addr)		DLL3_PREV(structure_addr)
+#define DB_IN_LIST(structure_addr)	DLL3_IN_LIST(structure_addr)
 
 /*
  *	1. id aliasing: on deallocation, do nothing with identifier, 
@@ -45,8 +51,11 @@ struct string_database
 {
 	struct hash_map *		hash;
 	struct pool			pool;
+	struct dll			allocated_dll;
 	u64				id_offset;		/* id offset within db structure 	    */
 	u64				reference_count_offset; /* ref_count offset within db structure     */
+	u64				allocated_prev_offset;	/* (dll) previous allocated index offset     */
+	u64				allocated_next_offset;	/* (dll) next allocated index offset 	     */
 	u32 				growable; 		/* Boolean: increases the size of the 
 								   database if more memory is required      */
 	u32				heap_allocated;		/* Boolean: was resources allocated on heap */
@@ -54,7 +63,7 @@ struct string_database
 
 /* allocate and return database with entries of data_size (simply sizeof(struct)). 
  * If growable, allows the database to increase size when required. */
-struct string_database	string_database_alloc_internal(struct arena *mem, const u32 hash_size, const u32 index_size, const u64 data_size, const u64 id_offset, const u64 reference_count_offset, const u64 pool_state_offset, const u32 growable);
+struct string_database	string_database_alloc_internal(struct arena *mem, const u32 hash_size, const u32 index_size, const u64 data_size, const u64 id_offset, const u64 reference_count_offset, const u64 allocated_prev_offset, const u64 allocated_next_offset, const u64 pool_state_offset, const u32 growable);
 #define 		string_database_alloc(mem, hash_size, index_size, STRUCT, growable)		\
 			string_database_alloc_internal(mem,						\
 				       		       hash_size,					\
@@ -62,6 +71,8 @@ struct string_database	string_database_alloc_internal(struct arena *mem, const u
 						       sizeof(STRUCT),					\
 						       ((u64)&((STRUCT *)0)->id),			\
 						       ((u64)&((STRUCT *)0)->reference_count),		\
+						       ((u64)&((STRUCT *)0)->dll3_prev),		\
+						       ((u64)&((STRUCT *)0)->dll3_next),		\
 						       ((u64)&((STRUCT *)0)->slot_allocation_state),	\
 						       growable)
 /* free the database. NOTE that none of the database id strings are freed as they are either aliases or arena memory. */

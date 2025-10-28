@@ -20,7 +20,7 @@
 #include "list.h"
 #include "sys_public.h"
 
-struct ll ll_init_interal(const u64 slot_size, const u64 slot_state_offset)
+struct ll ll_init_internal(const u64 slot_size, const u64 slot_state_offset)
 {
 	struct ll ll =  
 	{ 
@@ -70,7 +70,7 @@ void ll_prepend(struct ll *ll, void *array, const u32 index)
 	*prev = LL_NULL;	
 }
 
-struct dll dll_init_interal(const u64 slot_size, const u64 prev_offset, const u64 next_offset)
+struct dll dll_init_internal(const u64 slot_size, const u64 prev_offset, const u64 next_offset)
 {
 	struct dll dll =  
 	{ 

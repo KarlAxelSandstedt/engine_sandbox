@@ -133,14 +133,16 @@ struct physics_debug
  */
 struct physics_pipeline 
 {
-	struct arena frame;		/* frame memory */
+	struct arena 	frame;			/* frame memory */
 
-	u64	ns_elapsed;		/* actual ns elasped in pipeline (= 0 at start) */
-	u64	ns_tick;		/* ns per game tick */
-	u64 	frames_completed;	/* number of completed physics frames */ 
+	u64		ns_elapsed;		/* actual ns elasped in pipeline (= 0 at start) */
+	u64		ns_tick;		/* ns per game tick */
+	u64 		frames_completed;	/* number of completed physics frames */ 
 
-	//TODO string_database for shapes
-	struct array_list *shape_list;
+	struct string_database *shape_db;	/* externally owned */
+
+
+
 	struct array_list_intrusive *body_list;
 
 	struct dbvt dynamic_tree;
@@ -152,7 +154,7 @@ struct physics_pipeline
 	/* debug information */
 	struct physics_debug	debug;
 
-	/* physics events */
+	/* TODO: simplify, use dlls, .... physics events */
 	u32 			event_count;
 	u32			event_len;
 	struct physics_event *	event;
@@ -164,23 +166,13 @@ struct physics_pipeline
 /**************** PHYISCS PIPELINE API ****************/
 
 /* Initialize a new growable physics pipeline; ns_tick is the duration of a physics frame. */
-struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 initial_size, const u64 ns_tick, const u64 frame_memory);
+struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 initial_size, const u64 ns_tick, const u64 frame_memory, struct string_database *shape_db);
 /* free pipeline resources */
 void 			physics_pipeline_free(struct physics_pipeline *physics_pipeline);
 /* flush pipeline resources */
 void			physics_pipeline_flush(struct physics_pipeline *physics_pipeline);
 /* pipeline main method: simulate a single physics frame and update internal state  */
 void 			physics_pipeline_tick(struct physics_pipeline *pipeline);
-/* allocate new collision shape in pipeline with reference count set to 0, and return its handle.  
- * Note: Should immediately be followed by a reference method call */
-u32			physics_pipeline_collision_shape_alloc(struct physics_pipeline *pipeline);
-/* lookup a collision shape given its handle; return NULL if shape isn't found */
-struct collision_shape *physics_pipeline_collision_shape_lookup(const struct physics_pipeline *pipeline, const u32 handle);
-/* reference a collision shape given its handle, incrementing the reference counter; return NULL if shape isn't found */
-struct collision_shape *physics_pipeline_collision_shape_reference(struct physics_pipeline *pipeline, const u32 handle);
-/* decrement the reference count of the collision shape associated with the given handle. Once the reference count
- * hits 0, deallocate the shape. If no shape is found, do nothing */
-void		 	physics_pipeline_collision_shape_dereference(struct physics_pipeline *pipeline, const u32 handle);
 /* allocate new rigid body in pipeline and return its handle */
 u32			physics_pipeline_rigid_body_alloc(struct physics_pipeline *pipeline);
 /* lookup a collision shape given its handle; return NULL if body isn't found */
@@ -209,9 +201,8 @@ struct physics_event *	physics_pipeline_event_push(struct physics_pipeline *pipe
 
 /**************** TODO TEMPORARY ****************/
 
-u32 	physics_pipeline_rigid_body_add(struct physics_pipeline *pipeline, const u32 shape_handle, const vec3 translation, const f32 density, const u32 dynamic, const f32 restitution, const f32 friction);
+u32	physics_pipeline_rigid_body_add(struct physics_pipeline *pipeline, const utf8 shape_id, const vec3 translation, const f32 density, const u32 dynamic, const f32 restitution, const f32 friction);
 void 	physics_pipeline_rigid_body_remove(struct physics_pipeline *pipeline, const u32 handle);
-u32 	physics_pipeline_rigid_body_construct_random(struct arena *mem, struct physics_pipeline *pipeline, const f32 min_radius, const f32 max_radius, const u32 min_v_count, const u32 max_v_count, const vec3 pos, const f32 density);
 
 /**************** TODO MOVE ****************/
 

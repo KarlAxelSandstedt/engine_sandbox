@@ -86,6 +86,8 @@ struct led *led_alloc(void)
 	g_editor->node_non_marked_list = dll_init(struct led_node);
 	g_editor->node_selected_list = dll2_init(struct led_node);
 	g_editor->csg = csg_alloc();
+	g_editor->collision_shape_db = string_database_alloc(NULL, 128, 128, struct collision_shape, GROWABLE);
+	g_editor->physics = physics_pipeline_alloc(NULL, 1024, NSEC_PER_SEC / (u64) 60, 1024*1024, &g_editor->collision_shape_db);
 
 	return g_editor;
 }

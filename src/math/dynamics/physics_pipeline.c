@@ -27,7 +27,7 @@
 #include "float32.h"
 #include "bit_vector.h"
 
-struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 initial_size, const u64 ns_tick, const u64 frame_memory)
+struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 initial_size, const u64 ns_tick, const u64 frame_memory, struct string_database *shape_db)
 {
 	COLLISION_DEBUG_INIT(mem, initial_size, 10000);
 
@@ -71,7 +71,6 @@ struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 init
 	}
 
 	kas_assert_string(is_power_of_two(initial_size), "For simplicity of future data structures, expect pipeline sizes to be powers of two");
-	pipeline.shape_list = array_list_alloc(NULL, initial_size, sizeof(struct collision_shape), ARRAY_LIST_GROWABLE);
 	pipeline.body_list = array_list_intrusive_alloc(NULL, initial_size, sizeof(struct rigid_body), ARRAY_LIST_GROWABLE);
 
 	pipeline.c_state.margin_on = 1;
@@ -81,6 +80,7 @@ struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 init
 
 	pipeline.c_db = c_db_alloc(mem, initial_size);
 	pipeline.is_db = is_db_alloc(mem, initial_size);
+	pipeline.shape_db = shape_db;
 
 	return pipeline;
 }
@@ -90,7 +90,6 @@ void physics_pipeline_free(struct physics_pipeline *pipeline)
 	dbvt_free(&pipeline->dynamic_tree);
 	c_db_free(&pipeline->c_db);
 	is_db_free(&pipeline->is_db);
-	array_list_free(pipeline->shape_list);
 	array_list_intrusive_free(pipeline->body_list);
 	free(pipeline->event);
 }
@@ -98,7 +97,6 @@ void physics_pipeline_free(struct physics_pipeline *pipeline)
 void physics_pipeline_flush(struct physics_pipeline *pipeline)
 {
 	collision_state_clear_frame(&pipeline->c_state);
-	array_list_flush(pipeline->shape_list);
 	array_list_intrusive_flush(pipeline->body_list);
 	dbvt_flush(&pipeline->dynamic_tree);
 	c_db_flush(&pipeline->c_db);
@@ -125,36 +123,6 @@ void physics_pipeline_tick(struct physics_pipeline *pipeline)
 	KAS_END;
 }
 
-u32 physics_pipeline_collision_shape_alloc(struct physics_pipeline *pipeline)
-{
-	struct collision_shape *shape = array_list_reserve(pipeline->shape_list);
-	shape->reference_count = 0;
-	return array_list_index(pipeline->shape_list, shape);
-}
-
-struct collision_shape *physics_pipeline_collision_shape_lookup(const struct physics_pipeline *pipeline, const u32 handle)
-{
-	return array_list_address(pipeline->shape_list, handle);
-}
-
-struct collision_shape *physics_pipeline_collision_shape_reference(struct physics_pipeline *pipeline, const u32 handle)
-{
-	struct collision_shape *shape = array_list_address(pipeline->shape_list, handle);
-	shape->reference_count += 1;
-	return shape;
-}
-
-void physics_pipeline_collision_shape_dereference(struct physics_pipeline *pipeline, const u32 handle)
-{
-	struct collision_shape *shape = array_list_address(pipeline->shape_list, handle);
-	kas_assert(shape->reference_count > 0);
-	shape->reference_count -= 1;
-	if (shape->reference_count == 0)
-	{
-		array_list_remove_index(pipeline->shape_list, handle);
-	}
-}
-
 u32 physics_pipeline_rigid_body_alloc(struct physics_pipeline *pipeline)
 {
 	const u32 handle = array_list_intrusive_reserve_index(pipeline->body_list);
@@ -176,7 +144,7 @@ void physics_pipeline_rigid_body_dealloc(struct physics_pipeline *pipeline, cons
 	struct rigid_body *body = physics_pipeline_rigid_body_lookup(pipeline, handle);
 	kas_assert(body->header.allocated);
 
-	physics_pipeline_collision_shape_dereference(pipeline, body->shape_handle);
+	string_database_dereference(pipeline->shape_db, body->shape_handle);
 	dbvt_remove(&pipeline->dynamic_tree, body->proxy);
 	if (body->island_index != ISLAND_STATIC)
 	{
@@ -256,7 +224,7 @@ void physics_pipeline_validate(const struct physics_pipeline *pipeline)
 	KAS_END;
 }
 
-u32 physics_pipeline_rigid_body_add(struct physics_pipeline *pipeline, const u32 shape_handle, const vec3 translation, const f32 density, const u32 dynamic, const f32 restitution, const f32 friction)
+u32 physics_pipeline_rigid_body_add(struct physics_pipeline *pipeline, const utf8 shape_id, const vec3 translation, const f32 density, const u32 dynamic, const f32 restitution, const f32 friction)
 {
 	const u32 handle  = physics_pipeline_rigid_body_alloc(pipeline);
 	struct rigid_body *body = physics_pipeline_rigid_body_lookup(pipeline, handle);
@@ -272,8 +240,9 @@ u32 physics_pipeline_rigid_body_add(struct physics_pipeline *pipeline, const u32
 	body->flags = RB_ACTIVE | (g_solver_config->sleep_enabled * RB_AWAKE) | dynamic_flag;
 	body->margin = 0.25f;
 
-	body->shape_handle = shape_handle;
-	const struct collision_shape *shape = physics_pipeline_collision_shape_reference(pipeline, shape_handle);
+	const struct slot slot = string_database_reference(pipeline->shape_db, shape_id);
+	const struct collision_shape *shape = slot.address;
+	body->shape_handle = slot.index;
 	body->shape_type = shape->type;
 
 	body->restitution = restitution;
@@ -302,28 +271,19 @@ u32 physics_pipeline_rigid_body_add(struct physics_pipeline *pipeline, const u32
 	return handle;
 }
 
-u32 physics_pipeline_rigid_body_construct_random(struct arena *mem, struct physics_pipeline *pipeline, const f32 min_radius, const f32 max_radius, const u32 min_v_count, const u32 max_v_count, const vec3 pos, const f32 density)
-{
-	const u32 shape_handle = physics_pipeline_collision_shape_alloc(pipeline);
-	struct collision_shape *shape = physics_pipeline_collision_shape_lookup(pipeline, shape_handle);
-	shape->type = COLLISION_SHAPE_CONVEX_HULL;
-	shape->hull = collision_hull_random(mem, min_radius, max_radius, min_v_count, max_v_count);
-	return physics_pipeline_rigid_body_add(pipeline, shape_handle, pos, density, 1, 0.0f, 0.0f);
-}
-
 static void internal_update_dynamic_tree(struct physics_pipeline *pipeline)
 {
 	KAS_TASK(__func__, T_PHYSICS);
 	struct AABB world_AABB;
 
 	const u32 flags = RB_ACTIVE | RB_DYNAMIC | (g_solver_config->sleep_enabled * RB_AWAKE);
-	//TODO use a bitvector and intrinsics?
+	//TODO use dll...
 	for (u32 i = 0; i < pipeline->body_list->max_count; ++i)
 	{
 		struct rigid_body *b = physics_pipeline_rigid_body_lookup(pipeline, i);
 		if (b && (b->flags & flags) == flags)
 		{
-			const struct collision_shape *shape = physics_pipeline_collision_shape_lookup(pipeline, b->shape_handle);
+			const struct collision_shape *shape = string_database_address(pipeline->shape_db, b->shape_handle);
 			rigid_body_update_local_box(b, shape);
 			vec3_add(world_AABB.center, b->local_box.center, b->position);
 			vec3_copy(world_AABB.hw, b->local_box.hw);

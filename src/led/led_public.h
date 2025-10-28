@@ -102,6 +102,7 @@ struct led_node
 	vec3			position;
 	quat			rotation;
 
+	/* TODO TMP for ui_field testing */
 	f32			x;
 	u64			y;
 	i64			z;
@@ -110,16 +111,6 @@ struct led_node
 	u32			physics_handle; 
 	u32 			render_handle;	
 	u32			csg_handle;	
-};
-
-/*
-ui_led_node
-===========
-ui struct for displaying led_node information and storing intermediate information. 
-*/
-struct ui_led_node
-{
-
 };
 
 /*
@@ -144,9 +135,11 @@ struct led
 	/* TODO move stuff into led project/led_core or something */
 	struct arena 		frame;
 	utf8			viewport_id;
-	struct physics_pipeline physics;
 	struct csg 		csg;
 	struct ui_list 		brush_list;
+
+	struct physics_pipeline physics;
+	struct string_database 	collision_shape_db;	
 
 	struct hash_map *	node_map;
 	struct pool		node_pool;

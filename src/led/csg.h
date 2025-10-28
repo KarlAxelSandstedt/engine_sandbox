@@ -117,10 +117,9 @@ struct csg
 	struct pool		instance_pool;
 	struct pool		node_pool;
 
-	struct dll		brush_non_marked_list;
-	struct dll		instance_non_marked_list;
-
 	struct dll		brush_marked_list;
+
+	struct dll		instance_non_marked_list;
 	struct dll		instance_marked_list;
 
 	//struct dcel_allocator *	dcel_allocator;

@@ -45,8 +45,8 @@ struct ll
 };
 
 /* initalize linked list  */
-struct ll		ll_init_interal(const u64 slot_size, const u64 slot_state_offset);
-#define ll_init(STRUCT)	ll_init_interal(sizeof(STRUCT), (u64) &((STRUCT *)0)->ll_next)
+struct ll		ll_init_internal(const u64 slot_size, const u64 slot_state_offset);
+#define ll_init(STRUCT)	ll_init_internal(sizeof(STRUCT), (u64) &((STRUCT *)0)->ll_next)
 /* flush list */
 void			ll_flush(struct ll *ll);
 /* append to list */
@@ -64,17 +64,24 @@ indices, where all structs are allocated in the same array.
 
 #define DLL_NULL			U32_MAX
 #define DLL_NOT_IN_LIST			U32_MAX-1	/* if next, prev == DLL_STUB, then node is not in list */
+
 #define DLL_SLOT_STATE			u32 dll_prev;			\
                        			u32 dll_next			
-#define DLL2_SLOT_STATE			u32 dll2_prev;			\
-                       			u32 dll2_next			
-
 #define DLL_PREV(structure_addr)	((structure_addr)->dll_prev)
 #define DLL_NEXT(structure_addr)	((structure_addr)->dll_next)
 #define DLL_IN_LIST(structure_addr)	((structure_addr)->dll_next != DLL_NOT_IN_LIST)
+
+#define DLL2_SLOT_STATE			u32 dll2_prev;			\
+                       			u32 dll2_next			
 #define DLL2_PREV(structure_addr)	((structure_addr)->dll2_prev)
 #define DLL2_NEXT(structure_addr)	((structure_addr)->dll2_next)
 #define DLL2_IN_LIST(structure_addr)	((structure_addr)->dll2_next != DLL_NOT_IN_LIST)
+
+#define DLL3_SLOT_STATE			u32 dll3_prev;			\
+                       			u32 dll3_next			
+#define DLL3_PREV(structure_addr)	((structure_addr)->dll3_prev)
+#define DLL3_NEXT(structure_addr)	((structure_addr)->dll3_next)
+#define DLL3_IN_LIST(structure_addr)	((structure_addr)->dll3_next != DLL_NOT_IN_LIST)
 
 struct dll
 {
@@ -87,9 +94,10 @@ struct dll
 };
 
 /* initalize linked list  */
-struct dll		dll_init_interal(const u64 slot_size, const u64 prev_offset, const u64 next_offset);
-#define dll_init(STRUCT)dll_init_interal(sizeof(STRUCT), (u64) &((STRUCT *)0)->dll_prev, (u64) &((STRUCT *)0)->dll_next)
-#define dll2_init(STRUCT)dll_init_interal(sizeof(STRUCT), (u64) &((STRUCT *)0)->dll2_prev, (u64) &((STRUCT *)0)->dll2_next)
+struct dll		  dll_init_internal(const u64 slot_size, const u64 prev_offset, const u64 next_offset);
+#define dll_init(STRUCT)  dll_init_internal(sizeof(STRUCT), (u64) &((STRUCT *)0)->dll_prev, (u64) &((STRUCT *)0)->dll_next)
+#define dll2_init(STRUCT) dll_init_internal(sizeof(STRUCT), (u64) &((STRUCT *)0)->dll2_prev, (u64) &((STRUCT *)0)->dll2_next)
+#define dll3_init(STRUCT) dll_init_internal(sizeof(STRUCT), (u64) &((STRUCT *)0)->dll3_prev, (u64) &((STRUCT *)0)->dll3_next)
 /* flush list */
 void			dll_flush(struct dll *dll);
 /* append to list */
