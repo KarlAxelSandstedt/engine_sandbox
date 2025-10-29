@@ -296,6 +296,31 @@ void *ping_pong_core_iterator(void *data_void)
 	return NULL;
 }
 
+/*
+Ping-Pong calibration of core skew:
+
+Skew Core: (c)	   		      Reference Core: (0)
+      	    |	   		  		       |
+=================================================================== ITERATION N
+       	    |					       |
+     [ RELEASE LOCK ] -------------------------> [ GAIN LOCK ]
+       	    |					       |
+            |					       V
+            |                                         TSC() ----> t0_0
+       	    |					       |
+            V					       V
+      [ GAIN LOCK ] <-------------------------- [ RELEASE LOCK ]
+       	    |					       |
+            V					       |
+           TSC() --------------------------------------+--------> tc_1
+       	    |					       |
+=================================================================== ITERATION N+1
+      	    |					       |
+
+It follows that tc_1 = t0_0 + time_execution_instructions + extra + skew.
+By running many iterations, we hope that extra goes to 0; so we estimate
+the skew by min(tc_1 - t0_0).
+ */
 static void tsc_estimate_skew(struct arena *persistent)
 {	
 

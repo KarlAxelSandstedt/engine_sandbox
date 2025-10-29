@@ -99,6 +99,7 @@ void arena_free(struct arena *ar)
 	ar->record = NULL;
 }
 
+static u32 count = 0;
 struct arena arena_alloc_1MB(void)
 {
 	struct arena ar =
