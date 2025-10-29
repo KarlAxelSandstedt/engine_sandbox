@@ -165,7 +165,7 @@ void kaspf_reader_shutdown(void)
 u64 internal_frame_size(struct arena *tmp, const struct frame_header *fh)
 {
 	u64 size = sizeof(struct hw_frame_header);
-	size += g_profiler->worker_count*sizeof(struct hw_profile_header) + g_profiler->kt->buffer_count*sizeof(struct cpu_frame_header);
+	size += g_profiler->worker_count*sizeof(struct hw_profile_header) + g_profiler->kernel_buffer_count*sizeof(struct cpu_frame_header);
 
 	struct lw_header *lw_h = (struct lw_header *)(((u8 *) fh) + sizeof(struct frame_header));
 	struct kt_header *kt_h = (struct kt_header *)(((u8 *) fh) + sizeof(struct frame_header) + g_profiler->worker_count*sizeof(struct lw_header));
@@ -176,7 +176,7 @@ u64 internal_frame_size(struct arena *tmp, const struct frame_header *fh)
 		size += lw_h[i].activity_count*sizeof(struct worker_activity);
 	}
 
-	for (u32 i = 0; i < g_profiler->kt->buffer_count; ++i)
+	for (u32 i = 0; i < g_profiler->kernel_buffer_count; ++i)
 	{
 		size += kt_h[i].pr_count*sizeof(struct process_runtime);
 	}
@@ -462,13 +462,13 @@ static void internal_process_frames(struct arena *tmp, struct kas_buffer *buf, c
 		hw->hw_profile_h = (struct hw_profile_header *) (buf->data + (buf->size - buf->mem_left));
 		buf->mem_left -= sizeof(struct hw_profile_header) * g_profiler->worker_count;
 		hw->cpu_h = (struct cpu_frame_header *) (buf->data + (buf->size - buf->mem_left));
-		buf->mem_left -= sizeof(struct cpu_frame_header) * g_profiler->kt->buffer_count;
+		buf->mem_left -= sizeof(struct cpu_frame_header) * g_profiler->kernel_buffer_count;
 
 		struct lw_header *lw_h = (struct lw_header *)(((u8 *) fh) + sizeof(struct frame_header));
 		struct kt_header *kt_h = (struct kt_header *)(((u8 *) fh) + sizeof(struct frame_header) + g_profiler->worker_count*sizeof(struct lw_header));
 		u8 *next_read_data = ((u8 *) fh + sizeof(struct frame_header) 
 					   + g_profiler->worker_count*sizeof(struct lw_header)
-					   + g_profiler->kt->buffer_count*sizeof(struct kt_header));
+					   + g_profiler->kernel_buffer_count*sizeof(struct kt_header));
 
 		for (u32 j = 0; j < g_profiler->worker_count; ++j)
 		{
@@ -481,12 +481,13 @@ static void internal_process_frames(struct arena *tmp, struct kas_buffer *buf, c
 			const u64 data_size = lw_h[j].activity_count * sizeof(struct worker_activity);
 			hw->hw_profile_h[j].activity_count = lw_h[j].activity_count;
 			hw->hw_profile_h[j].activity = (struct worker_activity *) (buf->data + (buf->size - buf->mem_left));
+			breakpoint(data_size);
 			memcpy(hw->hw_profile_h[j].activity, next_read_data, data_size);
 			next_read_data += data_size;
 			buf->mem_left -= data_size;
 		}
 
-		for (u32 j = 0; j < g_profiler->kt->buffer_count; ++j)
+		for (u32 j = 0; j < g_profiler->kernel_buffer_count; ++j)
 		{
 			hw->cpu_h->pr_count = kt_h[j].pr_count;
 			hw->cpu_h->pr = (struct process_runtime *) (buf->data + (buf->size - buf->mem_left));
@@ -549,6 +550,11 @@ void kaspf_reader_process(struct arena *tmp)
 	{
 		ns_end = g_profiler->header->l1_table.ns_start + (ns_end - ns_start);
 		ns_start = g_profiler->header->l1_table.ns_start;
+	}
+
+	if (g_profiler->ns_frame_prev < ns_end)
+	{
+		ns_end = g_profiler->ns_frame_prev;
 	}
 
 	struct kaspf_reader *reader = g_kaspf_reader;

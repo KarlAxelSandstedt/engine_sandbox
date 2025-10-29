@@ -362,7 +362,7 @@ static void kaspf_write_completed_frame(struct kas_profiler *profiler)
 		lw_headers[i].profile_count = f->completed_count-1;
 		const u64 data_size_lw_profiles = lw_headers[i].profile_count * sizeof(struct lw_profile);
 		file_write_offset(&profiler->file, (u8 *)(f->completed + 1), data_size_lw_profiles, lw_headers[i].profile_offset);
-		//fprintf(stderr, "lw_profile[%u]: (%lu, %lu)\n", i, lw_headers[i].offset, lw_headers[i].offset + data_size);
+		//fprintf(stderr, "lw_profile[%u]: (%lu, %lu)\n", i, lw_headers[i].profile_offset, lw_headers[i].profile_offset + data_size_lw_profiles);
 		data_offset += data_size_lw_profiles;
 
 		lw_headers[i].activity_offset = data_offset;
@@ -929,22 +929,20 @@ void kas_profiler_new_frame(void)
 		kaspf_alloc_headers_in_frame(g_profiler, g_profiler->ns_frame, g_profiler->tsc_frame);
 		KAS_END;
 
-		// TODO Temporary 
-		
 		if (g_kaspf_reader->read_state != KASPF_READER_CLOSED)
 		{
-			KAS_TASK("kaspf_reader_process", T_PROFILER);
-
 			if (g_kaspf_reader->read_state == KASPF_READER_STREAM)
 			{
 				const u64 min_time = g_profiler->header->l1_table.entries[0].ns_start;
 				g_kaspf_reader->ns_end = (g_profiler->ns_frame_prev < g_kaspf_reader->ns_stream_interval + min_time)
 					? g_kaspf_reader->ns_stream_interval + min_time
-					: g_profiler->ns_frame_prev - g_kaspf_reader->ns_stream_interval;
+					: g_profiler->ns_frame_prev;
 				g_kaspf_reader->ns_start = g_kaspf_reader->ns_end - g_kaspf_reader->ns_stream_interval;
 			}
 
+			KAS_TASK("kaspf_reader_process", T_PROFILER);
 			kaspf_reader_process(&g_profiler->mem);
+			KAS_END;
 		}
 	}
 }

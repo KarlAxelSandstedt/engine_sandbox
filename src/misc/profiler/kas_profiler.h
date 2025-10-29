@@ -507,7 +507,7 @@ void 	kas_profiler_new_frame(void);
 	p->parent = parent;										\
 	p->task_id = TASK_ID_VAR(suf);									\
 	p->tsc_start = rdtscp(&p->core_start);								\
-	p->tsc_start += g_tsc_skew[p->core_start];							\
+	p->tsc_start -= g_tsc_skew[p->core_start];							\
 }							
 #define KAS_TASK(label, system)				_KAS_TASK(label, system, __COUNTER__)				
 #define KAS_END												\
@@ -519,7 +519,8 @@ void 	kas_profiler_new_frame(void);
 	const u32 pi = tls_frame->build_stack[s-1];							\
 	struct lw_profile *p = tls_frame->build + pi;							\
 	p->tsc_end = rdtscp(&p->core_end);								\
-	p->tsc_end += g_tsc_skew[p->core_start];							\
+	p->tsc_end -= g_tsc_skew[p->core_end];								\
+	kas_assert(p->tsc_end > p->tsc_start);								\
 													\
 	/* NOTE: Ordering here very important, see kas_new_frame */					\
 	atomic_store_rel_32(&tls_frame->stack_count, s-1);						\

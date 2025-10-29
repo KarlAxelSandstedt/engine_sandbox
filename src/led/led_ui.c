@@ -179,19 +179,22 @@ static void led_project_menu_ui(struct led *led, const struct ui_visual *visual)
 
 static void led_profiler_ui(struct led *led, const struct ui_visual *visual)
 {
-#if defined(KAS_PROFILER)
-	if (g_profiler->frame_counter == 0 || !system_user_is_admin())
+	if (g_profiler->level < PROFILE_LEVEL_TASK)
 	{
 		return;
 	}
-
 	struct led_profiler *prof = &led->profiler;
 	system_window_set_global(prof->window);
 	cmd_queue_execute();
 
+	if (g_profiler->frame_counter == 0)
+	{
+		kaspf_reader_stream(prof->timeline_config.ns_interval_size);
+		return;
+	}
+
 	struct system_window *win = system_window_address(prof->window);
 	ui_frame_begin(win->size, visual);
-
 
 	if (prof->timeline_config.fixed)
 	{
@@ -254,7 +257,6 @@ static void led_profiler_ui(struct led *led, const struct ui_visual *visual)
 	}
 
 	ui_frame_end();
-#endif
 }
 
 static void led_ui_test(struct led *led, const struct ui_visual *visual)
