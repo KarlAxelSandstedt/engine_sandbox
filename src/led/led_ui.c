@@ -180,7 +180,7 @@ static void led_project_menu_ui(struct led *led, const struct ui_visual *visual)
 static void led_profiler_ui(struct led *led, const struct ui_visual *visual)
 {
 #if defined(KAS_PROFILER)
-	if (g_kas->frame_counter == 0 || !system_user_is_admin())
+	if (g_profiler->frame_counter == 0 || !system_user_is_admin())
 	{
 		return;
 	}
@@ -192,24 +192,17 @@ static void led_profiler_ui(struct led *led, const struct ui_visual *visual)
 	struct system_window *win = system_window_address(prof->window);
 	ui_frame_begin(win->size, visual);
 
-	g_kaspf_reader->read_state = (prof->timeline_config.fixed)
-		 ? KASPF_READER_FIXED
-		 : KASPF_READER_STREAM;
 
-	if (g_kaspf_reader->read_state == KASPF_READER_STREAM)
-	{	
-		const u64 ns_visible_size = ((u64) 3)*NSEC_PER_SEC;
-		const u64 ns_visible_end = (g_kaspf_reader->interval_high[1] < ns_visible_size)
-			? ns_visible_size 
-			: g_kaspf_reader->interval_high[1];
-		const u64 ns_visible_start = ns_visible_end - ns_visible_size;
-
-		prof->timeline_config.ns_interval_start = ns_visible_start;
-		prof->timeline_config.ns_interval_end = ns_visible_end;
+	if (prof->timeline_config.fixed)
+	{
+		kaspf_reader_fixed(prof->timeline_config.ns_interval_start, prof->timeline_config.ns_interval_end);
 	}
 	else
 	{
-		kaspf_reader_process(win->ui->mem_frame, prof->timeline_config.ns_interval_start, prof->timeline_config.ns_interval_end);
+		kaspf_reader_stream(prof->timeline_config.ns_interval_size);
+		prof->timeline_config.ns_interval_start = g_kaspf_reader->ns_start;
+		prof->timeline_config.ns_interval_end = g_kaspf_reader->ns_end;
+		prof->timeline_config.ns_interval_size = g_kaspf_reader->ns_end - g_kaspf_reader->ns_start;
 	}
 
 	ui_child_layout_axis(AXIS_2_Y)

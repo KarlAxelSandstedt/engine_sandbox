@@ -475,12 +475,12 @@ void timeline_drag(void)
 	}
 	config->ns_interval_start = (u64) ((i64) config->ns_interval_start + offset);
 	config->ns_interval_end = (u64) ((i64) config->ns_interval_end + offset);
+	config->ns_interval_size = config->ns_interval_end - config->ns_interval_start;
 	config->fixed = 1;
 
 	if (ctrl_pressed)
 	{
-		u64 ns_interval = config->ns_interval_end - config->ns_interval_start;
-		const f64 ns_drag_half = ns_interval / 500;
+		const f64 ns_drag_half = config->ns_interval_size / 500;
 
 		/* upward motion => zoom in, downward motion => zoon out */
 		const f64 ns_interval_start = config->ns_interval_start - ns_drag_half*drag_delta_y;
@@ -491,14 +491,14 @@ void timeline_drag(void)
 
 		const f64 ns_change = 2*ns_drag_half*drag_delta_y;
 
-		ns_interval = (ns_change > 0.0f || ((f64) ns_interval + ns_change) > 0.0f)
-			? (u64) ((f64) ns_interval + ns_change) + 1
+		config->ns_interval_size = (ns_change > 0.0f || ((f64) config->ns_interval_size + ns_change) > 0.0f)
+			? (u64) ((f64) config->ns_interval_size + ns_change) + 1
 			: 1;
 		
-		config->ns_interval_end = config->ns_interval_start + ns_interval;
+		config->ns_interval_end = config->ns_interval_start + config->ns_interval_size;
 
 
-		fprintf(stderr, "%lu\n", ns_interval);
+		fprintf(stderr, "%lu\n", config->ns_interval_size);
 	}
 }
 

@@ -315,7 +315,7 @@ extern enum fs_error		(*cwd_set)(struct arena *mem, const char *path);
 	#define	rdtscp(core_addr)	__rdtscp(core_addr)
 #endif
 
-void		time_init(void);
+void		time_init(struct arena *persistent);
 extern u64	(*time_ns_start)(void);					/* return origin of process time in sys time */
 extern u64	(*time_s)(void);					/* seconds since start */
 extern u64	(*time_ms)(void); 					/* milliseconds since start */
@@ -333,6 +333,14 @@ extern void 	(*time_set_kt_transform_parameters)(const u64 time_mult, const u64 
 extern u64	(*time_ns_per_tick)(void);
 extern u64 	(*freq_rdtsc)(void);
 extern f64 	(*time_seconds_from_rdtsc)(const u64 ticks);
+
+/* g_tsc_skew[logical_core_count]: estimated skew from core 0.
+ * given a tsc value from core c, its corresponding tsc value on core 0 is t_0 = t_c + skew,
+ * so in code we get 
+ * 			tsc_c = rdtscp(&core_c)
+ * 			tsc_0 = core_c + g_tsc_skew[c];
+ */
+extern u64 *	g_tsc_skew;
 
 /************************************************************************/
 /* 			Threads and Synchronization			*/

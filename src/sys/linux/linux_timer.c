@@ -17,12 +17,17 @@
 ==========================================================================
 */
 
+#define _GNU_SOURCE
 #include "sys_common.h"
+#include "linux_local.h"
 #include <sys/time.h>
 #include <time.h>
 #include <x86intrin.h>
+#include <pthread.h>
 
 #include "sys_public.h"
+
+u64 *	g_tsc_skew;
 
 u64	(*time_ns_start)(void);					/* return origin of process time in sys time */
 u64	(*time_s)(void);					/* seconds since start */
@@ -196,7 +201,146 @@ f64 linux_time_seconds_from_rdtsc(const u64 ticks)
 	return (f64) ticks / g_precision_timer.rdtsc_freq;
 }
 
-void time_init(void)
+struct ping_pong_data
+{
+	u32	a_lock;
+	u32	a_iteration_test;
+	u32	logical_core_count;
+	u32	iterations;
+	u64 *	tsc_reference;
+	u64 *	tsc_iterator;
+};
+
+#define UNLOCKED_BY_REFERENCE 	1
+#define UNLOCKED_BY_ITERATOR	2
+void *ping_pong_reference(void *data_void)
+{
+	struct ping_pong_data *data = data_void;
+
+	cpu_set_t cpuset;
+	CPU_ZERO(&cpuset);
+	CPU_SET(0, &cpuset);	
+
+	/* thread is allowed to run on intersection of cpu_set_t and actual system cpus. */
+	if (pthread_setaffinity_np(pthread_self(), sizeof(cpuset), &cpuset) != 0)
+	{
+		log_string(T_SYSTEM, S_FATAL, "Failed to set thread affinity in tsc_estimate_skew, exiting.");	
+		fatal_cleanup_and_exit(gettid());
+	}
+
+	u32 c;
+	g_tsc_skew[0] = 0;
+	for (u32 core = 1; core < data->logical_core_count; ++core)
+	{
+		atomic_store_rel_32(&data->a_iteration_test, 1);
+
+		for (u32 i = 0; i < data->iterations; ++i)
+		{
+			while (atomic_load_acq_32(&data->a_lock) != UNLOCKED_BY_ITERATOR);
+			data->tsc_reference[i] = rdtscp(&c);
+			atomic_store_rel_32(&data->a_lock, UNLOCKED_BY_REFERENCE);
+		}
+		/* wait until last iteration of iterator is complete before calculating skew */
+		while (atomic_load_acq_32(&data->a_iteration_test) != 0);
+
+		b64 skew = { .i = I64_MAX, };
+		for (u32 i = 0; i < data->iterations; ++i)
+		{
+			const b64 it_skew = { .u = data->tsc_iterator[i] - data->tsc_reference[i] };
+			if (it_skew.i < skew.i)
+			{
+				skew = it_skew;
+			}
+		}
+
+		g_tsc_skew[core] = skew.u;
+	}
+
+	return NULL;
+}
+
+void *ping_pong_core_iterator(void *data_void)
+{
+	struct ping_pong_data *data = data_void;
+
+	u32 c;
+	for (u32 core = 1; core < data->logical_core_count; ++core)
+	{
+		cpu_set_t cpuset;
+		CPU_ZERO(&cpuset);
+		CPU_SET(core, &cpuset);	
+
+		/* thread is allowed to run on intersection of cpu_set_t and actual system cpus. */
+		if (pthread_setaffinity_np(pthread_self(), sizeof(cpuset), &cpuset) != 0)
+		{
+			log_string(T_SYSTEM, S_FATAL, "Failed to set thread affinity in tsc_estimate_skew, exiting.");	
+			fatal_cleanup_and_exit(gettid());
+		
+		}
+
+		while (atomic_load_acq_32(&data->a_iteration_test) != 1);
+
+		atomic_store_rel_32(&data->a_lock, UNLOCKED_BY_ITERATOR);
+
+		for (u32 i = 0; i < data->iterations; ++i)
+		{
+			while (atomic_load_acq_32(&data->a_lock) != UNLOCKED_BY_REFERENCE);
+			data->tsc_iterator[i] = rdtscp(&c);
+			atomic_store_rel_32(&data->a_lock, UNLOCKED_BY_ITERATOR);
+		}
+
+		atomic_store_rel_32(&data->a_lock, 0);
+		atomic_store_rel_32(&data->a_iteration_test, 0);
+	}
+
+	return NULL;
+}
+
+static void tsc_estimate_skew(struct arena *persistent)
+{	
+
+	struct ping_pong_data data =
+	{
+		.logical_core_count = (u32) sysconf(_SC_NPROCESSORS_ONLN),
+		.iterations = 100000,
+		.a_lock = 0,
+		.a_iteration_test = 0,
+	};
+
+	g_tsc_skew = arena_push_zero(persistent, data.logical_core_count*sizeof(u64));
+	arena_push_record(persistent);
+	data.tsc_reference = arena_push(persistent, data.iterations * sizeof(u64));
+	data.tsc_iterator = arena_push(persistent, data.iterations * sizeof(u64));
+
+	pthread_attr_t attr;
+	if (pthread_attr_init(&attr) != 0)
+	{
+		LOG_SYSTEM_ERROR(S_FATAL);	
+		fatal_cleanup_and_exit(gettid());
+	}
+
+	pthread_t thread1, thread2;
+	if (pthread_create(&thread1, &attr, ping_pong_reference, (void *) &data) != 0
+	    || pthread_create(&thread2, &attr, ping_pong_core_iterator, (void *) &data) != 0)
+
+	{
+		LOG_SYSTEM_ERROR(S_FATAL);	
+		fatal_cleanup_and_exit(gettid());
+	}
+
+	if (pthread_attr_destroy(&attr) != 0)
+	{
+		LOG_SYSTEM_ERROR(S_FATAL);	
+		fatal_cleanup_and_exit(gettid());
+	}
+
+	void *garbage;
+	pthread_join(thread1, &garbage);
+	pthread_join(thread2, &garbage);
+	arena_pop_record(persistent);
+}
+
+void time_init(struct arena *persistent)
 {
 	struct timespec ts, tmp;
 	clock_getres(CLOCK_MONOTONIC_RAW, &ts);
@@ -208,7 +352,6 @@ void time_init(void)
 	/* instruction fence */
 	g_precision_timer.tsc_start = __rdtscp(&tmp2);
 	g_timer.ns_start = NSEC_PER_SEC * ts.tv_sec + ts.tv_nsec;
-	fprintf(stderr, "g_timer.ns_start = %lu\n", g_timer.ns_start);
 	g_timer.tsc_start = g_precision_timer.tsc_start;
 
 	clock_gettime(CLOCK_MONOTONIC_RAW, &tmp);
@@ -220,6 +363,8 @@ void time_init(void)
 	}
 	u64 end = __rdtsc();
 	g_precision_timer.rdtsc_freq = (1000/ms) * (end - g_precision_timer.tsc_start);
+
+	tsc_estimate_skew(persistent);
 
 	time_ns_start = &linux_time_ns_start;
 	time_s = &linux_time_s;

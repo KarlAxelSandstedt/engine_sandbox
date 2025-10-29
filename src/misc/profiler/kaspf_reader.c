@@ -36,7 +36,7 @@ void kaspf_reader_alloc(const u64 bufsize)
 	g_kaspf_reader->buf = ring_alloc(bufsize);
 	g_kaspf_reader->task_info = malloc(sizeof(struct kaspf_task_info) * KASPF_UNIQUE_TASK_COUNT_MAX);
 	memset(g_kaspf_reader->task_info, 0, sizeof(struct kaspf_task_info) * KASPF_UNIQUE_TASK_COUNT_MAX);
-	g_kaspf_reader->read_state = KASPF_READER_STREAM;
+	g_kaspf_reader->read_state = KASPF_READER_CLOSED;
 	g_kaspf_reader->ns_start = 0;
 	g_kaspf_reader->ns_end = 0;
 	g_kaspf_reader->frame_low = U64_MAX;
@@ -70,9 +70,9 @@ void kaspf_reader_shutdown(void)
 //	*worker_prev = U64_MAX;
 //	*worker_next = U64_MAX;
 //
-//	for (u32 i = 0; i < g_kas->worker_count; ++i)
+//	for (u32 i = 0; i < g_profiler->worker_count; ++i)
 //	{
-//		const tid id = g_kas->worker_frame[i].thread_id;
+//		const tid id = g_profiler->worker_frame[i].thread_id;
 //		if (ss->tid_prev == id)
 //		{
 //			*worker_prev = i;	
@@ -118,11 +118,11 @@ void kaspf_reader_shutdown(void)
 //{
 //	struct arena record = *tmp;
 //
-//	u64 *wo_single_begin = arena_push(tmp, g_kas->worker_count * sizeof(u64));
-//	u64 *wo_single_end = arena_push(tmp, g_kas->worker_count * sizeof(u64));	
-//	u64 *wo_cur = arena_push(tmp, g_kas->worker_count * sizeof(u64));	
+//	u64 *wo_single_begin = arena_push(tmp, g_profiler->worker_count * sizeof(u64));
+//	u64 *wo_single_end = arena_push(tmp, g_profiler->worker_count * sizeof(u64));	
+//	u64 *wo_cur = arena_push(tmp, g_profiler->worker_count * sizeof(u64));	
 //
-//	for (u32 i = 0; i < g_kas->worker_count; ++i)
+//	for (u32 i = 0; i < g_profiler->worker_count; ++i)
 //	{
 //		wo_single_begin[i] = 0;
 //		wo_single_end[i] = 0;
@@ -152,7 +152,7 @@ void kaspf_reader_shutdown(void)
 //	}
 //
 //	u64 wo_count = 0;
-//	for (u32 i = 0; i < g_kas->worker_count; ++i)
+//	for (u32 i = 0; i < g_profiler->worker_count; ++i)
 //	{
 //		wo_count += wo_cur[i];
 //	}
@@ -165,18 +165,18 @@ void kaspf_reader_shutdown(void)
 u64 internal_frame_size(struct arena *tmp, const struct frame_header *fh)
 {
 	u64 size = sizeof(struct hw_frame_header);
-	size += g_kas->worker_count*sizeof(struct hw_profile_header) + g_kas->kt->buffer_count*sizeof(struct cpu_frame_header);
+	size += g_profiler->worker_count*sizeof(struct hw_profile_header) + g_profiler->kt->buffer_count*sizeof(struct cpu_frame_header);
 
 	struct lw_header *lw_h = (struct lw_header *)(((u8 *) fh) + sizeof(struct frame_header));
-	struct kt_header *kt_h = (struct kt_header *)(((u8 *) fh) + sizeof(struct frame_header) + g_kas->worker_count*sizeof(struct lw_header));
+	struct kt_header *kt_h = (struct kt_header *)(((u8 *) fh) + sizeof(struct frame_header) + g_profiler->worker_count*sizeof(struct lw_header));
 
-	for (u32 i = 0; i < g_kas->worker_count; ++i)
+	for (u32 i = 0; i < g_profiler->worker_count; ++i)
 	{
 		size += lw_h[i].profile_count*sizeof(struct hw_profile);
 		size += lw_h[i].activity_count*sizeof(struct worker_activity);
 	}
 
-	for (u32 i = 0; i < g_kas->kt->buffer_count; ++i)
+	for (u32 i = 0; i < g_profiler->kt->buffer_count; ++i)
 	{
 		size += kt_h[i].pr_count*sizeof(struct process_runtime);
 	}
@@ -232,7 +232,7 @@ static u64 internal_get_branch_frame(u32 faults[3], struct frame_table *mm_b[2],
 	if (faults[0])
 	{
 		li[0] = kaspf_frame_table_index_from_time(&header->l1_table, FRAME_TABLE_SIZE / sizeof(struct ft_entry), ns_time);
-		mm_b[0] = file_memory_map_partial(&g_kas->file, FRAME_TABLE_FULL_SIZE, header->l1_table.entries[li[0]].offset, FS_PROT_READ, FS_MAP_SHARED);
+		mm_b[0] = file_memory_map_partial(&g_profiler->file, FRAME_TABLE_FULL_SIZE, header->l1_table.entries[li[0]].offset, FS_PROT_READ, FS_MAP_SHARED);
 	}
 	else
 	{
@@ -244,7 +244,7 @@ static u64 internal_get_branch_frame(u32 faults[3], struct frame_table *mm_b[2],
 	if (faults[1])
 	{
 		li[1] = kaspf_frame_table_index_from_time(mm_b[0], L3_FRAME_COUNT, ns_time);
-		mm_b[1] = file_memory_map_partial(&g_kas->file, FRAME_TABLE_FULL_SIZE, mm_b[0]->entries[li[1]].offset, FS_PROT_READ, FS_MAP_SHARED);
+		mm_b[1] = file_memory_map_partial(&g_profiler->file, FRAME_TABLE_FULL_SIZE, mm_b[0]->entries[li[1]].offset, FS_PROT_READ, FS_MAP_SHARED);
 	}
 	else
 	{
@@ -342,17 +342,17 @@ static void internal_discard_frame_range(struct kaspf_reader *reader, const u64 
 //	}
 //}
 
-static void internal_process_worker_profiles(struct arena *frame_persistent, struct hw_profile_header *hw_h, struct lw_profile *lw_profiles, const u64 ns_frame, const u64 cc_frame, const u32 worker, const u64 frame)
+static void internal_process_worker_profiles(struct arena *frame_persistent, struct hw_profile_header *hw_h, struct lw_profile *lw_profiles, const u64 ns_frame, const u64 tsc_frame, const u32 worker, const u64 frame)
 {
 	//u64 wo_cur = 0;
 	for (u64 i = 0; i < hw_h->profile_count; ++i)
 	{
 		struct hw_profile *hw_p = hw_h->profiles + i;
 		struct lw_profile *lw_p = lw_profiles + i;
-		hw_p->ns_start = time_ns_from_tsc_truth_source(lw_p->cc_start, ns_frame, cc_frame);
-		hw_p->ns_end = time_ns_from_tsc_truth_source(lw_p->cc_end, ns_frame, cc_frame);
-		//hw_p->ns_start = time_ns_from_tsc(lw_p->cc_start);
-		//hw_p->ns_end = time_ns_from_tsc(lw_p->cc_end);
+		hw_p->ns_start = time_ns_from_tsc_truth_source(lw_p->tsc_start, ns_frame, tsc_frame);
+		hw_p->ns_end = time_ns_from_tsc_truth_source(lw_p->tsc_end, ns_frame, tsc_frame);
+		//hw_p->ns_start = time_ns_from_tsc(lw_p->tsc_start);
+		//hw_p->ns_end = time_ns_from_tsc(lw_p->tsc_end);
 		hw_p->ns_in_children = 0;
 		hw_p->task_id = lw_p->task_id;
 		hw_p->parent = lw_p->parent-1;	/* parent index, U32_MAX for no parent */
@@ -364,8 +364,8 @@ static void internal_process_worker_profiles(struct arena *frame_persistent, str
 		if (!info->initiated)
 		{
 			info->initiated = 1;
-			info->system = g_kas->header->mm_task_systems[lw_p->task_id];
-			info->id = utf32_cstr(&g_kaspf_reader->persistent, (const char *) g_kas->header->mm_labels[lw_p->task_id]);
+			info->system = g_profiler->header->mm_task_systems[lw_p->task_id];
+			info->id = utf32_cstr(&g_kaspf_reader->persistent, (const char *) g_profiler->header->mm_labels[lw_p->task_id]);
 			struct asset_font *asset = asset_database_request_font(&g_kaspf_reader->persistent, FONT_DEFAULT_SMALL);
 			info->layout = utf32_text_layout(&g_kaspf_reader->persistent, &info->id, F32_INFINITY, TAB_SIZE, asset->font);
 		}
@@ -442,7 +442,7 @@ static void internal_process_worker_profiles(struct arena *frame_persistent, str
 static void internal_process_frames(struct arena *tmp, struct kas_buffer *buf, const struct frame_header *fh, const u64 low, const u64 high, struct hw_frame_header *prev, struct hw_frame_header *last)
 {
 	arena_push_record(tmp);
-	struct lw_profile **lw_ps = arena_push(tmp, g_kas->worker_count * sizeof(struct lw_profile *));
+	struct lw_profile **lw_ps = arena_push(tmp, g_profiler->worker_count * sizeof(struct lw_profile *));
 
 	struct hw_frame_header *hw;
 	for (u64 frame = low; frame <= high; ++frame)
@@ -452,25 +452,25 @@ static void internal_process_frames(struct arena *tmp, struct kas_buffer *buf, c
 		buf->mem_left -= sizeof(struct hw_frame_header);
 		hw->ns_start = fh->ns_start;
 		hw->ns_end = fh->ns_end;
-		hw->cc_start = fh->cc_start;
-		hw->cc_end = fh->cc_end;
+		hw->tsc_start = fh->tsc_start;
+		hw->tsc_end = fh->tsc_end;
 		hw->prev = prev;
 		hw->persistent = arena_alloc_1MB();
 		prev->next = hw;
 		prev = hw;
 
 		hw->hw_profile_h = (struct hw_profile_header *) (buf->data + (buf->size - buf->mem_left));
-		buf->mem_left -= sizeof(struct hw_profile_header) * g_kas->worker_count;
+		buf->mem_left -= sizeof(struct hw_profile_header) * g_profiler->worker_count;
 		hw->cpu_h = (struct cpu_frame_header *) (buf->data + (buf->size - buf->mem_left));
-		buf->mem_left -= sizeof(struct cpu_frame_header) * g_kas->kt->buffer_count;
+		buf->mem_left -= sizeof(struct cpu_frame_header) * g_profiler->kt->buffer_count;
 
 		struct lw_header *lw_h = (struct lw_header *)(((u8 *) fh) + sizeof(struct frame_header));
-		struct kt_header *kt_h = (struct kt_header *)(((u8 *) fh) + sizeof(struct frame_header) + g_kas->worker_count*sizeof(struct lw_header));
+		struct kt_header *kt_h = (struct kt_header *)(((u8 *) fh) + sizeof(struct frame_header) + g_profiler->worker_count*sizeof(struct lw_header));
 		u8 *next_read_data = ((u8 *) fh + sizeof(struct frame_header) 
-					   + g_kas->worker_count*sizeof(struct lw_header)
-					   + g_kas->kt->buffer_count*sizeof(struct kt_header));
+					   + g_profiler->worker_count*sizeof(struct lw_header)
+					   + g_profiler->kt->buffer_count*sizeof(struct kt_header));
 
-		for (u32 j = 0; j < g_kas->worker_count; ++j)
+		for (u32 j = 0; j < g_profiler->worker_count; ++j)
 		{
 			lw_ps[j] = (struct lw_profile *) next_read_data;
 			hw->hw_profile_h[j].profile_count = lw_h[j].profile_count;
@@ -486,7 +486,7 @@ static void internal_process_frames(struct arena *tmp, struct kas_buffer *buf, c
 			buf->mem_left -= data_size;
 		}
 
-		for (u32 j = 0; j < g_kas->kt->buffer_count; ++j)
+		for (u32 j = 0; j < g_profiler->kt->buffer_count; ++j)
 		{
 			hw->cpu_h->pr_count = kt_h[j].pr_count;
 			hw->cpu_h->pr = (struct process_runtime *) (buf->data + (buf->size - buf->mem_left));
@@ -501,9 +501,9 @@ static void internal_process_frames(struct arena *tmp, struct kas_buffer *buf, c
 		//kas_assert_string(kt_h->count == kt_h->ss_count, "We currently only expects kernel\n header to contain schedule switches,\n update kaspf_reader size calculations\n to account for new types");
 		//internal_process_frame_kernel_events(tmp, buf, hw, kt_h, first);
 
-		for (u32 j = 0; j < g_kas->worker_count; ++j)
+		for (u32 j = 0; j < g_profiler->worker_count; ++j)
 		{
-			internal_process_worker_profiles(&hw->persistent, hw->hw_profile_h + j, lw_ps[j], hw->ns_start, hw->cc_start, j, frame);
+			internal_process_worker_profiles(&hw->persistent, hw->hw_profile_h + j, lw_ps[j], hw->ns_start, hw->tsc_start, j, frame);
 		}
 
 		
@@ -523,14 +523,32 @@ static void internal_process_frames(struct arena *tmp, struct kas_buffer *buf, c
 	arena_pop_record(tmp);
 }
 
-void kaspf_reader_process(struct arena *tmp, u64 ns_start, u64 ns_end)
+void kaspf_reader_stream(const u64 ns_interval)
+{
+	g_kaspf_reader->read_state = KASPF_READER_STREAM;
+	g_kaspf_reader->ns_stream_interval = ns_interval;
+}
+
+void kaspf_reader_fixed(const u64 ns_start, const u64 ns_end)
 {
 	kas_assert(ns_start <= ns_end);
+	g_kaspf_reader->read_state = KASPF_READER_FIXED;
+	g_kaspf_reader->ns_start = ns_start;
+	g_kaspf_reader->ns_end = ns_end;
+	g_kaspf_reader->ns_stream_interval = ns_end - ns_start;
+}
 
-	if (ns_start < g_kas->header->l1_table.ns_start)
+void kaspf_reader_process(struct arena *tmp)
+{
+
+	u64 ns_start = g_kaspf_reader->ns_start;
+	u64 ns_end = g_kaspf_reader->ns_end;
+	kas_assert(ns_start <= ns_end);
+
+	if (ns_start < g_profiler->header->l1_table.ns_start)
 	{
-		ns_end = g_kas->header->l1_table.ns_start + (ns_end - ns_start);
-		ns_start = g_kas->header->l1_table.ns_start;
+		ns_end = g_profiler->header->l1_table.ns_start + (ns_end - ns_start);
+		ns_start = g_profiler->header->l1_table.ns_start;
 	}
 
 	struct kaspf_reader *reader = g_kaspf_reader;
@@ -547,8 +565,8 @@ void kaspf_reader_process(struct arena *tmp, u64 ns_start, u64 ns_end)
 	struct frame_table *new_mm_branch_low[2];
 	struct frame_table *new_mm_branch_high[2];
 	
-	const u64 new_frame_low = internal_get_branch_frame(faults_low, new_mm_branch_low, new_li_low, reader->mm_branch_low, reader->li_low, reader->interval_low, g_kas->header, ns_start);
-	const u64 new_frame_high = internal_get_branch_frame(faults_high, new_mm_branch_high, new_li_high, reader->mm_branch_high, reader->li_high, reader->interval_high, g_kas->header, ns_end);
+	const u64 new_frame_low = internal_get_branch_frame(faults_low, new_mm_branch_low, new_li_low, reader->mm_branch_low, reader->li_low, reader->interval_low, g_profiler->header, ns_start);
+	const u64 new_frame_high = internal_get_branch_frame(faults_high, new_mm_branch_high, new_li_high, reader->mm_branch_high, reader->li_high, reader->interval_high, g_profiler->header, ns_end);
 
 	struct kas_buffer buf, map;
 	const struct frame_header *fh;
@@ -568,7 +586,7 @@ void kaspf_reader_process(struct arena *tmp, u64 ns_start, u64 ns_end)
 		{
 			const u64 low_offset = new_mm_branch_low[1]->entries[new_li_low[2]].offset;
 			u64 high_offset = new_mm_branch_high[1]->entries[new_li_high[2]].offset;
-			struct frame_header *frame = file_memory_map_partial(&g_kas->file, 
+			struct frame_header *frame = file_memory_map_partial(&g_profiler->file, 
 					sizeof(struct frame_header),
 				       	high_offset,
 					FS_PROT_READ,
@@ -577,7 +595,7 @@ void kaspf_reader_process(struct arena *tmp, u64 ns_start, u64 ns_end)
 			file_memory_unmap(frame, sizeof(struct frame_header));
 
 			map.size = high_offset - low_offset;
-			map.data = file_memory_map_partial(&g_kas->file, map.size, low_offset, FS_PROT_READ, FS_MAP_SHARED);
+			map.data = file_memory_map_partial(&g_profiler->file, map.size, low_offset, FS_PROT_READ, FS_MAP_SHARED);
 			fh = (const struct frame_header *) map.data;
 		}
 
@@ -602,7 +620,7 @@ void kaspf_reader_process(struct arena *tmp, u64 ns_start, u64 ns_end)
 				const u64 low_offset = new_mm_branch_low[1]->entries[new_li_low[2]].offset;
 				const u64 high_offset = reader->mm_branch_low[1]->entries[reader->li_low[2]].offset;
 				map.size = high_offset - low_offset;
-				map.data = file_memory_map_partial(&g_kas->file, map.size, low_offset, FS_PROT_READ, FS_MAP_SHARED);
+				map.data = file_memory_map_partial(&g_profiler->file, map.size, low_offset, FS_PROT_READ, FS_MAP_SHARED);
 				fh = (const struct frame_header *) map.data;
 			}
 
@@ -619,7 +637,7 @@ void kaspf_reader_process(struct arena *tmp, u64 ns_start, u64 ns_end)
 			{
 				u64 low_offset = reader->mm_branch_high[1]->entries[reader->li_high[2]].offset;
 				u64 high_offset = new_mm_branch_high[1]->entries[new_li_high[2]].offset;
-				struct frame_header *frame = file_memory_map_partial(&g_kas->file, 
+				struct frame_header *frame = file_memory_map_partial(&g_profiler->file, 
 						sizeof(struct frame_header),
 					       	low_offset,
 						FS_PROT_READ,
@@ -628,7 +646,7 @@ void kaspf_reader_process(struct arena *tmp, u64 ns_start, u64 ns_end)
 				low_offset += (u64) kaspf_next_header(frame, reader->li_high[0], reader->li_high[1], reader->li_high[2]) - (u64) frame;
 				file_memory_unmap(frame, sizeof(struct frame_header));
 
-				frame = file_memory_map_partial(&g_kas->file, 
+				frame = file_memory_map_partial(&g_profiler->file, 
 						sizeof(struct frame_header),
 					       	high_offset,
 						FS_PROT_READ,
@@ -639,7 +657,7 @@ void kaspf_reader_process(struct arena *tmp, u64 ns_start, u64 ns_end)
 				file_memory_unmap(frame, sizeof(struct frame_header));
 
 				map.size = high_offset - low_offset;
-				map.data = file_memory_map_partial(&g_kas->file, map.size, low_offset, FS_PROT_READ, FS_MAP_SHARED);
+				map.data = file_memory_map_partial(&g_profiler->file, map.size, low_offset, FS_PROT_READ, FS_MAP_SHARED);
 				//fprintf(stderr, "reading frame %lu at offset %lu\n", reader->frame_high+1, low_offset);
 
 				fh = (const struct frame_header *) map.data;
@@ -704,9 +722,6 @@ void kaspf_reader_process(struct arena *tmp, u64 ns_start, u64 ns_end)
 	reader->interval_high[1] = (h+1 == L3_FRAME_COUNT) 
 		? new_mm_branch_high[1]->ns_end
 		: new_mm_branch_high[1]->entries[h+1].ns_start;
-
-	reader->ns_start = ns_start;
-	reader->ns_end = ns_end;
 
 	//fprintf(stderr, "frames: [%lu, %lu]\tring buffer size: [%lu]\ttime interval (%.7f(s), %7f(s))\n",
 	//	reader->frame_low,

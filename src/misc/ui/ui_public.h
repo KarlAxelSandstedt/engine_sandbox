@@ -171,6 +171,7 @@ struct timeline_config
 {
 	u64 	ns_interval_start;	/* start of interval covered by timeline window */
 	u64 	ns_interval_end;	/* end of interval covered by timeline window   */
+	u64	ns_interval_size;	
 	f32	ns_half_pixel;		/* ns per half-pixel of timeline */
 	u32	fixed;			/* helper: should the ns interval be continuously updated? */
 

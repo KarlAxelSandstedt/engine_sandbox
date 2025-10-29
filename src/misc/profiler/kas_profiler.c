@@ -25,7 +25,7 @@
 #ifdef KAS_PROFILER
 
 struct kas_profiler profiler = { 0 };
-struct kas_profiler *g_kas = NULL;
+struct kas_profiler *g_profiler = NULL;
 
 kas_thread_local struct kas_frame *tls_frame = NULL;
 
@@ -106,18 +106,13 @@ static struct frame_header frame_stub = { 0 };
 static struct frame_table table_stub =  { .ns_start = U64_MAX, .ns_end = U64_MAX };
 
 static void kaspf_init_header(struct kas_profiler *profiler)
-{
-	static_assert_kaspf_header_format();
-	static_assert_kernel_event_header();
-	static_assert_kas_schedule_switch();
-	static_assert_process_runtime();
-
+{	
 	struct kaspf_header *h = profiler->header;
 	h->major = KASPF_MAJOR;
 	h->minor = KASPF_MINOR;
 	h->frame_count = 0;
 	h->worker_count = profiler->worker_count;
-	h->kernel_buffer_count = profiler->kt->buffer_count;	
+	h->kernel_buffer_count = profiler->kernel_buffer_count;	
         h->clock_freq = profiler->clock_freq;		
         h->rdtsc_freq = profiler->rdtsc_freq;		
         h->bytes = sizeof(struct kaspf_header);
@@ -231,16 +226,16 @@ struct frame_header *kaspf_next_header(const struct frame_header *fh, const u64 
 {
 	const u8 *addr = (const u8 *) fh;
 
-	const u64 mod = fh->size % g_kas->header->page_size;
+	const u64 mod = fh->size % g_profiler->header->page_size;
 	addr += fh->size;
-	addr += (mod) ? g_kas->header->page_size - mod : 0; 
+	addr += (mod) ? g_profiler->header->page_size - mod : 0; 
 	addr += (l3_i+1 == L3_FRAME_COUNT) ? FRAME_TABLE_FULL_SIZE : 0;
 	addr += (l2_i+1 == L3_FRAME_COUNT) ? FRAME_TABLE_FULL_SIZE : 0;
 
 	return (struct frame_header *) addr;
 }
 
-static void kaspf_alloc_headers_in_frame(struct kas_profiler *profiler, const u64 ns_time, const u64 cc_time)
+static void kaspf_alloc_headers_in_frame(struct kas_profiler *profiler, const u64 ns_time, const u64 tsc_time)
 {
 	struct kaspf_header *h = profiler->header;
 		
@@ -293,7 +288,7 @@ static void kaspf_alloc_headers_in_frame(struct kas_profiler *profiler, const u6
 
 
 	prev_frame->ns_end = ns_time;
-	prev_frame->cc_end = cc_time;
+	prev_frame->tsc_end = tsc_time;
 	file_memory_unmap(h->mm_branch[2], sizeof(struct frame_header));
 
 	l3_table->entries[l3_i].ns_start = ns_time;
@@ -310,7 +305,7 @@ static void kaspf_alloc_headers_in_frame(struct kas_profiler *profiler, const u6
 
 	struct frame_header *frame = h->mm_branch[2];
 	frame->ns_start = ns_time;
-	frame->cc_start = cc_time;
+	frame->tsc_start = tsc_time;
 	frame->ns_end = 0;	
 	frame->size = 0; 
 
@@ -350,7 +345,7 @@ static void kaspf_write_completed_frame(struct kas_profiler *profiler)
 	const u64 frame_offset = kaspf_frame_offset(profiler, h->frame_count-1);
 	//fprintf(stderr, "writing frame %lu at offset %lu\n", h->frame_count-1, frame_offset);
 	const u64 headers_offset = frame_offset + sizeof(struct frame_header);
-	const u64 lw_kt_headers_size = profiler->worker_count*sizeof(struct lw_header) + profiler->kt->buffer_count*sizeof(struct kt_header);
+	const u64 lw_kt_headers_size = profiler->worker_count*sizeof(struct lw_header) + profiler->kernel_buffer_count*sizeof(struct kt_header);
 
 	u8 *headers = arena_push(&profiler->mem, lw_kt_headers_size);
 	struct lw_header *lw_headers = (struct lw_header *)(headers);
@@ -377,7 +372,7 @@ static void kaspf_write_completed_frame(struct kas_profiler *profiler)
 		data_offset += data_size_worker_activity;
 	}
 
-	for (u32 i = 0; i < profiler->kt->buffer_count; ++i)
+	for (u32 i = 0; i < profiler->kernel_buffer_count; ++i)
 	{
 		kt_headers[i].pr_offset = data_offset;
 		kt_headers[i].pr_count = profiler->frame_pr_count[i];
@@ -407,6 +402,7 @@ static void kaspf_write_completed_frame(struct kas_profiler *profiler)
 
 static void kas_profiler_init_io(struct arena *mem, struct kas_profiler *profiler, const char *path)
 {
+	kaspf_reader_alloc(16*1024*1024);
 	profiler->file = file_null();
 	if (file_try_create_at_cwd(mem, &profiler->file, path, FILE_TRUNCATE) != FS_SUCCESS)
 	{
@@ -434,7 +430,7 @@ static void kas_profiler_io_shutdown(struct kas_profiler *profiler)
 	}
 
 	/* write last frame to disk, skip the new one created */
-	KAS_NEW_FRAME;
+	kas_profiler_new_frame();
 	profiler->header->frame_count -= 1;
 
 	file_memory_sync_unmap(profiler->header->mm_branch[0], FRAME_TABLE_FULL_SIZE);
@@ -447,7 +443,7 @@ static void kas_profiler_io_shutdown(struct kas_profiler *profiler)
 	file_close(&profiler->file);
 }
 
-void kas_profiler_init(struct arena *mem, const u64 master_thread_id, const u32 worker_count, const u32 frame_len, const u32 stack_len, const u64 rdtsc_freq)
+void kas_profiler_init(struct arena *mem, const u64 master_thread_id, const u32 worker_count, const u32 frame_len, const u32 stack_len, const u64 rdtsc_freq, const enum profile_level level)
 {
 	assert(worker_count >= 1);
 
@@ -459,31 +455,29 @@ void kas_profiler_init(struct arena *mem, const u64 master_thread_id, const u32 
 	profiler.worker_count = worker_count;
 	profiler.worker_frame = arena_push(mem, worker_count * sizeof(struct kas_frame));
 	profiler.mem = arena_alloc(16*1024*1024);
-	profiler.hw_profiling = system_user_is_admin();
+	profiler.level = level;
+	profiler.kernel_buffer_count = 0;
 
-	struct lw_profile stub = { 0 };
-	for (u32 i = 0; i < worker_count; ++i)
+	if (profiler.level >= PROFILE_LEVEL_TASK)
 	{
-		profiler.worker_frame[i].completed = arena_push(mem, frame_len * sizeof(struct lw_profile));
-		profiler.worker_frame[i].build = arena_push(mem, frame_len * sizeof(struct lw_profile));
-		profiler.worker_frame[i].build_stack = arena_push(mem, stack_len * sizeof(u32));
-		profiler.worker_frame[i].completed_count = 1;
-		profiler.worker_frame[i].build_count = 1;
-		profiler.worker_frame[i].stack_count = 1;
-		((struct lw_profile *)(profiler.worker_frame[i].completed))[0] = stub; 
-		profiler.worker_frame[i].build[0] = stub;
-		profiler.worker_frame[i].build_stack[0] = 0;
-		profiler.worker_frame[i].frame_len = frame_len;
-		profiler.worker_frame[i].stack_len = stack_len;
-	}
+		void tsc_skew_estimate(void);
 
-	if (profiler.hw_profiling && (profiler.kt = kernel_tracer_init(mem)) != NULL)
-	{
-		profiler.pr[0] = arena_push(mem, profiler.kt->buffer_count * sizeof(struct process_runtime));
-		profiler.pr[1] = arena_push(mem, profiler.kt->buffer_count * sizeof(struct process_runtime));
-		profiler.online_index = arena_push(mem, profiler.kt->buffer_count * sizeof(u32));
-		profiler.frame_pr_count = arena_push(mem, profiler.kt->buffer_count * sizeof(u32));
-		profiler.frame_pr = arena_push(mem, profiler.kt->buffer_count * sizeof(struct process_runtime *));
+		struct lw_profile stub = { 0 };
+		for (u32 i = 0; i < worker_count; ++i)
+		{
+			profiler.worker_frame[i].completed = arena_push(mem, frame_len * sizeof(struct lw_profile));
+			profiler.worker_frame[i].build = arena_push(mem, frame_len * sizeof(struct lw_profile));
+			profiler.worker_frame[i].build_stack = arena_push(mem, stack_len * sizeof(u32));
+			profiler.worker_frame[i].completed_count = 1;
+			profiler.worker_frame[i].build_count = 1;
+			profiler.worker_frame[i].stack_count = 1;
+			((struct lw_profile *)(profiler.worker_frame[i].completed))[0] = stub; 
+			profiler.worker_frame[i].build[0] = stub;
+			profiler.worker_frame[i].build_stack[0] = 0;
+			profiler.worker_frame[i].frame_len = frame_len;
+			profiler.worker_frame[i].stack_len = stack_len;
+		}
+
 		profiler.worker_activity = arena_push(mem, profiler.worker_count * sizeof(struct worker_activity));
 		profiler.frame_worker_activity = arena_push(mem, profiler.worker_count * sizeof(struct worker_activity *));
 		profiler.frame_worker_activity_count = arena_push(mem, profiler.worker_count * sizeof(u32));
@@ -493,129 +487,86 @@ void kas_profiler_init(struct arena *mem, const u64 master_thread_id, const u32 
 			profiler.frame_worker_activity[i] = NULL;
 			profiler.frame_worker_activity_count[i] = 0;
 		}
-		//TODO Setup initial dummy worker activites 
 
-		kas_assert(stub_process.len <= 16);
-		for (u32 i = 0; i < profiler.kt->buffer_count; ++i)
+		if (profiler.level == PROFILE_LEVEL_KERNEL)
 		{
-			profiler.online_index[i] = 0;
-			profiler.pr[profiler.online_index[i]][i].waking_start_ns = 0;	
-			profiler.pr[profiler.online_index[i]][i].online_start_ns = 0;	
-			profiler.pr[profiler.online_index[i]][i].pid = U32_MAX;	
-			profiler.pr[1-profiler.online_index[i]][i].waking_start_ns = PROCESS_NON_WAKING;	
-			memcpy(profiler.pr[profiler.online_index[i]][i].process, stub_process.buf, stub_process.len);
+			if (!system_user_is_admin())
+			{
+				log_string(T_SYSTEM, S_WARNING, "User is not privileged, skipping kernel profiling.");
+				profiler.level = PROFILE_LEVEL_TASK;
+			}
+			else if ((profiler.kt = kernel_tracer_init(mem)) == NULL)
+			{
+				log_string(T_SYSTEM, S_WARNING, "Failed to initialize kernel tracer, skipping kernel profiling.");
+				profiler.level = PROFILE_LEVEL_TASK;
+			}
+			else
+			{
+				profiler.kernel_buffer_count = profiler.kt->buffer_count;
+				profiler.pr[0] = arena_push(mem, profiler.kernel_buffer_count * sizeof(struct process_runtime));
+				profiler.pr[1] = arena_push(mem, profiler.kernel_buffer_count * sizeof(struct process_runtime));
+				profiler.online_index = arena_push(mem, profiler.kernel_buffer_count * sizeof(u32));
+				profiler.frame_pr_count = arena_push(mem, profiler.kernel_buffer_count * sizeof(u32));
+				profiler.frame_pr = arena_push(mem, profiler.kernel_buffer_count * sizeof(struct process_runtime *));
+				//TODO Setup initial dummy worker activites 
+				kas_assert(stub_process.len <= 16);
+				for (u32 i = 0; i < profiler.kernel_buffer_count; ++i)
+				{
+					profiler.online_index[i] = 0;
+					profiler.pr[profiler.online_index[i]][i].waking_start_ns = 0;	
+					profiler.pr[profiler.online_index[i]][i].online_start_ns = 0;	
+					profiler.pr[profiler.online_index[i]][i].pid = U32_MAX;	
+					profiler.pr[1-profiler.online_index[i]][i].waking_start_ns = PROCESS_NON_WAKING;	
+					memcpy(profiler.pr[profiler.online_index[i]][i].process, stub_process.buf, stub_process.len);
+				}
+
+				kas_assert(profiler.kernel_buffer_count < U8_MAX && "Current kernel events use u8's to represent cpu, use u16's instead.");
+			}
 		}
 
-		log_string(T_SYSTEM, S_NOTE, "user is admin, initiating heavy weight profiling.");
-		kas_profiler_init_io(mem,&profiler, "profile.kaspf");
-
-		kas_assert(profiler.kt->buffer_count < U8_MAX && "Current kernel events use u8's to represent cpu, use u16's instead.");
+		kas_profiler_init_io(mem, &profiler, "profile.kaspf");
 	}
-	else
+				
+	switch (profiler.level)
 	{
-		profiler.hw_profiling = 0;
-		log_string(T_SYSTEM, S_NOTE, "user is not privileged, running light-weight profiling.");
+		case PROFILE_LEVEL_SYSTEM: { log_string(T_SYSTEM, S_NOTE, "Lightweight system level profiling initiated."); } break;
+		case PROFILE_LEVEL_TASK:   { log_string(T_SYSTEM, S_NOTE, "Heavyweight task level profiling initiated."); } break;
+		case PROFILE_LEVEL_KERNEL: { log_string(T_SYSTEM, S_NOTE, "Heavyweight kernel level profiling initiated."); } break;
 	}
 
-	atomic_store_rel_64(&g_kas, &profiler);
-	KAS_ACQUIRE_THREAD_LOCAL_FRAME(master_thread_id, kas_thread_self_tid());
+	atomic_store_rel_64(&g_profiler, &profiler);
+	kas_profiler_acquire_thread_local_frame(master_thread_id, kas_thread_self_tid());
 }
 
 void kas_profiler_shutdown(void)
 {
-	if (g_kas->hw_profiling)
+	if (g_profiler->level >= PROFILE_LEVEL_TASK)
 	{
-		kas_profiler_io_shutdown(g_kas);
-		kernel_tracer_shutdown(g_kas->kt);
-	}
-	arena_free(&profiler.mem);
-}
-
-void kas_new_frame()
-{
-	u32 core_tmp;
-
-	arena_flush(&g_kas->mem);
-	g_kas->ns_frame_prev = g_kas->ns_frame;
-	g_kas->cc_frame_prev = g_kas->cc_frame;
-	g_kas->ns_frame = time_ns();
-	g_kas->cc_frame = rdtscp(&core_tmp);
-	g_kas->frame_counter += 1;
-
-	if (g_kas->frame_counter == 0 && g_kas->hw_profiling) 
-	{ 
-		g_kas->header->l1_table.ns_start = g_kas->ns_frame;
-		/* alloc new frame header (write to temporary stubs) in file */
-		kaspf_alloc_headers_in_frame(g_kas, g_kas->ns_frame, g_kas->cc_frame);
-		return; 
-	}	
-
-	for (u32 i = 0; i < g_kas->worker_count; ++i)
-	{
-		/* NOTE: Ordering here very important, see kas_new_frame */
-		u32 stack_count = atomic_load_acq_32(&g_kas->worker_frame[i].stack_count);
-		kas_assert(stack_count == 1);
-
-		const struct lw_profile *completed = g_kas->worker_frame[i].completed;
-		g_kas->worker_frame[i].completed_count = g_kas->worker_frame[i].build_count;
-		g_kas->worker_frame[i].completed = g_kas->worker_frame[i].build;
-		g_kas->worker_frame[i].stack_count = 1;
-		g_kas->worker_frame[i].build_count = 1;
-
-		/* NOTE: Ordering here very important, see kas_new_frame */
-		atomic_store_rel_64(&g_kas->worker_frame[i].build, (struct kas_frame *) completed);
-	}
-	
-	if (g_kas->hw_profiling)
-	{
-		/* process kernel event data */
-		KAS_TASK("kas kernel gather profile", T_PROFILER);
-		//kas_kernel_profile();
-		kas_gather_kernel_profiles();
-		KAS_END;
-
-		/* alloc file frame_data and write data to disk */
-		KAS_TASK("kaspf_write_completed_frame", T_PROFILER);
-		kaspf_write_completed_frame(g_kas);
-		KAS_END;
-		/* alloc new frame header (and finish old header(s) by writing time) in file */
-		KAS_TASK("kaspf_alloc_headers_in_frame", T_PROFILER);
-		kaspf_alloc_headers_in_frame(g_kas, g_kas->ns_frame, g_kas->cc_frame);
-		KAS_END;
-
-		// TODO Temporary 
-		if (g_kaspf_reader->read_state == KASPF_READER_STREAM)
+		kas_profiler_io_shutdown(g_profiler);
+		arena_free(&profiler.mem);
+		kaspf_reader_shutdown();
+		if (g_profiler->level == PROFILE_LEVEL_KERNEL)
 		{
-			KAS_TASK("kaspf_reader_process", T_PROFILER);
-			const u64 min_time = g_kas->header->l1_table.entries[0].ns_start;
-			if (g_kas->ns_frame_prev < ((u64) 3)*NSEC_PER_SEC + min_time)
-			{
-				KASPF_READER_PROCESS(&g_kas->mem, min_time, g_kas->ns_frame_prev);
-			}
-			else
-			{
-				KASPF_READER_PROCESS(&g_kas->mem, g_kas->ns_frame_prev - (g_kaspf_reader->ns_end - g_kaspf_reader->ns_start), g_kas->ns_frame_prev);
-			}
-			KAS_END;
+			kernel_tracer_shutdown(g_profiler->kt);
 		}
 	}
 }
 
 void kas_profiler_try_set_task_id(volatile u32 *a_static_task_id, volatile u32 *a_static_setting, const char *label, const enum system_id system_id)
 {
-	if (!g_kas->hw_profiling) { return; }
+	kas_assert(g_profiler->level >= PROFILE_LEVEL_TASK);
 
 	u32 not_being_set = 0;
 	if (atomic_compare_exchange_seq_cst_32(a_static_setting, &not_being_set, 1))
 	{
-		const u32 id = atomic_fetch_add_rlx_32(&g_kas->a_next_task_id, 1);
+		const u32 id = atomic_fetch_add_rlx_32(&g_profiler->a_next_task_id, 1);
 		kas_assert_string(id < KASPF_UNIQUE_TASK_COUNT_MAX, "max unique tasks reached, increase KASPF_UNIQUE_TASK_COUNT_MAX.\n");
 		u64 len = strlen(label);
 		len = (len < KASPF_LABEL_BUFSIZE) ? len : KASPF_LABEL_BUFSIZE-1;
-		memcpy(g_kas->header->mm_labels[id], label, len);
-		g_kas->header->mm_labels[id][len] = '\0';
+		memcpy(g_profiler->header->mm_labels[id], label, len);
+		g_profiler->header->mm_labels[id][len] = '\0';
 		atomic_store_seq_cst_32(a_static_task_id, id);
-		g_kas->header->mm_task_systems[id] = system_id;
+		g_profiler->header->mm_task_systems[id] = system_id;
 	}
 	else
 	{
@@ -623,9 +574,9 @@ void kas_profiler_try_set_task_id(volatile u32 *a_static_task_id, volatile u32 *
 	}
 }
 
-void kas_acquire_thread_local_frame(const u64 worker_id, const tid thread_id)
+void kas_profiler_acquire_thread_local_frame(const u64 worker_id, const tid thread_id)
 {
-	struct kas_profiler *kas = (struct kas_profiler *) atomic_load_acq_64(&g_kas);
+	struct kas_profiler *kas = (struct kas_profiler *) atomic_load_acq_64(&g_profiler);
 	const u32 i = atomic_fetch_add_rlx_32(&kas->tls_i, 1);
 	kas_assert(i < kas->worker_count);
 	tls_frame = kas->worker_frame + i;	
@@ -633,13 +584,13 @@ void kas_acquire_thread_local_frame(const u64 worker_id, const tid thread_id)
 	tls_frame->thread_id = thread_id;
 }
 
-u32 internal_is_process_schedule_waking(const struct kas_profiler *g_kas, const struct kt_sched_waking *w)
+u32 internal_is_process_schedule_waking(const struct kas_profiler *g_profiler, const struct kt_sched_waking *w)
 {
 	u32 is_process_event = 0;
 
-	for (u32 i = 0; i < g_kas->worker_count; ++i)
+	for (u32 i = 0; i < g_profiler->worker_count; ++i)
 	{
-		if (w->pid == g_kas->worker_frame[i].thread_id)
+		if (w->pid == g_profiler->worker_frame[i].thread_id)
 		{
 			is_process_event = 1;
 			break;
@@ -649,13 +600,13 @@ u32 internal_is_process_schedule_waking(const struct kas_profiler *g_kas, const 
 	return is_process_event;
 }
 
-u32 internal_is_process_schedule_switch(const struct kas_profiler *g_kas, const struct kt_sched_switch *ss)
+u32 internal_is_process_schedule_switch(const struct kas_profiler *g_profiler, const struct kt_sched_switch *ss)
 {
 	u32 is_process_event = 0;
 
-	for (u32 i = 0; i < g_kas->worker_count; ++i)
+	for (u32 i = 0; i < g_profiler->worker_count; ++i)
 	{
-		const tid id = g_kas->worker_frame[i].thread_id;
+		const tid id = g_profiler->worker_frame[i].thread_id;
 		if (ss->prev_pid == id || ss->next_pid == id)
 		{
 			is_process_event = 1;
@@ -702,42 +653,42 @@ struct cpu_process
 	struct process_runtime pr;
 };
 
-void kas_gather_kernel_profiles(void)
+void kas_profiler_gather_kernel_profiles(void)
 {
-	for (u32 i = 0; i < g_kas->kt->buffer_count; ++i)
+	for (u32 i = 0; i < g_profiler->kernel_buffer_count; ++i)
 	{
-		g_kas->kt->buffers[i].frame_start = atomic_load_acq_64(&g_kas->kt->buffers[i].metadata->data_tail);
-		g_kas->kt->buffers[i].frame_end = atomic_load_acq_64(&g_kas->kt->buffers[i].metadata->data_head);
-		g_kas->kt->buffers[i].offset = g_kas->kt->buffers[i].frame_start;
-		g_kas->frame_pr_count[i] = 0;
-		g_kas->frame_pr[i] = NULL;
+		g_profiler->kt->buffers[i].frame_start = atomic_load_acq_64(&g_profiler->kt->buffers[i].metadata->data_tail);
+		g_profiler->kt->buffers[i].frame_end = atomic_load_acq_64(&g_profiler->kt->buffers[i].metadata->data_head);
+		g_profiler->kt->buffers[i].offset = g_profiler->kt->buffers[i].frame_start;
+		g_profiler->frame_pr_count[i] = 0;
+		g_profiler->frame_pr[i] = NULL;
 	}
 
-	for (u32 i = 0; i < g_kas->worker_count; ++i)
+	for (u32 i = 0; i < g_profiler->worker_count; ++i)
 	{
-		g_kas->frame_worker_activity_count[i] = 0;
-		g_kas->frame_worker_activity[i] = NULL;
+		g_profiler->frame_worker_activity_count[i] = 0;
+		g_profiler->frame_worker_activity[i] = NULL;
 	}
 
 	struct kt_event ev;
-	struct kt_datapoint *next_cpu_dp = arena_push(&g_kas->mem, g_kas->kt->buffer_count*sizeof(struct kt_datapoint));
+	struct kt_datapoint *next_cpu_dp = arena_push(&g_profiler->mem, g_profiler->kernel_buffer_count*sizeof(struct kt_datapoint));
 	/* initiate first events and timestamps */
-	for (u32 i = 0; i < g_kas->kt->buffer_count; ++i)
+	for (u32 i = 0; i < g_profiler->kernel_buffer_count; ++i)
 	{
-		kernel_tracer_try_read_bytes(next_cpu_dp+i, g_kas->kt->buffers+i, KT_DATAPOINT_PACKED_SIZE);
-		const u64 tsc = g_kas->kt->tsc_from_kt_time(g_kas->kt->buffers+i, next_cpu_dp[i].time);
-		next_cpu_dp[i].time = time_ns_from_tsc_truth_source(tsc, g_kas->ns_frame_prev, g_kas->cc_frame_prev);
+		kernel_tracer_try_read_bytes(next_cpu_dp+i, g_profiler->kt->buffers+i, KT_DATAPOINT_PACKED_SIZE);
+		const u64 tsc = g_profiler->kt->tsc_from_kt_time(g_profiler->kt->buffers+i, next_cpu_dp[i].time);
+		next_cpu_dp[i].time = time_ns_from_tsc_truth_source(tsc, g_profiler->ns_frame_prev, g_profiler->tsc_frame_prev);
 	}
 
-	struct allocation_array alloc = arena_push_aligned_all(&g_kas->mem, sizeof(struct cpu_process), 16);
+	struct allocation_array alloc = arena_push_aligned_all(&g_profiler->mem, sizeof(struct cpu_process), 16);
 	u64 stack_count = 0;
 	u64 stack_len = alloc.len;
 	struct cpu_process *cpu_process = alloc.addr;
 	while (stack_count < stack_len)
 	{
-		u64 earliest_time = g_kas->ns_frame;
+		u64 earliest_time = g_profiler->ns_frame;
 		u32 earliest_buf = U32_MAX;
-		for (u32 i = 0; i < g_kas->kt->buffer_count; ++i)
+		for (u32 i = 0; i < g_profiler->kernel_buffer_count; ++i)
 		{
 			if (next_cpu_dp[i].raw_size != U32_MAX && next_cpu_dp[i].time < earliest_time)
 			{
@@ -751,23 +702,23 @@ void kas_gather_kernel_profiles(void)
 			break;
 		}
 		
-		kas_assert_string(next_cpu_dp[earliest_buf].time < g_kas->ns_frame, "Sanity check; it doesn't actually matter if this does not hold, since we do have small errors in all time calculations, but it is useful for the moment to see how often and when it happens.");
+		kas_assert_string(next_cpu_dp[earliest_buf].time < g_profiler->ns_frame, "Sanity check; it doesn't actually matter if this does not hold, since we do have small errors in all time calculations, but it is useful for the moment to see how often and when it happens.");
 
-		struct kt_ring_buffer *kt_buf = g_kas->kt->buffers + earliest_buf;
+		struct kt_ring_buffer *kt_buf = g_profiler->kt->buffers + earliest_buf;
 		kernel_tracer_read_bytes(&ev, kt_buf, next_cpu_dp[earliest_buf].raw_size);
 
 		{
 			//kt_datapoint_debug_print(next_cpu_dp + earliest_buf);
-			//kt_event_debug_print(g_kas->kt, &ev);
+			//kt_event_debug_print(g_profiler->kt, &ev);
 		}
 
-		const u32 on_i = g_kas->online_index[earliest_buf];
+		const u32 on_i = g_profiler->online_index[earliest_buf];
 		const u32 off_i	= 1 - on_i;
 
-		if (ev.common.type == g_kas->kt->sched_switch_id)
+		if (ev.common.type == g_profiler->kt->sched_switch_id)
 		{
 			struct kt_sched_switch *ss = &ev.ss;
-			g_kas->frame_pr_count[earliest_buf] += 1;
+			g_profiler->frame_pr_count[earliest_buf] += 1;
 			struct cpu_process *process = cpu_process + stack_count;
 			stack_count += 1;
 
@@ -788,44 +739,44 @@ void kas_gather_kernel_profiles(void)
 			//else { kss->state_prev = PROCESS_UNHANDLED_STATE; }
 
 			//size += KAS_SCHEDULE_SWITCH_PACKED_SIZE;
-			//kas_assert(size <= g_kas->mem.mem_left);
+			//kas_assert(size <= g_profiler->mem.mem_left);
 			
 			/* update process_runtime state */
-			g_kas->online_index[earliest_buf] = off_i;
+			g_profiler->online_index[earliest_buf] = off_i;
 
-			if (g_kas->pr[off_i][earliest_buf].waking_start_ns == PROCESS_NON_WAKING)
+			if (g_profiler->pr[off_i][earliest_buf].waking_start_ns == PROCESS_NON_WAKING)
 			{
-				g_kas->pr[off_i][earliest_buf].waking_start_ns = next_cpu_dp[earliest_buf].time;
+				g_profiler->pr[off_i][earliest_buf].waking_start_ns = next_cpu_dp[earliest_buf].time;
 			}
-			g_kas->pr[off_i][earliest_buf].online_start_ns = next_cpu_dp[earliest_buf].time;
-			g_kas->pr[off_i][earliest_buf].pid = ss->next_pid;
-			memcpy(g_kas->pr[off_i][earliest_buf].process, ss->next_comm, sizeof(ss->next_comm));
+			g_profiler->pr[off_i][earliest_buf].online_start_ns = next_cpu_dp[earliest_buf].time;
+			g_profiler->pr[off_i][earliest_buf].pid = ss->next_pid;
+			memcpy(g_profiler->pr[off_i][earliest_buf].process, ss->next_comm, sizeof(ss->next_comm));
 
-			g_kas->pr[on_i][earliest_buf].online_end_ns = next_cpu_dp[earliest_buf].time;
-			if (ss->prev_state == TASK_RUNNING) { g_kas->pr[on_i][earliest_buf].state_end = PROCESS_RUNNING; }
-			else if (ss->prev_state == TASK_INTERRUPTIBLE) { g_kas->pr[on_i][earliest_buf].state_end = PROCESS_SLEEPING; }
-			else if (ss->prev_state == TASK_UNINTERRUPTIBLE) { g_kas->pr[on_i][earliest_buf].state_end = PROCESS_BLOCKED; }
-			else { g_kas->pr[on_i][earliest_buf].state_end = PROCESS_UNHANDLED_STATE; }
+			g_profiler->pr[on_i][earliest_buf].online_end_ns = next_cpu_dp[earliest_buf].time;
+			if (ss->prev_state == TASK_RUNNING) { g_profiler->pr[on_i][earliest_buf].state_end = PROCESS_RUNNING; }
+			else if (ss->prev_state == TASK_INTERRUPTIBLE) { g_profiler->pr[on_i][earliest_buf].state_end = PROCESS_SLEEPING; }
+			else if (ss->prev_state == TASK_UNINTERRUPTIBLE) { g_profiler->pr[on_i][earliest_buf].state_end = PROCESS_BLOCKED; }
+			else { g_profiler->pr[on_i][earliest_buf].state_end = PROCESS_UNHANDLED_STATE; }
 
 			
 			u32 worker;
-			for (worker = 0; worker < g_kas->worker_count; ++worker)
+			for (worker = 0; worker < g_profiler->worker_count; ++worker)
 			{
-				if (g_kas->pr[on_i][earliest_buf].pid == g_kas->worker_frame[worker].thread_id)
+				if (g_profiler->pr[on_i][earliest_buf].pid == g_profiler->worker_frame[worker].thread_id)
 				{
-					g_kas->frame_worker_activity_count[worker] += 1;
+					g_profiler->frame_worker_activity_count[worker] += 1;
 					break;
 				}
 			}
 
 			process->worker = worker;
 			process->cpu = earliest_buf;
-			memcpy(&process->pr, &g_kas->pr[on_i][earliest_buf], sizeof(struct process_runtime));
-			//process_runtime_debug_print(g_kas->pr[on_i] + earliest_buf);	
-			g_kas->pr[on_i][earliest_buf].waking_start_ns = PROCESS_NON_WAKING;
+			memcpy(&process->pr, &g_profiler->pr[on_i][earliest_buf], sizeof(struct process_runtime));
+			//process_runtime_debug_print(g_profiler->pr[on_i] + earliest_buf);	
+			g_profiler->pr[on_i][earliest_buf].waking_start_ns = PROCESS_NON_WAKING;
 			
 		}
-		else if (ev.common.type == g_kas->kt->sched_waking_id)
+		else if (ev.common.type == g_profiler->kt->sched_waking_id)
 		{
 			struct kt_sched_waking *waking = &ev.waking;
 			//waking_count += 1;
@@ -837,11 +788,11 @@ void kas_gather_kernel_profiles(void)
 			//w->cpu = (u8) earliest_buf;
 			//memcpy(w->process, waking->comm, sizeof(waking->comm));
 			//size += KAS_SCHEDULE_WAKING_PACKED_SIZE;
-			//kas_assert(size <= g_kas->mem.mem_left);
+			//kas_assert(size <= g_profiler->mem.mem_left);
 
 			/* update process_runtime state */
 			{
-				g_kas->pr[off_i][earliest_buf].waking_start_ns = next_cpu_dp[earliest_buf].time;
+				g_profiler->pr[off_i][earliest_buf].waking_start_ns = next_cpu_dp[earliest_buf].time;
 			}
 		}
 		else
@@ -850,77 +801,152 @@ void kas_gather_kernel_profiles(void)
 		}
 		
 		kernel_tracer_try_read_bytes(next_cpu_dp + earliest_buf, kt_buf, KT_DATAPOINT_PACKED_SIZE);
-		const u64 tsc = g_kas->kt->tsc_from_kt_time(kt_buf, next_cpu_dp[earliest_buf].time);
-		next_cpu_dp[earliest_buf].time = time_ns_from_tsc_truth_source(tsc, g_kas->ns_frame_prev, g_kas->cc_frame_prev);
+		const u64 tsc = g_profiler->kt->tsc_from_kt_time(kt_buf, next_cpu_dp[earliest_buf].time);
+		next_cpu_dp[earliest_buf].time = time_ns_from_tsc_truth_source(tsc, g_profiler->ns_frame_prev, g_profiler->tsc_frame_prev);
 	}
 
-	for (u32 i = 0; i < g_kas->kt->buffer_count; ++i)
+	for (u32 i = 0; i < g_profiler->kernel_buffer_count; ++i)
 	{
 		/* If we managed to read last header in buffer, but not consuming it, the event happened 
 		   in a later frame, so we must backtrack our offset  */
 		if (next_cpu_dp[i].raw_size != U32_MAX)
 		{
-			g_kas->kt->buffers[i].offset -= KT_DATAPOINT_PACKED_SIZE;
+			g_profiler->kt->buffers[i].offset -= KT_DATAPOINT_PACKED_SIZE;
 		}
 
-		kas_assert((g_kas->kt->buffers[i].offset == g_kas->kt->buffers[i].frame_end 
+		kas_assert((g_profiler->kt->buffers[i].offset == g_profiler->kt->buffers[i].frame_end 
 			   && next_cpu_dp[i].raw_size == U32_MAX)
 			   || next_cpu_dp[i].raw_size != U32_MAX)
-		atomic_store_rel_64(&g_kas->kt->buffers[i].metadata->data_tail, g_kas->kt->buffers[i].offset);
+		atomic_store_rel_64(&g_profiler->kt->buffers[i].metadata->data_tail, g_profiler->kt->buffers[i].offset);
 	}
 	
-	arena_pop_packed(&g_kas->mem, (stack_len-stack_count)*sizeof(struct cpu_process)); 
-	u32 *index = arena_push_packed(&g_kas->mem, sizeof(u32) * g_kas->kt->buffer_count);
+	arena_pop_packed(&g_profiler->mem, (stack_len-stack_count)*sizeof(struct cpu_process)); 
+	u32 *index = arena_push_packed(&g_profiler->mem, sizeof(u32) * g_profiler->kernel_buffer_count);
 	u32 pr_count = 0;
-	for (u32 i = 0; i < g_kas->kt->buffer_count; ++i)
+	for (u32 i = 0; i < g_profiler->kernel_buffer_count; ++i)
 	{
 		index[i] = 0;
-		pr_count += g_kas->frame_pr_count[i];
-		g_kas->frame_pr[i] = arena_push_packed(&g_kas->mem, sizeof(struct process_runtime) * g_kas->frame_pr_count[i]);
+		pr_count += g_profiler->frame_pr_count[i];
+		g_profiler->frame_pr[i] = arena_push_packed(&g_profiler->mem, sizeof(struct process_runtime) * g_profiler->frame_pr_count[i]);
 	}
 
-	u32 *wi = arena_push_packed(&g_kas->mem, sizeof(u32) * g_kas->worker_count);
-	for (u32 i = 0; i < g_kas->worker_count; ++i)
+	u32 *wi = arena_push_packed(&g_profiler->mem, sizeof(u32) * g_profiler->worker_count);
+	for (u32 i = 0; i < g_profiler->worker_count; ++i)
 	{
 		wi[i] = 0;
-		g_kas->frame_worker_activity[i] = arena_push_packed(&g_kas->mem, sizeof(struct worker_activity) * g_kas->frame_worker_activity_count[i]);
+		g_profiler->frame_worker_activity[i] = arena_push_packed(&g_profiler->mem, sizeof(struct worker_activity) * g_profiler->frame_worker_activity_count[i]);
 	}
 
 
 	for (u32 i = 0; i < pr_count; ++i)
 	{
-		g_kas->frame_pr[cpu_process[i].cpu][index[cpu_process[i].cpu]] = cpu_process[i].pr;
+		g_profiler->frame_pr[cpu_process[i].cpu][index[cpu_process[i].cpu]] = cpu_process[i].pr;
 		index[cpu_process[i].cpu] += 1;
-		if (cpu_process[i].worker < g_kas->worker_count)
+		if (cpu_process[i].worker < g_profiler->worker_count)
 		{
 			//TODO if wakeup time != online start time, add wake up activity
 			//TODO how to process and generate blocks, sleeps?
 
-			g_kas->frame_worker_activity[cpu_process[i].worker][wi[cpu_process[i].worker]].ns_start = cpu_process[i].pr.online_start_ns;
-			g_kas->frame_worker_activity[cpu_process[i].worker][wi[cpu_process[i].worker]].ns_end = cpu_process[i].pr.online_end_ns;
-			g_kas->frame_worker_activity[cpu_process[i].worker][wi[cpu_process[i].worker]].process_state = PROCESS_RUNNING;
+			g_profiler->frame_worker_activity[cpu_process[i].worker][wi[cpu_process[i].worker]].ns_start = cpu_process[i].pr.online_start_ns;
+			g_profiler->frame_worker_activity[cpu_process[i].worker][wi[cpu_process[i].worker]].ns_end = cpu_process[i].pr.online_end_ns;
+			g_profiler->frame_worker_activity[cpu_process[i].worker][wi[cpu_process[i].worker]].process_state = PROCESS_RUNNING;
 			wi[cpu_process[i].worker] += 1;
 		}
 	}
 
-	//for (u32 i = 0; i < g_kas->worker_count; ++i)
+	//for (u32 i = 0; i < g_profiler->worker_count; ++i)
 	//{
-	//	kas_assert(wi[i] == g_kas->frame_worker_activity_count[i]);
+	//	kas_assert(wi[i] == g_profiler->frame_worker_activity_count[i]);
 	//	fprintf(stderr, "\n");
 	//	for (u32 j = 0; j < wi[i]; ++j)
 	//	{
 	//		fprintf(stderr, "[%lu, %lu] ",
-	//				g_kas->frame_worker_activity[i][j].ns_start,
-	//				g_kas->frame_worker_activity[i][j].ns_end);
+	//				g_profiler->frame_worker_activity[i][j].ns_start,
+	//				g_profiler->frame_worker_activity[i][j].ns_end);
 	//	}
 	//}
 }
 
 #elif (__OS__ == __WIN64__)
-void kas_gather_kernel_profiles(void)
+void kas_profiler_gather_kernel_profiles(void)
 {
 	return;
 }
 #endif
+
+void kas_profiler_new_frame(void)
+{
+	u32 core_tmp;
+
+	arena_flush(&g_profiler->mem);
+	g_profiler->ns_frame_prev = g_profiler->ns_frame;
+	g_profiler->tsc_frame_prev = g_profiler->tsc_frame;
+	g_profiler->ns_frame = time_ns();
+	g_profiler->tsc_frame = rdtscp(&core_tmp);
+	g_profiler->frame_counter += 1;
+
+	if (g_profiler->level == PROFILE_LEVEL_TASK)
+	{
+		if (g_profiler->frame_counter == 0) 
+		{ 
+			g_profiler->header->l1_table.ns_start = g_profiler->ns_frame;
+			/* alloc new frame header (write to temporary stubs) in file */
+			kaspf_alloc_headers_in_frame(g_profiler, g_profiler->ns_frame, g_profiler->tsc_frame);
+			return; 
+		}	
+
+		for (u32 i = 0; i < g_profiler->worker_count; ++i)
+		{
+			/* NOTE: Ordering here very important, see kas_new_frame */
+			u32 stack_count = atomic_load_acq_32(&g_profiler->worker_frame[i].stack_count);
+			kas_assert(stack_count == 1);
+
+			const struct lw_profile *completed = g_profiler->worker_frame[i].completed;
+			g_profiler->worker_frame[i].completed_count = g_profiler->worker_frame[i].build_count;
+			g_profiler->worker_frame[i].completed = g_profiler->worker_frame[i].build;
+			g_profiler->worker_frame[i].stack_count = 1;
+			g_profiler->worker_frame[i].build_count = 1;
+
+			/* NOTE: Ordering here very important, see kas_new_frame */
+			atomic_store_rel_64(&g_profiler->worker_frame[i].build, (struct kas_frame *) completed);
+		}
+		
+		if (g_profiler->level == PROFILE_LEVEL_KERNEL)
+		{
+			/* process kernel event data */
+			KAS_TASK("kas kernel gather profile", T_PROFILER);
+			//kas_kernel_profile();
+			kas_profiler_gather_kernel_profiles();
+			KAS_END;
+		}
+
+		/* alloc file frame_data and write data to disk */
+		KAS_TASK("kaspf_write_completed_frame", T_PROFILER);
+		kaspf_write_completed_frame(g_profiler);
+		KAS_END;
+		/* alloc new frame header (and finish old header(s) by writing time) in file */
+		KAS_TASK("kaspf_alloc_headers_in_frame", T_PROFILER);
+		kaspf_alloc_headers_in_frame(g_profiler, g_profiler->ns_frame, g_profiler->tsc_frame);
+		KAS_END;
+
+		// TODO Temporary 
+		
+		if (g_kaspf_reader->read_state != KASPF_READER_CLOSED)
+		{
+			KAS_TASK("kaspf_reader_process", T_PROFILER);
+
+			if (g_kaspf_reader->read_state == KASPF_READER_STREAM)
+			{
+				const u64 min_time = g_profiler->header->l1_table.entries[0].ns_start;
+				g_kaspf_reader->ns_end = (g_profiler->ns_frame_prev < g_kaspf_reader->ns_stream_interval + min_time)
+					? g_kaspf_reader->ns_stream_interval + min_time
+					: g_profiler->ns_frame_prev - g_kaspf_reader->ns_stream_interval;
+				g_kaspf_reader->ns_start = g_kaspf_reader->ns_end - g_kaspf_reader->ns_stream_interval;
+			}
+
+			kaspf_reader_process(&g_profiler->mem);
+		}
+	}
+}
 
 #endif

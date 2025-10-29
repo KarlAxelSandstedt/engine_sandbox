@@ -84,7 +84,7 @@ int CALLBACK WinMain(HINSTANCE h_instance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	u64 old_time = editor->ns;
 	while (editor->running)
 	{
-		KAS_NEW_FRAME;
+		kas_profiler_new_frame();
 
 		system_free_tagged_windows();
 

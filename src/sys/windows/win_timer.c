@@ -153,7 +153,12 @@ static f64 win_time_seconds_from_rdtsc(const u64 ticks)
 	return (f64) ticks / g_precision_timer.rdtsc_freq;
 }
 
-void time_init(void)
+static void tsc_estimate_skew(struct arena *persistent)
+{
+	kas_assert_string(0, "implement tsc_estimate_skew");
+}
+
+void time_init(struct arena *persistent)
 {
 	LARGE_INTEGER ret_val;
 	QueryPerformanceCounter(&ret_val);
@@ -179,6 +184,7 @@ void time_init(void)
 	}
 	u64 end = __rdtsc();
 	g_precision_timer.rdtsc_freq = (1000/ms) * (end-g_precision_timer.tsc_start);
+	tsc_estimate_skew(persistent);
 
 	time_ns_start = &win_time_ns_start;
 	time_s = &win_time_s;

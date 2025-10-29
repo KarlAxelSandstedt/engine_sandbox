@@ -22,11 +22,8 @@
 
 #include "kas_common.h"
 
-#ifdef KAS_PROFILER
 #include "sys_public.h"
 #include "ui_public.h"
-
-/************************** Karl Axel Sandstedt Profiler **************************/
 
 /*
  * Some short notes of timestamping. We expect to find rdtsc, rdtscp supported and that the tsc is INVARIANT, i.e,
@@ -41,61 +38,7 @@
  * time. Nonetheless, the kernel profiler should be able to handle that by using the more costly 
  * CLOCK_MONOTONIC_RAW.
  */
-
-/*
- * (1) store kernel events and profiles seperately. Then it is up to the 
- */
-
-/*
- * 	[Large goals]
- *
- * 	[] kaspf stream_reader fully implemented 	
- * 	[] draw taskbar correctly			
- * 	[O] fallback option on permissions or kt not implemented  (getuid == 0 means we are root? blabla...)
- * 	[O] if tsc unstable (use_clockid == 0 && cap_usr_time_zero == 0) remake buffers using clockid. AND LOG WARNING.
- * 	[] gracefully return null in kernel_tracer on error... prob. best to use a longjmp?
- * 	[] wakeup (display scheduler latency...)
- * 	[] simple light weight profiler/profiling, os_timer based (found in release mode as well)
- * 	[] draw subsystem flamegraph, (or similar) physics, rendering, ui, ...
- * 	[] draw different cool graphs
- *	[] make compile option lightweight vs heavyweight
- */
   
-/*
- * ==================== Static Frame Analysis ====================
- *
- * In order for us to gain insight into what the threads are doing, we want to be able to fully 
- * analyze whole frames. In the best case scenario, we manage to create an API which allows the
- * following workflow:
- *
- * (1) Pause engine on bad frame identification
- * (2) NAME_read_frame_bundle / NAME_read_frame
- * (3) NAME_frame_static_analyze
- *   ...
- * UI_LOOP:
- * 	draw(static_analysis) 	// draw whole frame function, display workers, tasks, bla bla...
- *
- *	if (Worker taskBar hot && scrolling)
- *		draw(Change X axis ClockCycle Scale)
- *
- *	if (Worker Task hot and LeftClick)
- *		NAME_task_analyze_wanted_properties
- *		draw(Display Task FlameGraph)
- * 		draw(IO Rates)
- * 		draw(waiting time)
- * 		draw(blocking time)
- *
- * The point is that the library should provide analysis tools to the user, which the user can
- * apply on frames in immediate mode. More stressful scenarios we can think of here is if we want
- * to analyze statistical properties between several frames, or bundles.
- *
- * ==================== (4) Dynamic Interframe-Frame Analysis ====================
- *
- * The last goal of the library would be to provide real-time tools to analyze frame bundles for
- * correlating factors and what not. We do not have a goal here yet, but John Blow's 
- * "Interactive Profiling" series would be a large inspiration and starting point.
- */
-
 #if defined (__GCC__) && defined(__SANITIZE_THREAD__)
 #define TSAN_HELPER
 #endif 
@@ -152,10 +95,10 @@ struct frame_header
 {
 	u64	ns_start;		/* os ns_timer at start of frame */
 	u64	ns_end;			/* os ns_timer at end of last frame in table */
-	u64 	cc_start;		/* cpu tsc value corresponding to tsc(system_time( time )), 
+	u64 	tsc_start;		/* cpu tsc value corresponding to tsc(system_time( time )), 
 			   		   i.e. the synced cpu tsc value at the time of when time was 
 			   		   taken */
-	u64	cc_end;
+	u64	tsc_end;
 	u64	size;			/* sizeof(frame_header) + sizeof(lw_header[]) 
 					   + sizeof(kt_header[]) + data_size */
 
@@ -276,8 +219,8 @@ struct hw_frame_header
 	/* cpu tsc value corresponding to tsc(system_time( ns_time )), 
 	   i.e. the synced cpu tsc value at the time of when time was 
 	   taken */
-	u64 				cc_start;		
-	u64				cc_end;
+	u64 				tsc_start;		
+	u64				tsc_end;
 	struct hw_profile_header * 	hw_profile_h;	/* hw_headers[worker_count] */
 	struct cpu_frame_header *	cpu_h;		/* cpu[kernel_buffer_count] */
 	u64 				size;		/* total size for whole hw_frame in buffer */
@@ -310,6 +253,7 @@ struct kaspf_reader
 	enum kaspf_reader_state read_state;	/* helper to keep track of reader state */
 
 	/* The frames processed will have the smallest superset interval that contains the user requested time interval */
+	u64			ns_stream_interval; /* When streaming, ns_start, is derived from the stream interval size   */
 	u64 			ns_start;	/* start of user requested interval (nanoseconds) [ <= ns_start in process() ] */
 	u64 			ns_end;		/* end of user requested interval (nanoseconds)   [ >= ns_end in process()   ] */
 
@@ -334,13 +278,13 @@ extern struct kaspf_reader *g_kaspf_reader;
 void	kaspf_reader_alloc(const u64 bufsize);
 /* free (and unmap) any memory used by the reader */
 void    kaspf_reader_shutdown(void);
+/* set kaspf to stream with fixed interval width */
+void	kaspf_reader_stream(const u64 ns_interval);
+/* set kaspf to fixed with given start and end */
+void	kaspf_reader_fixed(const u64 ns_start, const u64 ns_end);
 /* process any data in the kaspf file (if needed) and set the ring buffer accordingly  */
-void 	kaspf_reader_process(struct arena *tmp, u64 ns_start, u64 ns_end);
+void 	kaspf_reader_process(struct arena *tmp);
 
-
-/*********************************************************************************/
-/**                        	KAS_PROFILER                                    **/
-/*********************************************************************************/
 
 /******************* kernel tracing structs and utilities *******************/
 
@@ -445,8 +389,8 @@ struct worker_activity
  */
 struct lw_profile
 {
-	u64	cc_start;
-	u64	cc_end;
+	u64	tsc_start;
+	u64	tsc_end;
 	u32	core_start;
 	u32	core_end;
 	u32	parent;		/* frame id of parent which is it's index. Thus, if we chronologically traverse
@@ -474,19 +418,26 @@ struct kas_frame
 	u32				master_owned;
 };
 
+enum profile_level
+{
+	PROFILE_LEVEL_SYSTEM = 0,	/* lightweight; tracks system level performance TODO 	*/
+	PROFILE_LEVEL_TASK = 1,		/* heavyweight; tracks task level performance   	*/
+	PROFILE_LEVEL_KERNEL = 2,	/* heavyweight; tracks task+kernel level performance   	*/
+};
+
 struct kas_profiler
 {
-	u32			hw_profiling;	/* bool : If true and kt is supported, we do heavy weight profiling. */
+	enum profile_level	level;		/* granularit of profiling */
 	struct file		file;		/* memory mapped file */
 	struct kaspf_header *   header;		/* header at offset 0 of file */
 	struct arena 		mem;		/* helper arena */
 
 	u64			ns_frame;	/* start time of current frame being built */
 	u64			ns_frame_prev;	/* start time of previous frame (completed frame) */
-	u64 			cc_frame;	/* cpu tsc value corresponding to tsc(system_time( ns_frame )), 
+	u64 			tsc_frame;	/* cpu tsc value corresponding to tsc(system_time( ns_frame )), 
 			   		   	  i.e. the synced cpu tsc value at the time of when time was 
 			   		   	  taken */
-	u64			cc_frame_prev;
+	u64			tsc_frame_prev;
 
 	u64			frame_counter;	/* elapsed frames */
 	u64			clock_freq;	/* os clock frequency */
@@ -517,30 +468,18 @@ struct kas_profiler
 	struct process_runtime **frame_pr;		/* per-cpu array of finished process runtimes during frame
        							   [cpu_count][cpu_process_count]			   */
 
-	struct kernel_tracer *		kt;
+	u32 			kernel_buffer_count;
+	struct kernel_tracer *	kt;
 };
 
-extern struct kas_profiler *g_kas;
+extern struct kas_profiler *g_profiler;
 extern kas_thread_local struct kas_frame *tls_frame;
 
-void kas_profiler_init(struct arena *mem, const u64 master_thread_id, const u32 worker_count, const u32 entry_count, const u32 stack_len, const u64 rdtsc_freq);
-void kas_profiler_shutdown(void);
-void kas_profiler_try_set_task_id(volatile u32 *a_static_task_id, volatile u32 *a_static_setting, const char *label, const enum system_id system_id);
-void kas_acquire_thread_local_frame(const u64 worker_id, const tid thread_id);
-void kas_new_frame(void);
-void kas_kernel_profile(void);
-void kas_gather_kernel_profiles(void);
+void	kas_profiler_init(struct arena *mem, const u64 master_thread_id, const u32 worker_count, const u32 frame_len, const u32 stack_len, const u64 rdtsc_freq, const enum profile_level level);
+void 	kas_profiler_shutdown(void);
+void 	kas_profiler_new_frame(void);
 
-#define KASPF_READER_ALLOC(bufsize)			kaspf_reader_alloc(bufsize)
-#define KASPF_READER_SHUTDOWN				kaspf_reader_shutdown()
-#define	KASPF_READER_PROCESS(mem, ns_start, ns_end)	kaspf_reader_process(mem, ns_start, ns_end)
-
-#define KAS_PROFILER_INIT(mem, master_thread_id, worker_count, frame_len, stack_len, rdtsc_freq)	kas_profiler_init(mem, master_thread_id, worker_count, frame_len, stack_len, rdtsc_freq)
 /* Should be called once for every worker thread => every thread gets a unique index into the kas_profiler frame array */
-#define KAS_ACQUIRE_THREAD_LOCAL_FRAME(worker_id, thread_id)	kas_acquire_thread_local_frame(worker_id, thread_id)
-#define KAS_PROFILER_SHUTDOWN					kas_profiler_shutdown();
-#define KAS_NEW_FRAME						kas_new_frame()
-
 #define TASK_ID_VAR(suf)			__task_id ## suf
 #define SETTING_VAR(suf)			__setting ## suf
 #define _KAS_TASK(label, system, suf)									\
@@ -567,7 +506,8 @@ void kas_gather_kernel_profiles(void);
 	struct lw_profile *p = tls_frame->build + next;							\
 	p->parent = parent;										\
 	p->task_id = TASK_ID_VAR(suf);									\
-	p->cc_start = rdtscp(&p->core_start);								\
+	p->tsc_start = rdtscp(&p->core_start);								\
+	p->tsc_start += g_tsc_skew[p->core_start];							\
 }							
 #define KAS_TASK(label, system)				_KAS_TASK(label, system, __COUNTER__)				
 #define KAS_END												\
@@ -578,23 +518,14 @@ void kas_gather_kernel_profiles(void);
 	const u32 s = tls_frame->stack_count;								\
 	const u32 pi = tls_frame->build_stack[s-1];							\
 	struct lw_profile *p = tls_frame->build + pi;							\
-	p->cc_end = rdtscp(&p->core_end);								\
+	p->tsc_end = rdtscp(&p->core_end);								\
+	p->tsc_end += g_tsc_skew[p->core_start];							\
 													\
 	/* NOTE: Ordering here very important, see kas_new_frame */					\
 	atomic_store_rel_32(&tls_frame->stack_count, s-1);						\
 }						
 
-#else
-#define KAS_PROFILER_INIT(mem, master_thread_id, worker_count, frame_len, stack_len, rdtsc_freq)	
-#define KAS_ACQUIRE_THREAD_LOCAL_FRAME(worker_id, thread_id)
-#define KAS_PROFILER_SHUTDOWN				
-#define KAS_NEW_FRAME
-#define KAS_TASK(label, system)
-#define KAS_END
-#define KASPF_READER_ALLOC(bufsize)
-#define KASPF_READER_SHUTDOWN
-#define	KASPF_READER_PROCESS(mem, ns_start, ns_end)
-#endif
+void kas_profiler_try_set_task_id(volatile u32 *a_static_task_id, volatile u32 *a_static_setting, const char *label, const enum system_id system_id);
+void kas_profiler_acquire_thread_local_frame(const u64 worker_id, const tid thread_id);
 
 #endif
-

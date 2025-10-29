@@ -82,7 +82,7 @@ void task_main(kas_thread *thr)
 	while (atomic_load_acq_32(&a_startup_complete) == 0);
 
 	w->thr = thr;
-	KAS_ACQUIRE_THREAD_LOCAL_FRAME(w->usr_id, kas_thread_tid(w->thr));
+	kas_profiler_acquire_thread_local_frame(w->usr_id, kas_thread_tid(w->thr));
 	atomic_fetch_add_seq_cst_32(&a_startup_complete, 1);
 	log_string(T_SYSTEM, S_NOTE, "task_worker setup finalized");
 
