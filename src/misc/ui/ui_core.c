@@ -347,8 +347,7 @@ void ui_text_input_mode_enable(void)
 	}
 
 	node = ui_node_lookup(&id).address;
-	const u64 copy_flags = (UI_TEXT_EDIT_INTER_BUF_ON_FOCUS | UI_TEXT_EDIT_COPY_ON_FOCUS);
-	if ((node->flags & copy_flags) == copy_flags)
+	if (node->flags & UI_TEXT_EDIT_COPY_ON_FOCUS)
 	{
 		const u32 buflen = sizeof(g_ui->inter.text_internal_buf) / sizeof(u32);
 		u32 *buf = g_ui->inter.text_internal_buf;
@@ -1472,14 +1471,14 @@ struct ui_node_cache ui_node_alloc_cached(const u64 flags, const utf8 id, const 
 					 * node could technically see our changes while still being focused... instead we just copy
 					 * it if we actually become focused later on. */
 					const u32 buflen = sizeof(g_ui->inter.text_internal_buf) / sizeof(u32);
-					node->input = ui_text_input_alloc(g_ui->mem_frame, buflen);
+					node->input = ui_text_input_buffered(g_ui->inter.text_internal_buf, buflen);
 					node->input.cursor = 0;
 					node->input.mark = 0;
 					if (node->flags & UI_TEXT_EDIT_COPY_ON_FOCUS)
 					{
 						utf32 copy = (node->flags & (UI_TEXT_EXTERNAL | UI_TEXT_EXTERNAL_LAYOUT))
-							? utf32_copy_buffered(node->input.text.buf, buflen, stack_utf32_top(&g_ui->stack_external_text))
-							: utf32_utf8_buffered(node->input.text.buf, buflen, text);
+							? utf32_copy(g_ui->mem_frame, stack_utf32_top(&g_ui->stack_external_text))
+							: utf32_utf8(g_ui->mem_frame, text);
 
 						if (copy.len)
 						{
@@ -1786,14 +1785,14 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 					 * node could technically see our changes while still being focused... instead we just copy
 					 * it if we actually become focused later on. */
 					const u32 buflen = sizeof(g_ui->inter.text_internal_buf) / sizeof(u32);
-					node->input = ui_text_input_alloc(g_ui->mem_frame, buflen);
+					node->input = ui_text_input_buffered(g_ui->inter.text_internal_buf, buflen);
 					node->input.cursor = 0;
 					node->input.mark = 0;
 					if (node->flags & UI_TEXT_EDIT_COPY_ON_FOCUS)
 					{
 						utf32 copy = (node->flags & (UI_TEXT_EXTERNAL | UI_TEXT_EXTERNAL_LAYOUT))
-							? utf32_copy_buffered(node->input.text.buf, buflen, stack_utf32_top(&g_ui->stack_external_text))
-							: utf32_utf8_buffered(node->input.text.buf, buflen, (utf8) { .buf = formatted->buf, .len = text_len, .size = formatted->size });
+							? utf32_copy(g_ui->mem_frame, stack_utf32_top(&g_ui->stack_external_text))
+							: utf32_utf8(g_ui->mem_frame, (utf8) { .buf = formatted->buf, .len = text_len, .size = formatted->size });
 
 						if (copy.len)
 						{

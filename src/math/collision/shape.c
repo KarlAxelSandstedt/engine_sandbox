@@ -320,90 +320,74 @@ void relation_list_internal_remove_from_relation_unit(struct relation_list *list
 	assert(0 && "tried to delete relation from unit that does not exist!");
 }
 
-
-struct collision_hull collision_box(struct arena *mem, const struct AABB *box)
+static struct hull_face box_face[] =
 {
-	vec3 b[8];
-	vec3_set(b[0], box->center[0] + box->hw[0], box->center[1] + box->hw[1], box->center[2] + box->hw[2]);
-	vec3_set(b[1], box->center[0] + box->hw[0], box->center[1] + box->hw[1], box->center[2] - box->hw[2]);
-	vec3_set(b[2], box->center[0] + box->hw[0], box->center[1] - box->hw[1], box->center[2] + box->hw[2]);
-	vec3_set(b[3], box->center[0] + box->hw[0], box->center[1] - box->hw[1], box->center[2] - box->hw[2]);
-	vec3_set(b[4], box->center[0] - box->hw[0], box->center[1] + box->hw[1], box->center[2] + box->hw[2]);
-	vec3_set(b[5], box->center[0] - box->hw[0], box->center[1] + box->hw[1], box->center[2] - box->hw[2]);
-	vec3_set(b[6], box->center[0] - box->hw[0], box->center[1] - box->hw[1], box->center[2] + box->hw[2]);
-	vec3_set(b[7], box->center[0] - box->hw[0], box->center[1] - box->hw[1], box->center[2] - box->hw[2]);
+	{ .first  =  0, .count = 4 },
+	{ .first  =  4, .count = 4 },
+	{ .first  =  8, .count = 4 },
+	{ .first  = 12, .count = 4 },
+	{ .first  = 16, .count = 4 },
+	{ .first  = 20, .count = 4 },
+};
 
-	struct arena tmp1 = arena_alloc_1MB();
-	struct arena tmp2 = arena_alloc_1MB();
-	struct arena tmp3 = arena_alloc_1MB();
-	struct arena tmp4 = arena_alloc_1MB();
-	struct arena tmp5 = arena_alloc_1MB();
-
-	struct collision_hull hull = collision_hull_construct(mem,
-		        &tmp1,
-		       	&tmp2,
-		       	&tmp3, 
-			&tmp4, 
-			&tmp5,
-		       	b,
-		       	8,
-		       	100.0f * F32_EPSILON);
-
-	arena_free_1MB(&tmp1); 
-	arena_free_1MB(&tmp2);
-	arena_free_1MB(&tmp3);
-	arena_free_1MB(&tmp4);
-	arena_free_1MB(&tmp5);
-
-	COLLISION_HULL_ASSERT(&hull);
-
-	return hull;
-}
-
-struct collision_hull collision_hull_random(struct arena *mem, const f32 min_radius, const f32 max_radius, const u32 min_v_count, const u32 max_v_count)
+static struct hull_half_edge box_edge[] =
 {
-	const f32 radius = rng_f32_range(min_radius, max_radius);
+	{ .origin = 0, .twin =  7,  .face_ccw = 0, },
+	{ .origin = 1, .twin = 11,  .face_ccw = 0, },
+	{ .origin = 2, .twin = 15,  .face_ccw = 0, },
+	{ .origin = 3, .twin = 19,  .face_ccw = 0, },
 
+	{ .origin = 0, .twin = 18,  .face_ccw = 1, },
+	{ .origin = 4, .twin = 21,  .face_ccw = 1, },
+	{ .origin = 5, .twin =  8,  .face_ccw = 1, },
+	{ .origin = 1, .twin =  0,  .face_ccw = 1, },
 
-	struct arena tmp1 = arena_alloc_1MB();
-	struct arena tmp2 = arena_alloc_1MB();
-	struct arena tmp3 = arena_alloc_1MB();
-	struct arena tmp4 = arena_alloc_1MB();
-	struct arena tmp5 = arena_alloc_1MB();
+	{ .origin = 1, .twin =  6,  .face_ccw = 2, },
+	{ .origin = 5, .twin = 20,  .face_ccw = 2, },
+	{ .origin = 6, .twin = 12,  .face_ccw = 2, },
+	{ .origin = 2, .twin =  1,  .face_ccw = 2, },
 
-	u32 v_count = (u32) rng_u64_range(min_v_count, max_v_count); 
-	vec3ptr v = arena_push_packed(&tmp1, v_count * sizeof(vec3));
+	{ .origin = 2, .twin = 10,  .face_ccw = 3, },
+	{ .origin = 6, .twin = 23,  .face_ccw = 3, },
+	{ .origin = 7, .twin = 16,  .face_ccw = 3, },
+	{ .origin = 3, .twin =  2,  .face_ccw = 3, },
 
-	for (u32 j = 0; j < v_count; ++j)
+	{ .origin = 3, .twin = 14,  .face_ccw = 4, },
+	{ .origin = 7, .twin = 22,  .face_ccw = 4, },
+	{ .origin = 4, .twin =  4,  .face_ccw = 4, },
+	{ .origin = 0, .twin =  3,  .face_ccw = 4, },
+
+	{ .origin = 6, .twin =  9,  .face_ccw = 5, },
+	{ .origin = 5, .twin =  5,  .face_ccw = 5, },
+	{ .origin = 4, .twin = 17,  .face_ccw = 5, },
+	{ .origin = 7, .twin = 13,  .face_ccw = 5, },
+};
+
+struct collision_hull collision_box(struct arena *mem, const vec3 hw)
+{
+	vec3ptr box_vertex = arena_push(mem, 8*sizeof(vec3));
+
+	vec3_set(box_vertex[0],  hw[0],  hw[1], -hw[2]); 
+	vec3_set(box_vertex[1],  hw[0],  hw[1],  hw[2]);	
+	vec3_set(box_vertex[2], -hw[0],  hw[1],  hw[2]);	
+	vec3_set(box_vertex[3], -hw[0],  hw[1], -hw[2]);	
+	vec3_set(box_vertex[4],  hw[0], -hw[1], -hw[2]);
+	vec3_set(box_vertex[5],  hw[0], -hw[1],  hw[2]);	
+	vec3_set(box_vertex[6], -hw[0], -hw[1],  hw[2]);	
+	vec3_set(box_vertex[7], -hw[0], -hw[1], -hw[2]);	
+
+	struct collision_hull box = 
 	{
-		const f32 u1 = rng_f32_normalized();
-		const f32 u2 = rng_f32_normalized();
-		const f32 phi = f32_acos(2*u1 - 1.0f) - MM_PI_F / 2.0f;
-		const f32 lambda = 2*MM_PI_F*u2;
-		vec3_set(v[j], radius*f32_cos(phi)*f32_cos(lambda)
-			     , radius*f32_cos(phi)*f32_sin(lambda)
-			     , radius*f32_sin(phi));
-	}
+		.v = box_vertex,
+		.e = box_edge,
+		.f = box_face,
+		.e_count = 24,
+		.v_count = 8,
+		.f_count = 6,
+	};
 
-	struct collision_hull hull = collision_hull_construct(mem,
-	        &tmp1,
-	       	&tmp2,
-	       	&tmp3, 
-		&tmp4, 
-		&tmp5,
-	       	v,
-	       	v_count,
-	       	100.0f * F32_EPSILON);
-
-	arena_free_1MB(&tmp1); 
-	arena_free_1MB(&tmp2);
-	arena_free_1MB(&tmp3);
-	arena_free_1MB(&tmp4);
-	arena_free_1MB(&tmp5);
-	
-      	return hull;
+	return box; 
 }
-
 void collision_hull_face_direction(vec3 dir, const struct collision_hull *h, const u32 fi)
 {
 	vec3 a, b;
@@ -896,429 +880,6 @@ void hull_add_edge_and_vertex(struct collision_hull *hull, u32 *ei, u32 *vi, u32
 	*ei += 1;
 }
 
-struct collision_hull collision_hull_construct(struct arena *mem, struct arena *table_mem, struct arena *face_mem, struct arena *conflict_mem, struct arena *mem_4, struct arena *mem_5, const vec3ptr v, const u32 v_count, const f32 EPSILON)
-{
-	if (v_count < 4) { return collision_hull_empty(); }	
-
-	/* (1) Get inital points for tetrahedron */
-	i32 init_i[4] = { 0 };
-	if (tetrahedron_indices(init_i, v, v_count, EPSILON) == 0) { return collision_hull_empty(); }
-
-	/* (2) permutation - Random permutation of remaining points */
-	const u64 permutation_size = sizeof(i32) * v_count;
-	i32 *permutation = (i32 *) arena_push(table_mem, permutation_size);
-	convex_hull_internal_random_permutation(permutation, init_i, v_count);
-	
-	/* (3) initiate DCEL from points */
-	struct DCEL dcel = convex_hull_internal_setup_tetrahedron_DCEL(table_mem, face_mem, init_i, v);
-
-
-	/* (4) setup conflict graph */
-	struct relation_list conflict_graph = convex_hull_internal_tetrahedron_conflicts(&dcel, conflict_mem, permutation, table_mem, v, v_count, EPSILON);
-
-	/**
-	 * vertex -> edge map. We iterate over all conflicting faces for a point, and for each edge
-	 * in a face, add it to the map if it is not currentl in the map. If it is in the map, remove it.
-	 * In the end, we will only have the horizon edges left. For degenerate coplanar faces for newly
-	 * created faces in the point's iteration, we can check the horizon edges' twins.
-	 */
-	struct hash_map *horizon_map = hash_map_alloc(mem_4, (u32) power_of_two_ceil(v_count), v_count, 0);
-
-	/* iteratetively solve and add conflicts until no vertices left */
-	const i32 n = v_count;
-
-	for (i32 i = 4; i < n; ++i)
-	{
-		/* Some face is conflicting with point */
-		if (conflict_graph.r[i].next != -1)
-		{
-			/* (5) Get horizon edges (unsorted) and push all conflicting faces to pointer, delete all DCEL edges not on the horizon  */
-			i32 *conflict_faces = (i32 *) mem_5->stack_ptr;
-			i32 *edges_to_remove = (i32 *) mem_4->stack_ptr;
-			i32 num_conflict_faces = convex_hull_internal_push_conflict_faces(&dcel, &conflict_graph, horizon_map, mem_5, mem_4, i);
-			
-			/* (6) sort the edges (push to mem_4) */
-			i32 start;
-			for (i32 k = 0; (start = hash_map_first(horizon_map, k)) == -1; ++k);
-			const i32 *horizon_edges = (i32 *) mem_4->stack_ptr;
-			arena_push_packed_memcpy(mem_4, &start, sizeof(i32));
-			i32 edge = start;
-		        i32 num_edges = 1;
-			while (1)
-			{
-				const i32 next = dcel.he_table[edge].next;
-				const u32 key = dcel.he_table[next].origin;
-				/* all keys should have 0 or 1 values at this point */
-				edge = hash_map_first(horizon_map, key);
-				if (edge == start) { break; }
-				arena_push_packed_memcpy(mem_4, &edge, sizeof(i32));
-				num_edges += 1;	
-			}
-			hash_map_flush(horizon_map);
-
-			/**
-			 * (7) Remove all conflicts with face and face itself from conflict graph but record any
-			 * old vertex conflicts at boundary edge first. New faces will only conflict with points
-			 * in the given unions. 
-			 */
-			i32 *union_lens = (i32 *) mem_4->stack_ptr;
-			arena_push_packed(mem_4, num_edges * sizeof(i32));
-			for (i32 z = 0; z < num_edges; ++z)
-			{
-				const i32 f1 = dcel.he_table[horizon_edges[z]].face_ccw;
-				const i32 f2 = dcel.he_table[dcel.he_table[horizon_edges[z]].twin].face_ccw;
-				union_lens[z] = relation_list_push_union(mem_4, &conflict_graph, dcel.faces[f1].relation_unit, dcel.faces[f2].relation_unit);
-			}
-		
-			
-			/* (8) Add new faces */
-			/* (9) Fix coplanar degeneracies */ 
-			/* (10) find conflicts to i<j<n points and add to graph  */
-			i32 j = 0, k = 1, upper = num_edges - 1; 
-			for (; 0 < upper && dcel.he_table[dcel.he_table[horizon_edges[upper]].twin].face_ccw == dcel.he_table[dcel.he_table[horizon_edges[j]].twin].face_ccw; --upper);
-			for (; k <= upper && dcel.he_table[dcel.he_table[horizon_edges[k]].twin].face_ccw == dcel.he_table[dcel.he_table[horizon_edges[j]].twin].face_ccw; ++k);
-			j = (upper + 1) % num_edges;
-
-			i32 len_offset = 0;
-			for (i32 t = 0; t < j; ++t)
-			{
-				len_offset += union_lens[t]; 
-			}
-
-			i32 horizon_edges_to_remove = 0;
-			
-			i32 unit, face, prev_edge = -1, last_edge = -1;
-
-			i32 b_i = dcel.he_table[dcel.he_table[dcel.he_table[dcel.he_table[horizon_edges[j]].twin].next].next].origin;
-			vec3 b, c, normal, origin, new;
-			vec3_copy(origin, v[dcel.he_table[horizon_edges[j]].origin]);
-			vec3_sub(b, v[b_i], origin);
-			vec3_sub(c, v[dcel.he_table[horizon_edges[(j+1) % num_edges]].origin], origin);
-			vec3_cross(normal, b, c);
-			vec3_mul_constant(normal, 1.0f / vec3_length(normal));
-			vec3_sub(new, v[permutation[i]], origin);
-			/*coplanar if neighbor is on fat plane of new face */
-			if (f32_abs(vec3_dot(new, normal)) < EPSILON)
-			{
-				//unit = relation_list_add_relation_unit_empty(&conflict_graph, -1);
-				//face = DCEL_face_add(&dcel, face_mem, horizon_edges[j], unit);
-				//conflict_graph.r[unit].related_to = face;
-				face = dcel.he_table[dcel.he_table[horizon_edges[j]].twin].face_ccw;
-				unit = dcel.faces[face].relation_unit;
-
-				last_edge = DCEL_half_edge_reserve(&dcel, table_mem);
-				prev_edge = DCEL_half_edge_reserve(&dcel, table_mem);
-
-				DCEL_half_edge_set(&dcel, prev_edge,
-					dcel.he_table[horizon_edges[k % num_edges]].origin,
-					-1,
-					face,
-					last_edge,
-					-1);
-
-				DCEL_half_edge_set(&dcel, last_edge,
-					permutation[i],
-					-1,
-					face,
-					-1,
-					prev_edge);
-
-				dcel.faces[face].he_index = last_edge;
-
-				convex_hull_internal_DCEL_add_coplanar(&dcel, horizon_edges[j], horizon_edges[k-1], last_edge, prev_edge);
-			
-				i32 edge = dcel.he_table[horizon_edges[j]].twin;
-				while (edge != dcel.he_table[horizon_edges[k-1]].twin) 
-				{
-					horizon_edges_to_remove += 2;
-					const i32 tmp = dcel.he_table[edge].prev;
-					arena_push_packed_memcpy(mem_5, &dcel.he_table[edge].twin, sizeof(i32));
-					arena_push_packed_memcpy(mem_5, &edge, sizeof(i32));
-					edge = tmp;
-				}
-				horizon_edges_to_remove += 2;
-				arena_push_packed_memcpy(mem_5, &dcel.he_table[edge].twin, sizeof(i32));
-				arena_push_packed_memcpy(mem_5, &edge, sizeof(i32));
-
-				len_offset = 0;
-				for (j = 0; j < k; ++j) 
-				{ 
-					len_offset += union_lens[j]; 
-				}
-			}
-			else
-			{
-				for (; j != k; ) 
-				{ 
-					unit = relation_list_add_relation_unit_empty(&conflict_graph, -1);
-					face = DCEL_face_add(&dcel, face_mem, horizon_edges[j], unit);
-					conflict_graph.r[unit].related_to = face;
-
-					const i32 tmp = prev_edge;
-					const i32 last_edge_in_polygon = DCEL_half_edge_reserve(&dcel, table_mem);
-					if (j == ((upper + 1) % num_edges))
-					{
-						last_edge = last_edge_in_polygon;
-					}
-					prev_edge = DCEL_half_edge_reserve(&dcel, table_mem);
-
-					DCEL_half_edge_set(&dcel, prev_edge,
-						dcel.he_table[horizon_edges[(j+1) % num_edges]].origin,
-						-1,
-						face,
-						last_edge_in_polygon,
-						horizon_edges[j]);
-
-					DCEL_half_edge_set(&dcel, last_edge_in_polygon,
-						permutation[i],
-						tmp,
-						face,
-						horizon_edges[j],
-						prev_edge);
-					if (tmp != -1) { dcel.he_table[tmp].twin = last_edge_in_polygon; }
-					
-					vec3_copy(origin, v[dcel.he_table[horizon_edges[j]].origin]);
-					vec3_sub(b, v[dcel.he_table[horizon_edges[(j+1) % num_edges]].origin], origin);
-					vec3_sub(c, v[permutation[i]], origin);
-					vec3_cross(normal, b, c);
-					vec3_mul_constant(normal, 1.0f / vec3_length(normal));
-					convex_hull_internal_add_possible_conflicts(permutation, &conflict_graph, horizon_map->hash, mem_5, unit, union_lens[j], union_lens + num_edges + len_offset, origin, normal, v, EPSILON);
-				
-					dcel.he_table[horizon_edges[j]].prev = last_edge_in_polygon;
-					dcel.he_table[horizon_edges[j]].next = prev_edge;
-					dcel.he_table[horizon_edges[j]].face_ccw = face;
-
-					len_offset += union_lens[j]; 
-					j = (j+1) % num_edges;
-					if (j == 0) { len_offset = 0; }
-				}
-			}
-
-			for (; k < upper+1;)
-			{
-				for (k += 1; k < upper+1 && dcel.he_table[dcel.he_table[horizon_edges[k]].twin].face_ccw == dcel.he_table[dcel.he_table[horizon_edges[j]].twin].face_ccw; k += 1);
-
-				b_i = dcel.he_table[dcel.he_table[dcel.he_table[dcel.he_table[horizon_edges[j]].twin].next].next].origin;
-				vec3_copy(origin, v[dcel.he_table[horizon_edges[j]].origin]);
-				vec3_sub(b, v[b_i], origin);
-				vec3_sub(c, v[dcel.he_table[horizon_edges[(j+1) % num_edges]].origin], origin);
-				vec3_cross(normal, b, c);
-				vec3_mul_constant(normal, 1.0f / vec3_length(normal));
-				vec3_sub(new, v[permutation[i]], origin);
-				/*coplanar if neighbor is on fat plane of new face */
-				if (f32_abs(vec3_dot(new, normal)) < EPSILON)
-				{
-					//unit = relation_list_add_relation_unit_empty(&conflict_graph, -1);
-					//face = DCEL_face_add(&dcel, face_mem, horizon_edges[j], unit);
-					//conflict_graph.r[unit].related_to = face;
-
-					face = dcel.he_table[dcel.he_table[horizon_edges[j]].twin].face_ccw;
-					unit = dcel.faces[face].relation_unit;
-
-					const i32 tmp = prev_edge;
-					const i32 last_edge_in_polygon = DCEL_half_edge_reserve(&dcel, table_mem);
-					if (j == ((upper + 1) % num_edges))
-					{
-						last_edge = last_edge_in_polygon;
-					}
-
-					prev_edge = DCEL_half_edge_reserve(&dcel, table_mem);
-
-					DCEL_half_edge_set(&dcel, prev_edge,
-						dcel.he_table[horizon_edges[k % num_edges]].origin,
-						-1,
-						face,
-						last_edge_in_polygon,
-						-1);
-
-					DCEL_half_edge_set(&dcel, last_edge_in_polygon,
-						permutation[i],
-						tmp,
-						face,
-						-1,
-						prev_edge);
-					dcel.he_table[tmp].twin = last_edge_in_polygon;
-
-					dcel.faces[face].he_index = last_edge_in_polygon;
-
-					convex_hull_internal_DCEL_add_coplanar(&dcel, horizon_edges[j], horizon_edges[k-1], last_edge_in_polygon, prev_edge);
-
-					i32 edge = dcel.he_table[horizon_edges[j]].twin;
-					while (edge != dcel.he_table[horizon_edges[k-1]].twin) 
-					{
-						horizon_edges_to_remove += 2;
-						const i32 tmp = dcel.he_table[edge].prev;
-						arena_push_packed_memcpy(mem_5, &dcel.he_table[edge].twin, sizeof(i32));
-						arena_push_packed_memcpy(mem_5, &edge, sizeof(i32));
-						edge = tmp;
-					}
-					horizon_edges_to_remove += 2;
-					arena_push_packed_memcpy(mem_5, &dcel.he_table[edge].twin, sizeof(i32));
-					arena_push_packed_memcpy(mem_5, &edge, sizeof(i32));
-
-					for (; j < k; ++j) 
-					{ 
-						len_offset += union_lens[j]; 
-					}
-				}
-				else
-				{
-					for (; j < k; ++j) 
-					{ 
-						unit = relation_list_add_relation_unit_empty(&conflict_graph, -1);
-						face = DCEL_face_add(&dcel, face_mem, horizon_edges[j], unit);
-						conflict_graph.r[unit].related_to = face;
-
-						const i32 tmp = prev_edge;
-						const i32 last_edge_in_polygon = DCEL_half_edge_reserve(&dcel, table_mem);
-						prev_edge = DCEL_half_edge_reserve(&dcel, table_mem);
-
-						DCEL_half_edge_set(&dcel, prev_edge,
-							dcel.he_table[horizon_edges[(j+1) % num_edges]].origin,
-							-1,
-							face,
-							last_edge_in_polygon,
-							horizon_edges[j]);
-
-						DCEL_half_edge_set(&dcel, last_edge_in_polygon,
-							permutation[i],
-							tmp,
-							face,
-							horizon_edges[j],
-							prev_edge);
-						dcel.he_table[tmp].twin = last_edge_in_polygon;
-
-						vec3_copy(origin, v[dcel.he_table[horizon_edges[j]].origin]);
-						vec3_sub(b, v[dcel.he_table[horizon_edges[(j+1) % num_edges]].origin], origin);
-						vec3_sub(c, v[permutation[i]], origin);
-						vec3_cross(normal, b, c);
-						vec3_mul_constant(normal, 1.0f / vec3_length(normal));
-						convex_hull_internal_add_possible_conflicts(permutation, &conflict_graph, horizon_map->hash, mem_5, unit, union_lens[j], union_lens + num_edges + len_offset, origin, normal, v, EPSILON);
-
-						dcel.he_table[horizon_edges[j]].prev = last_edge_in_polygon;
-						dcel.he_table[horizon_edges[j]].next = prev_edge;
-						dcel.he_table[horizon_edges[j]].face_ccw = face;
-
-						len_offset += union_lens[j]; 
-					}
-				}
-			}
-
-			assert(last_edge != -1);
-			dcel.he_table[last_edge].twin = prev_edge;
-			dcel.he_table[prev_edge].twin = last_edge;
-			
-			i32 *ptr = ((i32 *) mem_5->stack_ptr) - horizon_edges_to_remove;
-			for (i32 z = 0; z < horizon_edges_to_remove; ++z)
-			{
-				DCEL_half_edge_remove(&dcel, ptr[z]);
-			}
-			arena_pop_packed(mem_5, horizon_edges_to_remove * sizeof(i32));
-
-			/* cleanup mem_5 */
-			for (i32 z = 0; z < num_conflict_faces; z++)
-			{
-				/* only free once if repeated */
-				if (dcel.faces[conflict_faces[z]].relation_unit != -1)
-				{
-					relation_list_remove_relation_unit(&conflict_graph, dcel.faces[conflict_faces[z]].relation_unit);
-					DCEL_face_remove(&dcel, conflict_faces[z]);
-				}
-			}
-			arena_pop_packed(mem_5, num_conflict_faces * sizeof(i32));
-
-			/* cleanup mem_4 */
-			for (i32 z = 0; z < num_edges; ++z)
-			{
-				arena_pop_packed(mem_4, union_lens[z] * sizeof(i32));
-			}
-			for (i32 z = 0; z < edges_to_remove[0]; ++z)
-			{
-				DCEL_half_edge_remove(&dcel, edges_to_remove[z+1]);
-			}
-			arena_pop_packed(mem_4, (edges_to_remove[0]+1) * sizeof(i32));
-			arena_pop_packed(mem_4, num_edges * sizeof(i32));
-			arena_pop_packed(mem_4, num_edges * sizeof(i32));
-		}
-		relation_list_remove_relation_unit(&conflict_graph, i);
-	}
-
-	u32 e_count = 0;
-	u32 f_count = 0;
-
-	for (i32 i = 0; i < dcel.num_faces; ++i)
-	{
-		const struct DCEL_face *f = &dcel.faces[i];
-		/* It is a face on the convex hull */
-		if (f->relation_unit != -1)
-		{
-			++e_count;
-			++f_count;
-			u32 start = f->he_index;
-			u32 next = dcel.he_table[start].next;
-			for (; next != start; ++e_count, next = dcel.he_table[next].next);
-		}
-	}
-
-
-	struct collision_hull hull =
-	{
-		.f = arena_push(mem, f_count * sizeof(struct hull_face)),
-		.e = arena_push(mem, e_count * sizeof(struct hull_half_edge)),
-		.v = arena_push_memcpy(mem, v, v_count * sizeof(vec3)),
-		.f_count = f_count,
-		.e_count = e_count,
-		.v_count = v_count,
-	};
-
-	u32 fi = 0;
-	u32 ei = 0;
-	u32 vi = 0;
-
-	u32 *dcel_he_to_he = arena_push(mem_4, sizeof(u32) * dcel.num_he);
-	u32 *dcel_v_to_v = arena_push(mem_5, sizeof(u32) * v_count);
-
-	for (u32 i = 0; i < (u32) dcel.num_he; ++i)
-	{
-		dcel_he_to_he[i] = UINT32_MAX;
-	}
-
-	for (u32 i = 0; i < v_count; ++i)
-	{
-		dcel_v_to_v[i] = UINT32_MAX;
-	}
-
-	for (i32 i = 0; i < dcel.num_faces; ++i)
-	{
-		const struct DCEL_face *f = &dcel.faces[i];
-		/* It is a face on the convex hull */
-		if (f->relation_unit != -1)
-		{
-			/* (1) add face to hull */
-			hull.f[fi].first = ei;
-			hull.f[fi].count = 0;
-			u32 he_index = f->he_index;
-
-			do
-			{
-				hull.f[fi].count += 1;
-				hull_add_edge_and_vertex(&hull, &ei, &vi, dcel_he_to_he, dcel_v_to_v, &dcel, v, he_index, fi);
-				he_index = dcel.he_table[he_index].next;
-			} while (he_index != (u32) f->he_index);
-
-			++fi;
-		}
-	}	
-	
-	/* Cleanup */
-	relation_list_free(&conflict_graph);
-	arena_pop_packed(table_mem, dcel.num_he * sizeof(struct DCEL_half_edge));
-	arena_pop_packed(face_mem, dcel.num_faces * sizeof(struct DCEL_face));
-	arena_pop_packed(table_mem, permutation_size);
-
-	return hull;
-}
-
 void collision_hull_assert(struct collision_hull *hull)
 {
 	struct hull_face *f;
@@ -1345,3 +906,4 @@ void collision_hull_assert(struct collision_hull *hull)
 		assert(i == (hull->e + e->twin)->twin);
 	}
 }
+

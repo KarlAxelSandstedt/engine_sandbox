@@ -24,7 +24,7 @@
 
 f32 ui_field_f32(const f32 value, const intv range, const utf8 formatted)
 {
-	struct slot slot = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS | UI_TEXT_EDIT | UI_TEXT_EDIT_INTER_BUF_ON_FOCUS | UI_TEXT_EDIT_COPY_ON_FOCUS | UI_DRAW_BORDER | UI_DRAW_TEXT, &formatted);
+	struct slot slot = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS | UI_TEXT_EDIT | UI_TEXT_EDIT_INTER_BUF_ON_FOCUS | UI_TEXT_EDIT_COPY_ON_FOCUS | UI_DRAW_BORDER | UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, &formatted);
 	struct ui_node *node = slot.address;
 
 	f32 ret = value;
@@ -47,7 +47,7 @@ f32 ui_field_f32(const f32 value, const intv range, const utf8 formatted)
 
 u64 ui_field_u64(const u64 value, const intvu64 range, const utf8 formatted)
 {
-	struct slot slot = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS | UI_TEXT_EDIT | UI_TEXT_EDIT_INTER_BUF_ON_FOCUS | UI_TEXT_EDIT_COPY_ON_FOCUS | UI_DRAW_BORDER | UI_DRAW_TEXT, &formatted);
+	struct slot slot = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS | UI_TEXT_EDIT | UI_TEXT_EDIT_INTER_BUF_ON_FOCUS | UI_TEXT_EDIT_COPY_ON_FOCUS | UI_DRAW_BORDER | UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, &formatted);
 	struct ui_node *node = slot.address;
 
 	u64 ret = value;
@@ -77,7 +77,7 @@ u64 ui_field_u64(const u64 value, const intvu64 range, const utf8 formatted)
 
 i64 ui_field_i64(const i64 value, const intvi64 range, const utf8 formatted)
 {
-	struct slot slot = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS | UI_TEXT_EDIT | UI_TEXT_EDIT_INTER_BUF_ON_FOCUS | UI_TEXT_EDIT_COPY_ON_FOCUS | UI_DRAW_BORDER | UI_DRAW_TEXT, &formatted);
+	struct slot slot = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS | UI_TEXT_EDIT | UI_TEXT_EDIT_INTER_BUF_ON_FOCUS | UI_TEXT_EDIT_COPY_ON_FOCUS | UI_DRAW_BORDER | UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, &formatted);
 	struct ui_node *node = slot.address;
 
 	i64 ret = value;
@@ -106,9 +106,24 @@ i64 ui_field_i64(const i64 value, const intvi64 range, const utf8 formatted)
 	return ret;
 }
 
+utf8 ui_field_utf8(const utf8 formatted)
+{
+	struct slot slot = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS | UI_TEXT_EDIT | UI_TEXT_EDIT_INTER_BUF_ON_FOCUS | UI_DRAW_BORDER | UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, &formatted);
+	struct ui_node *node = slot.address;
+
+	utf8 ret = utf8_empty();
+	if ((node->inter & UI_INTER_FOCUS) && g_ui->inter.key_clicked[KAS_ENTER])
+	{
+		ret = utf8_utf32(g_ui->mem_frame, node->input.text);
+		cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_disable \"%k\"", &node->id);
+	}
+
+	return ret;
+
+}
+
 f32 ui_field_f32_f(const f32 value, const intv range, const char *fmt, ...)
 {
-
 	va_list args;
 	va_start(args, fmt);
 	const utf8 id = utf8_format_variadic(g_ui->mem_frame, fmt, args);
@@ -119,7 +134,6 @@ f32 ui_field_f32_f(const f32 value, const intv range, const char *fmt, ...)
 
 u64 ui_field_u64_f(const u64 value, const intvu64 range, const char *fmt, ...)
 {
-
 	va_list args;
 	va_start(args, fmt);
 	const utf8 id = utf8_format_variadic(g_ui->mem_frame, fmt, args);
@@ -130,13 +144,22 @@ u64 ui_field_u64_f(const u64 value, const intvu64 range, const char *fmt, ...)
 
 i64 ui_field_i64_f(const i64 value, const intvi64 range, const char *fmt, ...)
 {
-
 	va_list args;
 	va_start(args, fmt);
 	const utf8 id = utf8_format_variadic(g_ui->mem_frame, fmt, args);
 	va_end(args);
 
 	return ui_field_i64(value, range, id);
+}
+
+utf8 ui_field_utf8_f(const char *fmt, ...)
+{
+	va_list args;
+	va_start(args, fmt);
+	const utf8 id = utf8_format_variadic(g_ui->mem_frame, fmt, args);
+	va_end(args);
+
+	return ui_field_utf8(id);
 }
 
 struct ui_list ui_list_init(enum axis_2 axis, const f32 axis_pixel_size, const f32 entry_pixel_size)
@@ -553,14 +576,14 @@ void ui_timeline_row_pop(struct timeline_config *config)
 	ui_node_pop();
 }
 
-u64 ui_button_f(const char *fmt, ...)
+u64 ui_button_f(const u64 flags, const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
 	utf8 id = utf8_format_variadic(g_ui->mem_frame, fmt, args);
 	va_end(args);
 
-	struct ui_node *button = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_DRAW_BORDER | UI_DRAW_BACKGROUND | UI_DRAW_GRADIENT | UI_DRAW_ROUNDED_CORNERS | UI_DRAW_TEXT, &id).address;
+	struct ui_node *button = ui_node_alloc(UI_INTER_LEFT_CLICK | flags, &id).address;
 	return button->inter;
 }
 
@@ -668,7 +691,7 @@ void ui_popup_build(void)
 					ui_pad_fill();
 
 					ui_width(ui_size_pixel(128.0f, 1.0f))
-					if (ui_button_f("%k###popup_display2_%u", &popup->display2, popup->window) & UI_INTER_LEFT_CLICK)
+					if (ui_button_f(UI_DRAW_TEXT | UI_DRAW_BORDER | UI_DRAW_BACKGROUND | UI_DRAW_ROUNDED_CORNERS, "%k###popup_display2_%u", &popup->display2, popup->window) & UI_INTER_LEFT_CLICK)
 					{
 						if (popup->state != UI_POPUP_STATE_PENDING_VERIFICATION)
 						{
@@ -681,7 +704,7 @@ void ui_popup_build(void)
 					ui_pad_fill();
 
 					ui_width(ui_size_pixel(128.0f, 1.0f))
-					if (ui_button_f("%k###popup_display3_%u", &popup->display3, popup->window) & UI_INTER_LEFT_CLICK)
+					if (ui_button_f(UI_DRAW_TEXT | UI_DRAW_BORDER | UI_DRAW_BACKGROUND | UI_DRAW_ROUNDED_CORNERS, "%k###popup_display3_%u", &popup->display3, popup->window) & UI_INTER_LEFT_CLICK)
 					{
 						if (popup->state != UI_POPUP_STATE_PENDING_VERIFICATION)
 						{

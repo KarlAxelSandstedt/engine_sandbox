@@ -123,6 +123,9 @@ u64	ui_field_u64_f(const u64 value, const intvu64 range, const char *fmt, ...);
 i64	ui_field_i64(const i64 value, const intvi64 range, const utf8 id);
 i64	ui_field_i64_f(const i64 value, const intvi64 range, const char *fmt, ...);
 
+utf8	ui_field_utf8(const utf8 id);
+utf8	ui_field_utf8_f(const char *fmt, ...);
+
 
 /***************************************** ######TODO *****************************************/
 
@@ -134,7 +137,7 @@ struct cmd_console
 
 void 			ui_cmd_console(struct cmd_console *console, const char *fmt, ...);
 
-u64			ui_button_f(const char *fmt, ...);
+u64			ui_button_f(const u64 flags, const char *fmt, ...);
 
 /******************************************* ui_list ********************************************/
 

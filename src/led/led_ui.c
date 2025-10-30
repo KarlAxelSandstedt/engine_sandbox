@@ -53,7 +53,7 @@ static void led_project_menu_ui(struct led *led, const struct ui_visual *visual)
 			ui_pad();
 
 			ui_width(ui_size_text(F32_INFINITY, 1.0f))
-			if (ui_button_f("Refresh###ref") & UI_INTER_LEFT_CLICK)
+			if (ui_button_f(UI_DRAW_TEXT | UI_DRAW_BORDER | UI_DRAW_BACKGROUND | UI_DRAW_ROUNDED_CORNERS, "Refresh###ref") & UI_INTER_LEFT_CLICK)
 			{
 				menu->projects_folder_refresh = 1;
 			}
@@ -108,7 +108,7 @@ static void led_project_menu_ui(struct led *led, const struct ui_visual *visual)
 		{
 			ui_pad();
 
-			if ((ui_button_f("New Project") & UI_INTER_LEFT_CLICK) && menu->popup_new_project.state == UI_POPUP_STATE_NULL)
+			if ((ui_button_f(UI_DRAW_TEXT | UI_DRAW_BORDER | UI_DRAW_BACKGROUND | UI_DRAW_ROUNDED_CORNERS, "New Project") & UI_INTER_LEFT_CLICK) && menu->popup_new_project.state == UI_POPUP_STATE_NULL)
 			{
 				ui_popup_utf8_input(&menu->popup_new_project, &menu->utf8_new_project, &menu->input_line_new_project, utf8_inline("Please enter the new project's name"), utf8_inline("New Project:"), "New Project", visual);
 			} 
@@ -160,14 +160,14 @@ static void led_project_menu_ui(struct led *led, const struct ui_visual *visual)
 
 			ui_pad();
 
-			if (ui_button_f("Load") & UI_INTER_LEFT_CLICK)
+			if (ui_button_f(UI_DRAW_TEXT | UI_DRAW_BORDER | UI_DRAW_BACKGROUND | UI_DRAW_ROUNDED_CORNERS, "Load") & UI_INTER_LEFT_CLICK)
 			{
 				fprintf(stderr, "Load!\n");
 			}
 
 			ui_pad();
 
-			if (ui_button_f("Delete") & UI_INTER_LEFT_CLICK)
+			if (ui_button_f(UI_DRAW_TEXT | UI_DRAW_BORDER | UI_DRAW_BACKGROUND | UI_DRAW_ROUNDED_CORNERS, "Delete") & UI_INTER_LEFT_CLICK)
 			{
 				fprintf(stderr, "Delete!\n");
 			}
@@ -429,48 +429,146 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 	ui_child_layout_axis(AXIS_2_X)
 	ui_parent(ui_node_alloc_f(UI_DRAW_BACKGROUND | UI_DRAW_BORDER, "###window_%u", led->window).index)
 	{
-		win->cmd_console->visible = 1;
-		ui_fixed_depth(64)
-		ui_floating_x(0.0f)
-		ui_floating_y(win->size[1] - 32.0f)
-		ui_width(ui_size_perc(1.0f))
-		if (win->cmd_console->visible)
-		{
-			ui_cmd_console(win->cmd_console, "###console_%p", win->ui);
-		};
-
 		ui_width(ui_size_perc(0.825f))
+		ui_child_layout_axis(AXIS_2_Y)
 		ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
-		ui_height(ui_size_perc(1.0f))
 		ui_width(ui_size_perc(1.0f))
-		ui_text_align_y(ALIGN_TOP)
 		{
-			struct slot slot;
-			const utf32 external_text = utf32_cstr(g_ui->mem_frame, "Viewport");
-
-			slot = ui_node_alloc(UI_DRAW_BORDER | UI_INTER_FLAGS, &led->viewport_id);
-			if (slot.index != HI_ORPHAN_STUB_INDEX)
-			ui_parent(slot.index)
+			ui_height(ui_size_pixel(32.0f, 1.0f))
+			ui_child_layout_axis(AXIS_2_X)
+			ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BORDER).index)
 			{
-				struct ui_node *node = slot.address;
-				if (node->inter & UI_INTER_HOVER)
-				{	
-					ui_external_text(external_text)
-					ui_background_color(vec4_inline(0.8f, 0.8f, 0.8f, 1.0f))
-					ui_sprite_color(vec4_inline(0.1f, 0.1f, 0.1f, 1.0f))
-					ui_height(ui_size_pixel(24.0f, 1.0f))
-					ui_width(ui_size_text(F32_INFINITY, 1.0f))
-					ui_floating_x(g_ui->inter.cursor_position[0])
-					ui_floating_y(g_ui->inter.cursor_position[1])
-					ui_node_alloc_non_hashed(UI_DRAW_BACKGROUND | UI_DRAW_BORDER | UI_TEXT_EXTERNAL | UI_DRAW_TEXT | UI_SKIP_HOVER_SEARCH);
+				ui_pad_fill();
+
+				ui_background_color(vec4_inline(0.0f, 0.125f, 0.125f, 1.0f))
+				ui_flags(UI_DRAW_BACKGROUND)
+				{
+					struct ui_node *button;
+					ui_width(ui_size_pixel(32.0f, 1.0f))
+					ui_flags(UI_DRAW_SPRITE)
+					ui_background_color(vec4_inline(0.5f, 0.5f, 0.5f, 0.5f))
+					ui_sprite_color(vec4_inline(0.0f, 0.0f, 0.0f, 0.1f))
+					ui_sprite(SPRITE_LED_PLAY)
+					if (ui_button_f(UI_DRAW_BACKGROUND | UI_DRAW_SPRITE, "###play") & UI_INTER_LEFT_CLICK)
+					{
+						//ui_background_color(vec4_inline(0.0f, 0.5f, 0.5f, 0.5f))
+						fprintf(stderr, "Play!\n");
+					}
+					
+					ui_pad();
+
+					ui_width(ui_size_pixel(32.0f, 1.0f))
+					ui_flags(UI_DRAW_SPRITE)
+					ui_sprite_color(vec4_inline(0.0f, 0.0f, 0.0f, 0.1f))
+					ui_sprite(SPRITE_LED_PAUSE)
+					if (ui_button_f(UI_DRAW_SPRITE, "###pause") & UI_INTER_LEFT_CLICK)
+					{
+						fprintf(stderr, "Pause!\n");
+					}
+
+					ui_pad();
+
+					ui_width(ui_size_pixel(32.0f, 1.0f))
+					ui_flags(UI_DRAW_SPRITE)
+					ui_sprite_color(vec4_inline(0.0f, 0.0f, 0.0f, 0.1f))
+					ui_sprite(SPRITE_LED_STOP)
+					if (ui_button_f(UI_DRAW_SPRITE, "###stop") & UI_INTER_LEFT_CLICK)
+					{
+						fprintf(stderr, "Stop!\n");
+					}
 				}
 
-				if (node->inter & UI_INTER_LEFT_CLICK)
+				ui_pad_fill();
+			}
+
+			ui_height(ui_size_perc(1.0f))
+			ui_text_align_y(ALIGN_TOP)
+			{
+				struct slot slot;
+				const utf32 external_text = utf32_cstr(g_ui->mem_frame, "Viewport");
+
+				slot = ui_node_alloc(UI_DRAW_BORDER | UI_INTER_FLAGS, &led->viewport_id);
+				if (slot.index != HI_ORPHAN_STUB_INDEX)
+				ui_parent(slot.index)
 				{
-					const utf8 id = utf8_format(g_ui->mem_frame, "node_%u", count++);
-					cmd_submit_f(g_ui->mem_frame, "led_node_add \"%k\"", &id);
+					struct ui_node *node = slot.address;
+					if (node->inter & UI_INTER_HOVER)
+					{	
+						ui_external_text(external_text)
+						ui_background_color(vec4_inline(0.8f, 0.8f, 0.8f, 1.0f))
+						ui_sprite_color(vec4_inline(0.1f, 0.1f, 0.1f, 1.0f))
+						ui_height(ui_size_pixel(24.0f, 1.0f))
+						ui_width(ui_size_text(F32_INFINITY, 1.0f))
+						ui_floating_x(g_ui->inter.cursor_position[0])
+						ui_floating_y(g_ui->inter.cursor_position[1])
+						ui_node_alloc_non_hashed(UI_DRAW_BACKGROUND | UI_DRAW_BORDER | UI_TEXT_EXTERNAL | UI_DRAW_TEXT | UI_SKIP_HOVER_SEARCH);
+					}
+
+					if (node->inter & UI_INTER_LEFT_CLICK)
+					{
+						const utf8 id = utf8_format(g_ui->mem_frame, "node_%u", count++);
+						cmd_submit_f(g_ui->mem_frame, "led_node_add \"%k\"", &id);
+					}
 				}
 			}
+
+			ui_height(ui_size_pixel(256.0f, 1.0f))
+			ui_child_layout_axis(AXIS_2_X)
+			ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BORDER).index)
+			ui_height(ui_size_perc(1.0f))
+			{
+				ui_width(ui_size_pixel(192.0f, 1.0f))
+				ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BORDER).index)
+				{
+					ui_pad();
+
+					ui_child_layout_axis(AXIS_2_Y)
+					ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BORDER).index)
+					{
+						ui_pad();
+	
+						ui_height(ui_size_pixel(24.0f, 1.0f))
+						ui_child_layout_axis(AXIS_2_X)
+						ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
+						{
+							ui_pad();
+
+							utf8 new_shape_id;
+							ui_width(ui_size_pixel(180.0f, 1.0f))
+							new_shape_id = ui_field_utf8_f("Add Collision Shape...###new_shape");
+							if (new_shape_id.len)
+							{
+								utf8_debug_print(new_shape_id);
+								g_queue->cmd_exec->arg[0].utf8 = new_shape_id;
+								cmd_submit(cmd_collision_shape_add_id);
+							}
+
+							ui_pad();
+						}
+
+						ui_pad_fill();
+					}
+	
+					ui_pad();
+					///			  if (selection) 
+					///------------------------------------------------------
+					///[id] [+]		  |	selection_id
+					///------------------------------------------------------
+					///[ collision_list ]	  | 	
+				}
+
+				ui_width(ui_size_pixel(192.0f, 1.0f))
+				ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BORDER).index)
+				{
+				}
+			}
+
+			win->cmd_console->visible = 1;
+			ui_height(ui_size_pixel(32.0f, 1.0f))
+			if (win->cmd_console->visible)
+			{
+				ui_cmd_console(win->cmd_console, "###console_%p", win->ui);
+			};
 		}
 
 		ui_width(ui_size_perc(0.175f))

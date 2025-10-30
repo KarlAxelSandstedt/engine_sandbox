@@ -206,6 +206,12 @@ void led_ssff_set_sprite_parameters(struct asset_ssff *led_ssff, const struct ss
 	g_sprite[SPRITE_LED_FOLDER].ssff_id = SSFF_LED_ID;
 	g_sprite[SPRITE_LED_FILE] = param->sprite[count++];
 	g_sprite[SPRITE_LED_FILE].ssff_id = SSFF_LED_ID;
+	g_sprite[SPRITE_LED_PLAY] = param->sprite[count++];
+	g_sprite[SPRITE_LED_PLAY].ssff_id = SSFF_LED_ID;
+	g_sprite[SPRITE_LED_PAUSE] = param->sprite[count++];
+	g_sprite[SPRITE_LED_PAUSE].ssff_id = SSFF_LED_ID;
+	g_sprite[SPRITE_LED_STOP] = param->sprite[count++];
+	g_sprite[SPRITE_LED_STOP].ssff_id = SSFF_LED_ID;
 	kas_assert_string(count == param->count, "unexpected sprite count in level editor sprite sheet, or in hardcoded values");
 }
 

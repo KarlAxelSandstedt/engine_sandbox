@@ -198,13 +198,7 @@ struct collision_shape
 	};
 };
 
-struct collision_hull collision_box(struct arena *mem, const struct AABB *box);
-struct collision_hull collision_hull_random(struct arena *mem, const f32 min_radius, const f32 max_radius, const u32 min_v_count, const u32 max_v_count);
-
-/* Clarkson-Shor randomized convex hull (Computational Geometry Algorithms and Applications, Section 11) 
- * TODO: A space usage improvement found in the he original paper [Applications of Random Sampling in Computational Geometry, II, Page 23 (A linear-space variant] reduces the memory usage from O(nlogn) to O(n).
- * */
-struct collision_hull collision_hull_construct(struct arena *mem, struct arena *table_mem, struct arena *face_mem, struct arena *conflict_mem, struct arena *mem_4, struct arena *mem_5, const vec3ptr v, const u32 v_count, const f32 EPSILON);
+struct collision_hull collision_box(struct arena *mem, const vec3 hw);
 
 void collision_hull_face_direction(vec3 dir, const struct collision_hull *h, const u32 fi); /* not normalized */
 void collision_hull_face_normal(vec3 normal, const struct collision_hull *h, const u32 fi); /* normalized */
