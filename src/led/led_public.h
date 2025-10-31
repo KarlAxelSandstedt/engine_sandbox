@@ -140,6 +140,7 @@ struct led
 
 	struct physics_pipeline physics;
 	struct string_database 	collision_shape_db;	
+	struct ui_list 		collision_shape_list;
 
 	struct hash_map *	node_map;
 	struct pool		node_pool;

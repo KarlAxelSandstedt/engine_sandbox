@@ -127,7 +127,7 @@ struct slot string_database_add(struct arena *mem_db_lifetime, struct string_dat
 		u32 *reference_count = (u32 *)(((u8 *) slot.address) + db->reference_count_offset);
 		*reference_count = 0;
 
-		dll_prepend(&db->allocated_dll, db->pool.buf, slot.index);
+		dll_append(&db->allocated_dll, db->pool.buf, slot.index);
 	}
 
 	return slot;
@@ -151,7 +151,7 @@ struct slot string_database_add_and_alias(struct string_database *db, const utf8
 	u32 *reference_count = (u32 *)(((u8 *) slot.address) + db->reference_count_offset);
 	*reference_count = 0;
 		
-	dll_prepend(&db->allocated_dll, db->pool.buf, slot.index);
+	dll_append(&db->allocated_dll, db->pool.buf, slot.index);
 
 	return slot;
 }

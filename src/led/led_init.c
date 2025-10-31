@@ -31,7 +31,7 @@ struct led_project_menu	led_project_menu_alloc(void)
 		.projects_folder_refresh = 0,
 		.selected_path = utf8_empty(),
 		.dir_nav = directory_navigator_alloc(4096, 64, 64),
-		.dir_list = ui_list_init(AXIS_2_Y, 200.0f, 24.0f),
+		.dir_list = ui_list_init(AXIS_2_Y, 200.0f, 24.0f, UI_SELECTION_UNIQUE),
 		.window = HI_NULL_INDEX,
 		.popup_new_project = ui_popup_null(),
 		.utf8_new_project = utf8_empty(),

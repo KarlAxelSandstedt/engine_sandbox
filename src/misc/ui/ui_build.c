@@ -162,13 +162,16 @@ utf8 ui_field_utf8_f(const char *fmt, ...)
 	return ui_field_utf8(id);
 }
 
-struct ui_list ui_list_init(enum axis_2 axis, const f32 axis_pixel_size, const f32 entry_pixel_size)
+struct ui_list ui_list_init(enum axis_2 axis, const f32 axis_pixel_size, const f32 entry_pixel_size, const enum ui_selection_type selection_type)
 {
 	struct ui_list list = 
 	{  
 		.axis_pixel_size = axis_pixel_size,
 		.entry_pixel_size = entry_pixel_size,
 		.axis = axis,
+		.selection_type = selection_type,
+		.last_selected = HI_NULL_INDEX,
+		.last_selection_happened = U64_MAX,
 	};
 
 	return list;
@@ -238,7 +241,7 @@ void ui_list_pop(struct ui_list *list)
 	}
 }
 
-struct slot ui_list_entry_alloc(struct ui_list *list)
+struct slot ui_list_entry_alloc(struct ui_list *list, const utf8 id)
 {
 	const intv intv_entry =
 	{
@@ -246,23 +249,47 @@ struct slot ui_list_entry_alloc(struct ui_list *list)
 		.high = list->entry_pixel_size * (list->frame_count + 1),
 	};
 
+	const u64 rec_flags = (list->selection_type != UI_SELECTION_NONE)
+		? UI_INTER_RECURSIVE_SELECT
+		: 0;
 	struct slot entry;
 	ui_size(list->axis, ui_size_unit(intv_entry))
 	ui_size(1-list->axis, ui_size_perc(1.0f))
-	ui_recursive_interaction(UI_INTER_RECURSIVE_SELECT)
-	entry = ui_node_alloc_f(UI_INTER_RECURSIVE_ROOT | UI_UNIT_POSITIVE_DOWN | UI_DRAW_BORDER, "###%p_%u", list->frame_node_address, list->frame_count);
+	ui_recursive_interaction(rec_flags)
+	entry = ui_node_alloc(UI_INTER_RECURSIVE_ROOT | UI_UNIT_POSITIVE_DOWN | UI_DRAW_BORDER, &id);
 
 	struct ui_node *node = entry.address;
 	if (node->inter & UI_INTER_SELECT)
 	{
+		if (list->selection_type == UI_SELECTION_UNIQUE 
+				&& list->last_selection_happened + 1 >= g_ui->frame
+				&& list->last_selected != entry.index)
+		{
+			struct ui_node *prev = hierarchy_index_address(g_ui->node_hierarchy, list->last_selected);
+			prev->inter &= ~UI_INTER_SELECT;
+			vec4_copy(prev->border_color, node->border_color);
+		}
+
 		vec4_set(node->border_color, 0.1f, 0.55f, 0.8f, 0.8f);
+		list->last_selected = entry.index;
+		list->last_selection_happened = g_ui->frame;
 	}
 
 	list->frame_count += 1;
 	return entry;
 }
 
-struct ui_node_cache ui_list_entry_alloc_cached(struct ui_list *list, const utf8 id, const utf8 text, const struct ui_node_cache cache)
+struct slot ui_list_entry_alloc_f(struct ui_list *list, const char *format, ...)
+{
+	va_list args;
+	va_start(args, format);
+	utf8 id = utf8_format_variadic(g_ui->mem_frame, format, args);
+	va_end(args);
+
+	return ui_list_entry_alloc(list, id);
+}
+
+struct ui_node_cache ui_list_entry_alloc_cached(struct ui_list *list, const utf8 id, const struct ui_node_cache cache)
 {
 	const intv intv_entry =
 	{
@@ -270,17 +297,30 @@ struct ui_node_cache ui_list_entry_alloc_cached(struct ui_list *list, const utf8
 		.high = list->entry_pixel_size * (list->frame_count + 1),
 	};
 
+	const u64 rec_flags = (list->selection_type != UI_SELECTION_NONE)
+		? UI_INTER_RECURSIVE_SELECT
+		: 0;
 	struct ui_node_cache new_cache;
 	ui_size(list->axis, ui_size_unit(intv_entry))
 	ui_size(1-list->axis, ui_size_perc(1.0f))
-	ui_child_layout_axis(1-list->axis)
-	ui_recursive_interaction(UI_INTER_RECURSIVE_SELECT)
-	new_cache = ui_node_alloc_cached(UI_INTER_RECURSIVE_ROOT | UI_UNIT_POSITIVE_DOWN | UI_DRAW_BORDER, id, text, cache);
+	ui_recursive_interaction(rec_flags)
+	new_cache = ui_node_alloc_cached(UI_INTER_RECURSIVE_ROOT | UI_UNIT_POSITIVE_DOWN | UI_DRAW_BORDER, id, utf8_empty(), cache);
 
 	struct ui_node *node = new_cache.frame_node;
 	if (node->inter & UI_INTER_SELECT)
 	{
+		if (list->selection_type == UI_SELECTION_UNIQUE 
+				&& list->last_selection_happened + 1 >= g_ui->frame
+				&& list->last_selected)
+		{
+			struct ui_node *prev = hierarchy_index_address(g_ui->node_hierarchy, list->last_selected);
+			prev->inter &= ~UI_INTER_SELECT;
+			vec4_copy(prev->border_color, node->border_color);
+		}
+
 		vec4_set(node->border_color, 0.1f, 0.55f, 0.8f, 0.8f);
+		list->last_selected = new_cache.index;
+		list->last_selection_happened = g_ui->frame;
 	}
 
 	list->frame_count += 1;
@@ -1042,7 +1082,7 @@ struct slot ui_text_input(struct ui_text_input *input, const utf32 unfocused_tex
 	struct slot slot;
 	ui_external_text(external_text)
 	ui_external_text_input(input)
-	slot = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS | UI_TEXT_EDIT | UI_TEXT_EXTERNAL | UI_DRAW_TEXT, &id);
+	slot = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS | UI_TEXT_EDIT | UI_TEXT_EXTERNAL | UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, &id);
 
 	struct ui_node *node = slot.address;
 	if (node->inter & UI_INTER_FOCUS)

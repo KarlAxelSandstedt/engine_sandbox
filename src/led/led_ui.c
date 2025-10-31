@@ -73,7 +73,7 @@ static void led_project_menu_ui(struct led *led, const struct ui_visual *visual)
 				? SPRITE_LED_FOLDER
 				: SPRITE_LED_FILE;
 
-			struct slot entry = ui_list_entry_alloc(&menu->dir_list);
+			struct slot entry = ui_list_entry_alloc_f(&menu->dir_list, "###%p_%u", &menu->dir_list, f);
 			if (entry.address)
 			ui_parent(entry.index)
 			{
@@ -420,8 +420,9 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 			cmd_submit_f(g_ui->mem_frame, "led_node_add \"%k\"", &id);
 		}
 
-		led->node_ui_list = ui_list_init(AXIS_2_Y, 256.0f, 24.0f); 
-		led->node_selected_ui_list = ui_list_init(AXIS_2_Y, 512.0f, 24.0f + 3*24.0f + 12.0f);
+		led->node_ui_list = ui_list_init(AXIS_2_Y, 256.0f, 24.0f, UI_SELECTION_MULTI); 
+		led->node_selected_ui_list = ui_list_init(AXIS_2_Y, 512.0f, 24.0f + 3*24.0f + 12.0f, UI_SELECTION_NONE);
+		led->collision_shape_list = ui_list_init(AXIS_2_Y, 200.0f, 24.0f, UI_SELECTION_UNIQUE);
 	}
 
 	ui_text_align_x(ALIGN_LEFT)
@@ -512,54 +513,98 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 				}
 			}
 
+			u32 shape_selected = U32_MAX;
 			ui_height(ui_size_pixel(256.0f, 1.0f))
 			ui_child_layout_axis(AXIS_2_X)
 			ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BORDER).index)
 			ui_height(ui_size_perc(1.0f))
 			{
+				ui_pad();
+
+				ui_width(ui_size_pixel(186.0f, 1.0f))
+				ui_child_layout_axis(AXIS_2_Y)
+				ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
+				ui_height(ui_size_pixel(24.0f, 1.0f))
+				ui_width(ui_size_pixel(180.0f, 1.0f))
+				{
+					ui_pad();
+
+					utf8 new_shape_id;
+					new_shape_id = ui_field_utf8_f("Add Collision Shape...###new_shape");
+					if (new_shape_id.len)
+					{
+						utf8_debug_print(new_shape_id);
+						g_queue->cmd_exec->arg[0].utf8 = new_shape_id;
+						cmd_submit_f(g_ui->mem_frame, "collision_shape_add \"%k\"", &new_shape_id);
+					}
+
+					ui_pad();
+
+					const struct collision_shape *shape;
+					ui_list(&led->collision_shape_list, "###%p", &led->collision_shape_list)
+					for (u32 i = led->collision_shape_db.allocated_dll.first; i != DLL_NULL; i = DB_NEXT(shape))
+					{
+						shape = string_database_address(&led->collision_shape_db, i);
+						struct slot entry = ui_list_entry_alloc_f(&led->collision_shape_list, "###%p_%u", &led->collision_shape_list, i);
+						if (entry.index)
+						ui_parent(entry.index)
+						{
+							if (entry.index == led->collision_shape_list.last_selected)
+							{
+								shape_selected = i;
+							}
+							ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, "%k##%u", &shape->id, i);
+						}
+					}
+
+					ui_pad_fill();
+				}
+
 				ui_width(ui_size_pixel(192.0f, 1.0f))
+				ui_child_layout_axis(AXIS_2_X)
 				ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BORDER).index)
+				if (led->collision_shape_list.last_selection_happened == g_ui->frame)
 				{
 					ui_pad();
 
 					ui_child_layout_axis(AXIS_2_Y)
-					ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BORDER).index)
+					ui_width(ui_size_pixel(180.0f, 1.0f))
+					ui_parent(ui_node_alloc_non_hashed(0).index)
 					{
 						ui_pad();
-	
+
+						struct collision_shape *shape = string_database_address(&led->collision_shape_db, shape_selected);
 						ui_height(ui_size_pixel(24.0f, 1.0f))
-						ui_child_layout_axis(AXIS_2_X)
-						ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
+						ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW | UI_DRAW_BORDER, "%k##shape_selected", &shape->id);
+
+						ui_pad();
+
+						switch (shape->type)
 						{
-							ui_pad();
-
-							utf8 new_shape_id;
-							ui_width(ui_size_pixel(180.0f, 1.0f))
-							new_shape_id = ui_field_utf8_f("Add Collision Shape...###new_shape");
-							if (new_shape_id.len)
+							case COLLISION_SHAPE_SPHERE:
 							{
-								utf8_debug_print(new_shape_id);
-								g_queue->cmd_exec->arg[0].utf8 = new_shape_id;
-								cmd_submit(cmd_collision_shape_add_id);
-							}
+								ui_height(ui_size_pixel(24.0f, 1.0f))
+								shape->ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, "type: SPHERE");
+								shape->sphere.radius = ui_field_f32_f(shape->sphere.radius, intv_inline(0.0125f, 100.0f), "%f###cs_radius", shape->sphere.radius);
+							} break;
 
-							ui_pad();
+							case COLLISION_SHAPE_CAPSULE:
+							{
+								ui_height(ui_size_pixel(24.0f, 1.0f))
+								ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, "type: CAPSULE");
+							} break;
+
+							case COLLISION_SHAPE_CONVEX_HULL:
+							{
+								ui_height(ui_size_pixel(24.0f, 1.0f))
+								ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, "type: CONVEX HULL");
+							} break;
 						}
 
 						ui_pad_fill();
 					}
-	
-					ui_pad();
-					///			  if (selection) 
-					///------------------------------------------------------
-					///[id] [+]		  |	selection_id
-					///------------------------------------------------------
-					///[ collision_list ]	  | 	
-				}
 
-				ui_width(ui_size_pixel(192.0f, 1.0f))
-				ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BORDER).index)
-				{
+					ui_pad();
 				}
 			}
 
@@ -583,17 +628,17 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 			for (u32 i = led->node_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(node))
 			{
 				node = gpool_address(&led->node_pool, i);
+				ui_child_layout_axis(AXIS_2_X)
 				node->cache = ui_list_entry_alloc_cached(&led->node_ui_list, 
 						       	node->id,
-							node->id, 
 							node->cache);
 
+				if (node->cache.frame_node)
 				ui_parent(node->cache.index)
 				{
 					ui_pad(); 
 
-					ui_width(ui_size_text(F32_INFINITY, 1.0f))
-					ui_node_alloc_f(UI_DRAW_TEXT, "%k##%u", &node->id, i);
+					ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, "%k##%u", &node->id, i);
 				}
 
 				struct ui_node *ui_node = node->cache.frame_node;
@@ -618,7 +663,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 			{
 				node = gpool_address(&led->node_pool, i);
 				ui_child_layout_axis(AXIS_2_Y)
-				ui_parent(ui_list_entry_alloc(&led->node_selected_ui_list).index)
+				ui_parent(ui_list_entry_alloc_f(&led->node_selected_ui_list, "###%p_%u", &led->node_selected_ui_list, i).index)
 				{
 					ui_height(ui_size_pixel(24.0f, 1.0f))
 					ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, "%k##sel_%u", &node->id, i);

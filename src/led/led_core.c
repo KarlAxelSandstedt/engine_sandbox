@@ -41,11 +41,11 @@ void led_core_init_commands(void)
 {
 	cmd_led_node_add_id = cmd_function_register(utf8_inline("led_node_add"), 1, &cmd_led_node_add).index;
 	cmd_led_node_remove_id = cmd_function_register(utf8_inline("led_node_remove"), 1, &cmd_led_node_remove).index;
-	cmd_collision_shape_add_id = cmd_function_register(utf8_inline("cmd_collision_shape_add"), 1, &cmd_collision_shape_add).index;
-	cmd_collision_box_add_id = cmd_function_register(utf8_inline("cmd_collision_box_add"), 4, &cmd_collision_box_add).index;
-	cmd_collision_sphere_add_id = cmd_function_register(utf8_inline("cmd_collision_sphere_add"), 2, &cmd_collision_sphere_add).index;
-	cmd_collision_capsule_add_id = cmd_function_register(utf8_inline("cmd_collision_capsule_add"), 3, &cmd_collision_capsule_add).index;
-	cmd_collision_shape_remove_id = cmd_function_register(utf8_inline("cmd_collision_shape_remove"), 1, &cmd_collision_shape_remove).index;
+	cmd_collision_shape_add_id = cmd_function_register(utf8_inline("collision_shape_add"), 1, &cmd_collision_shape_add).index;
+	cmd_collision_box_add_id = cmd_function_register(utf8_inline("collision_box_add"), 4, &cmd_collision_box_add).index;
+	cmd_collision_sphere_add_id = cmd_function_register(utf8_inline("collision_sphere_add"), 2, &cmd_collision_sphere_add).index;
+	cmd_collision_capsule_add_id = cmd_function_register(utf8_inline("collision_capsule_add"), 3, &cmd_collision_capsule_add).index;
+	cmd_collision_shape_remove_id = cmd_function_register(utf8_inline("collision_shape_remove"), 1, &cmd_collision_shape_remove).index;
 }
 
 void cmd_led_node_add(void)
@@ -82,9 +82,9 @@ void cmd_collision_box_add(void)
 	struct system_window *sys_win = system_window_address(g_editor->window);
 	const vec3 hw =
 	{
-		g_queue->cmd_exec->arg[1].f32 = 0.5f,
-		g_queue->cmd_exec->arg[2].f32 = 0.5f,
-		g_queue->cmd_exec->arg[3].f32 = 0.5f,
+		g_queue->cmd_exec->arg[1].f32,
+		g_queue->cmd_exec->arg[2].f32,
+		g_queue->cmd_exec->arg[3].f32,
 	};
 	struct collision_shape shape =
 	{
@@ -136,24 +136,30 @@ struct slot led_collision_shape_add(struct led *led, const struct collision_shap
 	{
 		log_string(T_LED, S_WARNING, "Failed to allocate collision_shape: shape->id must not be empty");
 	} 
-	else if (shape->id.size > 256)
+	else if (string_database_lookup(&led->collision_shape_db, shape->id).address != NULL) 
 	{
-		log_string(T_LED, S_WARNING, "Failed to allocate collision_shape: shape->id size must be <= 256B");
-	} 
-	else if (string_database_lookup(&led->collision_shape_db, shape->id).address == NULL) 
+		log_string(T_LED, S_WARNING, "Failed to allocate collision_shape: shape with given id already exist");
+	}
+	else
 	{ 
 		u8 *buf = thread_alloc_256B();
 		const utf8 copy = utf8_copy_buffered(buf, 256, shape->id);	
-		string_database_add(NULL, &led->collision_shape_db, copy);
-
-		struct collision_shape *new_shape = slot.address;
-		new_shape->type = shape->type;
-		switch (shape->type)
+		if (!copy.len)
 		{
-			case COLLISION_SHAPE_SPHERE: { new_shape->sphere = shape->sphere; } break;
-			case COLLISION_SHAPE_CAPSULE: { new_shape->capsule = shape->capsule; } break;
-			case COLLISION_SHAPE_CONVEX_HULL: { new_shape->hull = shape->hull; } break;
-		};
+			log_string(T_LED, S_WARNING, "Failed to allocate collision_shape: shape->id size must be <= 256B");
+		}
+		else
+		{
+			slot = string_database_add_and_alias(&led->collision_shape_db, copy);
+			struct collision_shape *new_shape = slot.address;
+			new_shape->type = shape->type;
+			switch (shape->type)
+			{
+				case COLLISION_SHAPE_SPHERE: { new_shape->sphere = shape->sphere; } break;
+				case COLLISION_SHAPE_CAPSULE: { new_shape->capsule = shape->capsule; } break;
+				case COLLISION_SHAPE_CONVEX_HULL: { new_shape->hull = shape->hull; } break;
+			};
+		}
 	}
 
 	return slot;
@@ -166,6 +172,7 @@ void led_collision_shape_remove(struct led *led, const utf8 id)
 	if (shape->reference_count == 0)
 	{
 		string_database_remove(&led->collision_shape_db, id);
+		thread_free_256B(shape->id.buf);
 	}
 }
 
@@ -181,34 +188,40 @@ struct slot led_node_add(struct led *led, const utf8 id)
 	{
 		log_string(T_LED, S_WARNING, "Failed to allocate led_node: id must not be empty");
 	} 
-	else if (id.size > 256)
+	else if (led_node_lookup(led, id).address != NULL) 
 	{
-		log_string(T_LED, S_WARNING, "Failed to allocate led_node: id size must be <= 256B");
-	} 
-	else if (led_node_lookup(led, id).address == NULL) 
+		log_string(T_LED, S_WARNING, "Failed to allocate led_node: node with given id already exist");
+	}
+	else
 	{ 
 		void *buf = thread_alloc_256B();
 		const utf8 copy = utf8_copy_buffered(buf, 256, id);	
 		const u32 key = utf8_hash(id);
+		if (!copy.len)
+		{
+			log_string(T_LED, S_WARNING, "Failed to allocate led_node: id size must be <= 256B");
+		} 
+		else
+		{
+			slot = gpool_add(&led->node_pool);
+			hash_map_add(led->node_map, key, slot.index);
+			dll_append(&led->node_non_marked_list, led->node_pool.buf, slot.index);
+			dll_slot_set_not_in_list(&led->node_selected_list, slot.address);
 
-		slot = gpool_add(&led->node_pool);
-		hash_map_add(led->node_map, key, slot.index);
-		dll_append(&led->node_non_marked_list, led->node_pool.buf, slot.index);
-		dll_slot_set_not_in_list(&led->node_selected_list, slot.address);
+			struct led_node *node = slot.address;
+			node->flags = LED_FLAG_NONE;
+			node->id = copy;
+			node->key = key;
+			node->cache = ui_node_cache_null();
 
-		struct led_node *node = slot.address;
-		node->flags = LED_FLAG_NONE;
-		node->id = copy;
-		node->key = key;
-		node->cache = ui_node_cache_null();
+			const vec3 axis = { 0.0f, 1.0f, 0.0f };
+			vec3_set(node->position, 0.0f, 0.0f, 0.0f);
+			axis_angle_to_quaternion(node->rotation, axis, 0.0f);
 
-		const vec3 axis = { 0.0f, 1.0f, 0.0f };
-		vec3_set(node->position, 0.0f, 0.0f, 0.0f);
-		axis_angle_to_quaternion(node->rotation, axis, 0.0f);
-
-		node->physics_handle = POOL_NULL;
-		node->render_handle = POOL_NULL;
-		node->csg_handle = POOL_NULL;
+			node->physics_handle = POOL_NULL;
+			node->render_handle = POOL_NULL;
+			node->csg_handle = POOL_NULL;
+		}
 	}
 
 	return slot;
