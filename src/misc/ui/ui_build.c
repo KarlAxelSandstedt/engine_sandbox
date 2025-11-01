@@ -1107,3 +1107,101 @@ struct slot ui_text_input_f(struct ui_text_input *input, const utf32 unfocused_t
 
 	return ui_text_input(input, unfocused_text, id);
 }
+
+struct ui_dropdown_menu ui_dropdown_menu_init(const f32 max_dropdown_height, const vec2 entry_size, const enum ui_dropdown_position position)
+{
+	struct ui_dropdown_menu menu = 
+	{
+		.flags = 0,
+		.list = ui_list_init(AXIS_2_Y, max_dropdown_height, entry_size[1], UI_SELECTION_UNIQUE),
+	};
+
+	vec2_copy(menu.entry_size, entry_size);
+	menu.max_dropdown_height = max_dropdown_height;
+
+	if (position == UI_DROPDOWN_BELOW)
+	{
+		menu.dropdown_x = 0.0f;
+		menu.dropdown_y = -max_dropdown_height;
+	}
+	else if (position == UI_DROPDOWN_ABOVE)
+	{
+		menu.dropdown_x = 0.0f;
+		menu.dropdown_y = entry_size[1];
+	}
+	else if (position == UI_DROPDOWN_RIGHT)
+	{
+		menu.dropdown_x = entry_size[0];
+		menu.dropdown_y = 0.0f;
+	}
+	else
+	{
+		menu.dropdown_x = -entry_size[0];
+		menu.dropdown_y = 0.0f;
+	}
+
+	return menu;	
+}
+
+u32 ui_dropdown_menu(struct ui_dropdown_menu *menu, const utf8 id)
+{
+	struct slot slot;
+	ui_text_align_x(ALIGN_X_CENTER)
+	ui_text_align_y(ALIGN_BOTTOM)
+	ui_recursive_interaction(UI_INTER_HOVER)
+	ui_width(ui_size_pixel(menu->entry_size[0], 1.0f))
+	ui_height(ui_size_pixel(menu->entry_size[1], 1.0f))
+	slot = ui_node_alloc(UI_INTER_RECURSIVE_ROOT | UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW | UI_DRAW_BORDER, &id);
+
+	menu->root = slot.index;
+	struct ui_node *node = slot.address;
+	return node->inter & (UI_INTER_HOVER);
+}
+
+u32 ui_dropdown_menu_f(struct ui_dropdown_menu *menu, const char *format, ...)
+{
+	va_list args;
+	va_start(args, format);
+	utf8 id = utf8_format_variadic(g_ui->mem_frame, format, args);
+	va_end(args);
+
+	return ui_dropdown_menu(menu, id);
+}
+
+void ui_dropdown_menu_push(struct ui_dropdown_menu *menu)
+{
+	ui_node_push(menu->root);
+
+	ui_floating_x(menu->dropdown_x)
+	ui_floating_y(menu->dropdown_y)
+	ui_fixed_depth(64)
+	ui_width(ui_size_pixel(menu->entry_size[0], 1.0f))
+	ui_height(ui_size_pixel(menu->max_dropdown_height, 1.0f))
+	ui_node_push(ui_node_alloc_f(UI_FLAG_NONE, "###dropdown_%p", menu).index);
+
+	ui_width(ui_size_pixel(menu->entry_size[0], 1.0f))
+	ui_height(ui_size_pixel(menu->max_dropdown_height, 1.0f))
+	ui_list_push(&menu->list, "###list_%p", menu);
+}
+
+void ui_dropdown_menu_pop(struct ui_dropdown_menu *menu)
+{
+	ui_list_pop(&menu->list);
+	ui_node_pop();
+	ui_node_pop();
+}
+
+struct slot ui_dropdown_menu_entry(struct ui_dropdown_menu *menu, const utf8 id)
+{
+	return ui_list_entry_alloc(&menu->list, id);
+}
+
+struct slot ui_dropdown_menu_entry_f(struct ui_dropdown_menu *menu, const char *format, ...)
+{
+	va_list args;
+	va_start(args, format);
+	utf8 id = utf8_format_variadic(g_ui->mem_frame, format, args);
+	va_end(args);
+
+	return ui_dropdown_menu_entry(menu, id);
+}

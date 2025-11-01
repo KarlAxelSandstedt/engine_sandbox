@@ -276,9 +276,6 @@ static void led_ui_test(struct led *led, const struct ui_visual *visual)
 	/* Testbed for ui features*/
 	{
 		win->cmd_console->visible = 1;
-		ui_fixed_depth(64)
-		ui_floating_x(0.0f)
-		ui_floating_y(win->size[1] - 32.0f)
 		ui_width(ui_size_perc(1.0f))
 		if (win->cmd_console->visible)
 		{
@@ -293,7 +290,7 @@ static void led_ui_test(struct led *led, const struct ui_visual *visual)
 			{
 				ui_sprite_color(vec4_inline(0.4f, 0.15f, 0.75f, 0.7f))
 				ui_sprite(SPRITE_LED_FOLDER)
-				ui_background_color(vec4_inline(204.0f/256.0f, 48.0f/256.0f, 64.0f/256.0f, 0.7f))
+				ui_background_color(vec4_inline(204.0f/256.0f, 48.0f/256.0f, 96.0f/256.0f, 0.7f))
 				ui_intv_viewable_x(intv_inline(100.0f, 200.0f))	
 				for (u32 i = 0; i <= 10; ++i)
 				{
@@ -319,7 +316,7 @@ static void led_ui_test(struct led *led, const struct ui_visual *visual)
 				}
 
 				ui_width(ui_size_pixel(400, 1.0f / (2 << 8)))
-				ui_background_color(vec4_inline((204.0f- 8*20.0f)/256.0f, (48.0f + 8*20.0f)/256.0f, (64.0f + 8*10.0f)/256.0f, 0.7f))
+				ui_background_color(vec4_inline((204.0f- 8*20.0f)/256.0f, (48.0f + 8*20.0f)/256.0f, (96.0f + 8*10.0f)/256.0f, 0.7f))
 				ui_node_alloc_f(UI_DRAW_BACKGROUND, "###box_%u_%u", 6, 8);
 			}
 		}
@@ -332,8 +329,8 @@ static void led_ui_test(struct led *led, const struct ui_visual *visual)
 			{
 				ui_width(ui_size_pixel(80, 1.0f))
 				ui_height(ui_size_pixel(80, 1.0f))
-				ui_floating_x(220.0f)
-				ui_floating_y(220.0f)
+				ui_fixed_x(220.0f)
+				ui_fixed_y(220.0f)
 				ui_background_color(vec4_inline(0.1f, 0.3f, 0.6f, 0.7f))
 				ui_node_alloc_f(UI_DRAW_BACKGROUND, "###box_%u_%u", 7, 0);
 			}
@@ -348,7 +345,7 @@ static void led_ui_test(struct led *led, const struct ui_visual *visual)
 			ui_node_alloc_f(UI_DRAW_TEXT | UI_DRAW_BACKGROUND | UI_DRAW_BORDER, "text centering!###box_%u_%u", 8, 0);
 
 			ui_flags(UI_TEXT_ALLOW_OVERFLOW)
-			ui_width(ui_size_pixel(64.0f, 1.0f))
+			ui_width(ui_size_pixel(96.0f, 1.0f))
 			ui_height(ui_size_perc(1.0f))
 			{
 				ui_text_align_x(ALIGN_LEFT)
@@ -411,6 +408,12 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 
 	static u32 count = 0;
 	static u32 once = 1;
+
+	static struct ui_dropdown_menu menu1;
+	static struct ui_dropdown_menu menu2;
+	static struct ui_dropdown_menu menu3;
+	static struct ui_dropdown_menu menu4;
+
 	if (once)
 	{
 		once = 0;
@@ -423,6 +426,11 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 		led->node_ui_list = ui_list_init(AXIS_2_Y, 256.0f, 24.0f, UI_SELECTION_MULTI); 
 		led->node_selected_ui_list = ui_list_init(AXIS_2_Y, 512.0f, 24.0f + 3*24.0f + 12.0f, UI_SELECTION_NONE);
 		led->collision_shape_list = ui_list_init(AXIS_2_Y, 200.0f, 24.0f, UI_SELECTION_UNIQUE);
+
+	 	menu1 = ui_dropdown_menu_init(96.0f, vec2_inline(96.0f, 24.0f), UI_DROPDOWN_BELOW);	
+	 	menu2 = ui_dropdown_menu_init(96.0f, vec2_inline(96.0f, 24.0f), UI_DROPDOWN_RIGHT);	
+	 	menu3 = ui_dropdown_menu_init(96.0f, vec2_inline(96.0f, 24.0f), UI_DROPDOWN_LEFT);	
+	 	menu4 = ui_dropdown_menu_init(96.0f, vec2_inline(96.0f, 24.0f), UI_DROPDOWN_ABOVE);	
 	}
 
 	ui_text_align_x(ALIGN_LEFT)
@@ -500,8 +508,8 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 						ui_sprite_color(vec4_inline(0.1f, 0.1f, 0.1f, 1.0f))
 						ui_height(ui_size_pixel(24.0f, 1.0f))
 						ui_width(ui_size_text(F32_INFINITY, 1.0f))
-						ui_floating_x(g_ui->inter.cursor_position[0])
-						ui_floating_y(g_ui->inter.cursor_position[1])
+						ui_fixed_x(g_ui->inter.cursor_position[0])
+						ui_fixed_y(g_ui->inter.cursor_position[1])
 						ui_node_alloc_non_hashed(UI_DRAW_BACKGROUND | UI_DRAW_BORDER | UI_TEXT_EXTERNAL | UI_DRAW_TEXT | UI_SKIP_HOVER_SEARCH);
 					}
 
@@ -584,7 +592,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 							case COLLISION_SHAPE_SPHERE:
 							{
 								ui_height(ui_size_pixel(24.0f, 1.0f))
-								shape->ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, "type: SPHERE");
+								ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, "type: SPHERE");
 								shape->sphere.radius = ui_field_f32_f(shape->sphere.radius, intv_inline(0.0125f, 100.0f), "%f###cs_radius", shape->sphere.radius);
 							} break;
 
@@ -605,6 +613,95 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 					}
 
 					ui_pad();
+				}
+
+
+				ui_width(ui_size_perc(1.0f))
+				ui_child_layout_axis(AXIS_2_Y)
+				ui_parent(ui_node_alloc_non_hashed(0).index)
+				{
+					ui_height(ui_size_pixel(24.0f, 1.0f))
+					ui_child_layout_axis(AXIS_2_X)
+					ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BORDER).index)
+					{
+						if (ui_dropdown_menu_f(&menu1, "DD BELOW"))
+						{
+							ui_dropdown_menu_push(&menu1);
+
+							for (u32 k = 0; k < 5; ++k)
+							{
+								struct ui_node *drop;
+								ui_flags(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW)
+								drop = ui_dropdown_menu_entry_f(&menu1, "entry_%u##%p", k, &menu1).address;
+								if (drop->inter & UI_INTER_HOVER)
+								{
+									fprintf(stderr, "entry_%u\n", k);	
+								}
+								if (drop->inter & UI_INTER_SELECT)
+								{
+									fprintf(stderr, "woof\n");	
+								}
+							}
+
+							ui_dropdown_menu_pop(&menu1);
+						}
+
+						if (ui_dropdown_menu_f(&menu2, "DD RIGHT"))
+						{
+							ui_dropdown_menu_push(&menu2);
+
+							for (u32 k = 0; k < 5; ++k)
+							{
+								struct ui_node *drop;
+								ui_flags(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW)
+								drop = ui_dropdown_menu_entry_f(&menu2, "entry_%u##%p", k, &menu2).address;
+								if (drop->inter & UI_INTER_SELECT)
+								{
+									fprintf(stderr, "meow\n");	
+								}
+							}
+
+							ui_dropdown_menu_pop(&menu2);
+						}
+
+						if (ui_dropdown_menu_f(&menu3, "DD LEFT"))
+						{
+							ui_dropdown_menu_push(&menu3);
+
+							for (u32 k = 0; k < 5; ++k)
+							{
+								struct ui_node *drop;
+								ui_flags(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW)
+								drop = ui_dropdown_menu_entry_f(&menu3, "entry_%u##%p", k, &menu3).address;
+								if (drop->inter & UI_INTER_SELECT)
+								{
+									fprintf(stderr, "meow\n");	
+								}
+							}
+
+							ui_dropdown_menu_pop(&menu3);
+						}
+
+						if (ui_dropdown_menu_f(&menu4, "DD ABOVE"))
+						{
+							ui_dropdown_menu_push(&menu4);
+
+							for (u32 k = 0; k < 5; ++k)
+							{
+								struct ui_node *drop;
+								ui_flags(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW)
+								drop = ui_dropdown_menu_entry_f(&menu4, "entry_%u##%p", k, &menu4).address;
+								if (drop->inter & UI_INTER_SELECT)
+								{
+									fprintf(stderr, "meow\n");	
+								}
+							}
+
+							ui_dropdown_menu_pop(&menu4);
+						}
+					}
+
+					ui_pad_fill();
 				}
 			}
 
@@ -689,17 +786,10 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 						{
 							ui_pad_pixel(6.0f);
 							
-							//node->position[0] = ui_field_f32_f(node->position[0], intv_inline(-10.0f, 10.0f), "%f###field_x_%u", node->position[0], i);
-							//node->position[1] = ui_field_f32_f(node->position[1], intv_inline(-10.0f, 10.0f), "%f###field_y_%u", node->position[1], i);
-							//node->position[2] = ui_field_f32_f(node->position[2], intv_inline(-10.0f, 10.0f), "%f###field_z_%u", node->position[2], i);
+							node->position[0] = ui_field_f32_f(node->position[0], intv_inline(-10.0f, 10.0f), "%f###field_x_%u", node->position[0], i);
+							node->position[1] = ui_field_f32_f(node->position[1], intv_inline(-10.0f, 10.0f), "%f###field_y_%u", node->position[1], i);
+							node->position[2] = ui_field_f32_f(node->position[2], intv_inline(-10.0f, 10.0f), "%f###field_z_%u", node->position[2], i);
 
-							//vec3_print("position", node->position);
-							
-							node->x = ui_field_f32_f(node->x, intv_inline(-10.0f, 10.0f), "%f###field_x_%u", node->x, i);
-							node->y = ui_field_u64_f(node->y, intvu64_inline(10, 20), "%lu###field_y_%u", node->y, i);
-							node->z = ui_field_i64_f(node->z, intvi64_inline(-10, 10), "%li###field_z_%u", node->z, i);
-
-							
 							ui_pad_pixel(6.0f);
 						}
 

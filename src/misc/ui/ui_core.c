@@ -506,7 +506,7 @@ static void ui_node_solve_child_violation(struct ui_node *node, const enum axis_
 
 		new_size[i] = child[i]->layout_size[axis];
 		//child_size_sum += child[i]->layout_size[axis];
-		child_size_sum += (child[i]->flags & (UI_FIXED_X << axis))
+		child_size_sum += (child[i]->flags & (UI_FLOATING_X << axis))
 			? 0.0f
 			: child[i]->layout_size[axis];
 
@@ -516,7 +516,7 @@ static void ui_node_solve_child_violation(struct ui_node *node, const enum axis_
 			pad_fill_index[pad_fill_count++] = i;
 		}
 
-		if ((child[i]->flags & ((UI_FIXED_X | UI_ALLOW_VIOLATION_X | UI_PERC_POSTPONED_X) << axis)) == 0)
+		if ((child[i]->flags & ((UI_FLOATING_X | UI_ALLOW_VIOLATION_X | UI_PERC_POSTPONED_X) << axis)) == 0)
 		{
 			shrink[i] =  1;
 		}
@@ -707,21 +707,21 @@ static void ui_layout_absolute_position(void)
 
 			if (node->child_layout_axis == AXIS_2_X)
 			{
-				child->layout_position[AXIS_2_X] = ((child->flags & (UI_FIXED_X | UI_PERC_POSTPONED_X)) || child->semantic_size[AXIS_2_X].type == UI_SIZE_UNIT)
+				child->layout_position[AXIS_2_X] = ((child->flags & (UI_FLOATING_X | UI_PERC_POSTPONED_X)) || child->semantic_size[AXIS_2_X].type == UI_SIZE_UNIT)
 					? child->layout_position[AXIS_2_X]
 					: child_layout_axis_offset;
 
-				child->layout_position[AXIS_2_Y] = (child->flags & UI_FIXED_Y || child->semantic_size[AXIS_2_Y].type == UI_SIZE_UNIT)
+				child->layout_position[AXIS_2_Y] = (child->flags & UI_FLOATING_Y || child->semantic_size[AXIS_2_Y].type == UI_SIZE_UNIT)
 				       	? child->layout_position[AXIS_2_Y]
 			       		: 0.0f;
 			}
 			else
 			{
-				child->layout_position[AXIS_2_Y] = ((child->flags & (UI_FIXED_Y | UI_PERC_POSTPONED_Y)) || child->semantic_size[AXIS_2_Y].type == UI_SIZE_UNIT)
+				child->layout_position[AXIS_2_Y] = ((child->flags & (UI_FLOATING_Y | UI_PERC_POSTPONED_Y)) || child->semantic_size[AXIS_2_Y].type == UI_SIZE_UNIT)
 					? child->layout_position[AXIS_2_Y]
 					: child_layout_axis_offset - child->layout_size[AXIS_2_Y];
 
-				child->layout_position[AXIS_2_X] = (child->flags & UI_FIXED_X || child->semantic_size[AXIS_2_X].type == UI_SIZE_UNIT)
+				child->layout_position[AXIS_2_X] = (child->flags & UI_FLOATING_X || child->semantic_size[AXIS_2_X].type == UI_SIZE_UNIT)
 				       	? child->layout_position[AXIS_2_X]
 			       		: 0.0f;
 			}
@@ -891,8 +891,8 @@ void ui_frame_begin(const vec2u32 window_size, const struct ui_visual *base)
 	vec4_set(g_ui->text_cursor_color, 0.9f, 0.9f, 0.9f, 0.6f);
 	vec4_set(g_ui->text_selection_color, 0.7f, 0.7f, 0.9f, 0.6f);
 
-	ui_floating_x(0.0f)
-	ui_floating_y(0.0f)
+	ui_fixed_x(0.0f)
+	ui_fixed_y(0.0f)
 	ui_width(ui_size_pixel((f32) g_ui->window_size[0], 1.0f))
 	ui_height(ui_size_pixel((f32) g_ui->window_size[1], 1.0f))
 	g_ui->root = ui_root_f("###root_%p", &g_ui->root).index;
@@ -910,6 +910,11 @@ static void ui_identify_hovered_node(void)
 	if (node)
 	{
 		node->inter &= ~UI_INTER_HOVER;
+		while (node->header.parent != HI_NULL_INDEX)
+		{
+			node = ui_node_address(node->header.parent);
+			node->inter &= ~(UI_INTER_HOVER & node->inter_recursive_flags);
+		}
 	}
 
 	const f32 x = g_ui->inter.cursor_position[0];
@@ -968,6 +973,12 @@ static void ui_identify_hovered_node(void)
 	kas_assert((node->flags & (UI_NON_HASHED | UI_SKIP_HOVER_SEARCH)) == 0);
 	node->inter |= (UI_INTER_HOVER & node->flags);
 	g_ui->inter.node_hovered = node->id;
+
+	while (node->header.parent != HI_NULL_INDEX)
+	{
+		node = ui_node_address(node->header.parent);
+		node->inter |= (UI_INTER_HOVER & node->inter_recursive_flags);
+	}
 }
 
 static struct slot ui_text_selection_alloc(const struct ui_node *node, const vec4 color, const u32 low, const u32 high)
@@ -1557,14 +1568,14 @@ struct ui_node_cache ui_node_alloc_cached(const u64 flags, const utf8 id, const 
 	{
 		floating = 1;
 		node->layout_position[AXIS_2_X] = stack_f32_top(g_ui->stack_floating + AXIS_2_X);
-		node->flags |= UI_FLOATING_X | UI_FIXED_X;
+		node->flags |= UI_FLOATING_X;
 	}	
 
 	if (g_ui->stack_floating[AXIS_2_Y].next)
 	{
 		floating = 1;
 		node->layout_position[AXIS_2_Y] = stack_f32_top(g_ui->stack_floating + AXIS_2_Y);
-		node->flags |= UI_FLOATING_Y | UI_FIXED_Y;
+		node->flags |= UI_FLOATING_Y;
 	}
 
 	if (floating)
@@ -1870,16 +1881,15 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 	{
 		floating = 1;
 		node->layout_position[AXIS_2_X] = stack_f32_top(g_ui->stack_floating + AXIS_2_X);
-		node->flags |= UI_FLOATING_X | UI_FIXED_X;
+		node->flags |= UI_FLOATING_X;
 	}	
 
 	if (g_ui->stack_floating[AXIS_2_Y].next)
 	{
 		floating = 1;
 		node->layout_position[AXIS_2_Y] = stack_f32_top(g_ui->stack_floating + AXIS_2_Y);
-		node->flags |= UI_FLOATING_Y | UI_FIXED_Y;
+		node->flags |= UI_FLOATING_Y;
 	}
-
 
 	if (floating)
 	{

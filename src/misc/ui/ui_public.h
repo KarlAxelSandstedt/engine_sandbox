@@ -103,7 +103,6 @@ struct ui_text_input 	ui_text_input_empty(void);
 struct ui_text_input 	ui_text_input_buffered(u32 buf[], const u32 len);
 struct ui_text_input 	ui_text_input_alloc(struct arena *mem, const u32 max_len);
 
-/*TODO RENAME OR SOMETHING */
 struct slot 		ui_text_input_f(struct ui_text_input *input, const utf32 unfocused_text, const char *fmt, ...);
 struct slot 		ui_text_input(struct ui_text_input *input, const utf32 unfocused_text, const utf8 id);
 
@@ -126,26 +125,18 @@ i64	ui_field_i64_f(const i64 value, const intvi64 range, const char *fmt, ...);
 utf8	ui_field_utf8(const utf8 id);
 utf8	ui_field_utf8_f(const char *fmt, ...);
 
-
-/***************************************** ######TODO *****************************************/
-
-struct cmd_console
-{
-	struct ui_text_input	prompt;
-	u32			visible;
-};
-
-void 			ui_cmd_console(struct cmd_console *console, const char *fmt, ...);
-
-u64			ui_button_f(const u64 flags, const char *fmt, ...);
-
-/******************************************* ui_list ********************************************/
+/*
+ui_list
+=======
+ui_list widgets are areas that displays selectable rows or columns of a specified size. 
+Only rows within the visible range are actually constructed.
+*/
 
 enum ui_selection_type
 {
-	UI_SELECTION_NONE,
-	UI_SELECTION_UNIQUE,
-	UI_SELECTION_MULTI,
+	UI_SELECTION_NONE,	/* Entries or non-selectable. 			  */
+	UI_SELECTION_UNIQUE,	/* Only a single entry can be selected at a time. */
+	UI_SELECTION_MULTI,	/* Any number of entries can be selected. 	  */
 	UI_SELECTION_COUNT
 };
 
@@ -153,7 +144,8 @@ struct ui_list
 {
 	u64			last_selection_happened; 	/* Last frame a entry was selected */
 	u32			last_selected;			/* last entry in current frame to be selected */
-	enum ui_selection_type selection_type;	/* MULTI or UNIQUE; If unique, only one entry can be selected  */
+	enum ui_selection_type	selection_type;			/* MULTI or UNIQUE; If unique, only one entry can
+								   be selected  */
 
 	u32			cache_count;			/* cached count from previous frame */
 	u32			frame_count;			/* current count in current frame */
@@ -175,6 +167,62 @@ void			ui_list_pop(struct ui_list *list);
 struct ui_node_cache	ui_list_entry_alloc_cached(struct ui_list *list, const utf8 id, const struct ui_node_cache cache);
 struct slot 		ui_list_entry_alloc(struct ui_list *list, const utf8 id);
 struct slot 		ui_list_entry_alloc_f(struct ui_list *list, const char *format, ...);
+
+/*
+ui_dropdown_menu
+================
+ui_dropdown_menu is a widget that displays a string in its box. When the box is hovered, a list of entries is attached
+to some choosen side of the menu.
+*/
+
+struct ui_dropdown_menu
+{
+	u64		flags;
+
+	u32		root;
+
+	vec2		entry_size;
+	f32		max_dropdown_height;
+	f32		dropdown_x;
+	f32		dropdown_y;
+
+	struct ui_list	list;
+};
+
+enum ui_dropdown_position
+{
+	UI_DROPDOWN_BELOW,
+	UI_DROPDOWN_ABOVE,
+	UI_DROPDOWN_LEFT,
+	UI_DROPDOWN_RIGHT,
+};
+
+struct ui_dropdown_menu ui_dropdown_menu_init(const f32 max_dropdown_height, const vec2 entry_size, const enum ui_dropdown_position position);
+u32			ui_dropdown_menu(struct ui_dropdown_menu *menu, const utf8 id);
+u32			ui_dropdown_menu_f(struct ui_dropdown_menu *menu, const char *format, ...);
+void			ui_dropdown_menu_push(struct ui_dropdown_menu *menu);
+void			ui_dropdown_menu_pop(struct ui_dropdown_menu *menu);
+
+struct slot		ui_dropdown_menu_entry(struct ui_dropdown_menu *menu, const utf8 id);
+struct slot		ui_dropdown_menu_entry_f(struct ui_dropdown_menu *menu, const char *format, ...);
+
+/*
+ui_tooltip
+==========
+//TODO
+*/
+
+/***************************************** ######TODO *****************************************/
+
+struct cmd_console
+{
+	struct ui_text_input	prompt;
+	u32			visible;
+};
+
+void 			ui_cmd_console(struct cmd_console *console, const char *fmt, ...);
+
+u64			ui_button_f(const u64 flags, const char *fmt, ...);
 
 /***************************************** ui_timeline ******************************************/
 
@@ -772,6 +820,10 @@ u32	ui_pad_fill(void);
 #define ui_floating(axis, pixel)		UI_SCOPE(ui_floating_push(axis, pixel), ui_floating_pop(axis))
 #define ui_floating_x(pixel)			ui_floating(AXIS_2_X, pixel)
 #define ui_floating_y(pixel)			ui_floating(AXIS_2_Y, pixel)
+#define ui_fixed_x(pixel)			ui_flags(UI_FIXED_X)		\
+						ui_floating_x(pixel)
+#define ui_fixed_y(pixel)			ui_flags(UI_FIXED_Y)		\
+						ui_floating_y(pixel)
 #define ui_child_layout_axis(axis)		UI_SCOPE(ui_child_layout_axis_push(axis), ui_child_layout_axis_pop(axis))
 #define ui_background_color(color)		UI_SCOPE(ui_background_color_push(color), ui_background_color_pop())
 #define ui_border_color(color)			UI_SCOPE(ui_border_color_push(color), ui_border_color_pop())
