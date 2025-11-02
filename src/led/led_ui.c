@@ -427,10 +427,10 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 		led->node_selected_ui_list = ui_list_init(AXIS_2_Y, 512.0f, 24.0f + 3*24.0f + 12.0f, UI_SELECTION_NONE);
 		led->collision_shape_list = ui_list_init(AXIS_2_Y, 200.0f, 24.0f, UI_SELECTION_UNIQUE);
 
-	 	menu1 = ui_dropdown_menu_init(96.0f, vec2_inline(96.0f, 24.0f), UI_DROPDOWN_BELOW);	
-	 	menu2 = ui_dropdown_menu_init(96.0f, vec2_inline(96.0f, 24.0f), UI_DROPDOWN_RIGHT);	
-	 	menu3 = ui_dropdown_menu_init(96.0f, vec2_inline(96.0f, 24.0f), UI_DROPDOWN_LEFT);	
-	 	menu4 = ui_dropdown_menu_init(96.0f, vec2_inline(96.0f, 24.0f), UI_DROPDOWN_ABOVE);	
+	 	menu1 = ui_dropdown_menu_init(150.0f, vec2_inline(96.0f, 24.0f), UI_DROPDOWN_BELOW);	
+	 	menu2 = ui_dropdown_menu_init(150.0f, vec2_inline(96.0f, 24.0f), UI_DROPDOWN_RIGHT);	
+	 	menu3 = ui_dropdown_menu_init(150.0f, vec2_inline(96.0f, 24.0f), UI_DROPDOWN_LEFT);	
+	 	menu4 = ui_dropdown_menu_init(150.0f, vec2_inline(96.0f, 24.0f), UI_DROPDOWN_ABOVE);	
 	}
 
 	ui_text_align_x(ALIGN_LEFT)

@@ -1150,14 +1150,14 @@ static void ui_node_calculate_immediate_layout(struct ui_node *node, const enum 
 		{
 			const struct ui_node *parent = hierarchy_index_address(g_ui->node_hierarchy, node->header.parent);
 			const intv visible = stack_intv_top(g_ui->stack_viewable + axis);
-			const f32 pixels_per_unit = parent->layout_size[axis] / (visible.high - visible.low);
+			const f32 pixels_per_unit = parent->pixel_size[axis] / (visible.high - visible.low);
 
 			node->layout_size[axis] = pixels_per_unit*(node->semantic_size[axis].intv.high - node->semantic_size[axis].intv.low);
 			node->layout_position[axis] = pixels_per_unit*(node->semantic_size[axis].intv.low - visible.low);
 
 			if ((axis == AXIS_2_Y) && (node->flags & UI_UNIT_POSITIVE_DOWN))
 			{
-				node->layout_position[axis] = parent->layout_size[axis] - node->layout_size[axis] - node->layout_position[axis];
+				node->layout_position[axis] = parent->pixel_size[axis] - node->layout_size[axis] - node->layout_position[axis];
 			}
 		} break;
 

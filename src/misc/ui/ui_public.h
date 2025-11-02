@@ -142,6 +142,7 @@ enum ui_selection_type
 
 struct ui_list
 {
+	u64			last_build_frame;		/* laft frame list was built */
 	u64			last_selection_happened; 	/* Last frame a entry was selected */
 	u32			last_selected;			/* last entry in current frame to be selected */
 	enum ui_selection_type	selection_type;			/* MULTI or UNIQUE; If unique, only one entry can
@@ -154,14 +155,14 @@ struct ui_list
 
 	intv 			visible;		/* visible pixel range in list 
 							   : [0 : max(cache_count*entry_pixel_size, list_size)] */
-	f32			axis_pixel_size;	/* list pixel size in the layout axis  	*/
+	f32			max_pixel_size;		/* maximum pixel size of list		*/
 	f32			entry_pixel_size;	/* entry pixel size in the layout axis 	*/
 	enum axis_2		axis;			/* child layout axis 			*/
 };
 
 #define ui_list(list, fmt, ...)		UI_SCOPE(ui_list_push(list, fmt,  __VA_ARGS__), ui_list_pop(list))
 
-struct ui_list 		ui_list_init(enum axis_2 axis, const f32 axis_pixel_size, const f32 entry_pixel_size, const enum ui_selection_type unique_selection);
+struct ui_list 		ui_list_init(enum axis_2 axis, const f32 max_pixel_size, const f32 entry_pixel_size, const enum ui_selection_type unique_selection);
 void			ui_list_push(struct ui_list *list, const char *format, ...);
 void			ui_list_pop(struct ui_list *list);
 struct ui_node_cache	ui_list_entry_alloc_cached(struct ui_list *list, const utf8 id, const struct ui_node_cache cache);
@@ -175,26 +176,27 @@ ui_dropdown_menu is a widget that displays a string in its box. When the box is 
 to some choosen side of the menu.
 */
 
-struct ui_dropdown_menu
-{
-	u64		flags;
-
-	u32		root;
-
-	vec2		entry_size;
-	f32		max_dropdown_height;
-	f32		dropdown_x;
-	f32		dropdown_y;
-
-	struct ui_list	list;
-};
-
 enum ui_dropdown_position
 {
 	UI_DROPDOWN_BELOW,
 	UI_DROPDOWN_ABOVE,
 	UI_DROPDOWN_LEFT,
 	UI_DROPDOWN_RIGHT,
+};
+
+struct ui_dropdown_menu
+{
+	u64				flags;
+	enum ui_dropdown_position	position;
+
+	u32				root;
+
+	vec2				entry_size;
+	f32				max_dropdown_height;
+	f32				dropdown_x;
+	f32				dropdown_y;
+
+	struct ui_list	list;
 };
 
 struct ui_dropdown_menu ui_dropdown_menu_init(const f32 max_dropdown_height, const vec2 entry_size, const enum ui_dropdown_position position);

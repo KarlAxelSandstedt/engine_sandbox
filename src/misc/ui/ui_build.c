@@ -162,14 +162,15 @@ utf8 ui_field_utf8_f(const char *fmt, ...)
 	return ui_field_utf8(id);
 }
 
-struct ui_list ui_list_init(enum axis_2 axis, const f32 axis_pixel_size, const f32 entry_pixel_size, const enum ui_selection_type selection_type)
+struct ui_list ui_list_init(enum axis_2 axis, const f32 max_pixel_size, const f32 entry_pixel_size, const enum ui_selection_type selection_type)
 {
 	struct ui_list list = 
 	{  
-		.axis_pixel_size = axis_pixel_size,
+		.max_pixel_size = max_pixel_size,
 		.entry_pixel_size = entry_pixel_size,
 		.axis = axis,
 		.selection_type = selection_type,
+		.last_build_frame = U64_MAX,
 		.last_selected = HI_NULL_INDEX,
 		.last_selection_happened = U64_MAX,
 	};
@@ -184,20 +185,33 @@ void ui_list_push(struct ui_list *list, const char *format, ...)
 	utf8 id = utf8_format_variadic(g_ui->mem_frame, format, args);
 	va_end(args);
 
-	struct slot slot;
-	ui_child_layout_axis(list->axis)
-	ui_size(list->axis, ui_size_pixel(list->axis_pixel_size, 1.0f))
-	ui_recursive_interaction(UI_INTER_DRAG | UI_INTER_SCROLL)
-	slot = ui_node_alloc(UI_INTER_RECURSIVE_ROOT | UI_DRAW_BACKGROUND | UI_DRAW_BORDER, &id);
-
 	list->cache_count = list->frame_count;
+	f32 wanted_axis_pixel_size; 
+	f32 cached_axis_pixel_size; 
+	if (list->last_build_frame + 1 == g_ui->frame)
+	{
+		struct ui_node *node = ui_node_address(list->frame_node);
+		wanted_axis_pixel_size = list->cache_count*list->entry_pixel_size;
+		wanted_axis_pixel_size = f32_min(wanted_axis_pixel_size, list->max_pixel_size);
+		cached_axis_pixel_size = node->pixel_size[list->axis];
+	}
+	else
+	{
+		wanted_axis_pixel_size = list->max_pixel_size;
+		cached_axis_pixel_size = wanted_axis_pixel_size;
+	}
+
+	list->last_build_frame = g_ui->frame;
 	list->frame_count = 0;
-	list->frame_node_address = slot.address;
-	list->frame_node = slot.index;
+
+	ui_child_layout_axis(list->axis)
+	ui_size(list->axis, ui_size_pixel(wanted_axis_pixel_size, 0.0f))
+	ui_recursive_interaction(UI_INTER_DRAG | UI_INTER_SCROLL)
+	list->frame_node = ui_node_alloc(UI_INTER_RECURSIVE_ROOT | UI_DRAW_BACKGROUND | UI_DRAW_BORDER, &id).index;
 
 	list->visible.high = f32_min(list->visible.high, list->cache_count*list->entry_pixel_size);
-	list->visible.high = f32_max(list->visible.high, list->axis_pixel_size);
-	list->visible.low = list->visible.high - list->axis_pixel_size;
+	list->visible.high = f32_max(list->visible.high, cached_axis_pixel_size);
+	list->visible.low = list->visible.high - cached_axis_pixel_size;
 
 	ui_child_layout_axis_push(list->axis);
 	ui_intv_viewable_push(list->axis, list->visible);
@@ -210,7 +224,8 @@ void ui_list_pop(struct ui_list *list)
 	ui_intv_viewable_pop(list->axis);
 	ui_node_pop();
 
-	if (list->frame_node_address->inter & UI_INTER_DRAG)
+	struct ui_node *node = ui_node_address(list->frame_node);
+	if (node->inter & UI_INTER_DRAG)
 	{
 		if (list->axis == AXIS_2_X)
 		{
@@ -223,7 +238,7 @@ void ui_list_pop(struct ui_list *list)
 			list->visible.high += g_ui->inter.cursor_delta[1];
 		}
 	}
-	else if (list->frame_node_address->inter & UI_INTER_SCROLL)
+	else if (node->inter & UI_INTER_SCROLL)
 	{
 		
 		const f32 scroll_offset = 24.0f * ((f32) g_ui->inter.scroll_up_count - (f32) g_ui->inter.scroll_down_count);
@@ -1118,6 +1133,7 @@ struct ui_dropdown_menu ui_dropdown_menu_init(const f32 max_dropdown_height, con
 
 	vec2_copy(menu.entry_size, entry_size);
 	menu.max_dropdown_height = max_dropdown_height;
+	menu.position = position;
 
 	if (position == UI_DROPDOWN_BELOW)
 	{
@@ -1132,12 +1148,12 @@ struct ui_dropdown_menu ui_dropdown_menu_init(const f32 max_dropdown_height, con
 	else if (position == UI_DROPDOWN_RIGHT)
 	{
 		menu.dropdown_x = entry_size[0];
-		menu.dropdown_y = 0.0f;
+		menu.dropdown_y = -max_dropdown_height + entry_size[1];
 	}
 	else
 	{
 		menu.dropdown_x = -entry_size[0];
-		menu.dropdown_y = 0.0f;
+		menu.dropdown_y = -max_dropdown_height + entry_size[1];
 	}
 
 	return menu;	
@@ -1177,16 +1193,30 @@ void ui_dropdown_menu_push(struct ui_dropdown_menu *menu)
 	ui_fixed_depth(64)
 	ui_width(ui_size_pixel(menu->entry_size[0], 1.0f))
 	ui_height(ui_size_pixel(menu->max_dropdown_height, 1.0f))
-	ui_node_push(ui_node_alloc_f(UI_FLAG_NONE, "###dropdown_%p", menu).index);
+	ui_child_layout_axis(AXIS_2_Y)
+	ui_node_push(ui_node_alloc_f(UI_DRAW_BORDER, "###dropdown_%p", menu).index);
 
-	ui_width(ui_size_pixel(menu->entry_size[0], 1.0f))
-	ui_height(ui_size_pixel(menu->max_dropdown_height, 1.0f))
+	if (menu->position == UI_DROPDOWN_ABOVE)
+	{
+		ui_pad_fill();
+	}
 	ui_list_push(&menu->list, "###list_%p", menu);
 }
 
 void ui_dropdown_menu_pop(struct ui_dropdown_menu *menu)
 {
 	ui_list_pop(&menu->list);
+
+	switch (menu->position)
+	{
+		case UI_DROPDOWN_BELOW:
+		case UI_DROPDOWN_RIGHT:
+		case UI_DROPDOWN_LEFT:
+		{
+			ui_pad_fill();
+		} break;
+	}
+
 	ui_node_pop();
 	ui_node_pop();
 }
