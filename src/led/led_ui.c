@@ -290,7 +290,7 @@ static void led_ui_test(struct led *led, const struct ui_visual *visual)
 			{
 				ui_sprite_color(vec4_inline(0.4f, 0.15f, 0.75f, 0.7f))
 				ui_sprite(SPRITE_LED_FOLDER)
-				ui_background_color(vec4_inline(204.0f/256.0f, 48.0f/256.0f, 96.0f/256.0f, 0.7f))
+				ui_background_color(vec4_inline(204.0f/256.0f, 48.0f/256.0f, 110.0f/256.0f, 0.7f))
 				ui_intv_viewable_x(intv_inline(100.0f, 200.0f))	
 				for (u32 i = 0; i <= 10; ++i)
 				{
@@ -316,7 +316,7 @@ static void led_ui_test(struct led *led, const struct ui_visual *visual)
 				}
 
 				ui_width(ui_size_pixel(400, 1.0f / (2 << 8)))
-				ui_background_color(vec4_inline((204.0f- 8*20.0f)/256.0f, (48.0f + 8*20.0f)/256.0f, (96.0f + 8*10.0f)/256.0f, 0.7f))
+				ui_background_color(vec4_inline((204.0f- 8*20.0f)/256.0f, (48.0f + 8*20.0f)/256.0f, (110.0f + 8*10.0f)/256.0f, 0.7f))
 				ui_node_alloc_f(UI_DRAW_BACKGROUND, "###box_%u_%u", 6, 8);
 			}
 		}
@@ -345,7 +345,7 @@ static void led_ui_test(struct led *led, const struct ui_visual *visual)
 			ui_node_alloc_f(UI_DRAW_TEXT | UI_DRAW_BACKGROUND | UI_DRAW_BORDER, "text centering!###box_%u_%u", 8, 0);
 
 			ui_flags(UI_TEXT_ALLOW_OVERFLOW)
-			ui_width(ui_size_pixel(96.0f, 1.0f))
+			ui_width(ui_size_pixel(110.0f, 1.0f))
 			ui_height(ui_size_perc(1.0f))
 			{
 				ui_text_align_x(ALIGN_LEFT)
@@ -425,12 +425,16 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 
 		led->node_ui_list = ui_list_init(AXIS_2_Y, 256.0f, 24.0f, UI_SELECTION_MULTI); 
 		led->node_selected_ui_list = ui_list_init(AXIS_2_Y, 512.0f, 24.0f + 3*24.0f + 12.0f, UI_SELECTION_NONE);
-		led->collision_shape_list = ui_list_init(AXIS_2_Y, 200.0f, 24.0f, UI_SELECTION_UNIQUE);
+		led->cs_list = ui_list_init(AXIS_2_Y, 200.0f, 24.0f, UI_SELECTION_UNIQUE);
+		led->cs_mesh_menu = ui_dropdown_menu_init(150.0f, vec2_inline(110.0f, 24.0f), UI_DROPDOWN_BELOW);
 
-	 	menu1 = ui_dropdown_menu_init(150.0f, vec2_inline(96.0f, 24.0f), UI_DROPDOWN_BELOW);	
-	 	menu2 = ui_dropdown_menu_init(150.0f, vec2_inline(96.0f, 24.0f), UI_DROPDOWN_RIGHT);	
-	 	menu3 = ui_dropdown_menu_init(150.0f, vec2_inline(96.0f, 24.0f), UI_DROPDOWN_LEFT);	
-	 	menu4 = ui_dropdown_menu_init(150.0f, vec2_inline(96.0f, 24.0f), UI_DROPDOWN_ABOVE);	
+		led->rb_prefab_list = ui_list_init(AXIS_2_Y, 200.0f, 24.0f, UI_SELECTION_UNIQUE);
+		led->rb_prefab_mesh_menu = ui_dropdown_menu_init(150.0f, vec2_inline(110.0f, 24.0f), UI_DROPDOWN_ABOVE);
+
+	 	menu1 = ui_dropdown_menu_init(150.0f, vec2_inline(110.0f, 24.0f), UI_DROPDOWN_BELOW);	
+	 	menu2 = ui_dropdown_menu_init(150.0f, vec2_inline(110.0f, 24.0f), UI_DROPDOWN_RIGHT);	
+	 	menu3 = ui_dropdown_menu_init(150.0f, vec2_inline(110.0f, 24.0f), UI_DROPDOWN_LEFT);	
+	 	menu4 = ui_dropdown_menu_init(150.0f, vec2_inline(110.0f, 24.0f), UI_DROPDOWN_ABOVE);	
 	}
 
 	ui_text_align_x(ALIGN_LEFT)
@@ -529,11 +533,11 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 			{
 				ui_pad();
 
-				ui_width(ui_size_pixel(186.0f, 1.0f))
+				ui_width(ui_size_pixel(226.0f, 1.0f))
 				ui_child_layout_axis(AXIS_2_Y)
 				ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
 				ui_height(ui_size_pixel(24.0f, 1.0f))
-				ui_width(ui_size_pixel(180.0f, 1.0f))
+				ui_width(ui_size_pixel(218.0f, 1.0f))
 				{
 					ui_pad();
 
@@ -549,15 +553,15 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 					ui_pad();
 
 					const struct collision_shape *shape;
-					ui_list(&led->collision_shape_list, "###%p", &led->collision_shape_list)
-					for (u32 i = led->collision_shape_db.allocated_dll.first; i != DLL_NULL; i = DB_NEXT(shape))
+					ui_list(&led->cs_list, "###%p", &led->cs_list)
+					for (u32 i = led->cs_db.allocated_dll.first; i != DLL_NULL; i = DB_NEXT(shape))
 					{
-						shape = string_database_address(&led->collision_shape_db, i);
-						struct slot entry = ui_list_entry_alloc_f(&led->collision_shape_list, "###%p_%u", &led->collision_shape_list, i);
+						shape = string_database_address(&led->cs_db, i);
+						struct slot entry = ui_list_entry_alloc_f(&led->cs_list, "###%p_%u", &led->cs_list, i);
 						if (entry.index)
 						ui_parent(entry.index)
 						{
-							if (entry.index == led->collision_shape_list.last_selected)
+							if (entry.index == led->cs_list.last_selected)
 							{
 								shape_selected = i;
 							}
@@ -571,7 +575,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 				ui_width(ui_size_pixel(192.0f, 1.0f))
 				ui_child_layout_axis(AXIS_2_X)
 				ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BORDER).index)
-				if (led->collision_shape_list.last_selection_happened == g_ui->frame)
+				if (led->cs_list.last_selection_happened == g_ui->frame)
 				{
 					ui_pad();
 
@@ -581,7 +585,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 					{
 						ui_pad();
 
-						struct collision_shape *shape = string_database_address(&led->collision_shape_db, shape_selected);
+						struct collision_shape *shape = string_database_address(&led->cs_db, shape_selected);
 						ui_height(ui_size_pixel(24.0f, 1.0f))
 						ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW | UI_DRAW_BORDER, "%k##shape_selected", &shape->id);
 
@@ -593,13 +597,43 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 							{
 								ui_height(ui_size_pixel(24.0f, 1.0f))
 								ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, "type: SPHERE");
-								shape->sphere.radius = ui_field_f32_f(shape->sphere.radius, intv_inline(0.0125f, 100.0f), "%f###cs_radius", shape->sphere.radius);
+
+								ui_pad();
+
+								ui_height(ui_size_pixel(24.0f, 1.0f))
+								ui_child_layout_axis(AXIS_2_X)
+								ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
+								{
+									ui_width(ui_size_pixel(64.0f, 1.0f))
+									ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, "radius: ###sph_rad");
+
+									ui_width(ui_size_perc(1.0f))
+									shape->sphere.radius = ui_field_f32_f(shape->sphere.radius, intv_inline(0.0125f, 100.0f), "%f###sph_rad_in", shape->sphere.radius);
+								}
+
 							} break;
 
 							case COLLISION_SHAPE_CAPSULE:
 							{
 								ui_height(ui_size_pixel(24.0f, 1.0f))
 								ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, "type: CAPSULE");
+								ui_height(ui_size_pixel(24.0f*3, 1.0f))
+								ui_child_layout_axis(AXIS_2_X)
+								ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
+								{
+									ui_width(ui_size_pixel(64.0f, 1.0f))
+									ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, "vector: ###cap_rad");
+									ui_child_layout_axis(AXIS_2_Y)
+									ui_height(ui_size_perc(1.0f))
+									ui_width(ui_size_perc(1.0f))
+									ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
+									{
+										shape->capsule.p1[0] = ui_field_f32_f(shape->capsule.p1[0], intv_inline(0.0125f, 100.0f), "%f###cap_pos0", shape->capsule.p1[0]);
+										shape->capsule.p1[1] = ui_field_f32_f(shape->capsule.p1[1], intv_inline(0.0125f, 100.0f), "%f###cap_pos1", shape->capsule.p1[1]);
+										shape->capsule.p1[2] = ui_field_f32_f(shape->capsule.p1[2], intv_inline(0.0125f, 100.0f), "%f###cap_pos2", shape->capsule.p1[2]);
+
+									}
+								}
 							} break;
 
 							case COLLISION_SHAPE_CONVEX_HULL:
@@ -615,94 +649,250 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 					ui_pad();
 				}
 
+				ui_pad();
 
-				ui_width(ui_size_perc(1.0f))
+				u32 prefab_selected = U32_MAX;
+				ui_width(ui_size_pixel(226.0f, 1.0f))
 				ui_child_layout_axis(AXIS_2_Y)
-				ui_parent(ui_node_alloc_non_hashed(0).index)
+				ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BORDER).index)
+				ui_height(ui_size_pixel(24.0f, 1.0f))
+				ui_width(ui_size_pixel(218.0f, 1.0f))
 				{
-					ui_height(ui_size_pixel(24.0f, 1.0f))
-					ui_child_layout_axis(AXIS_2_X)
-					ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BORDER).index)
+					ui_pad();
+
+					utf8 new_prefab_id;
+					new_prefab_id = ui_field_utf8_f("Add Rigid Body Prefab...###new_prefab");
+					if (new_prefab_id.len)
 					{
-						if (ui_dropdown_menu_f(&menu1, "DD BELOW"))
+						g_queue->cmd_exec->arg[0].utf8 = new_prefab_id;
+						cmd_submit_f(g_ui->mem_frame, "rigid_body_prefab_add \"%k\" \"c_box\" 1.0 0.0 0.0 0", &new_prefab_id);
+					}
+
+					ui_pad();
+
+					const struct rigid_body_prefab *prefab;
+					ui_list(&led->rb_prefab_list, "###%p", &led->rb_prefab_list)
+					for (u32 i = led->rb_prefab_db.allocated_dll.first; i != DLL_NULL; i = DB_NEXT(prefab))
+					{
+						prefab = string_database_address(&led->rb_prefab_db, i);
+						struct slot entry = ui_list_entry_alloc_f(&led->rb_prefab_list, "###%p_%u", &led->rb_prefab_list, i);
+						if (entry.index)
+						ui_parent(entry.index)
 						{
-							ui_dropdown_menu_push(&menu1);
-
-							for (u32 k = 0; k < 5; ++k)
+							if (entry.index == led->rb_prefab_list.last_selected)
 							{
-								struct ui_node *drop;
-								ui_flags(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW)
-								drop = ui_dropdown_menu_entry_f(&menu1, "entry_%u##%p", k, &menu1).address;
-								if (drop->inter & UI_INTER_HOVER)
-								{
-									fprintf(stderr, "entry_%u\n", k);	
-								}
-								if (drop->inter & UI_INTER_SELECT)
-								{
-									fprintf(stderr, "woof\n");	
-								}
+								prefab_selected = i;
 							}
-
-							ui_dropdown_menu_pop(&menu1);
-						}
-
-						if (ui_dropdown_menu_f(&menu2, "DD RIGHT"))
-						{
-							ui_dropdown_menu_push(&menu2);
-
-							for (u32 k = 0; k < 5; ++k)
-							{
-								struct ui_node *drop;
-								ui_flags(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW)
-								drop = ui_dropdown_menu_entry_f(&menu2, "entry_%u##%p", k, &menu2).address;
-								if (drop->inter & UI_INTER_SELECT)
-								{
-									fprintf(stderr, "meow\n");	
-								}
-							}
-
-							ui_dropdown_menu_pop(&menu2);
-						}
-
-						if (ui_dropdown_menu_f(&menu3, "DD LEFT"))
-						{
-							ui_dropdown_menu_push(&menu3);
-
-							for (u32 k = 0; k < 5; ++k)
-							{
-								struct ui_node *drop;
-								ui_flags(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW)
-								drop = ui_dropdown_menu_entry_f(&menu3, "entry_%u##%p", k, &menu3).address;
-								if (drop->inter & UI_INTER_SELECT)
-								{
-									fprintf(stderr, "meow\n");	
-								}
-							}
-
-							ui_dropdown_menu_pop(&menu3);
-						}
-
-						if (ui_dropdown_menu_f(&menu4, "DD ABOVE"))
-						{
-							ui_dropdown_menu_push(&menu4);
-
-							for (u32 k = 0; k < 5; ++k)
-							{
-								struct ui_node *drop;
-								ui_flags(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW)
-								drop = ui_dropdown_menu_entry_f(&menu4, "entry_%u##%p", k, &menu4).address;
-								if (drop->inter & UI_INTER_SELECT)
-								{
-									fprintf(stderr, "meow\n");	
-								}
-							}
-
-							ui_dropdown_menu_pop(&menu4);
+							ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, "%k##%u", &prefab->id, i);
 						}
 					}
 
 					ui_pad_fill();
 				}
+
+				ui_width(ui_size_pixel(256.0f, 1.0f))
+				ui_child_layout_axis(AXIS_2_X)
+				ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BORDER).index)
+				if (led->rb_prefab_list.last_selection_happened == g_ui->frame)
+				{
+					ui_pad();
+
+					ui_child_layout_axis(AXIS_2_Y)
+					ui_width(ui_size_pixel(240.0f, 1.0f))
+					ui_parent(ui_node_alloc_non_hashed(0).index)
+					{
+						ui_pad();
+
+						struct rigid_body_prefab *prefab = string_database_address(&led->rb_prefab_db, prefab_selected);
+						const struct collision_shape *shape = string_database_address(&led->cs_db, prefab->shape);
+						ui_height(ui_size_pixel(24.0f, 1.0f))
+						ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW | UI_DRAW_BORDER, "%k##prefab_selected", &prefab->id);
+
+						ui_pad();
+
+						const f32 density_prev = prefab->density;
+						const u32 shape_prev = prefab->shape;
+
+						ui_height(ui_size_pixel(24.0f, 1.0f))
+						ui_child_layout_axis(AXIS_2_X)
+						{
+							ui_parent(ui_node_alloc_non_hashed(0).index)
+							{
+								ui_width(ui_size_text(F32_INFINITY, 1.0f))
+								ui_node_alloc_f(UI_DRAW_TEXT, "density: ");
+				
+								ui_pad_fill();
+
+								ui_flags(UI_DRAW_BORDER)
+								ui_width(ui_size_pixel(110.0f, 1.0f))
+								prefab->density = ui_field_f32_f(prefab->density, intv_inline(0.00125f, 1000000.0f), "%f###s_density", prefab->density);
+							}
+							
+							ui_pad();
+
+							ui_parent(ui_node_alloc_non_hashed(0).index)
+							{
+								ui_width(ui_size_text(F32_INFINITY, 1.0f))
+								ui_node_alloc_f(UI_DRAW_TEXT, "restitution: ");
+				
+								ui_pad_fill();
+
+								ui_flags(UI_DRAW_BORDER)
+								ui_width(ui_size_pixel(110.0f, 1.0f))
+								prefab->restitution = ui_field_f32_f(prefab->restitution, intv_inline(0.0f, 1.0f), "%f###s_restitution", prefab->restitution);
+							}
+							
+							ui_pad();
+
+							ui_parent(ui_node_alloc_non_hashed(0).index)
+							{
+								ui_width(ui_size_text(F32_INFINITY, 1.0f))
+								ui_node_alloc_f(UI_DRAW_TEXT, "friction: ");
+				
+								ui_pad_fill();
+
+								ui_flags(UI_DRAW_BORDER)
+								ui_width(ui_size_pixel(110.0f, 1.0f))
+								prefab->friction = ui_field_f32_f(prefab->friction, intv_inline(0.0f, 1.0f), "%f###s_friction", prefab->friction);
+							}
+							
+							ui_pad();
+
+							ui_parent(ui_node_alloc_non_hashed(0).index)
+							{
+								ui_width(ui_size_text(F32_INFINITY, 1.0f))
+								ui_node_alloc_f(UI_DRAW_TEXT, "dynamic: ");
+				
+								ui_pad_fill();
+
+								ui_flags(UI_DRAW_BORDER)
+								ui_width(ui_size_pixel(110.0f, 1.0f))
+								prefab->dynamic = (u32) ui_field_u64_f(prefab->dynamic, intvu64_inline(0, 1), "%u###s_dynamic", prefab->dynamic);
+							}
+
+							ui_pad();
+
+							ui_parent(ui_node_alloc_non_hashed(0).index)
+							{
+								ui_width(ui_size_text(F32_INFINITY, 1.0f))
+								ui_node_alloc_f(UI_DRAW_TEXT, "shape: ");
+				
+								ui_pad_fill();
+
+								struct collision_shape *shape = string_database_address(&led->cs_db, prefab->shape);
+								ui_width(ui_size_pixel(110.0f, 1.0f))
+								if (ui_dropdown_menu_f(&led->rb_prefab_mesh_menu, "%k###%p_sel", &shape->id, &led->rb_prefab_mesh_menu))
+								{
+									ui_dropdown_menu_push(&led->rb_prefab_mesh_menu);
+
+									const struct collision_shape *s;
+									for (u32 i = led->cs_db.allocated_dll.first; i != DLL_NULL; i = DB_NEXT(s))
+									{
+										s = string_database_address(&led->cs_db, i);
+								//		struct slot entry = ui_dropdown_menu_entry_f(&led->rb_prefab_mesh_menu, "%k##%p_%u", &s->id, &led->rb_prefab_mesh_menu, i);
+								//		if (entry.index)
+								//		ui_parent(entry.index)
+								//		{
+								//			
+								//		}
+									}
+
+									ui_dropdown_menu_pop(&led->rb_prefab_mesh_menu);
+								}
+							}
+						}
+
+
+						if (prefab->density != density_prev || prefab->shape != shape_prev)
+						{
+							prefab_statics_setup(prefab, shape, prefab->density);
+						}
+
+						ui_pad_fill();
+					}
+
+					ui_pad();
+				}
+
+				//ui_width(ui_size_perc(1.0f))
+				//ui_child_layout_axis(AXIS_2_Y)
+				//ui_parent(ui_node_alloc_non_hashed(0).index)
+				//{
+				//	ui_height(ui_size_pixel(24.0f, 1.0f))
+				//	ui_child_layout_axis(AXIS_2_X)
+				//	ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BORDER).index)
+				//	{
+				//		if (ui_dropdown_menu_f(&menu1, "DD BELOW"))
+				//		{
+				//			ui_dropdown_menu_push(&menu1);
+
+				//			for (u32 k = 0; k < 5; ++k)
+				//			{
+				//				struct ui_node *drop;
+				//				ui_flags(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW)
+				//				drop = ui_dropdown_menu_entry_f(&menu1, "entry_%u##%p", k, &menu1).address;
+				//				if (drop->inter & UI_INTER_SELECT)
+				//				{
+				//				}
+				//			}
+
+				//			ui_dropdown_menu_pop(&menu1);
+				//		}
+
+				//		if (ui_dropdown_menu_f(&menu2, "DD RIGHT"))
+				//		{
+				//			ui_dropdown_menu_push(&menu2);
+
+				//			for (u32 k = 0; k < 5; ++k)
+				//			{
+				//				struct ui_node *drop;
+				//				ui_flags(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW)
+				//				drop = ui_dropdown_menu_entry_f(&menu2, "entry_%u##%p", k, &menu2).address;
+				//				if (drop->inter & UI_INTER_SELECT)
+				//				{
+				//				}
+				//			}
+
+				//			ui_dropdown_menu_pop(&menu2);
+				//		}
+
+				//		if (ui_dropdown_menu_f(&menu3, "DD LEFT"))
+				//		{
+				//			ui_dropdown_menu_push(&menu3);
+
+				//			for (u32 k = 0; k < 5; ++k)
+				//			{
+				//				struct ui_node *drop;
+				//				ui_flags(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW)
+				//				drop = ui_dropdown_menu_entry_f(&menu3, "entry_%u##%p", k, &menu3).address;
+				//				if (drop->inter & UI_INTER_SELECT)
+				//				{
+				//				}
+				//			}
+
+				//			ui_dropdown_menu_pop(&menu3);
+				//		}
+
+				//		if (ui_dropdown_menu_f(&menu4, "DD ABOVE"))
+				//		{
+				//			ui_dropdown_menu_push(&menu4);
+
+				//			for (u32 k = 0; k < 5; ++k)
+				//			{
+				//				struct ui_node *drop;
+				//				ui_flags(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW)
+				//				drop = ui_dropdown_menu_entry_f(&menu4, "entry_%u##%p", k, &menu4).address;
+				//				if (drop->inter & UI_INTER_SELECT)
+				//				{
+				//				}
+				//			}
+
+				//			ui_dropdown_menu_pop(&menu4);
+				//		}
+				//	}
+
+				//	ui_pad_fill();
+				//}
 			}
 
 			win->cmd_console->visible = 1;

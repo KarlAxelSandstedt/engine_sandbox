@@ -136,7 +136,7 @@ static f32 statics_internal_line_integrals(const vec2 v0, const vec2 v1, const v
 /*
  *  alpha beta gamma CCW
  */ 
-static void statics_internal_calculate_face_integrals(f32 integrals[10], struct rigid_body *body, const struct collision_shape *shape, const u32 fi)
+static void statics_internal_calculate_face_integrals(f32 integrals[10], const struct collision_shape *shape, const u32 fi)
 {
 	f32 P_1   = 0.0f;
 	f32 P_a   = 0.0f;
@@ -296,7 +296,7 @@ void statics_setup(struct rigid_body *body, const struct collision_shape *shape,
 
 		for (u32 fi = 0; fi < shape->hull.f_count; ++fi)
 		{
-			statics_internal_calculate_face_integrals(integrals, body, shape, fi);
+			statics_internal_calculate_face_integrals(integrals, shape, fi);
 		}
 
 //		fprintf(stderr, "c_hull Volume integrals: %f, %f, %f, %f, %f, %f, %f, %f, %f, %f\n",
@@ -410,4 +410,113 @@ void statics_setup(struct rigid_body *body, const struct collision_shape *shape,
 	}
 
 	mat3_inverse(body->inv_inertia_tensor, body->inertia_tensor);
+}
+
+void prefab_statics_setup(struct rigid_body_prefab *prefab, const struct collision_shape *shape, const f32 density)
+{
+	f32 I_xx = 0.0f;
+	f32 I_yy = 0.0f;
+	f32 I_zz = 0.0f;
+	f32 I_xy = 0.0f;
+	f32 I_xz = 0.0f;
+	f32 I_yz = 0.0f;
+	vec3 com = VEC3_ZERO;
+
+	if (shape->type == COLLISION_SHAPE_CONVEX_HULL)
+	{
+		f32 integrals[10] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f }; 
+
+		for (u32 fi = 0; fi < shape->hull.f_count; ++fi)
+		{
+			statics_internal_calculate_face_integrals(integrals, shape, fi);
+		}
+
+//		fprintf(stderr, "c_hull Volume integrals: %f, %f, %f, %f, %f, %f, %f, %f, %f, %f\n",
+//				 integrals[VOL ],
+//				 integrals[T_X ],
+//				 integrals[T_Y ],
+//				 integrals[T_Z ],
+//				 integrals[T_XX],
+//				 integrals[T_YY],
+//				 integrals[T_ZZ],
+//      	                   integrals[T_XY],
+//      	                   integrals[T_YZ],
+//      	                   integrals[T_ZX]);
+
+		prefab->mass = integrals[VOL] * density;
+		assert(prefab->mass >= 0.0f);
+
+		/* center of mass */
+		vec3_set(com,
+			integrals[T_X] * density / prefab->mass,
+		       	integrals[T_Y] * density / prefab->mass,
+		       	integrals[T_Z] * density / prefab->mass
+		);
+
+		I_xx = density * (integrals[T_YY] + integrals[T_ZZ]) - prefab->mass * (com[1]*com[1] + com[2]*com[2]);
+		I_yy = density * (integrals[T_XX] + integrals[T_ZZ]) - prefab->mass * (com[0]*com[0] + com[2]*com[2]);
+		I_zz = density * (integrals[T_XX] + integrals[T_YY]) - prefab->mass * (com[0]*com[0] + com[1]*com[1]);
+		I_xy = density * integrals[T_XY] - prefab->mass * com[0] * com[1];
+		I_xz = density * integrals[T_ZX] - prefab->mass * com[0] * com[2];
+		I_yz = density * integrals[T_YZ] - prefab->mass * com[1] * com[2];
+	
+		/* set local frame coordinates */
+		vec3_copy(prefab->center_of_mass, com);
+		vec3_negative(com);
+
+		for (u32 i = 0; i < shape->hull.v_count; ++i)
+		{
+			vec3_translate(shape->hull.v[i], com);
+		}
+
+		mat3_set(prefab->inertia_tensor, I_xx, -I_xy, -I_xz,
+			       		 	 -I_xy,  I_yy, -I_yz,
+						 -I_xz, -I_yz, I_zz);
+	}
+	else if (shape->type == COLLISION_SHAPE_SPHERE)
+	{
+		const f32 r = shape->sphere.radius;
+		const f32 rr = r*r;
+		const f32 rrr = rr*r;
+		prefab->mass = density * 4.0f * F32_PI * rrr / 3.0f;
+		I_xx = 2.0f * prefab->mass * rr / 5.0f;
+		I_yy = I_xx;
+		I_zz = I_xx;
+		I_xy = 0.0f;
+		I_yz = 0.0f;
+		I_xz = 0.0f;
+
+		mat3_set(prefab->inertia_tensor, I_xx, -I_xy, -I_xz,
+			       		 	 -I_xy,  I_yy, -I_yz,
+						 -I_xz, -I_yz, I_zz);
+	}
+	else if (shape->type == COLLISION_SHAPE_CAPSULE)
+	{
+		const f32 r = shape->capsule.radius;
+		const f32 h = vec3_length(shape->capsule.p1);
+		const f32 hpr = h+r;
+		const f32 hmr = h-r;
+
+		prefab->mass = density * 4.0f * F32_PI * r*r*r / 3.0f + density * 2.0f *h * F32_PI * r*r;
+
+		const f32 I_xx_cap_up = (4.0f * F32_PI * r*r * h*h*h + 3.0f * F32_PI * r*r*r*r * h) / 6.0f;
+		const f32 I_xx_sph_up = 2.0f * F32_PI * r*r * (hpr*hpr*hpr - hmr*hmr*hmr) / 3.0f + F32_PI * r*r*r*r*r;
+		const f32 I_xx_up = I_xx_sph_up + I_xx_cap_up;
+		const f32 I_zz_up = I_xx_up;
+
+		const f32 I_yy_cap_up = F32_PI * r*r*r*r * h;
+		const f32 I_yy_sph_up = 2.0f * F32_PI * r*r*r*r*r;
+		const f32 I_yy_up = I_yy_cap_up + I_yy_sph_up;
+
+		const f32 I_xy_up = 0;
+		const f32 I_yz_up = 0;
+		const f32 I_xz_up = 0;
+
+		/* Derive */
+		mat3_set(prefab->inertia_tensor, I_xx_up, -I_xy_up, -I_xz_up,
+			       		 	 -I_xy_up,  I_yy_up, -I_yz_up,
+						 -I_xz_up, -I_yz_up,  I_zz_up);
+	}
+
+	mat3_inverse(prefab->inv_inertia_tensor, prefab->inertia_tensor);
 }

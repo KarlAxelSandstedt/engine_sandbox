@@ -98,7 +98,7 @@ struct led_node
 	u32			key;
 
 	/* Initial values fed into physics/csg */
-	/* TODO: Should not be here, instead csg or rigid_body_prefab */
+	/* TODO: Should not be here, instead csg or rb_prefab */
 	vec3			position;
 	quat			rotation;
 
@@ -139,8 +139,13 @@ struct led
 	struct ui_list 		brush_list;
 
 	struct physics_pipeline physics;
-	struct string_database 	collision_shape_db;	
-	struct ui_list 		collision_shape_list;
+	struct string_database 	cs_db;	
+	struct ui_list 		cs_list;
+	struct ui_dropdown_menu cs_mesh_menu;
+
+	struct string_database	rb_prefab_db;
+	struct ui_list 		rb_prefab_list;
+	struct ui_dropdown_menu rb_prefab_mesh_menu;
 
 	struct hash_map *	node_map;
 	struct pool		node_pool;

@@ -86,8 +86,21 @@ struct led *led_alloc(void)
 	g_editor->node_non_marked_list = dll_init(struct led_node);
 	g_editor->node_selected_list = dll2_init(struct led_node);
 	g_editor->csg = csg_alloc();
-	g_editor->collision_shape_db = string_database_alloc(NULL, 128, 128, struct collision_shape, GROWABLE);
-	g_editor->physics = physics_pipeline_alloc(NULL, 1024, NSEC_PER_SEC / (u64) 60, 1024*1024, &g_editor->collision_shape_db);
+	g_editor->rb_prefab_db = string_database_alloc(NULL, 128, 128, struct rigid_body_prefab, GROWABLE);
+	g_editor->cs_db = string_database_alloc(NULL, 128, 128, struct collision_shape, GROWABLE);
+	g_editor->physics = physics_pipeline_alloc(NULL, 1024, NSEC_PER_SEC / (u64) 60, 1024*1024, &g_editor->cs_db, &g_editor->rb_prefab_db);
+
+	struct collision_shape *shape_stub = string_database_address(&g_editor->cs_db, STRING_DATABASE_STUB_INDEX);
+	shape_stub->type = COLLISION_SHAPE_CONVEX_HULL;
+	shape_stub->hull = collision_box(&sys_win->mem_persistent, vec3_inline(0.5f, 0.5f, 0.5f));
+
+	struct rigid_body_prefab *prefab_stub = string_database_address(&g_editor->rb_prefab_db, STRING_DATABASE_STUB_INDEX);
+	prefab_stub->shape = string_database_reference(&g_editor->cs_db, utf8_inline("")).index;
+	prefab_stub->density = 1.0f;
+	prefab_stub->restitution = 0.0f;
+	prefab_stub->friction = 0.0f;
+	prefab_stub->dynamic = 1;
+	prefab_statics_setup(prefab_stub, shape_stub, prefab_stub->density);
 
 	return g_editor;
 }

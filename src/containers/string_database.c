@@ -108,7 +108,7 @@ void string_database_flush(struct string_database *db)
 
 struct slot string_database_add(struct arena *mem_db_lifetime, struct string_database *db, const utf8 copy)
 {
-	struct slot slot = { .index = STRING_DATABASE_STUB_INDEX, .address = NULL };
+	struct slot slot = { .index = STRING_DATABASE_STUB_INDEX, .address = db->pool.buf };
 	if (string_database_lookup(db, copy).index != STRING_DATABASE_STUB_INDEX)
 	{
 		return slot;
@@ -135,7 +135,7 @@ struct slot string_database_add(struct arena *mem_db_lifetime, struct string_dat
 
 struct slot string_database_add_and_alias(struct string_database *db, const utf8 id)
 {
-	struct slot slot = { .index = STRING_DATABASE_STUB_INDEX, .address = NULL };
+	struct slot slot = { .index = STRING_DATABASE_STUB_INDEX, .address = db->pool.buf };
 	if (string_database_lookup(db, id).index != STRING_DATABASE_STUB_INDEX)
 	{
 		return slot;
@@ -172,7 +172,7 @@ void string_database_remove(struct string_database *db, const utf8 id)
 struct slot string_database_lookup(const struct string_database *db, const utf8 id)
 {
 	const u32 key = utf8_hash(id);
-	struct slot slot = { .index = STRING_DATABASE_STUB_INDEX, .address = NULL };
+	struct slot slot = { .index = STRING_DATABASE_STUB_INDEX, .address = db->pool.buf };
 	for (u32 i = hash_map_first(db->hash, key); i != HASH_NULL; i = hash_map_next(db->hash, i))
 	{
 		u8 *address = string_database_address(db, i);
@@ -198,11 +198,8 @@ void *string_database_address(const struct string_database *db, const u32 handle
 struct slot string_database_reference(struct string_database *db, const utf8 id)
 {
 	struct slot slot = string_database_lookup(db, id);
-	if (slot.index != STRING_DATABASE_STUB_INDEX)
-	{
-		u32 *reference_count = (u32 *)(((u8 *) slot.address) + db->reference_count_offset);
-		*reference_count += 1;
-	}
+	u32 *reference_count = (u32 *)(((u8 *) slot.address) + db->reference_count_offset);
+	*reference_count += 1;
 	return slot;
 }
 

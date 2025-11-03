@@ -1194,7 +1194,7 @@ void ui_dropdown_menu_push(struct ui_dropdown_menu *menu)
 	ui_width(ui_size_pixel(menu->entry_size[0], 1.0f))
 	ui_height(ui_size_pixel(menu->max_dropdown_height, 1.0f))
 	ui_child_layout_axis(AXIS_2_Y)
-	ui_node_push(ui_node_alloc_f(UI_DRAW_BORDER, "###dropdown_%p", menu).index);
+	ui_node_push(ui_node_alloc_f(UI_FLAG_NONE, "###dropdown_%p", menu).index);
 
 	if (menu->position == UI_DROPDOWN_ABOVE)
 	{

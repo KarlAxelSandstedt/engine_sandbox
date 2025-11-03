@@ -140,7 +140,7 @@ struct physics_pipeline
 	u64 		frames_completed;	/* number of completed physics frames */ 
 
 	struct string_database *shape_db;	/* externally owned */
-
+	struct string_database *prefab_db;	/* externally owned */
 
 
 	struct array_list_intrusive *body_list;
@@ -166,7 +166,7 @@ struct physics_pipeline
 /**************** PHYISCS PIPELINE API ****************/
 
 /* Initialize a new growable physics pipeline; ns_tick is the duration of a physics frame. */
-struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 initial_size, const u64 ns_tick, const u64 frame_memory, struct string_database *shape_db);
+struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 initial_size, const u64 ns_tick, const u64 frame_memory, struct string_database *shape_db, struct string_database *prefab_db);
 /* free pipeline resources */
 void 			physics_pipeline_free(struct physics_pipeline *physics_pipeline);
 /* flush pipeline resources */

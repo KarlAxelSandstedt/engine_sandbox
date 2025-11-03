@@ -63,7 +63,7 @@ enum cmd_id
 	CMD_STATIC_COUNT
 };
 
-#define CMD_REGISTER_COUNT	4
+#define CMD_REGISTER_COUNT	8
 union cmd_register
 {
 	u8	u8;

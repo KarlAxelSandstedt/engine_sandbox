@@ -367,14 +367,14 @@ struct collision_hull collision_box(struct arena *mem, const vec3 hw)
 {
 	vec3ptr box_vertex = arena_push(mem, 8*sizeof(vec3));
 
-	vec3_set(box_vertex[0],  hw[0],  hw[1], -hw[2]); 
-	vec3_set(box_vertex[1],  hw[0],  hw[1],  hw[2]);	
-	vec3_set(box_vertex[2], -hw[0],  hw[1],  hw[2]);	
-	vec3_set(box_vertex[3], -hw[0],  hw[1], -hw[2]);	
-	vec3_set(box_vertex[4],  hw[0], -hw[1], -hw[2]);
-	vec3_set(box_vertex[5],  hw[0], -hw[1],  hw[2]);	
-	vec3_set(box_vertex[6], -hw[0], -hw[1],  hw[2]);	
-	vec3_set(box_vertex[7], -hw[0], -hw[1], -hw[2]);	
+	vec3_set(box_vertex[0],  hw[0],  hw[1],  hw[2]); 
+	vec3_set(box_vertex[1],  hw[0],  hw[1], -hw[2]);	
+	vec3_set(box_vertex[2], -hw[0],  hw[1], -hw[2]);	
+	vec3_set(box_vertex[3], -hw[0],  hw[1],  hw[2]);	
+	vec3_set(box_vertex[4],  hw[0], -hw[1],  hw[2]);
+	vec3_set(box_vertex[5],  hw[0], -hw[1], -hw[2]);	
+	vec3_set(box_vertex[6], -hw[0], -hw[1], -hw[2]);	
+	vec3_set(box_vertex[7], -hw[0], -hw[1],  hw[2]);	
 
 	struct collision_hull box = 
 	{

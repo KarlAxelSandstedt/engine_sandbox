@@ -22,17 +22,23 @@
 void cmd_led_node_add(void);
 void cmd_led_node_remove(void);
 
-void cmd_collision_shape_add(void);
-void cmd_collision_shape_remove(void);
+void cmd_cs_add(void);
+void cmd_cs_remove(void);
 void cmd_collision_box_add(void);
 void cmd_collision_sphere_add(void);
 void cmd_collision_capsule_add(void);
 
+void cmd_rb_prefab_add(void);
+void cmd_rb_prefab_remove(void);
+
 u32 cmd_led_node_add_id;
 u32 cmd_led_node_remove_id;
 
-u32 cmd_collision_shape_add_id;
-u32 cmd_collision_shape_remove_id;
+u32 cmd_rb_prefab_add_id;
+u32 cmd_rb_prefab_remove_id;
+
+u32 cmd_cs_add_id;
+u32 cmd_cs_remove_id;
 u32 cmd_collision_box_add_id;
 u32 cmd_collision_sphere_add_id;
 u32 cmd_collision_capsule_add_id;
@@ -41,11 +47,15 @@ void led_core_init_commands(void)
 {
 	cmd_led_node_add_id = cmd_function_register(utf8_inline("led_node_add"), 1, &cmd_led_node_add).index;
 	cmd_led_node_remove_id = cmd_function_register(utf8_inline("led_node_remove"), 1, &cmd_led_node_remove).index;
-	cmd_collision_shape_add_id = cmd_function_register(utf8_inline("collision_shape_add"), 1, &cmd_collision_shape_add).index;
+
+	cmd_rb_prefab_add_id = cmd_function_register(utf8_inline("rb_prefab_add"), 6, &cmd_rb_prefab_add).index;
+	cmd_rb_prefab_remove_id = cmd_function_register(utf8_inline("rb_prefab_remove"), 1, &cmd_rb_prefab_remove).index;
+
+	cmd_cs_add_id = cmd_function_register(utf8_inline("cs_add"), 1, &cmd_cs_add).index;
 	cmd_collision_box_add_id = cmd_function_register(utf8_inline("collision_box_add"), 4, &cmd_collision_box_add).index;
 	cmd_collision_sphere_add_id = cmd_function_register(utf8_inline("collision_sphere_add"), 2, &cmd_collision_sphere_add).index;
 	cmd_collision_capsule_add_id = cmd_function_register(utf8_inline("collision_capsule_add"), 3, &cmd_collision_capsule_add).index;
-	cmd_collision_shape_remove_id = cmd_function_register(utf8_inline("collision_shape_remove"), 1, &cmd_collision_shape_remove).index;
+	cmd_cs_remove_id = cmd_function_register(utf8_inline("cs_remove"), 1, &cmd_cs_remove).index;
 }
 
 void cmd_led_node_add(void)
@@ -58,17 +68,7 @@ void cmd_led_node_remove(void)
 	led_node_remove(g_editor, g_queue->cmd_exec->arg[0].utf8);
 }
 
-void cmd_led_physics_prefab_add(void)
-{
-	led_node_add(g_editor, g_queue->cmd_exec->arg[0].utf8);
-}
-
-void cmd_led_physics_prefab_remove(void)
-{
-	led_node_remove(g_editor, g_queue->cmd_exec->arg[0].utf8);
-}
-
-void cmd_collision_shape_add(void)
+void cmd_cs_add(void)
 {
 	g_queue->cmd_exec->arg[1].f32 = 0.5f;
 	g_queue->cmd_exec->arg[2].f32 = 0.5f;
@@ -101,8 +101,8 @@ void cmd_collision_sphere_add(void)
 	struct collision_shape shape =
 	{
 		.id = g_queue->cmd_exec->arg[0].utf8,
-		.type = COLLISION_SHAPE_CONVEX_HULL,
-		.sphere = { .radius = g_queue->cmd_exec->arg[0].f32 },
+		.type = COLLISION_SHAPE_SPHERE,
+		.sphere = { .radius = g_queue->cmd_exec->arg[1].f32 },
 	};
 
 	led_collision_shape_add(g_editor, &shape);
@@ -113,18 +113,18 @@ void cmd_collision_capsule_add(void)
 	struct collision_shape shape =
 	{
 		.id = g_queue->cmd_exec->arg[0].utf8,
-		.type = COLLISION_SHAPE_CONVEX_HULL,
+		.type = COLLISION_SHAPE_CAPSULE,
 		.capsule = 
 		{ 
-			.radius = g_queue->cmd_exec->arg[0].f32,
-			.p1 = { 0.0f, g_queue->cmd_exec->arg[1].f32/2.0f, 0.0f },
+			.radius = g_queue->cmd_exec->arg[1].f32,
+			.p1 = { 0.0f, g_queue->cmd_exec->arg[2].f32/2.0f, 0.0f },
 		},
 	};
 
 	led_collision_shape_add(g_editor, &shape);
 }
 
-void cmd_collision_shape_remove(void)
+void cmd_cs_remove(void)
 {
 	led_collision_shape_remove(g_editor, g_queue->cmd_exec->arg[0].utf8);
 }
@@ -134,11 +134,11 @@ struct slot led_collision_shape_add(struct led *led, const struct collision_shap
 	struct slot slot = empty_slot;
 	if (!shape->id.len)
 	{
-		log_string(T_LED, S_WARNING, "Failed to allocate collision_shape: shape->id must not be empty");
+		log_string(T_LED, S_WARNING, "Failed to allocate cs: shape->id must not be empty");
 	} 
-	else if (string_database_lookup(&led->collision_shape_db, shape->id).address != NULL) 
+	else if (string_database_lookup(&led->cs_db, shape->id).index != STRING_DATABASE_STUB_INDEX) 
 	{
-		log_string(T_LED, S_WARNING, "Failed to allocate collision_shape: shape with given id already exist");
+		log_string(T_LED, S_WARNING, "Failed to allocate cs: shape with given id already exist");
 	}
 	else
 	{ 
@@ -146,11 +146,12 @@ struct slot led_collision_shape_add(struct led *led, const struct collision_shap
 		const utf8 copy = utf8_copy_buffered(buf, 256, shape->id);	
 		if (!copy.len)
 		{
-			log_string(T_LED, S_WARNING, "Failed to allocate collision_shape: shape->id size must be <= 256B");
+			log_string(T_LED, S_WARNING, "Failed to allocate cs: shape->id size must be <= 256B");
+			thread_free_256B(buf);
 		}
 		else
 		{
-			slot = string_database_add_and_alias(&led->collision_shape_db, copy);
+			slot = string_database_add_and_alias(&led->cs_db, copy);
 			struct collision_shape *new_shape = slot.address;
 			new_shape->type = shape->type;
 			switch (shape->type)
@@ -171,14 +172,92 @@ void led_collision_shape_remove(struct led *led, const utf8 id)
 	struct collision_shape *shape = slot.address;
 	if (shape->reference_count == 0)
 	{
-		string_database_remove(&led->collision_shape_db, id);
-		thread_free_256B(shape->id.buf);
+		void *buf = shape->id.buf;
+		string_database_remove(&led->cs_db, id);
+		thread_free_256B(buf);
 	}
 }
 
 struct slot led_collision_shape_lookup(struct led *led, const utf8 id)
 {
-	return string_database_lookup(&led->collision_shape_db, id);
+	return string_database_lookup(&led->cs_db, id);
+}
+
+void cmd_rb_prefab_add(void)
+{
+	const utf8 id = g_queue->cmd_exec->arg[0].utf8;
+	const utf8 shape = g_queue->cmd_exec->arg[1].utf8;
+	const f32 density = g_queue->cmd_exec->arg[2].f32;
+	const f32 restitution = g_queue->cmd_exec->arg[3].f32;
+	const f32 friction = g_queue->cmd_exec->arg[4].f32;
+	const u32 dynamic = (u32) g_queue->cmd_exec->arg[5].u64;
+
+	led_rigid_body_prefab_add(g_editor, id, shape, density, restitution, friction, dynamic);
+}
+
+void cmd_rb_prefab_remove(void)
+{
+	led_rigid_body_prefab_remove(g_editor, g_queue->cmd_exec->arg[0].utf8);
+}
+
+struct slot led_rigid_body_prefab_add(struct led *led, const utf8 id, const utf8 shape, const f32 density, const f32 restitution, const f32 friction, const u32 dynamic)
+{
+	struct slot slot = empty_slot;	
+	if (!id.len)
+	{
+		log_string(T_LED, S_WARNING, "Failed to allocate rb_prefab: prefab->id must not be empty");
+	} 
+	else if (string_database_lookup(&led->rb_prefab_db, id).index != STRING_DATABASE_STUB_INDEX) 
+	{
+		log_string(T_LED, S_WARNING, "Failed to allocate rb_prefab: prefab with given id already exist");
+	}
+	else
+	{ 
+		u8 *buf = thread_alloc_256B();
+		const utf8 copy = utf8_copy_buffered(buf, 256, id);	
+		if (!copy.len)
+		{
+			log_string(T_LED, S_WARNING, "Failed to allocate rb_prefab: prefab->id size must be <= 256B");
+			thread_free_256B(buf);
+		}
+		else
+		{
+			struct slot ref = string_database_reference(&led->cs_db, shape);
+			if (ref.index == STRING_DATABASE_STUB_INDEX)
+			{
+				log_string(T_LED, S_WARNING, "In rb_prefab: shape not found, stub_shape chosen");
+			}
+			slot = string_database_add_and_alias(&led->rb_prefab_db, copy);
+			struct rigid_body_prefab *prefab = slot.address;
+
+			prefab->shape = ref.index;
+			prefab->restitution = restitution;
+			prefab->friction = friction;
+			prefab->dynamic = dynamic;
+			prefab->density = density;
+			prefab_statics_setup(prefab, ref.address, density);
+		}
+	}
+
+	return slot;
+}
+
+void led_rigid_body_prefab_remove(struct led *led, const utf8 id)
+{
+	struct slot slot = led_rigid_body_prefab_lookup(led, id);
+	struct rigid_body_prefab *prefab = slot.address;
+	if (prefab->reference_count == 0)
+	{
+		void *buf = prefab->id.buf;
+		string_database_dereference(&led->cs_db, prefab->shape);
+		string_database_remove(&led->rb_prefab_db, id);
+		thread_free_256B(buf);
+	}	
+}
+
+struct slot led_rigid_body_prefab_lookup(struct led *led, const utf8 id)
+{
+	return string_database_lookup(&led->rb_prefab_db, id);
 }
 
 struct slot led_node_add(struct led *led, const utf8 id)
@@ -188,7 +267,7 @@ struct slot led_node_add(struct led *led, const utf8 id)
 	{
 		log_string(T_LED, S_WARNING, "Failed to allocate led_node: id must not be empty");
 	} 
-	else if (led_node_lookup(led, id).address != NULL) 
+	else if (led_node_lookup(led, id).address != STRING_DATABASE_STUB_INDEX) 
 	{
 		log_string(T_LED, S_WARNING, "Failed to allocate led_node: node with given id already exist");
 	}
@@ -200,6 +279,7 @@ struct slot led_node_add(struct led *led, const utf8 id)
 		if (!copy.len)
 		{
 			log_string(T_LED, S_WARNING, "Failed to allocate led_node: id size must be <= 256B");
+			thread_free_256B(buf);
 		} 
 		else
 		{
@@ -288,7 +368,7 @@ void led_node_remove(struct led *led, const utf8 id)
 
 void led_wall_smash_simulation_setup(struct led *led)
 {
-	struct system_window *sys_win = system_window_lookup(g_editor->window).address;
+	struct system_window *sys_win = system_window_address(g_editor->window);
 
 	struct arena tmp1 = arena_alloc_1MB();
 
@@ -336,25 +416,25 @@ void led_wall_smash_simulation_setup(struct led *led)
 		{ramp_width, 	0.0f, 		0.0f},
 	};
 
-	sys_win->cmd_queue->cmd_exec->arg[0].utf8 = utf8_inline("floor");
-	sys_win->cmd_queue->cmd_exec->arg[1].f32 = 8.0f * ramp_width;
-	sys_win->cmd_queue->cmd_exec->arg[2].f32 = 0.5f;
-	sys_win->cmd_queue->cmd_exec->arg[3].f32 = ramp_length;
+	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_floor");
+	sys_win->cmd_queue->regs[1].f32 = 8.0f * ramp_width;
+	sys_win->cmd_queue->regs[2].f32 = 0.5f;
+	sys_win->cmd_queue->regs[3].f32 = ramp_length;
 	cmd_queue_submit(sys_win->cmd_queue, cmd_collision_box_add_id);
 
-	sys_win->cmd_queue->cmd_exec->arg[0].utf8 = utf8_inline("box");
-	sys_win->cmd_queue->cmd_exec->arg[1].f32 = box_side / 2.0f;
-	sys_win->cmd_queue->cmd_exec->arg[2].f32 = box_side / 4.0f;
-	sys_win->cmd_queue->cmd_exec->arg[3].f32 = box_side / 2.0f;
+	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_box");
+	sys_win->cmd_queue->regs[1].f32 = box_side / 2.0f;
+	sys_win->cmd_queue->regs[2].f32 = box_side / 4.0f;
+	sys_win->cmd_queue->regs[3].f32 = box_side / 2.0f;
 	cmd_queue_submit(sys_win->cmd_queue, cmd_collision_box_add_id);
 
-	sys_win->cmd_queue->cmd_exec->arg[0].utf8 = utf8_inline("ball");
-	sys_win->cmd_queue->cmd_exec->arg[1].f32 = 2.0f;
+	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_sphere");
+	sys_win->cmd_queue->regs[1].f32 = 2.0f;
 	cmd_queue_submit(sys_win->cmd_queue, cmd_collision_sphere_add_id);
 
 	//TODO
-	//const u32 ramp_handle = physics_pipeline_collision_shape_alloc(&game->physics);
-	//struct collision_shape *ramp = physics_pipeline_collision_shape_lookup(&game->physics, ramp_handle);
+	//const u32 ramp_handle = physics_pipeline_cs_alloc(&game->physics);
+	//struct collision_shape *ramp = physics_pipeline_cs_lookup(&game->physics, ramp_handle);
 	//ramp->type = COLLISION_SHAPE_CONVEX_HULL;
 	//ramp->hull = collision_hull_construct(mem_persistent, 
 	//	&mem_tmp.arenas[0], 
@@ -365,6 +445,38 @@ void led_wall_smash_simulation_setup(struct led *led)
 	//	ramp_vertices,
 	//       	v_count,
 	//       	0.001f);
+
+	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rb_floor");
+	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_floor");
+	sys_win->cmd_queue->regs[2].f32 = 1.0f;
+	sys_win->cmd_queue->regs[3].f32 = 0.0f;
+	sys_win->cmd_queue->regs[4].f32 = 0.0f;
+	sys_win->cmd_queue->regs[5].u32 = 0;
+	cmd_queue_submit(sys_win->cmd_queue, cmd_rb_prefab_add_id);
+
+	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rb_box");
+	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_box");
+	sys_win->cmd_queue->regs[2].f32 = 1.0f;
+	sys_win->cmd_queue->regs[3].f32 = 0.0f;
+	sys_win->cmd_queue->regs[4].f32 = box_friction;
+	sys_win->cmd_queue->regs[5].u32 = 1;
+	cmd_queue_submit(sys_win->cmd_queue, cmd_rb_prefab_add_id);
+
+	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rb_sphere");
+	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_sphere");
+	sys_win->cmd_queue->regs[2].f32 = 100.0f;
+	sys_win->cmd_queue->regs[3].f32 = 0.0f;
+	sys_win->cmd_queue->regs[4].f32 = ball_friction;
+	sys_win->cmd_queue->regs[5].u32 = 1;
+	cmd_queue_submit(sys_win->cmd_queue, cmd_rb_prefab_add_id);
+
+	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rb_ramp");
+	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_ramp");
+	sys_win->cmd_queue->regs[2].f32 = 1.0f;
+	sys_win->cmd_queue->regs[3].f32 = 0.0f;
+	sys_win->cmd_queue->regs[4].f32 = ramp_friction;
+	sys_win->cmd_queue->regs[5].u32 = 0;
+	cmd_queue_submit(sys_win->cmd_queue, cmd_rb_prefab_add_id);
 
 //	const kas_string floor_id = KAS_COMPILE_TIME_STRING("floor");
 //	const u32 r_floor_handle = r_mesh_alloc(mem_persistent, &floor_id);
@@ -517,13 +629,14 @@ void led_wall_smash_simulation_setup(struct led *led)
 
 	arena_free_1MB(&tmp1);
 }
+
 void led_core(struct led *led)
 {
 	KAS_TASK(__func__, T_LED);
 
 	//TODO fix 
 	static u32 once = 1;
-	struct system_window *sys_win = system_window_lookup(g_editor->window).address;
+	struct system_window *sys_win = system_window_address(g_editor->window);
 	if (once && sys_win)
 	{
 		once = 0;
@@ -533,5 +646,3 @@ void led_core(struct led *led)
 
 	KAS_END;
 }
-
-

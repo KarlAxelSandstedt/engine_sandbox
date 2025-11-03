@@ -110,21 +110,29 @@ struct slot 	led_node_lookup(struct led *led, const utf8 id);
 
 /* Allocate node with the given id. Returns (NULL, U32_MAX) if id.size > 256B or bad shape paramters */
 struct slot	led_collision_shape_add(struct led *led, const struct collision_shape *shape);
-/* Mark node for remval if it exist; otherwise no-op.  */
+/* Remove node if it exists and is not being referenced; otherwise no-op.  */
 void 		led_collision_shape_remove(struct led *led, const utf8 id);
 /* Return node with the given id if it exist; otherwise return (NULL, U32_MAX).  */
 struct slot 	led_collision_shape_lookup(struct led *led, const utf8 id);
 
+/* Allocate prefab with the given id. Returns (NULL, U32_MAX) if id.size > 256B or bad shape identifier */
+struct slot 	led_rigid_body_prefab_add(struct led *led, const utf8 id, const utf8 shape, const f32 density, const f32 restitution, const f32 friction, const u32 dynamic);
+/* Remove prefab if it exists and is not being referenced; otherwise no-op.  */
+void 		led_rigid_body_prefab_remove(struct led *led, const utf8 id);
+/* Return prefab with the given id if it exist; otherwise return (NULL, U32_MAX).  */
+struct slot 	led_rigid_body_prefab_lookup(struct led *led, const utf8 id);
+
 /* command identifiers */
 extern u32 	cmd_led_node_add_id;
 extern u32 	cmd_led_node_remove_id;
+
+extern u32 	cmd_rigid_body_prefab_add_id;
+extern u32 	cmd_rigid_body_prefab_remove_id;
 
 extern u32 	cmd_collision_shape_add_id;
 extern u32 	cmd_collision_shape_remove_id;
 extern u32 	cmd_collision_box_add_id;
 extern u32 	cmd_collision_sphere_add_id;
 extern u32 	cmd_collision_capsule_add_id;
-
-
 
 #endif

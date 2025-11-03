@@ -27,7 +27,7 @@
 #include "float32.h"
 #include "bit_vector.h"
 
-struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 initial_size, const u64 ns_tick, const u64 frame_memory, struct string_database *shape_db)
+struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 initial_size, const u64 ns_tick, const u64 frame_memory, struct string_database *shape_db, struct string_database *prefab_db)
 {
 	COLLISION_DEBUG_INIT(mem, initial_size, 10000);
 

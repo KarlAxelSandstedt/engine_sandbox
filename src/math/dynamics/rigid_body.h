@@ -54,7 +54,6 @@ struct rigid_body
 	enum collision_shape_type	shape_type;
 	u32				shape_handle;
 
-	struct AABB bounding_box;	/* bounding AABB */
 	mat3 inertia_tensor;		/* intertia tensor of body frame */
 	mat3 inv_inertia_tensor;
 	f32 mass;			/* total body mass */
@@ -84,5 +83,28 @@ void rigid_body_proxy(struct AABB *proxy, struct rigid_body *body);
 
 void statics_print(FILE *file, struct rigid_body *body);
 void statics_setup(struct rigid_body *body, const struct collision_shape *shape,  const f32 density);
+
+/*
+rigid_body_prefab
+=================
+rigid body prefabs: used within editor and level editor file format.
+*/
+struct rigid_body_prefab
+{
+	STRING_DATABASE_SLOT_STATE;
+	u32		shape;
+
+	struct AABB 	bounding_box;		/* bounding AABB */
+	mat3 		inertia_tensor;		/* intertia tensor of body frame */
+	mat3 		inv_inertia_tensor;
+	vec3		center_of_mass;
+	f32 		mass;			/* total body mass */
+	f32		density;
+	f32 		restitution;
+	f32 		friction;		/* Range [0.0, 1.0f] : bound tangent impulses to mix(b1->friction, b2->friction)*(normal impuse) */
+	u32		dynamic;		/* dynamic body is true, static if false */
+};
+
+void prefab_statics_setup(struct rigid_body_prefab *prefab, const struct collision_shape *shape, const f32 density);
 
 #endif
