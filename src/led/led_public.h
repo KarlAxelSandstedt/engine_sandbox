@@ -97,20 +97,12 @@ struct led_node
 	struct ui_node_cache	cache;
 	u32			key;
 
-	/* Initial values fed into physics/csg */
-	/* TODO: Should not be here, instead csg or rb_prefab */
 	vec3			position;
 	quat			rotation;
 
-	/* TODO TMP for ui_field testing */
-	f32			x;
-	u64			y;
-	i64			z;
-
-
-	u32			physics_handle; 
-	u32 			render_handle;	
-	u32			csg_handle;	
+	u32			rb_prefab; 
+	u32 			render_mesh;	
+	u32			csg_brush;	
 };
 
 /*

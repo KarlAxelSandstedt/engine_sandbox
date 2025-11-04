@@ -107,6 +107,14 @@ struct slot 	led_node_add(struct led *led, const utf8 id);
 void 		led_node_remove(struct led *led, const utf8 id);
 /* Return node with the given id if it exist; otherwise return (NULL, U32_MAX).  */
 struct slot 	led_node_lookup(struct led *led, const utf8 id);
+/* Set node position if it exist. */
+void		led_node_set_position(struct led *led, const utf8 id, const vec3 position);
+/* Set node to be a physics instance if the node and the prefab exist */
+void		led_node_set_rb_prefab(struct led *led, const utf8 id, const utf8 prefab);
+/* Set node to be a csg instance if the node and the csg brush exist */
+void		led_node_set_csg_brush(struct led *led, const utf8 id, const utf8 brush);
+/* Set node's render mesh if the node and mesh exists */
+void		led_node_set_render_mesh(struct led *led, const utf8 id, const utf8 mesh);
 
 /* Allocate node with the given id. Returns (NULL, U32_MAX) if id.size > 256B or bad shape paramters */
 struct slot	led_collision_shape_add(struct led *led, const struct collision_shape *shape);
@@ -132,6 +140,10 @@ struct slot 	led_render_mesh_lookup(struct led *led, const utf8 id);
 /* command identifiers */
 extern u32 	cmd_led_node_add_id;
 extern u32 	cmd_led_node_remove_id;
+extern u32 	cmd_led_node_set_position_id;
+extern u32 	cmd_led_node_set_rb_prefab_id;
+extern u32 	cmd_led_node_set_csg_brush_id;
+extern u32 	cmd_led_node_set_render_mesh_id;
 
 extern u32 	cmd_rb_prefab_add_id;
 extern u32 	cmd_rb_prefab_remove_id;

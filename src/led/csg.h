@@ -113,7 +113,7 @@ struct csg
 {
 	struct arena 		frame;		/* frame lifetime */
 
-	struct string_database	brush_database;
+	struct string_database	brush_db;
 	struct pool		instance_pool;
 	struct pool		node_pool;
 

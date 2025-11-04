@@ -206,6 +206,6 @@ struct slot string_database_reference(struct string_database *db, const utf8 id)
 void string_database_dereference(struct string_database *db, const u32 handle)
 {
 	u32 *reference_count = (u32 *)(((u8 *) string_database_address(db, handle)) + db->reference_count_offset);
-	kas_assert(*reference_count);
+	kas_assert(*reference_count || handle == STRING_DATABASE_STUB_INDEX);
 	*reference_count -= 1;
 }
