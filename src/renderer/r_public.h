@@ -503,7 +503,31 @@ struct r_proxy3d *	r_proxy3d_lookup(const u32 unit);
  *			r_mesh.c			*
  ********************************************************/
 
-struct r_mesh;
+/*
+ * triangle layouts are described by the following attributes. The vertex data comes in the order of the attributes;
+ * low valued attributes before higher valued attributes (POSITION | COLOR | UV | NORMAL)
+ */
+enum r_mesh_attribute
+{
+	R_MESH_ATTRIBUTE_POSITION 	= (1 << 0),	/* vec3 */
+	R_MESH_ATTRIBUTE_COLOR 	  	= (1 << 1),	/* vec4 */
+	R_MESH_ATTRIBUTE_UV       	= (1 << 2),	/* vec2 */
+	R_MESH_ATTRIBUTE_NORMAL   	= (1 << 3),	/* vec3 */
+};
+
+struct r_mesh
+{
+	STRING_DATABASE_SLOT_STATE;				/* internal header, MAY NOT BE MOVED */
+	u32				attribute_flags;	/* attribute flags describing layout of triangles */
+	u32				index_count;		
+	u32 *				index_data; 		/* index_data[index_count] */
+	u32				index_max_used;		/* max used index */
+	u32				vertex_count;   	
+	void *				vertex_data;		/* vertex_data[vertex_count] : layout according to attributes */
+};
+
+#include "collision.h"
+
 /* allocate a render mesh and return its handle. reference count is set to 0  */
 u32 		r_mesh_alloc(struct arena *mem_database_lifetime, const utf8 *id);
 /* deallocate the corresponding render mesh of the id if found; if stub mesh, do nothing */
@@ -519,8 +543,8 @@ void		r_mesh_dereference(const u32 handle);
 
 /**************** TEMPORARY: quick and dirty mesh generation *****************/
 
-#include "collision.h"
-
+/* setup mesh stub */
+void 		r_mesh_set_stub_box(struct r_mesh *mesh_stub);
 /* setup mesh from sphere parameters */
 void 		r_mesh_set_sphere(struct arena *mem, struct r_mesh *mesh, const f32 radius, const u32 refinement);
 /* setup mesh from capsule parameters */

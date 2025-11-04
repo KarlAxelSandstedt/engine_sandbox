@@ -86,9 +86,13 @@ struct led *led_alloc(void)
 	g_editor->node_non_marked_list = dll_init(struct led_node);
 	g_editor->node_selected_list = dll2_init(struct led_node);
 	g_editor->csg = csg_alloc();
-	g_editor->rb_prefab_db = string_database_alloc(NULL, 128, 128, struct rigid_body_prefab, GROWABLE);
-	g_editor->cs_db = string_database_alloc(NULL, 128, 128, struct collision_shape, GROWABLE);
+	g_editor->render_mesh_db = string_database_alloc(NULL, 32, 32, struct r_mesh, GROWABLE);
+	g_editor->rb_prefab_db = string_database_alloc(NULL, 32, 32, struct rigid_body_prefab, GROWABLE);
+	g_editor->cs_db = string_database_alloc(NULL, 32, 32, struct collision_shape, GROWABLE);
 	g_editor->physics = physics_pipeline_alloc(NULL, 1024, NSEC_PER_SEC / (u64) 60, 1024*1024, &g_editor->cs_db, &g_editor->rb_prefab_db);
+
+	struct r_mesh *r_mesh_stub = string_database_address(&g_editor->render_mesh_db, STRING_DATABASE_STUB_INDEX);
+	r_mesh_set_stub_box(r_mesh_stub);
 
 	struct collision_shape *shape_stub = string_database_address(&g_editor->cs_db, STRING_DATABASE_STUB_INDEX);
 	shape_stub->type = COLLISION_SHAPE_CONVEX_HULL;

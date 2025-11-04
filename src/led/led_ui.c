@@ -409,19 +409,9 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 	static u32 count = 0;
 	static u32 once = 1;
 
-	static struct ui_dropdown_menu menu1;
-	static struct ui_dropdown_menu menu2;
-	static struct ui_dropdown_menu menu3;
-	static struct ui_dropdown_menu menu4;
-
 	if (once)
 	{
 		once = 0;
-		for (; count < 50; count++)
-		{
-			const utf8 id = utf8_format(g_ui->mem_frame, "node_%u", count);
-			cmd_submit_f(g_ui->mem_frame, "led_node_add \"%k\"", &id);
-		}
 
 		led->node_ui_list = ui_list_init(AXIS_2_Y, 256.0f, 24.0f, UI_SELECTION_MULTI); 
 		led->node_selected_ui_list = ui_list_init(AXIS_2_Y, 512.0f, 24.0f + 3*24.0f + 12.0f, UI_SELECTION_NONE);
@@ -430,11 +420,6 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 
 		led->rb_prefab_list = ui_list_init(AXIS_2_Y, 200.0f, 24.0f, UI_SELECTION_UNIQUE);
 		led->rb_prefab_mesh_menu = ui_dropdown_menu_init(150.0f, vec2_inline(110.0f, 24.0f), UI_DROPDOWN_ABOVE);
-
-	 	menu1 = ui_dropdown_menu_init(150.0f, vec2_inline(110.0f, 24.0f), UI_DROPDOWN_BELOW);	
-	 	menu2 = ui_dropdown_menu_init(150.0f, vec2_inline(110.0f, 24.0f), UI_DROPDOWN_RIGHT);	
-	 	menu3 = ui_dropdown_menu_init(150.0f, vec2_inline(110.0f, 24.0f), UI_DROPDOWN_LEFT);	
-	 	menu4 = ui_dropdown_menu_init(150.0f, vec2_inline(110.0f, 24.0f), UI_DROPDOWN_ABOVE);	
 	}
 
 	ui_text_align_x(ALIGN_LEFT)
@@ -789,12 +774,14 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 									for (u32 i = led->cs_db.allocated_dll.first; i != DLL_NULL; i = DB_NEXT(s))
 									{
 										s = string_database_address(&led->cs_db, i);
-								//		struct slot entry = ui_dropdown_menu_entry_f(&led->rb_prefab_mesh_menu, "%k##%p_%u", &s->id, &led->rb_prefab_mesh_menu, i);
-								//		if (entry.index)
-								//		ui_parent(entry.index)
-								//		{
-								//			
-								//		}
+										struct ui_node *drop;
+										ui_flags(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW)
+										drop = ui_dropdown_menu_entry_f(&led->rb_prefab_mesh_menu, "%k##%p_%u", &s->id, &led->rb_prefab_mesh_menu, i).address;
+										if (drop->inter & UI_INTER_SELECT)
+										{
+											string_database_dereference(&led->cs_db, prefab->shape);
+											prefab->shape = string_database_reference(&led->cs_db, s->id).index;
+										}
 									}
 
 									ui_dropdown_menu_pop(&led->rb_prefab_mesh_menu);
@@ -813,86 +800,6 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 
 					ui_pad();
 				}
-
-				//ui_width(ui_size_perc(1.0f))
-				//ui_child_layout_axis(AXIS_2_Y)
-				//ui_parent(ui_node_alloc_non_hashed(0).index)
-				//{
-				//	ui_height(ui_size_pixel(24.0f, 1.0f))
-				//	ui_child_layout_axis(AXIS_2_X)
-				//	ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BORDER).index)
-				//	{
-				//		if (ui_dropdown_menu_f(&menu1, "DD BELOW"))
-				//		{
-				//			ui_dropdown_menu_push(&menu1);
-
-				//			for (u32 k = 0; k < 5; ++k)
-				//			{
-				//				struct ui_node *drop;
-				//				ui_flags(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW)
-				//				drop = ui_dropdown_menu_entry_f(&menu1, "entry_%u##%p", k, &menu1).address;
-				//				if (drop->inter & UI_INTER_SELECT)
-				//				{
-				//				}
-				//			}
-
-				//			ui_dropdown_menu_pop(&menu1);
-				//		}
-
-				//		if (ui_dropdown_menu_f(&menu2, "DD RIGHT"))
-				//		{
-				//			ui_dropdown_menu_push(&menu2);
-
-				//			for (u32 k = 0; k < 5; ++k)
-				//			{
-				//				struct ui_node *drop;
-				//				ui_flags(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW)
-				//				drop = ui_dropdown_menu_entry_f(&menu2, "entry_%u##%p", k, &menu2).address;
-				//				if (drop->inter & UI_INTER_SELECT)
-				//				{
-				//				}
-				//			}
-
-				//			ui_dropdown_menu_pop(&menu2);
-				//		}
-
-				//		if (ui_dropdown_menu_f(&menu3, "DD LEFT"))
-				//		{
-				//			ui_dropdown_menu_push(&menu3);
-
-				//			for (u32 k = 0; k < 5; ++k)
-				//			{
-				//				struct ui_node *drop;
-				//				ui_flags(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW)
-				//				drop = ui_dropdown_menu_entry_f(&menu3, "entry_%u##%p", k, &menu3).address;
-				//				if (drop->inter & UI_INTER_SELECT)
-				//				{
-				//				}
-				//			}
-
-				//			ui_dropdown_menu_pop(&menu3);
-				//		}
-
-				//		if (ui_dropdown_menu_f(&menu4, "DD ABOVE"))
-				//		{
-				//			ui_dropdown_menu_push(&menu4);
-
-				//			for (u32 k = 0; k < 5; ++k)
-				//			{
-				//				struct ui_node *drop;
-				//				ui_flags(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW)
-				//				drop = ui_dropdown_menu_entry_f(&menu4, "entry_%u##%p", k, &menu4).address;
-				//				if (drop->inter & UI_INTER_SELECT)
-				//				{
-				//				}
-				//			}
-
-				//			ui_dropdown_menu_pop(&menu4);
-				//		}
-				//	}
-
-				//	ui_pad_fill();
-				//}
 			}
 
 			win->cmd_console->visible = 1;

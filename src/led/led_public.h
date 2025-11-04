@@ -147,6 +147,8 @@ struct led
 	struct ui_list 		rb_prefab_list;
 	struct ui_dropdown_menu rb_prefab_mesh_menu;
 
+	struct string_database	render_mesh_db;
+
 	struct hash_map *	node_map;
 	struct pool		node_pool;
 	struct dll		node_marked_list;

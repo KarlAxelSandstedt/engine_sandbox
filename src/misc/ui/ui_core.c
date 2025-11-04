@@ -1728,6 +1728,7 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 			key = utf8_hash(id);
 			hash_map_add(g_ui->node_map, key, slot.index);
 		}
+		kas_assert((flags & UI_NON_HASHED) == UI_NON_HASHED || id.len > 0);
 	}
 	else
 	{

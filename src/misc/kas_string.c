@@ -1319,53 +1319,68 @@ utf8 utf8_format_buffered_variadic(u64 *reqsize, u8 *buf, const u64 bufsize, con
 			{
 				const f64 val = va_arg(args, f64);
 				pstr = utf8_f64_buffered(buf + offset, bufsize - offset, extra, val);	
+				cont = pstr.len;
 			} break;
 
 			case STRING_TOKEN_U32:
 			{
 				const u32 val = va_arg(args, u32);
 				pstr = utf8_u64_buffered(buf + offset, bufsize - offset, val);	
+				cont = pstr.len;
 			} break;
 
 			case STRING_TOKEN_U64:
 			{
 				const u64 val = va_arg(args, u64);
 				pstr = utf8_u64_buffered(buf + offset, bufsize - offset, val);
+				cont = pstr.len;
 			} break;
 
 			case STRING_TOKEN_I32:
 			{
 				const i32 val = va_arg(args, i32);
 				pstr = utf8_i64_buffered(buf + offset, bufsize - offset, val);	
+				cont = pstr.len;
 			} break;
 
 			case STRING_TOKEN_I64:
 			{
 				const i64 val = va_arg(args, i64);
 				pstr = utf8_i64_buffered(buf + offset, bufsize - offset, val);	
+				cont = pstr.len;
 			} break;
 
 			case STRING_TOKEN_POINTER:
 			{
 				const u64 val = va_arg(args, u64);
 				pstr = utf8_u64_buffered(buf + offset, bufsize - offset, val);
+				cont = pstr.len;
 			} break;
 
 			case STRING_TOKEN_C_STRING:
 			{
 				const char *cstr = va_arg(args, char *);
 				pstr = utf8_cstr_buffered(buf + offset, bufsize - offset, cstr);
+				cont = pstr.len;
 			} break;
 
 			case STRING_TOKEN_KAS_STRING:
 			{
 				const utf8 *kfstr = va_arg(args, utf8 *);
-				pstr = utf8_copy_buffered_and_return_required_size(&size, buf + offset, bufsize - offset, *kfstr);
+				if (kfstr->len)
+				{
+					pstr = utf8_copy_buffered_and_return_required_size(&size, buf + offset, bufsize - offset, *kfstr);
+					cont = pstr.len;
+				}
+				else
+				{
+					pstr = utf8_empty();
+				}
 			} break;
 
 			case STRING_TOKEN_INVALID:
 			{
-				pstr = utf8_empty();	
+				cont = 0;
 			} break;
 
 			case STRING_TOKEN_CHAR:
@@ -1374,10 +1389,11 @@ utf8 utf8_format_buffered_variadic(u64 *reqsize, u8 *buf, const u64 bufsize, con
 				cstr[0] = format[0];
 				cstr[1] = '\0';
 				pstr = utf8_cstr_buffered(buf + offset, bufsize - offset, cstr);
+				cont = pstr.len;
 			} break;
 		}
 
-		if (pstr.len == 0 || !cont)
+		if (!cont)
 		{
 			break;
 		}

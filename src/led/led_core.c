@@ -22,8 +22,8 @@
 void cmd_led_node_add(void);
 void cmd_led_node_remove(void);
 
-void cmd_cs_add(void);
-void cmd_cs_remove(void);
+void cmd_collision_shape_add(void);
+void cmd_collision_shape_remove(void);
 void cmd_collision_box_add(void);
 void cmd_collision_sphere_add(void);
 void cmd_collision_capsule_add(void);
@@ -31,14 +31,20 @@ void cmd_collision_capsule_add(void);
 void cmd_rb_prefab_add(void);
 void cmd_rb_prefab_remove(void);
 
+void cmd_render_mesh_add(void);
+void cmd_render_mesh_remove(void);
+
 u32 cmd_led_node_add_id;
 u32 cmd_led_node_remove_id;
 
 u32 cmd_rb_prefab_add_id;
 u32 cmd_rb_prefab_remove_id;
 
-u32 cmd_cs_add_id;
-u32 cmd_cs_remove_id;
+u32 cmd_render_mesh_add_id;
+u32 cmd_render_mesh_remove_id;
+
+u32 cmd_collision_shape_add_id;
+u32 cmd_collision_shape_remove_id;
 u32 cmd_collision_box_add_id;
 u32 cmd_collision_sphere_add_id;
 u32 cmd_collision_capsule_add_id;
@@ -51,11 +57,14 @@ void led_core_init_commands(void)
 	cmd_rb_prefab_add_id = cmd_function_register(utf8_inline("rb_prefab_add"), 6, &cmd_rb_prefab_add).index;
 	cmd_rb_prefab_remove_id = cmd_function_register(utf8_inline("rb_prefab_remove"), 1, &cmd_rb_prefab_remove).index;
 
-	cmd_cs_add_id = cmd_function_register(utf8_inline("cs_add"), 1, &cmd_cs_add).index;
+	cmd_render_mesh_add_id = cmd_function_register(utf8_inline("render_mesh_add"), 2, &cmd_render_mesh_add).index;
+	cmd_render_mesh_remove_id = cmd_function_register(utf8_inline("render_mesh_remove"), 1, &cmd_render_mesh_remove).index;
+
+	cmd_collision_shape_add_id = cmd_function_register(utf8_inline("collision_shape_add"), 1, &cmd_collision_shape_add).index;
 	cmd_collision_box_add_id = cmd_function_register(utf8_inline("collision_box_add"), 4, &cmd_collision_box_add).index;
 	cmd_collision_sphere_add_id = cmd_function_register(utf8_inline("collision_sphere_add"), 2, &cmd_collision_sphere_add).index;
 	cmd_collision_capsule_add_id = cmd_function_register(utf8_inline("collision_capsule_add"), 3, &cmd_collision_capsule_add).index;
-	cmd_cs_remove_id = cmd_function_register(utf8_inline("cs_remove"), 1, &cmd_cs_remove).index;
+	cmd_collision_shape_remove_id = cmd_function_register(utf8_inline("collision_shape_remove"), 1, &cmd_collision_shape_remove).index;
 }
 
 void cmd_led_node_add(void)
@@ -68,7 +77,7 @@ void cmd_led_node_remove(void)
 	led_node_remove(g_editor, g_queue->cmd_exec->arg[0].utf8);
 }
 
-void cmd_cs_add(void)
+void cmd_collision_shape_add(void)
 {
 	g_queue->cmd_exec->arg[1].f32 = 0.5f;
 	g_queue->cmd_exec->arg[2].f32 = 0.5f;
@@ -124,7 +133,7 @@ void cmd_collision_capsule_add(void)
 	led_collision_shape_add(g_editor, &shape);
 }
 
-void cmd_cs_remove(void)
+void cmd_collision_shape_remove(void)
 {
 	led_collision_shape_remove(g_editor, g_queue->cmd_exec->arg[0].utf8);
 }
@@ -134,11 +143,11 @@ struct slot led_collision_shape_add(struct led *led, const struct collision_shap
 	struct slot slot = empty_slot;
 	if (!shape->id.len)
 	{
-		log_string(T_LED, S_WARNING, "Failed to allocate cs: shape->id must not be empty");
+		log_string(T_LED, S_WARNING, "Failed to allocate collision shape: shape->id must not be empty");
 	} 
 	else if (string_database_lookup(&led->cs_db, shape->id).index != STRING_DATABASE_STUB_INDEX) 
 	{
-		log_string(T_LED, S_WARNING, "Failed to allocate cs: shape with given id already exist");
+		log_string(T_LED, S_WARNING, "Failed to allocate collision shape: shape with given id already exist");
 	}
 	else
 	{ 
@@ -146,7 +155,7 @@ struct slot led_collision_shape_add(struct led *led, const struct collision_shap
 		const utf8 copy = utf8_copy_buffered(buf, 256, shape->id);	
 		if (!copy.len)
 		{
-			log_string(T_LED, S_WARNING, "Failed to allocate cs: shape->id size must be <= 256B");
+			log_string(T_LED, S_WARNING, "Failed to allocate collision shape: shape->id size must be <= 256B");
 			thread_free_256B(buf);
 		}
 		else
@@ -170,7 +179,7 @@ void led_collision_shape_remove(struct led *led, const utf8 id)
 {
 	struct slot slot = led_collision_shape_lookup(led, id);
 	struct collision_shape *shape = slot.address;
-	if (shape->reference_count == 0)
+	if (slot.index != STRING_DATABASE_STUB_INDEX && shape->reference_count == 0)
 	{
 		void *buf = shape->id.buf;
 		string_database_remove(&led->cs_db, id);
@@ -181,6 +190,78 @@ void led_collision_shape_remove(struct led *led, const utf8 id)
 struct slot led_collision_shape_lookup(struct led *led, const utf8 id)
 {
 	return string_database_lookup(&led->cs_db, id);
+}
+
+void cmd_render_mesh_add(void)
+{
+	led_render_mesh_add(g_editor, g_queue->cmd_exec->arg[0].utf8, g_queue->cmd_exec->arg[1].utf8);
+}
+
+void cmd_render_mesh_remove(void)
+{
+	led_render_mesh_remove(g_editor, g_queue->cmd_exec->arg[0].utf8);
+}
+
+struct slot led_render_mesh_add(struct led *led, const utf8 id, const utf8 shape)
+{
+	struct slot slot = empty_slot;
+	if (!id.len)
+	{
+		log_string(T_LED, S_WARNING, "Failed to allocate render mesh: id must not be empty");
+	} 
+	else if (string_database_lookup(&led->render_mesh_db, id).index != STRING_DATABASE_STUB_INDEX) 
+	{
+		log_string(T_LED, S_WARNING, "Failed to allocate render mesh: mesh with given id already exist");
+	}
+	else
+	{ 
+		u8 *buf = thread_alloc_256B();
+		const utf8 copy = utf8_copy_buffered(buf, 256, id);	
+		if (!copy.len)
+		{
+			log_string(T_LED, S_WARNING, "Failed to allocate render mesh: id size must be <= 256B");
+			thread_free_256B(buf);
+		}
+		else
+		{
+			slot = string_database_add_and_alias(&led->render_mesh_db, copy);
+			struct r_mesh *mesh = slot.address;
+
+			struct slot ref = string_database_lookup(&led->cs_db, shape);
+			if (ref.index == STRING_DATABASE_STUB_INDEX)
+			{
+				log_string(T_LED, S_WARNING, "In render_mesh_add: shape not found, stub_shape chosen");
+			}
+
+			struct system_window *sys_win = system_window_address(g_editor->window);
+			const struct collision_shape *s = ref.address;
+			switch (s->type)
+			{
+				case COLLISION_SHAPE_SPHERE: { r_mesh_set_sphere(&sys_win->mem_persistent, mesh, s->sphere.radius, 12); } break;
+				case COLLISION_SHAPE_CAPSULE: { kas_assert(0); } break;
+				case COLLISION_SHAPE_CONVEX_HULL: { r_mesh_set_hull(&sys_win->mem_persistent, mesh, &s->hull); } break;
+			}
+		}
+	}
+
+	return slot;
+}
+
+void led_render_mesh_remove(struct led *led, const utf8 id)
+{
+	struct slot slot = string_database_lookup(&led->render_mesh_db, id);
+	struct r_mesh *mesh = slot.address;
+	if (slot.index != STRING_DATABASE_STUB_INDEX && mesh->reference_count == 0)
+	{
+		void *buf = mesh->id.buf;
+		string_database_remove(&led->render_mesh_db, id);
+		thread_free_256B(buf);
+	}
+}
+
+struct slot led_render_mesh_lookup(struct led *led, const utf8 id)
+{
+	return string_database_lookup(&led->render_mesh_db, id);
 }
 
 void cmd_rb_prefab_add(void)
@@ -246,7 +327,7 @@ void led_rigid_body_prefab_remove(struct led *led, const utf8 id)
 {
 	struct slot slot = led_rigid_body_prefab_lookup(led, id);
 	struct rigid_body_prefab *prefab = slot.address;
-	if (prefab->reference_count == 0)
+	if (slot.index != STRING_DATABASE_STUB_INDEX && prefab->reference_count == 0)
 	{
 		void *buf = prefab->id.buf;
 		string_database_dereference(&led->cs_db, prefab->shape);
@@ -358,7 +439,7 @@ void led_node_remove(struct led *led, const utf8 id)
 {
 	struct slot slot = led_node_lookup(led, id);
 	struct led_node *node = slot.address;
-	if ((node) && (POOL_SLOT_ALLOCATED(node)))
+	if ((slot.index != STRING_DATABASE_STUB_INDEX) && (POOL_SLOT_ALLOCATED(node)))
 	{
 		node->flags |= LED_MARKED_FOR_REMOVAL;
 		dll_remove(&led->node_non_marked_list, led->node_pool.buf, slot.index);
@@ -478,47 +559,41 @@ void led_wall_smash_simulation_setup(struct led *led)
 	sys_win->cmd_queue->regs[5].u32 = 0;
 	cmd_queue_submit(sys_win->cmd_queue, cmd_rb_prefab_add_id);
 
-//	const kas_string floor_id = KAS_COMPILE_TIME_STRING("floor");
-//	const u32 r_floor_handle = r_mesh_alloc(mem_persistent, &floor_id);
-//	struct r_mesh *mesh_floor = r_mesh_address(r_floor_handle);
-//	r_mesh_set_hull(mem_persistent, mesh_floor, &floor->hull);
-//
-//	const kas_string ramp_id = KAS_COMPILE_TIME_STRING("ramp");
-//	const u32 r_ramp_handle = r_mesh_alloc(mem_persistent, &ramp_id);
-//	struct r_mesh *mesh_ramp = r_mesh_address(r_ramp_handle);
-//	r_mesh_set_hull(mem_persistent, mesh_ramp, &ramp->hull);
-//	
-//	const kas_string tower1_id = KAS_COMPILE_TIME_STRING("tower1");
-//	const u32 r_tower1_handle = r_mesh_alloc(mem_persistent, &tower1_id);
-//	struct r_mesh *mesh_tower1 = r_mesh_address(r_tower1_handle);
-//	r_mesh_set_hull(mem_persistent, mesh_tower1, &box->hull);
-//
-//	const kas_string tower2_id = KAS_COMPILE_TIME_STRING("tower2");
-//	const u32 r_tower2_handle = r_mesh_alloc(mem_persistent, &tower2_id);
-//	struct r_mesh *mesh_tower2 = r_mesh_address(r_tower2_handle);
-//	r_mesh_set_hull(mem_persistent, mesh_tower2, &box->hull);
-//
-//	const kas_string pyramid_id = KAS_COMPILE_TIME_STRING("pyramid");
-//	const u32 r_pyramid_handle = r_mesh_alloc(mem_persistent, &pyramid_id);
-//	struct r_mesh *mesh_pyramid = r_mesh_address(r_pyramid_handle);
-//	r_mesh_set_hull(mem_persistent, mesh_pyramid, &box->hull);
-//
-//	const kas_string ball_id = KAS_COMPILE_TIME_STRING("ball");
-//	const u32 r_ball_handle = r_mesh_alloc(mem_persistent, &ball_id);
-//	struct r_mesh *mesh_ball = r_mesh_address(r_ball_handle);
-//	r_mesh_set_sphere(mem_persistent, mesh_ball, ball->sphere.radius, 12);
-//
-//	vec3 ball_translation = { -0.5, 0.5f + ramp_height, -ramp_length };
-//	vec3 box_translation =  {-0.5f, 0.0f, -0.5f};
-//	vec3 ramp_translation = {-ramp_width/2.0f, -ramp_width/2.0f, -ramp_width/2.0f};
-//	vec3 floor_translation = { 0.0f, -ramp_width/2.0f - 1.0f, ramp_length / 2.0f -ramp_width/2.0f};
-//	vec3 box_base_translation = { 0.0f, floor_translation[1] + 1.0f, floor_translation[2] / 2.0f};
-//
-//	const vec3 y_axis = { 0.0f, 1.0f, 0.0f };
-//	axis_angle_to_quaternion(config.rotation, y_axis, 0.0f);
-//	vec3_set(config.linear_velocity, 0.0f, 0.0f, 0.0f);
-//	vec3_set(config.angular_velocity, 0.0f, 0.0f, 0.0f);
-//
+	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rm_floor");
+	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_floor");
+	cmd_queue_submit(sys_win->cmd_queue, cmd_render_mesh_add_id);
+
+	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rm_ramp");
+	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_ramp");
+	cmd_queue_submit(sys_win->cmd_queue, cmd_render_mesh_add_id);
+
+	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rm_tower1");
+	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_box");
+	cmd_queue_submit(sys_win->cmd_queue, cmd_render_mesh_add_id);
+	
+	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rm_tower2");
+	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_box");
+	cmd_queue_submit(sys_win->cmd_queue, cmd_render_mesh_add_id);
+
+	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rm_pyramid");
+	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_box");
+	cmd_queue_submit(sys_win->cmd_queue, cmd_render_mesh_add_id);
+
+	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rm_sphere");
+	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_sphere");
+	cmd_queue_submit(sys_win->cmd_queue, cmd_render_mesh_add_id);
+
+	vec3 ball_translation = { -0.5, 0.5f + ramp_height, -ramp_length };
+	vec3 box_translation =  {-0.5f, 0.0f, -0.5f};
+	vec3 ramp_translation = {-ramp_width/2.0f, -ramp_width/2.0f, -ramp_width/2.0f};
+	vec3 floor_translation = { 0.0f, -ramp_width/2.0f - 1.0f, ramp_length / 2.0f -ramp_width/2.0f};
+	vec3 box_base_translation = { 0.0f, floor_translation[1] + 1.0f, floor_translation[2] / 2.0f};
+
+	const vec3 y_axis = { 0.0f, 1.0f, 0.0f };
+	axis_angle_to_quaternion(config.rotation, y_axis, 0.0f);
+	vec3_set(config.linear_velocity, 0.0f, 0.0f, 0.0f);
+	vec3_set(config.angular_velocity, 0.0f, 0.0f, 0.0f);
+
 //	config.mesh_id_alias = &floor_id;
 //	vec4_copy(config.color, floor_color);
 //	vec3_copy(config.position, floor_translation);

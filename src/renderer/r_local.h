@@ -150,41 +150,6 @@ struct r_proxy3d_v
 /* proxy3d opengl buffer layout setter */
 void 			r_proxy3d_buffer_layout_setter(void);
 
-/********************************************************
- *			r_mesh.c			*
- ********************************************************/
-
-/*
- * triangle layouts are described by the following attributes. The vertex data comes in the order of the attributes;
- * low valued attributes before higher valued attributes (POSITION | COLOR | UV | NORMAL)
- */
-enum r_mesh_attribute
-{
-	R_MESH_ATTRIBUTE_POSITION 	= (1 << 0),	/* vec3 */
-	R_MESH_ATTRIBUTE_COLOR 	  	= (1 << 1),	/* vec4 */
-	R_MESH_ATTRIBUTE_UV       	= (1 << 2),	/* vec2 */
-	R_MESH_ATTRIBUTE_NORMAL   	= (1 << 3),	/* vec3 */
-};
-
-struct r_mesh
-{
-	STRING_DATABASE_SLOT_STATE;				/* internal header, MAY NOT BE MOVED */
-	u32				attribute_flags;	/* attribute flags describing layout of triangles */
-	u32				index_count;		
-	u32 *				index_data; 		/* index_data[index_count] */
-	u32				index_max_used;		/* max used index */
-	u32				vertex_count;   	
-	void *				vertex_data;		/* vertex_data[vertex_count] : layout according to attributes */
-};
-
-/**************** TEMPORARY: quick and dirty mesh generation *****************/
-
-/* setup stub box mesh */
-
-#include "collision.h"
-
-void 	r_mesh_set_stub_box(struct r_mesh *mesh_stub);
-
 /*************************** opengl context state ****************************/
 
 struct gl_limits
@@ -404,7 +369,5 @@ void gl_state_assert(void);
 #define GL_STATE_ASSERT	
 
 #endif
-
-
 
 #endif
