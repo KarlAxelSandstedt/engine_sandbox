@@ -326,14 +326,16 @@ void r_led_main(const struct led *led)
 		const u64 frames_elapsed_since_last_draw = (g_r_core->ns_elapsed - (g_r_core->frames_elapsed * g_r_core->ns_tick)) / g_r_core->ns_tick;
 		if (frames_elapsed_since_last_draw)
 		{
+			struct arena tmp = arena_alloc_1MB();
+
 			g_r_core->frames_elapsed += frames_elapsed_since_last_draw;
 
-			//TODO update proxy3ds
+			r_proxy3d_hierarchy_speculate(&tmp, led->ns);
+
 			//TODO MUST DO THIS INSIDE DRAW LOOP, must bind programs before uploading uniforms!
 			//TODO r_widget_init_r_units();
 
 			struct system_window *win = NULL;
-			struct arena tmp = arena_alloc_1MB();
 			struct hierarchy_index_iterator	it = hierarchy_index_iterator_init(&tmp, g_window_hierarchy, g_process_root_window);
 			while (it.count)
 			{
@@ -355,10 +357,11 @@ void r_led_main(const struct led *led)
 				}
 			}
 			hierarchy_index_iterator_release(&it);
-			arena_free_1MB(&tmp);
 
 			/* NOTE: main context must be set in the case of creating new contexts sharing state. */
 			system_window_set_current_gl_context(g_process_root_window);
+
+			arena_free_1MB(&tmp);
 		}
 	}
 	else

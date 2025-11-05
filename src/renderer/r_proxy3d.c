@@ -19,93 +19,90 @@
 
 #include "r_local.h"
 
-static struct r_proxy3d *internal_r_proxy3d_lookup(const u32 type_index)
+void r_proxy3d_buffer_layout_setter(void)
+{
+	kas_glEnableVertexAttribArray(0);
+	kas_glEnableVertexAttribArray(1);
+	kas_glEnableVertexAttribArray(2);
+	kas_glEnableVertexAttribArray(3);
+	kas_glEnableVertexAttribArray(4);
+
+	kas_glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, S_PROXY3D_STRIDE, (void *) (0));
+	kas_glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, S_PROXY3D_STRIDE, (void *) (sizeof(vec3)));
+	kas_glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, S_PROXY3D_STRIDE, (void *) (sizeof(vec3) + sizeof(vec4)));
+	kas_glVertexAttribDivisor(0, 1);
+	kas_glVertexAttribDivisor(1, 1);
+	kas_glVertexAttribDivisor(2, 1);
+
+	kas_glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, L_PROXY3D_STRIDE, (void *) (0));
+	kas_glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, L_PROXY3D_STRIDE, (void *) (sizeof(vec3)));
+}
+
+static struct r_proxy3d *internal_r_proxy3d_address(const u32 type_index)
 {
 	return hierarchy_index_address(g_r_core->proxy3d_hierarchy, type_index);
 }
 
-u32 r_proxy3d_alloc(const u32 parent, const u64 screen, const u64 transparency, const u32 texture, const u32 draw_flags, const struct r_proxy3d_draw_config *config)
+void r_proxy3d_set_linear_speculation(const vec3 position, const quat rotation, const vec3 linear_velocity, const vec3 angular_velocity, const u64 ns_time, const u32 unit)
 {
-	/* NOTE: depth calculated on updates to PROXY3D if transparency is set. */
-	const u64 depth = 0;
-	const u64 material = r_material_construct(PROGRAM_PROXY3D, texture);
-	const u32 index = r_unit_alloc(parent
-			, R_UNIT_TYPE_PROXY3D
-			, screen
-			, transparency
-			, depth
-			, material
-			, R_CMD_PRIMITIVE_TRIANGLE);
-	struct r_unit *unit = hierarchy_index_address(g_r_core->unit_hierarchy, index);
-	struct r_proxy3d *proxy = hierarchy_index_address(g_r_core->proxy3d_hierarchy, unit->type_index);
-	proxy->ns_at_update = 0;
-
-	vec3_copy(proxy->position, config->position);
-	quat_copy(proxy->rotation, config->rotation);
-	vec3_copy(proxy->linear.linear_velocity, config->linear_velocity);
-	vec3_copy(proxy->linear.angular_velocity, config->angular_velocity);
-
-	unit->draw_flags = draw_flags;
-	unit->mesh_handle = string_database_reference(&g_r_core->mesh_database, *config->mesh_id_alias).index;
-	if (unit->mesh_handle == STRING_DATABASE_STUB_INDEX)
-	{
-		log(T_RENDERER, S_WARNING, "failed to locate mesh %k in database", config->mesh_id_alias);
-	}
-
-	//TODO Hardcoded for now 
-	proxy->spec_mov = config->spec_mov;
-	proxy->pos_type = config->pos_type;
-
-	const vec4 no_color = VEC4_ZERO; 
-	if (draw_flags & R_UNIT_DRAW_COLOR)
-	{
-		unit->color_blending = 1.0f;
-		vec4_copy(unit->color, config->color);
-	}
-	else
-	{
-		unit->color_blending = 0.0f;
-		vec4_copy(unit->color, no_color);
-	}
-	
-	unit->material = material;
-	if (draw_flags & R_UNIT_DRAW_TEXTURE)
-	{
-		if (draw_flags & R_UNIT_DRAW_COLOR)
+	struct r_proxy3d *proxy = r_proxy3d_address(unit);
+	//TODO
+	//if (POOL_SLOT_ALLOCATED(proxy))
+	//{
+		proxy->flags &= ~(PROXY3D_SPECULATE_FLAGS | PROXY3D_MOVING);
+		proxy->flags |= PROXY3D_SPECULATE_LINEAR;
+		proxy->ns_at_update = ns_time;
+		vec3_copy(proxy->position, position);
+		quat_copy(proxy->rotation, rotation);
+		vec3_copy(proxy->linear.linear_velocity, linear_velocity);
+		vec3_copy(proxy->linear.angular_velocity, angular_velocity);
+		if (vec3_dot(linear_velocity, linear_velocity) + vec3_dot(angular_velocity, angular_velocity) > 0.0f)
 		{
-			unit->color_blending = config->blend;
+			proxy->flags |= PROXY3D_MOVING;
 		}
-	}
-
-
-	unit->transparency = config->transparency;
-
-	return index;
+	//}
 }
 
-struct r_proxy3d *r_proxy3d_lookup(const u32 unit)
+u32 r_proxy3d_alloc(const struct r_proxy3d_config *config)
 {
-	struct r_unit *u = r_unit_lookup(unit);
-	return (u->type == R_UNIT_TYPE_PROXY3D)
-		? internal_r_proxy3d_lookup(u->type_index)
-		: NULL;
+	struct slot slot = r_unit_alloc(config->mesh);
+	struct r_unit *unit = slot.address;
+	const u32 unit_index = slot.index;
+
+	slot = hierarchy_index_add(g_r_core->proxy3d_hierarchy, config->parent);
+	unit->type = R_UNIT_TYPE_PROXY3D;
+	unit->type_index = slot.index;
+
+	struct r_proxy3d *proxy = slot.address;
+	proxy->flags = (config->parent != g_r_core->proxy3d_root)
+		? PROXY3D_RELATIVE
+		: 0;
+
+	r_proxy3d_set_linear_speculation(config->position, config->rotation, config->linear_velocity, config->angular_velocity, config->ns_time, unit_index);
+
+	return unit_index;
+}
+
+struct r_proxy3d *r_proxy3d_address(const u32 unit)
+{
+	struct r_unit *u = r_unit_address(unit);
+	kas_assert(u->type == R_UNIT_TYPE_PROXY3D);
+	return internal_r_proxy3d_address(u->type_index);
 }
 
 
 /* Calculate the speculative movement of the proxy locally, i.e., the position of the proxy not counting any position type effects */
-static void internal_r_proxy3d_local_speculative_orientation(vec3 position, quat rotation, const struct r_proxy3d *proxy, const u64 ns_time)
+static void internal_r_proxy3d_local_speculative_orientation(struct r_proxy3d *proxy, const u64 ns_time)
 {
 	const f32 timestep = (f32) (ns_time - proxy->ns_at_update) / NSEC_PER_SEC;
-	//fprintf(stderr, "%f\n", timestep);
-	//breakpoint(timestep >= 1.0f);
 
-	switch (proxy->spec_mov)
+	switch (proxy->flags & PROXY3D_SPECULATE_FLAGS)
 	{
-		case PROXY3D_SPEC_LINEAR:
+		case PROXY3D_SPECULATE_LINEAR:
 		{
-			position[0] = proxy->position[0] + proxy->linear.linear_velocity[0] * timestep;
-			position[1] = proxy->position[1] + proxy->linear.linear_velocity[1] * timestep;
-			position[2] = proxy->position[2] + proxy->linear.linear_velocity[1] * timestep;
+			proxy->spec_position[0] = proxy->position[0] + proxy->linear.linear_velocity[0] * timestep;
+			proxy->spec_position[1] = proxy->position[1] + proxy->linear.linear_velocity[1] * timestep;
+			proxy->spec_position[2] = proxy->position[2] + proxy->linear.linear_velocity[1] * timestep;
 
 			quat a_vel_quat, rot_delta;
 			quat_set(a_vel_quat, 
@@ -115,43 +112,46 @@ static void internal_r_proxy3d_local_speculative_orientation(vec3 position, quat
 				      	0.0f);
 			quat_mult(rot_delta, a_vel_quat, proxy->rotation);
 			quat_scale(rot_delta, timestep / 2.0f);
-			quat_add(rotation, proxy->rotation, rot_delta);
-			quat_normalize(rotation);
+			quat_add(proxy->spec_rotation, proxy->rotation, rot_delta);
+			quat_normalize(proxy->spec_rotation);	
 		} break;
 		
 		default:
 		{
-			kas_assert_string(0, "IMPLEMENT");
+			vec3_copy(proxy->spec_position, proxy->position);	
+			quat_copy(proxy->spec_rotation, proxy->rotation);	
 		} break;
-	}
+	}	
 }
 
-void r_proxy3d_hierarchy_speculate(vec3ptr *position, quatptr *rotation, struct arena *mem, const u64 ns_time)
+void r_proxy3d_hierarchy_speculate(struct arena *mem, const u64 ns_time)
 {
-	vec3ptr spec_pos = arena_push(mem, sizeof(vec3) * g_r_core->proxy3d_hierarchy->list->max_count);	
-	quatptr spec_rot = arena_push(mem, sizeof(vec4) * g_r_core->proxy3d_hierarchy->list->max_count);
-	*position = spec_pos;
-	*rotation = spec_rot;
-
-	const vec3 axis = { 0.0f, 1.0f, 0.0f };
-	const f32 angle = 0.0f;
-	unit_axis_angle_to_quaternion(spec_rot[HI_ROOT_STUB_INDEX], axis, angle);
-	vec3_set(spec_pos[HI_ROOT_STUB_INDEX], 0.0f, 0.0f, 0.0f);
-
-	struct hierarchy_index_iterator it = hierarchy_index_iterator_init(mem, g_r_core->proxy3d_hierarchy, HI_ROOT_STUB_INDEX);
+	struct hierarchy_index_iterator it = hierarchy_index_iterator_init(mem, g_r_core->proxy3d_hierarchy, g_r_core->proxy3d_root);
 	// skip root stub 
 	hierarchy_index_iterator_next_df(&it);
 	while (it.count)
 	{
 		const u32 index = hierarchy_index_iterator_next_df(&it);
-		const struct r_proxy3d *proxy = internal_r_proxy3d_lookup(index);
-		internal_r_proxy3d_local_speculative_orientation(spec_pos[index], spec_rot[index], proxy, ns_time);
-		vec3_translate(spec_pos[index], spec_pos[proxy->header.parent]);
-		quat tmp;
-		quat_copy(tmp, spec_rot[index]);
-		quat_mult(spec_rot[index], tmp, spec_rot[proxy->header.parent]);
+		struct r_proxy3d *proxy = internal_r_proxy3d_address(index);
+		if (proxy->flags & PROXY3D_MOVING)
+		{
+			internal_r_proxy3d_local_speculative_orientation(proxy, ns_time);
+		}
+
+		if (proxy->header.parent != g_r_core->proxy3d_root)
+		{
+			const struct r_proxy3d *parent = r_proxy3d_address(proxy->header.parent);
+			if ((proxy->flags & PROXY3D_MOVING) == 0)
+			{
+				vec3_copy(proxy->spec_position, proxy->position);	
+				quat_copy(proxy->spec_rotation, proxy->rotation);	
+			}
+
+			vec3_translate(proxy->spec_position, parent->spec_position);
+			quat tmp;
+			quat_copy(tmp, proxy->spec_rotation);
+			quat_mult(proxy->spec_rotation, tmp, parent->spec_rotation);
+		}
 	}
 	hierarchy_index_iterator_release(&it);
 }
-
-

@@ -21,36 +21,6 @@
 
 #include "r_local.h"
 
-u32 r_mesh_alloc(struct arena *mem_database_lifetime, const utf8 *id)
-{
-	return string_database_add(mem_database_lifetime, &g_r_core->mesh_database, *id).index;
-}
-
-void r_mesh_remove(const utf8 *id)
-{
-	string_database_remove(&g_r_core->mesh_database, *id);
-}
-
-u32 r_mesh_lookup(const utf8 *id)
-{
-	return string_database_lookup(&g_r_core->mesh_database, *id).index;
-}
-
-struct r_mesh *r_mesh_address(const u32 handle)
-{
-	return string_database_address(&g_r_core->mesh_database, handle);
-}
-
-u32 r_mesh_reference(const utf8 *id)
-{
-	return string_database_reference(&g_r_core->mesh_database, *id).index;
-}
-
-void r_mesh_dereference(const u32 handle)
-{
-	string_database_dereference(&g_r_core->mesh_database, handle);
-}
-
 f32 stub_vertices[] =
 {
 		 0.5f, -0.5f, -0.5f, /* 0.8f, 0.5f, 0.1f, 1.0f, */0.0f, 0.0f, -1.0f, 

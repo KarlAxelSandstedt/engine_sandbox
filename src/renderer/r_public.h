@@ -29,7 +29,7 @@
  ********************************************************/
 
 /* initiate render state, ns_tick is ns per draw frame, or, if 0, redraw on every r_main() entry,  should be a power of 2 */
-void	r_init(struct arena *mem_persistent, const u64 ns_tick, const u64 frame_size, const u64 core_unit_count);
+void 	r_init(struct arena *mem_persistent, const u64 ns_tick, const u64 frame_size, const u64 core_unit_count, struct string_database *mesh_database);
 
 /********************************************************
  *			r_main.c			*
@@ -114,22 +114,6 @@ void 		frustum_projection_plane_camera_space(vec3 bottom_left, vec3 upper_right,
 /* maps window pixel to position in world */
 void 		window_space_to_world_space(vec3 world_pixel, const vec2u32 pixel, const vec2u32 win_size, const struct r_camera *cam);
 
-/********************************************************
- *			render_state			*
- ********************************************************/
-
-#define	R_UNIT_PARENT_NONE	HI_ROOT_STUB_INDEX	
-#define	R_UNIT_NULL		HI_NULL_INDEX	
-
-enum r_unit_draw_flag
-{
-	R_UNIT_DRAW_NONE 	= 0,
-	R_UNIT_DRAW_COLOR 	= (1 << 0),
-	R_UNIT_DRAW_TRANSPARENT	= (1 << 1),
-	R_UNIT_DRAW_TEXTURE	= (1 << 2),
-	R_UNIT_DRAW_COUNT
-};
-
 /************************************** Draw Command Key Layout and Macros ***************************************/
 
 /* r_command : draw command for a r_unit. Sortable for draw ordering. 
@@ -213,81 +197,100 @@ u64 	r_material_construct(const u64 program, const u64 texture);
  *			r_core.c			*
  ********************************************************/
 
-/* Reset / flush renderer core memory */
-void	r_core_flush(void);
-
-struct r_static_range
-{
-	struct r_static_range *	next;
-	u64			vertex_offset;
-	u64			vertex_size;
-	u32			index_offset;
-	u32			index_count;
-};
-
-struct r_static
-{
-	struct array_list_intrusive_node *header;	/* HEADER; DO NOT MOVE */
-	struct r_static_range *	 	range;		/* range list; each range correpsonds to a later possible
-							   draw call, and contains offsets into the vertex and
-						   	   index data */
-	u64	vertex_size;
-	void *	vertex_data;
-	u32	index_count;
-	u32 *	index_data;
-};
-
-/* allocate an r_static and r_unit and return the unit handle  */
-u32			r_static_alloc(const u64 screen, const u64 transparency, const u64 depth, const u64 material, const u64 primitive);
-/* deallocate unit and corresponding r_static, given that unit exist and contains a r_static  */
-void			r_static_dealloc(const u32 unit);
-/* return the r_static of the unit given that the unit exist and has a r_static; otherwise return NULL. */
-struct r_static *	r_static_lookup(const u32 unit);
+/*
+r_unit
+======
+Render unit information; Contains persistent draw information such as mesh data, proxy3d handle and so on. 
+To draw a r_unit, we need to for each frame construct an r_instance of the r_unit which contains exact draw
+instructions.
+*/
 
 enum r_unit_type
 {
+	R_UNIT_TYPE_NONE,
 	R_UNIT_TYPE_PROXY3D,
-	R_UNIT_TYPE_UI,
 	R_UNIT_TYPE_STATIC,
 	R_UNIT_TYPE_COUNT
 };
 
- /*
-  * r_unit - Render unit information; Contains all information needed to find and/or generate its
-  * 	     correpsonding drawing. 
-  */
 struct r_unit
 {
-	struct hierarchy_index_node	 header; 	/* intrusive hierarchy node structure NOTE: 
-							   Must be at the top				*/
-	u32 				generation;	/* used in instance_to_unit maps inside scenes	*/
+	GENERATIONAL_POOL_SLOT_STATE;
 
-	/* TODO: Decide what goes into r_instance */
+	u32			mesh;
 
-	vec4				color;		/* Used on DRAW_COLOR 				*/
-	f32				transparency;	/* Used on DRAW_TRANSPARENT			*/
-	f32				color_blending;	/* Used on DRAW_COLOR & DRAW_**MATERIAL**	*/
-	u32				material;	/* Used on DRAW_**MATERIAL**			*/
-	u32				draw_flags;	/* draw flags (DRAW_**) */
-	//TODO what to do with this?
-	union
-	{
-		u32	widget_set;			/* index into core frame_widget_set[] */
-		u32	mesh_handle;
-		u32	sprite;				/* Used on DRAW_TEXTURE, index into g_sprite array   */
-		//struct 	animation_state animation;	/* Used on DRAW_ANIMATION, index into g_sprite array */
-	};
-	enum r_unit_type		type;		/* draw type of unit 				*/
-	u32				type_index;	/* index/id of type draw data			*/
+	enum r_unit_type	type;		/* draw type of unit 		*/
+	u32			type_index;	/* index/id of type draw data	*/
 };
 
-
-/* allocate a new render unit and return its handle (currently an index) */
-u32		r_unit_alloc(const u32 parent_handle, const enum r_unit_type type, const u64 screen, const u64 transparency, const u64 depth, const u64 material, const u64 primitive);
-/* deallocate a render unit subhierarchy with root unit corresponding to handle */
+/* allocate a new render unit and return its slot */
+struct slot	r_unit_alloc(const utf8 mesh);
+/* deallocate a render unit  */
 void		r_unit_dealloc(struct arena *tmp, const u32 handle);
 /* return address corresponding to handle */
-struct r_unit *	r_unit_lookup(const u32 handle);
+struct r_unit *	r_unit_address(const u32 handle);
+
+/*
+r_proxy3d
+=========
+Contains data for speculative movement; Since the physics engine runs at a fixed resolution, go get smooth movements
+we must speculate on future positions. 
+*/
+
+#define PROXY3D_FLAG_NONE		((u32) 0)
+#define PROXY3D_MOVING			((u32) 1 << 0)	/* Set if any velocity != 0 			    */
+#define PROXY3D_SPECULATE_NONE		((u32) 1 << 1)	/* Set if transform should be non-speculative  	    */
+#define PROXY3D_SPECULATE_LINEAR	((u32) 1 << 2)	/* Set if linear speculation			    */
+#define PROXY3D_RELATIVE		((u32) 1 << 3)  /* Set if proxy is relative (has a non-root parent) */
+
+#define PROXY3D_SPECULATE_FLAGS		(   PROXY3D_SPECULATE_NONE	\
+					  | PROXY3D_SPECULATE_LINEAR	\
+					)
+
+struct r_proxy3d_config
+{
+	u64			ns_time;
+	u32			parent;
+
+	vec3			position;
+	quat			rotation;
+	vec3			linear_velocity;
+	vec3			angular_velocity;
+
+	utf8			mesh;
+};
+
+/*
+ * r_proxy3d - proxy structure containing information for speculatively drawing. 
+ */
+struct r_proxy3d
+{
+	struct hierarchy_index_node	header; /* DO NOT MOVE! */
+
+	u32	flags;
+	vec3	spec_position;
+	vec4	spec_rotation;
+
+	u64	ns_at_update;	/* ns elapsed at the time of last update to position and rotation */
+	vec3	position;	/* position of unit; interpreted according to its pos_type.  */
+	quat	rotation;
+
+	union
+	{
+		struct 
+		{
+			vec3	linear_velocity;
+			vec3	angular_velocity;
+		} linear;
+	};
+};
+
+/* return the unit handle of a newly allocated proxy3d unit. */
+u32 			r_proxy3d_alloc(const struct r_proxy3d_config *config);
+/* return the proxy3d of the unit given that the unit exist and has a proxy3d; otherwise return NULL. */
+struct r_proxy3d *	r_proxy3d_address(const u32 unit);
+/* set the proxy */
+void 			r_proxy3d_set_linear_speculation(const vec3 position, const quat rotation, const vec3 linear_velocity, const vec3 angular_velocity, const u64 ns_time, const u32 unit);
 
 /********************************************************
  *			r_scene.c			*
@@ -437,69 +440,6 @@ void		r_scene_frame_begin(void);
 void		r_scene_frame_end(void);
 
 /********************************************************
- *			r_proxy3d.c			*
- ********************************************************/
-
- enum r_proxy3d_spec_mov
-{
-	PROXY3D_SPEC_LINEAR,		/* linear movement (spec_val = vel_val * time)  */
-	PROXY3D_SPEC_COUNT,
-};
-
-enum r_proxy3d_pos
-{
-	PROXY3D_POSITION_ABSOLUTE,	/* postition is viewed as a world position */
-	PROXY3D_POSITION_RELATIVE,	/* postition is viewed as a relative position to parent position */
-	PROXY3D_POSITION_COUNT,
-};
-
-struct r_proxy3d_draw_config
-{
-	vec3			position;
-	quat			rotation;
-	vec3			linear_velocity;
-	vec3			angular_velocity;
-
-	vec4 			color;
-	f32			blend;
-	f32			transparency;
-	enum r_proxy3d_spec_mov	spec_mov;
-	enum r_proxy3d_pos	pos_type;
-	const utf8 *		mesh_id_alias;
-};
-
-/*
- * r_proxy3d - proxy structure containing information for speculatively drawing. 
- */
-struct r_proxy3d
-{
-	struct hierarchy_index_node	header; /* DO NOT MOVE! */
-
-	u64	ns_at_update;	/* ns elapsed at the time of last update to position and rotation */
-	vec3	position;	/* position of unit; interpreted according to its pos_type.  */
-	quat	rotation;
-
-	union
-	{
-		struct 
-		{
-			vec3	linear_velocity;
-			vec3	angular_velocity;
-		} linear;
-	};
-
-	/* speculative position / movement */
-	enum r_proxy3d_spec_mov	spec_mov;
-	enum r_proxy3d_pos	pos_type;
-};
-
-/* return the unit handle of a newly allocated proxy3d unit. */
-u32 			r_proxy3d_alloc(const u32 parent, const u64 screen, const u64 transparency, const u32 texture, const u32 draw_flags, const struct r_proxy3d_draw_config *config);
-/* return the proxy3d of the unit given that the unit exist and has a proxy3d; otherwise return NULL. */
-struct r_proxy3d *	r_proxy3d_lookup(const u32 unit);
-
-
-/********************************************************
  *			r_mesh.c			*
  ********************************************************/
 
@@ -526,21 +466,6 @@ struct r_mesh
 	void *				vertex_data;		/* vertex_data[vertex_count] : layout according to attributes */
 };
 
-#include "collision.h"
-
-/* allocate a render mesh and return its handle. reference count is set to 0  */
-u32 		r_mesh_alloc(struct arena *mem_database_lifetime, const utf8 *id);
-/* deallocate the corresponding render mesh of the id if found; if stub mesh, do nothing */
-void		r_mesh_remove(const utf8 *id);
-/* lookup a render mesh given its id; return debug mesh if not mesh not found */
-u32		r_mesh_lookup(const utf8 *id);
-/* return r_mesh address given handle */
-struct r_mesh *	r_mesh_address(const u32 handle);
-/* lookup and increment reference count of render mesh corresponding to handle. If no mesh found, return debug mesh */
-u32 		r_mesh_reference(const utf8 *id);
-/* decrement reference count of render mesh corresponding to handle. If no mesh found, do nothing. */
-void		r_mesh_dereference(const u32 handle);
-
 /**************** TEMPORARY: quick and dirty mesh generation *****************/
 
 /* setup mesh stub */
@@ -551,49 +476,6 @@ void 		r_mesh_set_sphere(struct arena *mem, struct r_mesh *mesh, const f32 radiu
 void 		r_mesh_set_capsule(struct arena *mem, struct r_mesh *mesh, const vec3 p1, const f32 radius, const quat rotation, const u32 refinement);
 /* setup mesh from collison hull */
 void 		r_mesh_set_hull(struct arena *mem, struct r_mesh *mesh, const struct collision_hull *hull);
-
-/********************************************************
- *			r_debug.c			*
- ********************************************************/
-
-#include "physics_pipeline.h"
-
-#ifdef KAS_PHYSICS_DEBUG
-struct r_physics_debug
-{
-	u32	unit_dynamic_tree;	
-	u32	unit_bounding_box;
-	u32	unit_segment;
-	u32	unit_plane;
-	u32	unit_collision;
-	u32	unit_contact_manifold_1;
-	u32	unit_contact_manifold_2;
-	u32	unit_sleeping;
-	u32	unit_island;
-};
-
-/* initalize r_physics_debug before first frame */
-void	r_physics_debug_init(void);
-/* flush or reset r_physics_debug owned memory */
-void	r_physics_debug_flush(void);
-/* initalize r_physics_debug frame state */
-void	r_physics_debug_frame_init(struct physics_pipeline *pipeline);
-/* initalize clear r_physics_debug frame state   */
-void	r_physics_debug_frame_clear(void);
-
-#define R_PHYSICS_DEBUG_INIT			r_physics_debug_init()
-#define R_PHYSICS_DEBUG_FLUSH			r_physics_debug_flush();
-#define R_PHYSICS_DEBUG_FRAME_INIT(physics)	r_physics_debug_frame_init(physics)
-#define R_PHYSICS_DEBUG_FRAME_CLEAR		r_physics_debug_frame_clear()
-
-#else
-
-#define R_PHYSICS_DEBUG_INIT
-#define R_PHYSICS_DEBUG_FLUSH			
-#define R_PHYSICS_DEBUG_FRAME_INIT(physics)	
-#define R_PHYSICS_DEBUG_FRAME_CLEAR	
-
-#endif
 
 /********************************************************
  *			r_gl.c				*

@@ -364,7 +364,7 @@ void r_scene_generate_bucket_list(void)
 
 			case R_INSTANCE_UNIT:
 			{
-				const struct r_unit *u = r_unit_lookup((u32) instance->unit);
+				const struct r_unit *u = r_unit_address((u32) instance->unit);
 				switch (u->type)
 				{
 					//case R_UNIT_TYPE_PROXY2D:
@@ -374,12 +374,13 @@ void r_scene_generate_bucket_list(void)
 
 					case R_UNIT_TYPE_PROXY3D:
 					{
-						const struct r_mesh *mesh = r_mesh_address(u->mesh_handle);
-						r_buffer_constructor_buffer_add_size(&buf_constructor, 
-								mesh->vertex_count * R_PROXY3D_V_PACKED_SIZE,
-								0,
-								0,
-							       	mesh->index_count);
+						kas_assert_string(0, "implement");
+						//const struct r_mesh *mesh = string_database_address(g_r_core->mesh_database, u->mesh);
+						//r_buffer_constructor_buffer_add_size(&buf_constructor, 
+						//		mesh->vertex_count * R_PROXY3D_V_PACKED_SIZE,
+						//		0,
+						//		0,
+						//	       	mesh->index_count);
 					} break;
 
 					//case R_UNIT_TYPE_STATIC:
@@ -702,7 +703,7 @@ static void r_scene_bucket_generate_draw_data(struct r_bucket *b)
 			case R_INSTANCE_UNIT:
 			{
 				kas_assert_string(0, "Reimplement");
-				struct r_unit *u = r_unit_lookup((u32) instance->unit);
+				struct r_unit *u = r_unit_address((u32) instance->unit);
 				//switch(u->type)
 				//{
 				//	case R_UNIT_TYPE_STATIC:
@@ -714,7 +715,7 @@ static void r_scene_bucket_generate_draw_data(struct r_bucket *b)
 				//			struct r_buffer *buf = b->buffer_array[bi];
 				//			kas_assert(buf->c_l == buf->c_h);
 				//			r_cmd = g_scene->cmd_frame + buf->c_l;
-				//			u = r_unit_lookup(r_cmd->instance);
+				//			u = r_unit_address(r_cmd->instance);
 				//			const struct r_static *r_static = array_list_intrusive_address(g_r_core->static_list, u->type_index);
 				//			local_data = r_static->vertex_data;
 				//			buf->index_data = r_static->index_data;
@@ -768,7 +769,7 @@ static void r_scene_bucket_generate_draw_data(struct r_bucket *b)
 				//			for (u32 i = buf->c_l; i <= buf->c_h; ++i)
 				//			{
 				//				r_cmd = g_scene->cmd_frame + i;
-				//				u = r_unit_lookup(r_cmd->instance);
+				//				u = r_unit_address(r_cmd->instance);
 				//				kas_assert(u->type == R_UNIT_TYPE_PROXY3D);
 
 				//				const struct r_mesh *mesh = r_mesh_address(u->mesh_handle);

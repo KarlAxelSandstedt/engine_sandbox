@@ -9,7 +9,6 @@ add_library(renderer STATIC
 	r_camera.c
 	r_proxy3d.c
 	r_core.c
-	r_debug.c
 	r_scene.c
 	r_ui.c
 	r_gl.c

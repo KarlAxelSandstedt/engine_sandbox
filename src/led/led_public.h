@@ -101,7 +101,7 @@ struct led_node
 	quat			rotation;
 
 	u32			rb_prefab; 
-	u32 			render_mesh;	
+	u32 			proxy3d_unit;	
 	u32			csg_brush;	
 };
 

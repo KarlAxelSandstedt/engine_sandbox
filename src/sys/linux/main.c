@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
 	struct led *editor = led_alloc();
 	
 	const u64 renderer_framerate = 144;	
-	r_init(&mem_persistent, NSEC_PER_SEC / renderer_framerate, 16*1024*1024, 1024);
+	r_init(&mem_persistent, NSEC_PER_SEC / renderer_framerate, 16*1024*1024, 1024, &editor->render_mesh_db);
 	
 	u64 old_time = editor->ns;
 	while (editor->running)

@@ -73,9 +73,6 @@ void 	r_compile_shader(u32 *prg, const char *v_filepath, const char *f_filepath)
  *			r_core.c			*
  ********************************************************/
 
-/* allocate and initialize r_static range */
-struct r_static_range *r_static_range_init(struct arena *mem, const u64 vertex_offset, const u64 index_offset);
-
 /*
  * r_program - gl program related info. Indexable by r_program_id and initalized at startup
  */
@@ -99,56 +96,44 @@ struct r_texture
  */
 struct r_core
 {
-	u64 		frames_elapsed;		/* frames elapsed or drawn */
-	u64 		ns_elapsed;		/* process time (ns) */
-	u64 		ns_tick;		/* ns per render frame; if set to 0, we redraw on each r_main entry */
-	struct arena 	frame;
+	u64 			frames_elapsed;		/* frames elapsed or drawn */
+	u64 			ns_elapsed;		/* process time (ns) */
+	u64 			ns_tick;		/* ns per render frame; if set to 0, we redraw on each r_main
+							   entry */
+	struct arena 		frame;
 
 	struct r_program	program[PROGRAM_COUNT];
 	struct r_texture	texture[TEXTURE_COUNT];
 
-	struct bit_vec		unit_allocation;	/* check allocated indices */
-	struct hierarchy_index *unit_hierarchy;		/* render unit storage 	   */
+	struct pool		unit_pool;
 
-	struct string_database	mesh_database;		/* mesh storage   */
+	struct string_database *mesh_database;		/* mesh storage (external) */
+
 	struct hierarchy_index *proxy3d_hierarchy;	/* proxy3d storage */
-	struct array_list_intrusive *static_list;	/* static storage */
-
-#ifdef 	KAS_PHYSICS_DEBUG
-	/* TODO: REMOVE */
-	struct r_physics_debug	physics_debug;
-#endif
-	/* Speculative frame data. is set/filled using r_proxy3d_hierarchy_speculate */
-	vec3ptr	frame_proxy3d_position;
-	quatptr	frame_proxy3d_rotation;
+	u32			proxy3d_root;
 };
 extern struct r_core *g_r_core;
 
-/* generate speculative positions of r_core proxy3d's, indexable by type_index */
-void 			r_proxy3d_hierarchy_speculate(vec3ptr *position, quatptr *rotation, struct arena *mem, const u64 ns_time);
+/* Reset / flush renderer core memory */
+void	r_core_flush(void);
 
 /********************************************************
  *			r_proxy3d.c			*
  ********************************************************/
 
-#define R_PROXY3D_V_POSITION_OFFSET		(0)
-#define R_PROXY3D_V_COLOR_OFFSET		(sizeof(vec3))
-#define R_PROXY3D_V_NORMAL_OFFSET		(sizeof(vec3) + sizeof(vec4))
-#define R_PROXY3D_V_TRANSLATION_OFFSET		(sizeof(vec3) + sizeof(vec4) + sizeof(vec3))
-#define R_PROXY3D_V_ROTATION_OFFSET		(sizeof(vec3) + sizeof(vec4) + sizeof(vec3) + sizeof(vec3))
-#define R_PROXY3D_V_PACKED_SIZE			(sizeof(vec3) + sizeof(vec4) + sizeof(vec3) + sizeof(vec3) + sizeof(vec4))
+#define S_PROXY3D_TRANSLATION_OFFSET	(0)
+#define S_PROXY3D_ROTATION_OFFSET	(1*sizeof(vec3))
+#define S_PROXY3D_COLOR_OFFSET		(1*sizeof(vec3) + 1*sizeof(vec4))
+#define S_PROXY3D_STRIDE		(1*sizeof(vec3) + 2*sizeof(vec4))
 
-struct r_proxy3d_v
-{
-	vec3	position;
-	vec4	color;
-	vec3	normal;
-	vec3	translation;
-	quat	rotation;
-};
+#define L_PROXY3D_POSITION_OFFSET	(0)
+#define L_PROXY3D_NORMAL_OFFSET		(1*sizeof(vec3))
+#define L_PROXY3D_STRIDE		(2*sizeof(vec3))
 
 /* proxy3d opengl buffer layout setter */
-void 			r_proxy3d_buffer_layout_setter(void);
+void 	r_proxy3d_buffer_layout_setter(void);
+/* generate speculative positions */
+void 	r_proxy3d_hierarchy_speculate(struct arena *mem, const u64 ns_time);
 
 /*************************** opengl context state ****************************/
 

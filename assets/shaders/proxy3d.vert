@@ -1,10 +1,10 @@
 #version 330 core
 
-layout(location = 0) in vec3 a_position;
-layout(location = 1) in vec4 a_color;
-layout(location = 2) in vec3 a_normal;
-layout(location = 3) in vec3 a_translation;
-layout(location = 4) in vec4 a_rotation;
+layout(location = 0) in vec3 a_translation;	/* shared: instance translation 	*/
+layout(location = 1) in vec4 a_rotation;	/* shared: instance rotation quaternion */
+layout(location = 2) in vec4 a_color;		/* shared: instance color		*/
+layout(location = 3) in vec3 a_position;	/* local:  vertex position		*/
+layout(location = 4) in vec3 a_normal;		/* local:  vertex normal		*/
 
 uniform float 	aspect_ratio;
 uniform mat4 	view;

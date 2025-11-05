@@ -1,8 +1,8 @@
-attribute vec3 a_position;
-attribute vec4 a_color;
-attribute vec3 a_normal;
-attribute vec3 a_translation;
-attribute vec4 a_rotation;
+attribute vec3 a_translation;	/* shared: instance translation 	*/
+attribute vec4 a_rotation;      /* shared: instance rotation quaternion */
+attribute vec4 a_color;         /* shared: instance color		*/
+attribute vec3 a_position;      /* local:  vertex position		*/
+attribute vec3 a_normal;        /* local:  vertex normal		*/
 
 uniform float aspect_ratio;
 uniform mat4 view;

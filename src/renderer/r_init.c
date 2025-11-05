@@ -114,7 +114,7 @@ void r_color_buffer_layout_setter(void)
 
 }
 
-void r_init(struct arena *mem_persistent, const u64 ns_tick, const u64 frame_size, const u64 core_unit_count)
+void r_init(struct arena *mem_persistent, const u64 ns_tick, const u64 frame_size, const u64 core_unit_count, struct string_database *mesh_database)
 {
 	g_r_core->frames_elapsed = 0;	
 	g_r_core->ns_elapsed = 0;	
@@ -139,9 +139,8 @@ void r_init(struct arena *mem_persistent, const u64 ns_tick, const u64 frame_siz
 		fatal_cleanup_and_exit(0);
 	}
 
-	kas_assert(is_power_of_two(core_unit_count));
-	g_r_core->unit_hierarchy = hierarchy_index_alloc(NULL, core_unit_count, sizeof(struct r_unit), HI_GROWABLE);
-	if (g_r_core->unit_hierarchy == NULL)
+	g_r_core->unit_pool = gpool_alloc(NULL, core_unit_count, struct r_unit, GROWABLE);
+	if (g_r_core->unit_pool.length == 0)
 	{
 		log_string(T_SYSTEM, S_FATAL, "Failed to allocate r_core unit hierarchy, exiting.");
 		fatal_cleanup_and_exit(0);
@@ -153,32 +152,22 @@ void r_init(struct arena *mem_persistent, const u64 ns_tick, const u64 frame_siz
 		log_string(T_SYSTEM, S_FATAL, "Failed to allocate r_core unit hierarchy, exiting.");
 		fatal_cleanup_and_exit(kas_thread_self_tid());
 	}
-	const vec3 axis = { 0.0f, 1.0f, 0.0f };
-	struct r_proxy3d *stub3d = hierarchy_index_address(g_r_core->proxy3d_hierarchy, HI_ROOT_STUB_INDEX);
+
+	struct slot slot3d = hierarchy_index_add(g_r_core->proxy3d_hierarchy, HI_NULL_INDEX);
+	g_r_core->proxy3d_root = slot3d.index;
+	struct r_proxy3d *stub3d = slot3d.address;
 	vec3_set(stub3d->position, 0.0f, 0.0f, 0.0f);
+	vec3_set(stub3d->spec_position, 0.0f, 0.0f, 0.0f);
+	const vec3 axis = { 0.0f, 1.0f, 0.0f };
 	unit_axis_angle_to_quaternion(stub3d->rotation, axis, 0.0f);
+	quat_copy(stub3d->spec_rotation, stub3d->rotation);
 	vec3_set(stub3d->linear.linear_velocity, 0.0f, 0.0f, 0.0f);
 	vec3_set(stub3d->linear.angular_velocity, 0.0f, 0.0f, 0.0f);
-	stub3d->spec_mov = PROXY3D_SPEC_LINEAR;
-	stub3d->pos_type = PROXY3D_POSITION_ABSOLUTE;
+	stub3d->flags = 0;
 
-	g_r_core->unit_allocation = bit_vec_alloc(NULL, core_unit_count, 0, 1);
-	if (g_r_core->unit_allocation.bit_count == 0)
-	{
-		log_string(T_SYSTEM, S_FATAL, "Failed to allocate r_core unit allocation bit vector, exiting.");
-		fatal_cleanup_and_exit(0);
-	}
-
-	g_r_core->mesh_database = string_database_alloc(NULL, 128, 128, struct r_mesh, GROWABLE);
-	struct r_mesh *stub = string_database_address(&g_r_core->mesh_database, 0);
+	g_r_core->mesh_database = mesh_database; 
+	struct r_mesh *stub = string_database_address(g_r_core->mesh_database, STRING_DATABASE_STUB_INDEX);
 	r_mesh_set_stub_box(stub);
-
-	g_r_core->static_list = array_list_intrusive_alloc(NULL, 32, sizeof(struct r_static), ARRAY_LIST_GROWABLE);
-	if (g_r_core->static_list == NULL)
-	{
-		log_string(T_SYSTEM, S_FATAL, "Failed to allocate r_core static list, exiting.");
-		fatal_cleanup_and_exit(0);
-	}
 
 	//const vec3 position = {3.0f, 1.0f, -3.0f};
 	//const vec3 left = {1.0f, 0.0f, 0.0f};
@@ -265,14 +254,18 @@ void r_core_flush(void)
 	g_r_core->frames_elapsed = 0;	
 	g_r_core->ns_elapsed = 0;	
 
-	hierarchy_index_flush(g_r_core->unit_hierarchy);
 	hierarchy_index_flush(g_r_core->proxy3d_hierarchy);
-	array_list_intrusive_flush(g_r_core->static_list);
-	bit_vec_clear(&g_r_core->unit_allocation, 0);
+	struct slot slot3d = hierarchy_index_add(g_r_core->proxy3d_hierarchy, HI_NULL_INDEX);
+	g_r_core->proxy3d_root = slot3d.index;
+	struct r_proxy3d *stub3d = slot3d.address;
+	vec3_set(stub3d->position, 0.0f, 0.0f, 0.0f);
+	vec3_set(stub3d->spec_position, 0.0f, 0.0f, 0.0f);
+	const vec3 axis = { 0.0f, 1.0f, 0.0f };
+	unit_axis_angle_to_quaternion(stub3d->rotation, axis, 0.0f);
+	quat_copy(stub3d->spec_rotation, stub3d->rotation);
+	vec3_set(stub3d->linear.linear_velocity, 0.0f, 0.0f, 0.0f);
+	vec3_set(stub3d->linear.angular_velocity, 0.0f, 0.0f, 0.0f);
+	stub3d->flags = 0;
 
-	string_database_flush(&g_r_core->mesh_database);
-	struct r_mesh *stub = string_database_address(&g_r_core->mesh_database, 0);
-	r_mesh_set_stub_box(stub);
-
-	R_PHYSICS_DEBUG_FLUSH;
+	gpool_flush(&g_r_core->unit_pool);
 }
