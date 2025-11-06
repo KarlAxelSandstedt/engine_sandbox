@@ -114,7 +114,7 @@ void		led_node_set_rb_prefab(struct led *led, const utf8 id, const utf8 prefab);
 /* Set node to be a csg instance if the node and the csg brush exist */
 void		led_node_set_csg_brush(struct led *led, const utf8 id, const utf8 brush);
 /* Set node's render mesh if the node and mesh exists */
-void		led_node_set_proxy3d(struct led *led, const utf8 id, const utf8 mesh);
+void		led_node_set_proxy3d(struct led *led, const utf8 id, const utf8 mesh, const vec4 color, const f32 transparency);
 
 /* Allocate node with the given id. Returns (NULL, U32_MAX) if id.size > 256B or bad shape paramters */
 struct slot	led_collision_shape_add(struct led *led, const struct collision_shape *shape);

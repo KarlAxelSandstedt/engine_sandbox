@@ -22,68 +22,64 @@
 #include "asset_public.h"
 #include "transform.h"
 
-//static void internal_proxy3d_update_r_commands(void)
-//{
-//	KAS_TASK(__func__, T_RENDERER);
-//
-//	const u32 depth_exponent = 1 + f32_exponent_bits(g_r_core->cam.fz_far);
-//	kas_assert(depth_exponent >= 23);
-//
-//	r_proxy3d_hierarchy_speculate(&g_r_core->frame_proxy3d_position, &g_r_core->frame_proxy3d_rotation, &g_r_core->frame, g_r_core->ns_elapsed);
-//	
-//	struct hierarchy_index_iterator it = hierarchy_index_iterator_init(&g_r_core->frame, g_r_core->unit_hierarchy, 0);
-//	// skip root stub 
-//	hierarchy_index_iterator_next_df(&it);
-//	while (it.count)
-//	{
-//		const u32 index = hierarchy_index_iterator_next_df(&it);
-//		struct r_unit *unit = r_unit_lookup(index);
-//		if (unit->type == R_UNIT_TYPE_PROXY3D && (unit->draw_flags & R_UNIT_DRAW_TRANSPARENT))
-//		{
-//			const f32 dist = vec3_distance(g_r_core->frame_proxy3d_position[unit->type_index], g_r_core->cam.position);
-//			const u32 unit_exponent = f32_exponent_bits(dist);
-//			const u64 depth = (unit_exponent <= depth_exponent && unit_exponent > (depth_exponent - 23))
-//				? (0x00800000 | f32_mantissa_bits(dist)) >> (depth_exponent - unit_exponent + 1)
-//				: 0;
-//			r_command_update_depth(index, depth);
-//		}
-//	}
-//	hierarchy_index_iterator_release(&it);
-//
-//	KAS_END;
-//}
+static void r_led_draw(const struct led *led)
+{
+	KAS_TASK(__func__, T_RENDERER);
 
-//static void internal_push_uniforms(const u32 window)
-//{
-//	vec2u32 win_size;
-//	system_window_size(win_size, window);
-//
-//	mat4 perspective, view;
-//	struct r_camera *cam = &g_r_core->cam;
-//	cam->aspect_ratio =  (f32) win_size[0] / win_size[1];
-//	perspective_matrix(perspective, cam->aspect_ratio, cam->fov_x, cam->fz_near, cam->fz_far);
-//	view_matrix(view, cam->position, cam->left, cam->up, cam->forward);
-//
-//	kas_glUseProgram(g_r_core->program[PROGRAM_PROXY3D].gl_program);
-//	GLint aspect_ratio_addr, view_addr, perspective_addr, light_position_addr;
-//	aspect_ratio_addr = glGetUniformLocation(g_r_core->program[PROGRAM_PROXY3D].gl_program, "aspect_ratio");
-//	view_addr = glGetUniformLocation(g_r_core->program[PROGRAM_PROXY3D].gl_program, "view");
-//	perspective_addr = glGetUniformLocation(g_r_core->program[PROGRAM_PROXY3D].gl_program, "perspective");
-//	light_position_addr = glGetUniformLocation(g_r_core->program[PROGRAM_PROXY3D].gl_program, "light_position");
-//	glUniform1f(aspect_ratio_addr, (f32) cam->aspect_ratio);
-//	glUniform3f(light_position_addr, cam->position[0], cam->position[1], cam->position[2]);
-//	glUniformMatrix4fv(perspective_addr, 1, GL_FALSE, (f32 *) perspective);
-//	glUniformMatrix4fv(view_addr, 1, GL_FALSE, (f32 *) view);
-//
-//	kas_glUseProgram(g_r_core->program[PROGRAM_COLOR].gl_program);
-//	aspect_ratio_addr = glGetUniformLocation(g_r_core->program[PROGRAM_COLOR].gl_program, "aspect_ratio");
-//	view_addr = glGetUniformLocation(g_r_core->program[PROGRAM_COLOR].gl_program, "view");
-//	perspective_addr = glGetUniformLocation(g_r_core->program[PROGRAM_COLOR].gl_program, "perspective");
-//	glUniform1f(aspect_ratio_addr, (f32) cam->aspect_ratio);
-//	glUniform3f(light_position_addr, cam->position[0], cam->position[1], cam->position[2]);
-//	glUniformMatrix4fv(perspective_addr, 1, GL_FALSE, (f32 *) perspective);
-//	glUniformMatrix4fv(view_addr, 1, GL_FALSE, (f32 *) view);
-//}
+	const u32 depth_exponent = 1 + f32_exponent_bits(g_r_core->cam.fz_far);
+	kas_assert(depth_exponent >= 23);
+
+	r_proxy3d_hierarchy_speculate(&g_r_core->frame, g_r_core->ns_elapsed);
+	
+	struct hierarchy_index_iterator it = hierarchy_index_iterator_init(&g_r_core->frame, g_r_core->proxy3d_hierarchy, PROXY3D_ROOT);
+	// skip root stub 
+	hierarchy_index_iterator_next_df(&it);
+	while (it.count)
+	{
+		const u32 index = hierarchy_index_iterator_next_df(&it);
+		struct r_proxy3d *proxy = r_proxy3d_address(index);
+
+		const f32 dist = vec3_distance(proxy->spec_position, g_r_core->cam.position);
+		const u32 unit_exponent = f32_exponent_bits(dist);
+		const u64 depth = (unit_exponent <= depth_exponent && unit_exponent > (depth_exponent - 23))
+			? (0x00800000 | f32_mantissa_bits(dist)) >> (depth_exponent - unit_exponent + 1)
+			: 0;
+
+		const u64 transparency = (proxy->color[3] == 1.0f)
+			? R_CMD_TRANSPARENCY_OPAQUE
+			: R_CMD_TRANSPARENCY_ADDITIVE;
+
+		const u64 material = r_material_construct(PROGRAM_PROXY3D, proxy->mesh, TEXTURE_NONE);
+
+		const u64 command = r_command_key(R_CMD_SCREEN_LAYER_GAME, depth, transparency, material, R_CMD_PRIMITIVE_TRIANGLE, R_CMD_INSTANCED);
+		r_instance_add(index, command);
+
+	}
+	hierarchy_index_iterator_release(&it);
+
+	KAS_END;
+}
+
+
+static void internal_r_proxy3d_uniforms(const struct led *led, const u32 window)
+{
+	mat4 perspective, view;
+	struct r_camera *cam = &g_r_core->cam;
+	cam->aspect_ratio =  (f32) led->viewport_size[0] / led->viewport_size[1];
+	perspective_matrix(perspective, cam->aspect_ratio, cam->fov_x, cam->fz_near, cam->fz_far);
+	view_matrix(view, cam->position, cam->left, cam->up, cam->forward);
+	
+	kas_glUseProgram(g_r_core->program[PROGRAM_PROXY3D].gl_program);
+	GLint aspect_ratio_addr, view_addr, perspective_addr, light_position_addr;
+	aspect_ratio_addr = kas_glGetUniformLocation(g_r_core->program[PROGRAM_PROXY3D].gl_program, "aspect_ratio");
+	view_addr = kas_glGetUniformLocation(g_r_core->program[PROGRAM_PROXY3D].gl_program, "view");
+	perspective_addr = kas_glGetUniformLocation(g_r_core->program[PROGRAM_PROXY3D].gl_program, "perspective");
+	light_position_addr = kas_glGetUniformLocation(g_r_core->program[PROGRAM_PROXY3D].gl_program, "light_position");
+	kas_glUniform1f(aspect_ratio_addr, (f32) cam->aspect_ratio);
+	kas_glUniform3f(light_position_addr, cam->position[0], cam->position[1], cam->position[2]);
+	kas_glUniformMatrix4fv(perspective_addr, 1, GL_FALSE, (f32 *) perspective);
+	kas_glUniformMatrix4fv(view_addr, 1, GL_FALSE, (f32 *) view);
+}
 
 static void internal_r_ui_uniforms(const u32 window)
 {
@@ -95,7 +91,7 @@ static void internal_r_ui_uniforms(const u32 window)
 	kas_glUniform2f(resolution_addr, (f32) resolution[0], (f32) resolution[1]);
 }
 
-static void r_scene_render(const u32 window)
+static void r_scene_render(const struct led *led, const u32 window)
 {
 	KAS_TASK(__func__, T_RENDERER);
 
@@ -154,6 +150,7 @@ static void r_scene_render(const u32 window)
 		const u32 program = MATERIAL_PROGRAM_GET(b->material);
 		kas_glUseProgram(g_r_core->program[program].gl_program);
 
+		const u32 mesh = MATERIAL_MESH_GET(b->material);
 		const u32 texture = MATERIAL_TEXTURE_GET(b->material);	
 		switch (program)
 		{
@@ -165,11 +162,16 @@ static void r_scene_render(const u32 window)
 				kas_glBindTexture(GL_TEXTURE_2D, g_r_core->texture[texture].handle);
 				const i32 texture_addr = kas_glGetUniformLocation(g_r_core->program[program].gl_program, "texture");
 				kas_glUniform1i(texture_addr, tx_index);
+				kas_glViewport(0, 0, (i32) sys_win->size[0], (i32) sys_win->size[1]); 
 			} break;
 
-			default:
+			case PROGRAM_PROXY3D:
 			{
-				kas_assert_string(0, "unimplemented");
+				kas_glViewport(led->viewport_position[0]
+					       , led->viewport_position[1]
+					       , led->viewport_size[0]
+					       , led->viewport_size[1]
+					       ); 
 			} break;
 		}
 
@@ -269,47 +271,6 @@ static void r_scene_render(const u32 window)
 //	g_r_core->cam.position[0] += (f32) delta * (cam_local_velocity[0] * g_r_core->cam.left[0] +  cam_local_velocity[2] * g_r_core->cam.forward[0]);
 //	g_r_core->cam.position[1] += (f32) delta * (cam_local_velocity[1] + cam_local_velocity[2] * g_r_core->cam.forward[1]);
 //	g_r_core->cam.position[2] += (f32) delta * (cam_local_velocity[0] * g_r_core->cam.left[2] +  cam_local_velocity[2] * g_r_core->cam.forward[2]);
-//
-//
-//	if (g_r_core->ns_tick)
-//	{
-//		const u64 frames_elapsed_since_last_draw = (g_r_core->ns_elapsed - (g_r_core->frames_elapsed * g_r_core->ns_tick)) / g_r_core->ns_tick;
-//		if (frames_elapsed_since_last_draw)
-//		{
-//			g_r_core->frames_elapsed += frames_elapsed_since_last_draw;
-//
-//			//fprintf(stderr, "game.ns_elapsed:     %lu\n", game->ns_elapsed);
-//			//fprintf(stderr, "physics.ns_elapsed:  %lu\n", game->physics.ns_elapsed);
-//			//fprintf(stderr, "renderer.ns_elapsed: %lu\n", g_r_core->ns_elapsed);
-//			kas_assert(g_r_core->ns_elapsed >= game->physics.ns_elapsed);
-//			
-//			//TODO MUST DO THIS INSIDE DRAW LOOP, must bind programs before uploading uniforms!
-//			internal_proxy3d_update_r_commands();
-//			//r_widget_init_r_units();
-//			
-//			r_core_cmd_sort(&g_r_core->frame);
-//			g_r_core->frame_bucket_list = r_core_generate_bucket_list(&g_r_core->frame);
-//			for (struct r_bucket *b = g_r_core->frame_bucket_list; b; b = b->next)
-//			{
-//				r_core_bucket_generate_draw_calls(&g_r_core->frame, b);
-//			}
-//
-//			internal_push_uniforms(sys_win);
-//	
-//			r_draw(sys_win);
-//			//r_widget_remove_r_units();
-//			g_r_core->frame_bucket_list = NULL;
-//			g_r_core->frame_proxy3d_position = NULL;	
-//			g_r_core->frame_proxy3d_rotation = NULL;	
-//		}
-//	}
-//	else
-//	{
-//		kas_assert(0);
-//		g_r_core->frames_elapsed += 1;
-//	}
-//
-//	KAS_END;
 //}
 
 void r_led_main(const struct led *led)
@@ -332,9 +293,6 @@ void r_led_main(const struct led *led)
 
 			r_proxy3d_hierarchy_speculate(&tmp, led->ns);
 
-			//TODO MUST DO THIS INSIDE DRAW LOOP, must bind programs before uploading uniforms!
-			//TODO r_widget_init_r_units();
-
 			struct system_window *win = NULL;
 			struct hierarchy_index_iterator	it = hierarchy_index_iterator_init(&tmp, g_window_hierarchy, g_process_root_window);
 			while (it.count)
@@ -350,10 +308,15 @@ void r_led_main(const struct led *led)
 					r_scene_frame_begin();
 					{
 						r_ui_draw(win->ui);
+						internal_r_ui_uniforms(window);
+						if (window == g_process_root_window)
+						{
+							r_led_draw(led);
+							internal_r_proxy3d_uniforms(led, window);
+						}
 					}
 					r_scene_frame_end();
-					internal_r_ui_uniforms(window);
-					r_scene_render(window);
+					r_scene_render(led, window);
 				}
 			}
 			hierarchy_index_iterator_release(&it);

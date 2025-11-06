@@ -3,6 +3,7 @@ precision mediump float;
 varying vec3 FragPos;
 varying vec4 color;
 varying vec3 normal;
+varying float blend;
 
 uniform vec3 light_position;
 

@@ -64,7 +64,7 @@ void led_core_init_commands(void)
 	cmd_led_node_set_position_id = cmd_function_register(utf8_inline("led_node_set_position"), 4, &cmd_led_node_set_position).index;
 	cmd_led_node_set_rb_prefab_id = cmd_function_register(utf8_inline("led_node_set_rb_prefab"), 2, &cmd_led_node_set_rb_prefab).index;
 	cmd_led_node_set_csg_brush_id = cmd_function_register(utf8_inline("led_node_set_csg_brush"), 2, &cmd_led_node_set_csg_brush).index;
-	cmd_led_node_set_proxy3d_id = cmd_function_register(utf8_inline("led_node_set_proxy3d"), 2, &cmd_led_node_set_proxy3d).index;
+	cmd_led_node_set_proxy3d_id = cmd_function_register(utf8_inline("led_node_set_proxy3d"), 7, &cmd_led_node_set_proxy3d).index;
 
 	cmd_rb_prefab_add_id = cmd_function_register(utf8_inline("rb_prefab_add"), 6, &cmd_rb_prefab_add).index;
 	cmd_rb_prefab_remove_id = cmd_function_register(utf8_inline("rb_prefab_remove"), 1, &cmd_rb_prefab_remove).index;
@@ -112,7 +112,15 @@ void cmd_led_node_set_csg_brush(void)
 
 void cmd_led_node_set_proxy3d(void)
 {
-	led_node_set_proxy3d(g_editor, g_queue->cmd_exec->arg[0].utf8, g_queue->cmd_exec->arg[1].utf8);
+	const vec4 color = 
+	{
+		g_queue->cmd_exec->arg[2].f32,
+		g_queue->cmd_exec->arg[3].f32,
+		g_queue->cmd_exec->arg[4].f32,
+		g_queue->cmd_exec->arg[5].f32,
+	};
+	const f32 blend = g_queue->cmd_exec->arg[6].f32;
+	led_node_set_proxy3d(g_editor, g_queue->cmd_exec->arg[0].utf8, g_queue->cmd_exec->arg[1].utf8, color, blend);
 }
 
 void cmd_collision_shape_add(void)
@@ -467,7 +475,7 @@ static void led_remove_marked_structs(struct led *led)
 
 		if (node->proxy3d_unit != HI_NULL_INDEX)
 		{
-			r_unit_dealloc(&led->frame, node->proxy3d_unit);
+			r_proxy3d_dealloc(&led->frame, node->proxy3d_unit);
 		}
 
 		string_database_dereference(&led->rb_prefab_db, node->rb_prefab);
@@ -579,7 +587,7 @@ void led_node_set_csg_brush(struct led *led, const utf8 id, const utf8 brush)
 	}
 }
 
-void led_node_set_proxy3d(struct led *led, const utf8 id, const utf8 mesh)
+void led_node_set_proxy3d(struct led *led, const utf8 id, const utf8 mesh, const vec4 color, const f32 blend)
 {
 	struct slot slot = led_node_lookup(led, id);
 	struct led_node *node = slot.address;
@@ -596,19 +604,21 @@ void led_node_set_proxy3d(struct led *led, const utf8 id, const utf8 mesh)
 		if (node->proxy3d_unit != HI_NULL_INDEX)
 		{
 			struct arena tmp = arena_alloc_1MB();
-			r_unit_dealloc(&tmp, node->proxy3d_unit);
+			r_proxy3d_dealloc(&tmp, node->proxy3d_unit);
 			node->proxy3d_unit = HI_NULL_INDEX;
 			arena_free_1MB(&tmp);
 		}
 
 		struct r_proxy3d_config config =
 		{
-			.parent = HI_ROOT_STUB_INDEX,
+			.parent = PROXY3D_ROOT,
 			.linear_velocity = { 0.0f, 0.0f, 0.0f },
 			.angular_velocity = { 0.0f, 0.0f, 0.0f },
 			.mesh = mesh,
 			.ns_time = led->ns,
 		};
+		vec4_copy(config.color, color);
+		config.blend = blend; 
 		vec3_copy(config.position, node->position);
 		quat_copy(config.rotation, node->rotation);
 		node->proxy3d_unit = r_proxy3d_alloc(&config);
@@ -748,11 +758,6 @@ void led_wall_smash_simulation_setup(struct led *led)
 	vec3 floor_translation = { 0.0f, -ramp_width/2.0f - 1.0f, ramp_length / 2.0f -ramp_width/2.0f};
 	vec3 box_base_translation = { 0.0f, floor_translation[1] + 1.0f, floor_translation[2] / 2.0f};
 
-	//const vec3 y_axis = { 0.0f, 1.0f, 0.0f };
-	//axis_angle_to_quaternion(config.rotation, y_axis, 0.0f);
-	//vec3_set(config.linear_velocity, 0.0f, 0.0f, 0.0f);
-	//vec3_set(config.angular_velocity, 0.0f, 0.0f, 0.0f);
-
 	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "led_floor");
 	cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_add_id);
 	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "led_floor");
@@ -765,9 +770,12 @@ void led_wall_smash_simulation_setup(struct led *led)
 	cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_rb_prefab_id);
 	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "led_floor");
 	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rm_floor");
+	sys_win->cmd_queue->regs[2].f32 = floor_color[0];
+	sys_win->cmd_queue->regs[3].f32 = floor_color[1];
+	sys_win->cmd_queue->regs[4].f32 = floor_color[2];
+	sys_win->cmd_queue->regs[5].f32 = floor_color[3];
+	sys_win->cmd_queue->regs[6].f32 = 1.0f;
 	cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_proxy3d_id);
-//	vec4_copy(config.color, floor_color);
-//	e->r_handle = proxy3d_alloc(R_UNIT_PARENT_NONE, R_CMD_SCREEN_LAYER_GAME, R_CMD_TRANSPARENCY_OPAQUE, TEXTURE_NONE, R_UNIT_DRAW_COLOR, &config);
 
 	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "led_ramp");
 	cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_add_id);
@@ -781,9 +789,12 @@ void led_wall_smash_simulation_setup(struct led *led)
 	cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_rb_prefab_id);
 	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "led_ramp");
 	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rm_ramp");
+	sys_win->cmd_queue->regs[2].f32 = ramp_color[0];
+	sys_win->cmd_queue->regs[3].f32 = ramp_color[1];
+	sys_win->cmd_queue->regs[4].f32 = ramp_color[2];
+	sys_win->cmd_queue->regs[5].f32 = ramp_color[3];
+	sys_win->cmd_queue->regs[6].f32 = 1.0f;
 	cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_proxy3d_id);
-//	vec4_copy(config.color, ramp_color);
-//	e->r_handle = proxy3d_alloc(R_UNIT_PARENT_NONE, R_CMD_SCREEN_LAYER_GAME, R_CMD_TRANSPARENCY_OPAQUE, TEXTURE_NONE, R_UNIT_DRAW_COLOR, &config);
 
 	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "led_sphere");
 	cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_add_id);
@@ -797,9 +808,12 @@ void led_wall_smash_simulation_setup(struct led *led)
 	cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_rb_prefab_id);
 	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "led_sphere");
 	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rm_sphere");
+	sys_win->cmd_queue->regs[2].f32 = sphere_color[0];
+	sys_win->cmd_queue->regs[3].f32 = sphere_color[1];
+	sys_win->cmd_queue->regs[4].f32 = sphere_color[2];
+	sys_win->cmd_queue->regs[5].f32 = sphere_color[3];
+	sys_win->cmd_queue->regs[6].f32 = 1.0f;
 	cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_proxy3d_id);
-//	vec4_copy(config.color, sphere_color);
-//	e->r_handle = proxy3d_alloc(R_UNIT_PARENT_NONE, R_CMD_SCREEN_LAYER_GAME, R_CMD_TRANSPARENCY_ADDITIVE, TEXTURE_NONE, R_UNIT_DRAW_COLOR | R_UNIT_DRAW_TRANSPARENT, &config);
 	
 	for (u32 i = 0; i < pyramid_layers; ++i)
 	{
@@ -825,10 +839,12 @@ void led_wall_smash_simulation_setup(struct led *led)
 			cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_rb_prefab_id);
 			sys_win->cmd_queue->regs[0].utf8 = id;
 			sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rm_box");
+			sys_win->cmd_queue->regs[2].f32 = pyramid_color[0];
+			sys_win->cmd_queue->regs[3].f32 = pyramid_color[1];
+			sys_win->cmd_queue->regs[4].f32 = pyramid_color[2];
+			sys_win->cmd_queue->regs[5].f32 = pyramid_color[3];
+			sys_win->cmd_queue->regs[6].f32 = 1.0f;
 			cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_proxy3d_id);
-
-			//vec4_copy(config.color, pyramid_color);
-			//e->r_handle = proxy3d_alloc(R_UNIT_PARENT_NONE, R_CMD_SCREEN_LAYER_GAME, R_CMD_TRANSPARENCY_OPAQUE, TEXTURE_NONE, R_UNIT_DRAW_COLOR, &config);
 		}
 	}
 
@@ -853,10 +869,12 @@ void led_wall_smash_simulation_setup(struct led *led)
 		cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_rb_prefab_id);
 		sys_win->cmd_queue->regs[0].utf8 = id;
 		sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rm_box");
+		sys_win->cmd_queue->regs[2].f32 = tower1_color[0];
+		sys_win->cmd_queue->regs[3].f32 = tower1_color[1];
+		sys_win->cmd_queue->regs[4].f32 = tower1_color[2];
+		sys_win->cmd_queue->regs[5].f32 = tower1_color[3];
+		sys_win->cmd_queue->regs[6].f32 = 1.0f;
 		cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_proxy3d_id);
-
-		//vec4_copy(config.color, tower1_color);
-		//e->r_handle = proxy3d_alloc(R_UNIT_PARENT_NONE, R_CMD_SCREEN_LAYER_GAME, R_CMD_TRANSPARENCY_OPAQUE, TEXTURE_NONE, R_UNIT_DRAW_COLOR, &config);
 	}
 
 	for (u32 i = 0; i < tower2_box_count; ++i)
@@ -880,10 +898,12 @@ void led_wall_smash_simulation_setup(struct led *led)
 		cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_rb_prefab_id);
 		sys_win->cmd_queue->regs[0].utf8 = id;
 		sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rm_box");
+		sys_win->cmd_queue->regs[2].f32 = tower2_color[0];
+		sys_win->cmd_queue->regs[3].f32 = tower2_color[1];
+		sys_win->cmd_queue->regs[4].f32 = tower2_color[2];
+		sys_win->cmd_queue->regs[5].f32 = tower2_color[3];
+		sys_win->cmd_queue->regs[6].f32 = 1.0f;
 		cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_proxy3d_id);
-	
-		//vec4_copy(config.color, tower2_color);
-		//e->r_handle = proxy3d_alloc(R_UNIT_PARENT_NONE, R_CMD_SCREEN_LAYER_GAME, R_CMD_TRANSPARENCY_ADDITIVE, TEXTURE_NONE, R_UNIT_DRAW_COLOR | R_UNIT_DRAW_TRANSPARENT, &config);
 	}
 }
 

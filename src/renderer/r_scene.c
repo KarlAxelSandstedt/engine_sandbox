@@ -31,7 +31,7 @@ struct r_scene *r_scene_alloc(void)
 	scene->mem_frame = scene->mem_frame_arr + 0;
 	scene->frame = 0;
 
-	scene->unit_to_instance_map = hash_map_alloc(NULL, 4096, 4096, HASH_GROWABLE);
+	scene->proxy3d_to_instance_map = hash_map_alloc(NULL, 4096, 4096, HASH_GROWABLE);
 	scene->instance_list = array_list_intrusive_alloc(NULL, 4096, sizeof(struct r_instance), ARRAY_LIST_GROWABLE);
 
 	scene->instance_new_first = U32_MAX;
@@ -47,7 +47,7 @@ struct r_scene *r_scene_alloc(void)
 void r_scene_free(struct r_scene *scene)
 {
 	array_list_intrusive_free(scene->instance_list);
-	hash_map_free(scene->unit_to_instance_map);
+	hash_map_free(scene->proxy3d_to_instance_map);
 	arena_free(scene->mem_frame_arr + 0),
 	arena_free(scene->mem_frame_arr + 1),
 	free(scene);
@@ -180,9 +180,9 @@ static void r_scene_sort_commands_and_prune_instances(void)
 			struct r_instance *cached_instance = array_list_intrusive_address(g_scene->instance_list, index);
 			if (cached_instance->frame_last_touched != g_scene->frame)
 			{
-				if (cached_instance->type == R_INSTANCE_UNIT)
+				if (cached_instance->type == R_INSTANCE_PROXY3D)
 				{
-					hash_map_remove(g_scene->unit_to_instance_map, (u32) cached_instance->unit, index);
+					hash_map_remove(g_scene->proxy3d_to_instance_map, cached_instance->unit, index);
 				}
 				array_list_intrusive_remove(g_scene->instance_list, cached_instance);
 				g_scene->cmd_cache[cache_i].allocated = 0;
@@ -218,9 +218,9 @@ static void r_scene_sort_commands_and_prune_instances(void)
 		struct r_instance *cached_instance = array_list_intrusive_address(g_scene->instance_list, index);
 		if (cached_instance->frame_last_touched != g_scene->frame)
 		{
-			if (cached_instance->type == R_INSTANCE_UNIT)
+			if (cached_instance->type == R_INSTANCE_PROXY3D)
 			{
-				hash_map_remove(g_scene->unit_to_instance_map, cached_instance->unit, index);
+				hash_map_remove(g_scene->proxy3d_to_instance_map, cached_instance->unit, index);
 			}
 			array_list_intrusive_remove(g_scene->instance_list, cached_instance);
 			g_scene->cmd_cache[cache_i].allocated = 0;
@@ -350,50 +350,27 @@ void r_scene_generate_bucket_list(void)
 		{ 
 			case R_INSTANCE_UI: 
 			{
-				//r_command_key_print(cmd->key);
-
-				const u32 count = instance->ui_bucket->count;
-				//TODO If instanced set index count immediately 
 				buf_constructor.last->index_count = 6;
+				buf_constructor.last->local_size = 0;
 				r_buffer_constructor_buffer_add_size(&buf_constructor,
-					       	4*instance->ui_bucket->count*L_UI_STRIDE,
+						  0,
 					       	  instance->ui_bucket->count*S_UI_STRIDE, 
 						  instance->ui_bucket->count,
 						  0);	
 			} break;
 
-			case R_INSTANCE_UNIT:
+			case R_INSTANCE_PROXY3D:
 			{
-				const struct r_unit *u = r_unit_address((u32) instance->unit);
-				switch (u->type)
-				{
-					//case R_UNIT_TYPE_PROXY2D:
-					//{
-					//	r_buffer_constructor_buffer_add_size(&buf_constructor, 4*sizeof(struct r_proxy2d_v), 6);
-					//} break;
-
-					case R_UNIT_TYPE_PROXY3D:
-					{
-						kas_assert_string(0, "implement");
-						//const struct r_mesh *mesh = string_database_address(g_r_core->mesh_database, u->mesh);
-						//r_buffer_constructor_buffer_add_size(&buf_constructor, 
-						//		mesh->vertex_count * R_PROXY3D_V_PACKED_SIZE,
-						//		0,
-						//		0,
-						//	       	mesh->index_count);
-					} break;
-
-					//case R_UNIT_TYPE_STATIC:
-					//{
-					//	/* skip allocation on first buffer since it is already alloced */
-					//	if (buf_constructor.last->c_l != i)
-					//	{
-					//		r_buffer_constructor_buffer_alloc(g_scene->mem_frame, &buf_constructor, i);
-					//	}
-					//	struct r_static *r_static = array_list_intrusive_address(g_r_core->static_list, u->type_index);
-					//	r_buffer_constructor_buffer_add_size(&buf_constructor, r_static->vertex_size, r_static->index_count);
-					//} break;
-				}
+				const struct r_proxy3d *proxy = r_proxy3d_address(instance->unit);
+				const struct r_mesh *mesh = string_database_address(g_r_core->mesh_database, proxy->mesh);
+				buf_constructor.last->index_count = mesh->index_count;
+				buf_constructor.last->local_size = mesh->vertex_count * L_PROXY3D_STRIDE;
+				r_buffer_constructor_buffer_add_size(&buf_constructor, 
+						0,
+						S_PROXY3D_STRIDE,
+						1,
+					       	0);
+				
 			} break;
 
 			default:
@@ -424,17 +401,17 @@ static void r_scene_bucket_generate_draw_data(struct r_bucket *b)
 	for (u32 bi = 0; bi < b->buffer_count; bi++)
 	{	
 		struct r_buffer *buf = b->buffer_array[bi];
-		buf->shared_data = arena_push(g_scene->mem_frame, buf->shared_size);
-		buf->local_data = arena_push(g_scene->mem_frame, buf->local_size);
-		buf->index_data = arena_push(g_scene->mem_frame, buf->index_count * sizeof(u32));
-
-		u8 *shared_data = buf->shared_data;
-		u8 *local_data = buf->local_data;
-
 		switch (instance->type)
 		{
 			case R_INSTANCE_UI:
 			{
+				buf->shared_data = arena_push(g_scene->mem_frame, buf->shared_size);
+				buf->local_data = arena_push(g_scene->mem_frame, buf->local_size);
+				buf->index_data = arena_push(g_scene->mem_frame, buf->index_count * sizeof(u32));
+
+				u8 *shared_data = buf->shared_data;
+				u8 *local_data = buf->local_data;
+
 				buf->index_data[0] = 0;
 				buf->index_data[1] = 1;
 				buf->index_data[2] = 2;
@@ -700,132 +677,28 @@ static void r_scene_bucket_generate_draw_data(struct r_bucket *b)
 				}
 			} break;
 
-			case R_INSTANCE_UNIT:
+			case R_INSTANCE_PROXY3D:
 			{
-				kas_assert_string(0, "Reimplement");
-				struct r_unit *u = r_unit_address((u32) instance->unit);
-				//switch(u->type)
-				//{
-				//	case R_UNIT_TYPE_STATIC:
-				//	{
-				//		struct r_draw_call **draw_ptr = &b->draw_call;
-				//		*draw_ptr = NULL;
-				//		for (u32 bi = 0; bi < b->buffer_count; bi++)
-				//		{	
-				//			struct r_buffer *buf = b->buffer_array[bi];
-				//			kas_assert(buf->c_l == buf->c_h);
-				//			r_cmd = g_scene->cmd_frame + buf->c_l;
-				//			u = r_unit_address(r_cmd->instance);
-				//			const struct r_static *r_static = array_list_intrusive_address(g_r_core->static_list, u->type_index);
-				//			local_data = r_static->vertex_data;
-				//			buf->index_data = r_static->index_data;
+				const struct r_proxy3d *proxy = r_proxy3d_address(instance->unit);
+				const struct r_mesh *mesh = string_database_address(g_r_core->mesh_database, proxy->mesh);
+				buf->shared_data = arena_push(g_scene->mem_frame, buf->shared_size);
+				buf->local_data = mesh->vertex_data;
+				buf->index_data = mesh->index_data;
 
-				//			u64 vertex_offset = 0;
-				//			u32 index_offset = 0;
-				//			for (struct r_static_range *range = r_static->range; range != NULL; range = range->next)
-				//			{
-				//				if (range->index_count)
-				//				{
-				//					*draw_ptr = internal_r_draw_call_alloc(vertex_offset, index_offset, bi);
-				//					if (*draw_ptr == NULL)
-				//					{
-				//						kas_assert(0);
-				//						KAS_END;
-				//						return;
-				//					}
-				//					(*draw_ptr)->vertex_data_size = range->vertex_size;
-				//					(*draw_ptr)->index_count = range->index_count;
-				//					draw_ptr = &(*draw_ptr)->next;
+				u8 *shared_data = buf->shared_data;
+				for (u32 i = buf->c_l; i <= buf->c_h; ++i)
+				{
+					r_cmd = g_scene->cmd_frame + i;
+					instance = array_list_intrusive_address(g_scene->instance_list, r_cmd->instance);
+					proxy = r_proxy3d_address(instance->unit);
 
-				//					vertex_offset += range->vertex_size;
-				//					index_offset += range->index_count;
-				//					b->draw_call_count += 1;
-				//				}
-				//			}
-				//		}
-				//	} break;
-
-				//	case R_UNIT_TYPE_PROXY3D:
-				//	{
-				//		for (u32 bi = 0; bi < b->buffer_count; bi++)
-				//		{	
-				//			struct r_buffer *buf = b->buffer_array[bi];
-				//			buf->index_data = arena_push(g_scene->mem_frame, buf->index_count * sizeof(i16));
-				//			local_data = arena_push(g_scene->mem_frame, local_size);
-				//			b->draw_call = internal_r_draw_call_alloc(0, 0, bi);
-
-				//			if (b->draw_call == NULL || local_data == NULL || buf->index_data == NULL || buf->index_count == 0)
-				//			{
-				//				b->draw_call_count = 0;
-				//				KAS_END;
-				//				return;
-				//			}
-
-				//			u64 v_offset = 0;
-				//			u64 i_offset = 0;
-				//			i32 index_max = 0;
-				//			struct r_draw_call *draw = b->draw_call;
-				//			b->draw_call_count = 1;
-				//			for (u32 i = buf->c_l; i <= buf->c_h; ++i)
-				//			{
-				//				r_cmd = g_scene->cmd_frame + i;
-				//				u = r_unit_address(r_cmd->instance);
-				//				kas_assert(u->type == R_UNIT_TYPE_PROXY3D);
-
-				//				const struct r_mesh *mesh = r_mesh_address(u->mesh_handle);
-				//				if (I16_MAX < index_max + mesh->index_max_used + 1)
-				//				{
-				//					draw->next = internal_r_draw_call_alloc(draw->vertex_data_offset + draw->vertex_data_size, draw->index_first + draw->index_count, bi);
-				//					if (draw->next == NULL)
-				//					{
-				//						KAS_END;
-				//						return;
-				//					}
-				//					draw = draw->next;
-				//					b->draw_call_count += 1;
-				//					index_max = 0;
-				//				}
-
-				//				kas_assert(mesh->attribute_flags == (R_MESH_ATTRIBUTE_POSITION | R_MESH_ATTRIBUTE_NORMAL));
-
-				//				const u64 mesh_vertex_size = sizeof(vec3) + sizeof(vec3);
-				//				for (i16 k = 0; k < mesh->vertex_count; ++k)
-				//				{
-				//					kas_assert(v_offset + R_PROXY3D_V_PACKED_SIZE <= local_size);
-				//					vec3_copy(((struct r_proxy3d_v *) ((u8 *) local_data + v_offset))->position, (void *) (((u8 *) mesh->vertex_data) + k*mesh_vertex_size + 0));
-				//					vec4_copy(((struct r_proxy3d_v *) ((u8 *) local_data + v_offset))->color, u->color);
-				//					vec3_copy(((struct r_proxy3d_v *) ((u8 *) local_data + v_offset))->normal, (void *) (((u8 *) mesh->vertex_data) + k*mesh_vertex_size + sizeof(vec3)));
-				//					vec3_copy(((struct r_proxy3d_v *) ((u8 *) local_data + v_offset))->translation, g_r_core->frame_proxy3d_position[u->type_index]);
-				//					quat_copy(((struct r_proxy3d_v *) ((u8 *) local_data + v_offset))->rotation, g_r_core->frame_proxy3d_rotation[u->type_index]);
-				//					v_offset += R_PROXY3D_V_PACKED_SIZE;
-				//				}
-
-				//				u32 next = (index_max == 0)
-				//					? 0
-				//					: index_max+1;
-
-				//				for (u32 k = 0; k < mesh->index_count; ++k)
-				//				{
-				//					buf->index_data[i_offset + k] = next + mesh->index_data[k]; 
-				//				}
-
-				//				draw->vertex_data_size += mesh->vertex_count*R_PROXY3D_V_PACKED_SIZE;
-				//				draw->index_count += mesh->index_count;
-
-				//				i_offset += mesh->index_count;
-				//				index_max = (index_max == 0)
-				//					? mesh->index_max_used
-				//					: index_max + mesh->index_max_used + 1;
-				//			}
-				//			kas_assert(v_offset == local_size); 
-				//		}
-				//	} break;
-
-				//	default:
-				//	{
-				//		kas_assert_string(0, "Unimplemented unit type in draw call generation");
-				//	} break;
-				//}
+					memcpy(shared_data + S_PROXY3D_TRANSLATION_BLEND_OFFSET, proxy->spec_position, sizeof(vec3));
+					memcpy(shared_data + S_PROXY3D_TRANSLATION_BLEND_OFFSET + sizeof(vec3), &proxy->blend, sizeof(f32));
+					memcpy(shared_data + S_PROXY3D_ROTATION_OFFSET, proxy->spec_rotation, sizeof(quat));
+					memcpy(shared_data + S_PROXY3D_COLOR_OFFSET, proxy->color, sizeof(vec4));
+					//vec3_print("trans", shared_data + S_PROXY3D_TRANSLATION_OFFSET);
+					shared_data += S_PROXY3D_STRIDE;
+				}
 			} break;
 
 			default:
@@ -851,13 +724,13 @@ void r_scene_frame_end(void)
 	KAS_END;
 }
 
-struct r_instance *r_instance_add(const u32 unit, const u32 generation, const u64 cmd)
+struct r_instance *r_instance_add(const u32 unit, const u64 cmd)
 {
 	struct r_instance *instance = NULL;
-	const u64 key = ((u64) generation << 32) | (u64) unit;
+	const u32 key = unit;
 
-	u32 index = hash_map_first(g_scene->unit_to_instance_map, key & U32_MAX);
-	for (; index != HASH_NULL; index = hash_map_next(g_scene->unit_to_instance_map, index))
+	u32 index = hash_map_first(g_scene->proxy3d_to_instance_map, key);
+	for (; index != HASH_NULL; index = hash_map_next(g_scene->proxy3d_to_instance_map, index))
 	{
 		instance = array_list_intrusive_address(g_scene->instance_list, index);
 		if (instance->unit == key)
@@ -871,11 +744,12 @@ struct r_instance *r_instance_add(const u32 unit, const u32 generation, const u6
 		index = array_list_intrusive_reserve_index(g_scene->instance_list);
 		instance = array_list_intrusive_address(g_scene->instance_list, index);
 		instance->header.next = g_scene->instance_new_first;	
-		hash_map_add(g_scene->unit_to_instance_map, key, index);
+		hash_map_add(g_scene->proxy3d_to_instance_map, key, index);
 
 		g_scene->instance_new_first = index;
 		g_scene->cmd_new_count += 1;
 
+		instance->unit = unit;
 		instance->cmd = arena_push(g_scene->mem_frame, sizeof(struct r_command));
 		instance->cmd->key = cmd;
 		instance->cmd->instance = index;
@@ -896,7 +770,7 @@ struct r_instance *r_instance_add(const u32 unit, const u32 generation, const u6
 	}
 
 	instance->frame_last_touched = g_scene->frame;
-	instance->type = R_INSTANCE_UNIT;
+	instance->type = R_INSTANCE_PROXY3D;
 	g_scene->cmd_frame_count += 1;
 	
 	return instance;
@@ -918,6 +792,14 @@ struct r_instance *r_instance_add_non_cached(const u64 cmd)
 	g_scene->cmd_frame_count += 1;
 	
 	return instance;
+}
+
+u64 r_material_construct(const u64 program, const u64 mesh, const u64 texture)
+{
+	kas_assert(program <= (MATERIAL_PROGRAM_MASK >> MATERIAL_PROGRAM_LOW_BIT));
+	kas_assert(texture <= (MATERIAL_TEXTURE_MASK >> MATERIAL_TEXTURE_LOW_BIT));
+
+	return (program << MATERIAL_PROGRAM_LOW_BIT) | (mesh << MATERIAL_MESH_LOW_BIT) | (texture << MATERIAL_TEXTURE_LOW_BIT);
 }
 
 u64 r_command_key(const u64 screen, const u64 depth, const u64 transparency, const u64 material, const u64 primitive, const u64 instanced)

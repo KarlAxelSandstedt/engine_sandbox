@@ -123,10 +123,12 @@ struct led
 	u64			ns;		/* current time in ns */
 	u32			running;
 
+	utf8			viewport_id;
+	vec2			viewport_position;
+	vec2			viewport_size;
 
 	/* TODO move stuff into led project/led_core or something */
 	struct arena 		frame;
-	utf8			viewport_id;
 	struct csg 		csg;
 	struct ui_list 		brush_list;
 

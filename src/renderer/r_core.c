@@ -62,74 +62,20 @@ static void r_cmd_static_assert(void)
 
 static void material_static_assert(void)
 {
-	kas_static_assert(MATERIAL_PROGRAM_BITS + MATERIAL_TEXTURE_BITS + MATERIAL_UNUSED_BITS 
+	kas_static_assert(MATERIAL_PROGRAM_BITS + MATERIAL_MESH_BITS + MATERIAL_TEXTURE_BITS + MATERIAL_UNUSED_BITS 
 			== R_CMD_MATERIAL_BITS, "material definitions should span whole material bit range");
 
 	kas_static_assert((MATERIAL_PROGRAM_MASK & MATERIAL_TEXTURE_MASK) == 0
 			, "MATERIAL_*_MASK values should not overlap");
+	kas_static_assert((MATERIAL_PROGRAM_MASK & MATERIAL_MESH_MASK) == 0
+			, "MATERIAL_*_MASK values should not overlap");
+	kas_static_assert((MATERIAL_TEXTURE_MASK & MATERIAL_MESH_MASK) == 0
+			, "MATERIAL_*_MASK values should not overlap");
 
-	kas_static_assert(MATERIAL_PROGRAM_MASK + MATERIAL_TEXTURE_MASK + MATERIAL_UNUSED_MASK
+	kas_static_assert(MATERIAL_PROGRAM_MASK + MATERIAL_MESH_MASK + MATERIAL_TEXTURE_MASK + MATERIAL_UNUSED_MASK
 			== (R_CMD_MATERIAL_MASK >> R_CMD_MATERIAL_LOW_BIT)
 			, "sum of material masks should fill the material mask");
 
 	kas_static_assert(PROGRAM_COUNT <= (1 << MATERIAL_PROGRAM_BITS), "Material program mask to small, increase size");
 	kas_static_assert(TEXTURE_COUNT <= (1 << MATERIAL_TEXTURE_BITS), "Material program mask to small, increase size");
-}
-
-u64 r_material_construct(const u64 program, const u64 texture)
-{
-	kas_assert(program <= (MATERIAL_PROGRAM_MASK >> MATERIAL_PROGRAM_LOW_BIT));
-	kas_assert(texture <= (MATERIAL_TEXTURE_MASK >> MATERIAL_TEXTURE_LOW_BIT));
-
-	return (program << MATERIAL_PROGRAM_LOW_BIT) | (texture << MATERIAL_TEXTURE_LOW_BIT);
-}
-
-struct slot r_unit_alloc(const utf8 mesh)
-{
-	struct slot slot = gpool_add(&g_r_core->unit_pool);
-	struct r_unit *unit = slot.address;
-
-	unit->mesh = string_database_reference(g_r_core->mesh_database, mesh).index;
-	if (slot.index == STRING_DATABASE_STUB_INDEX)
-	{
-		log(T_LED, S_WARNING, "Failed to find mesh %k in r_unit_alloc, using stub mesh.", &mesh);
-	}
-	unit->type = R_UNIT_TYPE_NONE;
-
-	return slot;
-}
-
-void r_unit_dealloc(struct arena *tmp, const u32 handle)
-{
-	struct r_unit *unit = r_unit_address(handle);
-	if (POOL_SLOT_ALLOCATED(unit))
-	{
-		switch (unit->type)
-		{
-			case R_UNIT_TYPE_NONE:
-			{
-				
-			} break;
-
-			case R_UNIT_TYPE_PROXY3D:
-			{
-				hierarchy_index_remove(tmp, g_r_core->proxy3d_hierarchy, unit->type_index);
-			} break;
-
-			default:
-			{
-				kas_assert_string(0, "Unimplemented r_unit_type\n");
-			} break;
-		}
-
-		string_database_dereference(g_r_core->mesh_database, unit->mesh);
-		gpool_remove_address(&g_r_core->unit_pool, unit);
-	}
-}
-
-struct r_unit *r_unit_address(const u32 handle)
-{
-	struct r_unit *unit = pool_address(&g_r_core->unit_pool, handle);
-	kas_assert(POOL_SLOT_ALLOCATED(unit));
-	return unit;
 }

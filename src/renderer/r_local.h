@@ -100,6 +100,9 @@ struct r_core
 	u64 			ns_elapsed;		/* process time (ns) */
 	u64 			ns_tick;		/* ns per render frame; if set to 0, we redraw on each r_main
 							   entry */
+	/* TODO: tmp */
+	struct r_camera		cam;	
+
 	struct arena 		frame;
 
 	struct r_program	program[PROGRAM_COUNT];
@@ -121,17 +124,19 @@ void	r_core_flush(void);
  *			r_proxy3d.c			*
  ********************************************************/
 
-#define S_PROXY3D_TRANSLATION_OFFSET	(0)
-#define S_PROXY3D_ROTATION_OFFSET	(1*sizeof(vec3))
-#define S_PROXY3D_COLOR_OFFSET		(1*sizeof(vec3) + 1*sizeof(vec4))
-#define S_PROXY3D_STRIDE		(1*sizeof(vec3) + 2*sizeof(vec4))
+#define S_PROXY3D_TRANSLATION_BLEND_OFFSET	(0)
+#define S_PROXY3D_ROTATION_OFFSET		(1*sizeof(vec4))
+#define S_PROXY3D_COLOR_OFFSET			(2*sizeof(vec4))
+#define S_PROXY3D_STRIDE			(3*sizeof(vec4))
 
-#define L_PROXY3D_POSITION_OFFSET	(0)
-#define L_PROXY3D_NORMAL_OFFSET		(1*sizeof(vec3))
-#define L_PROXY3D_STRIDE		(2*sizeof(vec3))
+#define L_PROXY3D_POSITION_OFFSET		(0)
+#define L_PROXY3D_NORMAL_OFFSET			(1*sizeof(vec3))
+#define L_PROXY3D_STRIDE			(2*sizeof(vec3))
 
-/* proxy3d opengl buffer layout setter */
-void 	r_proxy3d_buffer_layout_setter(void);
+/* proxy3d opengl buffer local layout setter */
+void 	r_proxy3d_buffer_local_layout_setter(void);
+/* proxy3d opengl buffer shared layout setter */
+void 	r_proxy3d_buffer_shared_layout_setter(void);
 /* generate speculative positions */
 void 	r_proxy3d_hierarchy_speculate(struct arena *mem, const u64 ns_time);
 

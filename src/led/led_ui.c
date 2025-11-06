@@ -425,16 +425,16 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 	ui_text_align_x(ALIGN_LEFT)
 	ui_text_align_y(ALIGN_BOTTOM)
 	ui_child_layout_axis(AXIS_2_X)
-	ui_parent(ui_node_alloc_f(UI_DRAW_BACKGROUND | UI_DRAW_BORDER, "###window_%u", led->window).index)
+	ui_parent(ui_node_alloc_f(UI_DRAW_BORDER, "###window_%u", led->window).index)
 	{
-		ui_width(ui_size_perc(0.825f))
+		ui_width(ui_size_perc(0.900f))
 		ui_child_layout_axis(AXIS_2_Y)
-		ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
+		ui_parent(ui_node_alloc_non_hashed(0).index)
 		ui_width(ui_size_perc(1.0f))
 		{
 			ui_height(ui_size_pixel(32.0f, 1.0f))
 			ui_child_layout_axis(AXIS_2_X)
-			ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BORDER).index)
+			ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BACKGROUND | UI_DRAW_BORDER).index)
 			{
 				ui_pad_fill();
 
@@ -492,20 +492,14 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 					struct ui_node *node = slot.address;
 					if (node->inter & UI_INTER_HOVER)
 					{	
-						ui_external_text(external_text)
-						ui_background_color(vec4_inline(0.8f, 0.8f, 0.8f, 1.0f))
-						ui_sprite_color(vec4_inline(0.1f, 0.1f, 0.1f, 1.0f))
-						ui_height(ui_size_pixel(24.0f, 1.0f))
-						ui_width(ui_size_text(F32_INFINITY, 1.0f))
-						ui_fixed_x(g_ui->inter.cursor_position[0])
-						ui_fixed_y(g_ui->inter.cursor_position[1])
-						ui_node_alloc_non_hashed(UI_DRAW_BACKGROUND | UI_DRAW_BORDER | UI_TEXT_EXTERNAL | UI_DRAW_TEXT | UI_SKIP_HOVER_SEARCH);
-					}
-
-					if (node->inter & UI_INTER_LEFT_CLICK)
-					{
-						const utf8 id = utf8_format(g_ui->mem_frame, "node_%u", count++);
-						cmd_submit_f(g_ui->mem_frame, "led_node_add \"%k\"", &id);
+					//	ui_external_text(external_text)
+					//	ui_background_color(vec4_inline(0.8f, 0.8f, 0.8f, 1.0f))
+					//	ui_sprite_color(vec4_inline(0.1f, 0.1f, 0.1f, 1.0f))
+					//	ui_height(ui_size_pixel(24.0f, 1.0f))
+					//	ui_width(ui_size_text(F32_INFINITY, 1.0f))
+					//	ui_fixed_x(g_ui->inter.cursor_position[0])
+					//	ui_fixed_y(g_ui->inter.cursor_position[1])
+					//	ui_node_alloc_non_hashed(UI_DRAW_BACKGROUND | UI_DRAW_BORDER | UI_TEXT_EXTERNAL | UI_DRAW_TEXT | UI_SKIP_HOVER_SEARCH);
 					}
 				}
 			}
@@ -513,7 +507,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 			u32 shape_selected = U32_MAX;
 			ui_height(ui_size_pixel(256.0f, 1.0f))
 			ui_child_layout_axis(AXIS_2_X)
-			ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BORDER).index)
+			ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BACKGROUND | UI_DRAW_BORDER).index)
 			ui_height(ui_size_perc(1.0f))
 			{
 				ui_pad();
@@ -810,9 +804,9 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 			};
 		}
 
-		ui_width(ui_size_perc(0.175f))
+		ui_width(ui_size_perc(0.100f))
 		ui_child_layout_axis(AXIS_2_Y)
-		ui_parent(ui_node_alloc_non_hashed(0).index)
+		ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BACKGROUND).index)
 		ui_flags(UI_DRAW_ROUNDED_CORNERS | UI_TEXT_ALLOW_OVERFLOW)
 		ui_width(ui_size_perc(1.0f))
 		{
@@ -900,6 +894,12 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 	}
 
 	ui_frame_end();
+
+	struct ui_node *node = ui_node_lookup(&led->viewport_id).address;
+	led->viewport_position[0] = node->pixel_position[0];
+	led->viewport_position[1] = node->pixel_position[1];
+	led->viewport_size[0] = node->pixel_size[0];
+	led->viewport_size[1] = node->pixel_size[1];
 }
 
 void led_ui_main(struct led *led)

@@ -23,32 +23,32 @@
 
 f32 stub_vertices[] =
 {
-		 0.5f, -0.5f, -0.5f, /* 0.8f, 0.5f, 0.1f, 1.0f, */0.0f, 0.0f, -1.0f, 
-		-0.5f, -0.5f, -0.5f, /* 0.8f, 0.5f, 0.1f, 1.0f, */0.0f, 0.0f, -1.0f,
-		-0.5f,  0.5f, -0.5f, /* 0.8f, 0.5f, 0.1f, 1.0f, */0.0f, 0.0f, -1.0f,
-		 0.5f,  0.5f, -0.5f, /* 0.8f, 0.5f, 0.1f, 1.0f, */0.0f, 0.0f, -1.0f,
-		-0.5f, -0.5f,  0.5f, /* 0.8f, 0.5f, 0.1f, 1.0f, */0.0f, 0.0f,  1.0f,
-		 0.5f, -0.5f,  0.5f, /* 0.8f, 0.5f, 0.1f, 1.0f, */0.0f, 0.0f,  1.0f,
-		 0.5f,  0.5f,  0.5f, /* 0.8f, 0.5f, 0.1f, 1.0f, */0.0f, 0.0f,  1.0f,
-		-0.5f,  0.5f,  0.5f, /* 0.8f, 0.5f, 0.1f, 1.0f, */0.0f, 0.0f,  1.0f,
+		 0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f, 
+		-0.5f, -0.5f, -0.5f, 0.0f, 0.0f, -1.0f,
+		-0.5f,  0.5f, -0.5f, 0.0f, 0.0f, -1.0f,
+		 0.5f,  0.5f, -0.5f, 0.0f, 0.0f, -1.0f,
+		-0.5f, -0.5f,  0.5f, 0.0f, 0.0f,  1.0f,
+		 0.5f, -0.5f,  0.5f, 0.0f, 0.0f,  1.0f,
+		 0.5f,  0.5f,  0.5f, 0.0f, 0.0f,  1.0f,
+		-0.5f,  0.5f,  0.5f, 0.0f, 0.0f,  1.0f,
 
-		 0.5f, -0.5f, -0.5f, /* 0.8f, 0.5f, 0.1f, 1.0f, */0.0f, -1.0f, 0.0f, 
-		-0.5f, -0.5f, -0.5f, /* 0.8f, 0.5f, 0.1f, 1.0f, */0.0f, -1.0f, 0.0f,
-		-0.5f,  0.5f, -0.5f, /* 0.8f, 0.5f, 0.1f, 1.0f, */0.0f,  1.0f, 0.0f,
-		 0.5f,  0.5f, -0.5f, /* 0.8f, 0.5f, 0.1f, 1.0f, */0.0f,  1.0f, 0.0f,
-		-0.5f, -0.5f,  0.5f, /* 0.8f, 0.5f, 0.1f, 1.0f, */0.0f, -1.0f, 0.0f,
-		 0.5f, -0.5f,  0.5f, /* 0.8f, 0.5f, 0.1f, 1.0f, */0.0f, -1.0f, 0.0f,
-		 0.5f,  0.5f,  0.5f, /* 0.8f, 0.5f, 0.1f, 1.0f, */0.0f,  1.0f, 0.0f,
-		-0.5f,  0.5f,  0.5f, /* 0.8f, 0.5f, 0.1f, 1.0f, */0.0f,  1.0f, 0.0f,
+		 0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f, 
+		-0.5f, -0.5f, -0.5f, 0.0f, -1.0f, 0.0f,
+		-0.5f,  0.5f, -0.5f, 0.0f,  1.0f, 0.0f,
+		 0.5f,  0.5f, -0.5f, 0.0f,  1.0f, 0.0f,
+		-0.5f, -0.5f,  0.5f, 0.0f, -1.0f, 0.0f,
+		 0.5f, -0.5f,  0.5f, 0.0f, -1.0f, 0.0f,
+		 0.5f,  0.5f,  0.5f, 0.0f,  1.0f, 0.0f,
+		-0.5f,  0.5f,  0.5f, 0.0f,  1.0f, 0.0f,
 
-		 0.5f, -0.5f, -0.5f, /* 0.8f, 0.5f, 0.1f, 1.0f, */ 1.0f, 0.0f, 0.0f, 
-		-0.5f, -0.5f, -0.5f, /* 0.8f, 0.5f, 0.1f, 1.0f, */-1.0f, 0.0f, 0.0f,
-		-0.5f,  0.5f, -0.5f, /* 0.8f, 0.5f, 0.1f, 1.0f, */-1.0f, 0.0f, 0.0f,
-		 0.5f,  0.5f, -0.5f, /* 0.8f, 0.5f, 0.1f, 1.0f, */ 1.0f, 0.0f, 0.0f,
-		-0.5f, -0.5f,  0.5f, /* 0.8f, 0.5f, 0.1f, 1.0f, */-1.0f, 0.0f, 0.0f,
-		 0.5f, -0.5f,  0.5f, /* 0.8f, 0.5f, 0.1f, 1.0f, */ 1.0f, 0.0f, 0.0f,
-		 0.5f,  0.5f,  0.5f, /* 0.8f, 0.5f, 0.1f, 1.0f, */ 1.0f, 0.0f, 0.0f,
-		-0.5f,  0.5f,  0.5f, /* 0.8f, 0.5f, 0.1f, 1.0f, */-1.0f, 0.0f, 0.0f,
+		 0.5f, -0.5f, -0.5f,  1.0f, 0.0f, 0.0f, 
+		-0.5f, -0.5f, -0.5f, -1.0f, 0.0f, 0.0f,
+		-0.5f,  0.5f, -0.5f, -1.0f, 0.0f, 0.0f,
+		 0.5f,  0.5f, -0.5f,  1.0f, 0.0f, 0.0f,
+		-0.5f, -0.5f,  0.5f, -1.0f, 0.0f, 0.0f,
+		 0.5f, -0.5f,  0.5f,  1.0f, 0.0f, 0.0f,
+		 0.5f,  0.5f,  0.5f,  1.0f, 0.0f, 0.0f,
+		-0.5f,  0.5f,  0.5f, -1.0f, 0.0f, 0.0f,
 };
 
 u32 stub_indices[] = 
@@ -63,7 +63,6 @@ u32 stub_indices[] =
 
 void r_mesh_set_stub_box(struct r_mesh *mesh_stub)
 {
-	mesh_stub->attribute_flags = R_MESH_ATTRIBUTE_POSITION /* | R_MESH_ATTRIBUTE_COLOR */ | R_MESH_ATTRIBUTE_NORMAL;
 	mesh_stub->index_max_used = 16 + 7;
 	mesh_stub->index_count = sizeof(stub_indices) / sizeof(stub_indices[0]); 
 	mesh_stub->index_data = stub_indices;
@@ -71,7 +70,7 @@ void r_mesh_set_stub_box(struct r_mesh *mesh_stub)
 	mesh_stub->vertex_data = stub_vertices;
 }
 
-static void internal_r_mesh_set_sphere(u32 *b_i, u8 *vertex_data, u32 *index_data, const f32 radius, const vec3 translation, const u32 refinement/*, const vec4 color*/)
+static void internal_r_mesh_set_sphere(u32 *b_i, u8 *vertex_data, u32 *index_data, const f32 radius, const vec3 translation, const u32 refinement)
 {
 	const u32 points_per_strip = 2 * refinement;
 	const u32 num_strips = refinement;
@@ -156,7 +155,7 @@ static void internal_r_mesh_set_sphere(u32 *b_i, u8 *vertex_data, u32 *index_dat
 }
 
 /* const_circle_points - number of vertices on single circle of sphere */
-void r_mesh_set_sphere(struct arena *mem, struct r_mesh *mesh, const f32 radius, const u32 refinement/*, const vec4 color*/)
+void r_mesh_set_sphere(struct arena *mem, struct r_mesh *mesh, const f32 radius, const u32 refinement)
 {
 	kas_assert(refinement >= 3);
 
@@ -176,7 +175,6 @@ void r_mesh_set_sphere(struct arena *mem, struct r_mesh *mesh, const f32 radius,
 	//internal_r_mesh_set_sphere(&max_used, vertex_data, index_data, radius, translation, refinement, color);
 	internal_r_mesh_set_sphere(&max_used, vertex_data, index_data, radius, translation, refinement);
 
-	mesh->attribute_flags = R_MESH_ATTRIBUTE_POSITION /* | R_MESH_ATTRIBUTE_COLOR */ | R_MESH_ATTRIBUTE_NORMAL;
 	mesh->index_max_used = max_used;
 	mesh->index_count = index_count;
 	mesh->index_data = index_data;
@@ -184,7 +182,7 @@ void r_mesh_set_sphere(struct arena *mem, struct r_mesh *mesh, const f32 radius,
 	mesh->vertex_data = (void *) vertex_data;
 }
 
-void r_mesh_set_capsule(struct arena *mem, struct r_mesh *mesh, const vec3 p1, const f32 radius, const quat rotation, const u32 refinement/*, const vec4 color*/)
+void r_mesh_set_capsule(struct arena *mem, struct r_mesh *mesh, const vec3 p1, const f32 radius, const quat rotation, const u32 refinement)
 {
 	kas_assert(refinement >= 3);
 
@@ -307,8 +305,6 @@ void r_mesh_set_capsule(struct arena *mem, struct r_mesh *mesh, const vec3 p1, c
 
 	max_used += 2 * refinement;
 
-	//mesh->attribute_flags = R_MESH_ATTRIBUTE_POSITION | R_MESH_ATTRIBUTE_COLOR | R_MESH_ATTRIBUTE_NORMAL;
-	mesh->attribute_flags = R_MESH_ATTRIBUTE_POSITION | R_MESH_ATTRIBUTE_NORMAL;
 	mesh->index_max_used = max_used;
 	mesh->index_count = index_count;
 	mesh->index_data = index_data;
@@ -316,7 +312,7 @@ void r_mesh_set_capsule(struct arena *mem, struct r_mesh *mesh, const vec3 p1, c
 	mesh->vertex_data = (void *) vertex_data;
 }
 
-void r_mesh_set_hull(struct arena *mem, struct r_mesh *mesh, const struct collision_hull *hull/*, const vec4 color*/)
+void r_mesh_set_hull(struct arena *mem, struct r_mesh *mesh, const struct collision_hull *hull)
 {
 	mesh->vertex_data = mem->stack_ptr;
 	mesh->vertex_count = 0;
@@ -389,7 +385,5 @@ void r_mesh_set_hull(struct arena *mem, struct r_mesh *mesh, const struct collis
 		m_i += offset;
 	}
 
-	//mesh->attribute_flags = R_MESH_ATTRIBUTE_POSITION | R_MESH_ATTRIBUTE_COLOR | R_MESH_ATTRIBUTE_NORMAL;
-	mesh->attribute_flags = R_MESH_ATTRIBUTE_POSITION | R_MESH_ATTRIBUTE_NORMAL;
 	mesh->index_max_used = m_i - 1;
 }

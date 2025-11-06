@@ -129,7 +129,7 @@ struct r_command
 
 u64 	r_command_key(const u64 screen, const u64 depth, const u64 transparency, const u64 material, const u64 primitive, const u64 instanced);
 void 	r_command_key_print(const u64 key);
-u64 	r_material_construct(const u64 program, const u64 texture);
+u64 	r_material_construct(const u64 program, const u64 mesh, const u64 texture);
 
 #define	R_CMD_SCREEN_LAYER_BITS		1
 #define	R_CMD_DEPTH_BITS		23
@@ -179,18 +179,24 @@ u64 	r_material_construct(const u64 program, const u64 texture);
 #define R_CMD_PRIMITIVE_TRIANGLE	((u64) 0)
 
 #define MATERIAL_PROGRAM_BITS		2
+#define MATERIAL_MESH_BITS		10
 #define MATERIAL_TEXTURE_BITS		3
-#define MATERIAL_UNUSED_BITS 		(R_CMD_MATERIAL_BITS - MATERIAL_PROGRAM_BITS - MATERIAL_TEXTURE_BITS)
+#define MATERIAL_UNUSED_BITS 		(R_CMD_MATERIAL_BITS - MATERIAL_PROGRAM_BITS - MATERIAL_TEXTURE_BITS - MATERIAL_MESH_BITS)
+#define MESH_NONE			0
+#define MESH_STUB			0
 
 #define MATERIAL_TEXTURE_LOW_BIT	0
-#define MATERIAL_PROGRAM_LOW_BIT	(MATERIAL_TEXTURE_BITS)
-#define MATERIAL_UNUSED_LOW_BIT		(MATERIAL_TEXTURE_BITS + MATERIAL_PROGRAM_BITS)
+#define MATERIAL_MESH_LOW_BIT		(MATERIAL_TEXTURE_BITS)
+#define MATERIAL_PROGRAM_LOW_BIT	(MATERIAL_TEXTURE_BITS + MATERIAL_MESH_BITS)
+#define MATERIAL_UNUSED_LOW_BIT		(MATERIAL_TEXTURE_BITS + MATERIAL_PROGRAM_BITS + MATERIAL_MESH_BITS)
 
 #define MATERIAL_PROGRAM_MASK		((((u64) 1 << MATERIAL_PROGRAM_BITS) - (u64) 1) << MATERIAL_PROGRAM_LOW_BIT)
+#define MATERIAL_MESH_MASK		((((u64) 1 << MATERIAL_MESH_BITS) - (u64) 1) << MATERIAL_MESH_LOW_BIT)
 #define MATERIAL_TEXTURE_MASK		((((u64) 1 << MATERIAL_TEXTURE_BITS) - (u64) 1) << MATERIAL_TEXTURE_LOW_BIT)
 #define MATERIAL_UNUSED_MASK		((((u64) 1 << MATERIAL_UNUSED_BITS) - (u64) 1) << MATERIAL_UNUSED_LOW_BIT)
 
 #define MATERIAL_PROGRAM_GET(material)	((material & MATERIAL_PROGRAM_MASK) >> MATERIAL_PROGRAM_LOW_BIT)
+#define MATERIAL_MESH_GET(material)	((material & MATERIAL_MESH_MASK) >> MATERIAL_MESH_LOW_BIT)
 #define MATERIAL_TEXTURE_GET(material)	((material & MATERIAL_TEXTURE_MASK) >> MATERIAL_TEXTURE_LOW_BIT)
 
 /********************************************************
@@ -198,44 +204,13 @@ u64 	r_material_construct(const u64 program, const u64 texture);
  ********************************************************/
 
 /*
-r_unit
-======
-Render unit information; Contains persistent draw information such as mesh data, proxy3d handle and so on. 
-To draw a r_unit, we need to for each frame construct an r_instance of the r_unit which contains exact draw
-instructions.
-*/
-
-enum r_unit_type
-{
-	R_UNIT_TYPE_NONE,
-	R_UNIT_TYPE_PROXY3D,
-	R_UNIT_TYPE_STATIC,
-	R_UNIT_TYPE_COUNT
-};
-
-struct r_unit
-{
-	GENERATIONAL_POOL_SLOT_STATE;
-
-	u32			mesh;
-
-	enum r_unit_type	type;		/* draw type of unit 		*/
-	u32			type_index;	/* index/id of type draw data	*/
-};
-
-/* allocate a new render unit and return its slot */
-struct slot	r_unit_alloc(const utf8 mesh);
-/* deallocate a render unit  */
-void		r_unit_dealloc(struct arena *tmp, const u32 handle);
-/* return address corresponding to handle */
-struct r_unit *	r_unit_address(const u32 handle);
-
-/*
 r_proxy3d
 =========
 Contains data for speculative movement; Since the physics engine runs at a fixed resolution, go get smooth movements
 we must speculate on future positions. 
 */
+
+#define PROXY3D_ROOT			2
 
 #define PROXY3D_FLAG_NONE		((u32) 0)
 #define PROXY3D_MOVING			((u32) 1 << 0)	/* Set if any velocity != 0 			    */
@@ -249,15 +224,17 @@ we must speculate on future positions.
 
 struct r_proxy3d_config
 {
-	u64			ns_time;
-	u32			parent;
+	u64	ns_time;
+	u32	parent;
 
-	vec3			position;
-	quat			rotation;
-	vec3			linear_velocity;
-	vec3			angular_velocity;
+	vec3	position;
+	quat	rotation;
+	vec3	linear_velocity;
+	vec3	angular_velocity;
 
-	utf8			mesh;
+	vec4 	color;
+	f32	blend;		/* percentage of color vs. texture */
+	utf8	mesh;
 };
 
 /*
@@ -275,6 +252,10 @@ struct r_proxy3d
 	vec3	position;	/* position of unit; interpreted according to its pos_type.  */
 	quat	rotation;
 
+	u32	mesh;
+	vec4	color;		
+	f32	blend;	
+
 	union
 	{
 		struct 
@@ -285,26 +266,22 @@ struct r_proxy3d
 	};
 };
 
-/* return the unit handle of a newly allocated proxy3d unit. */
+/* return the handle of a newly allocated proxy3d. */
 u32 			r_proxy3d_alloc(const struct r_proxy3d_config *config);
+/* dealloc the given proxy3d unit. */
+void			r_proxy3d_dealloc(struct arena *tmp, const u32 proxy);
 /* return the proxy3d of the unit given that the unit exist and has a proxy3d; otherwise return NULL. */
-struct r_proxy3d *	r_proxy3d_address(const u32 unit);
+struct r_proxy3d *	r_proxy3d_address(const u32 proxy);
 /* set the proxy */
-void 			r_proxy3d_set_linear_speculation(const vec3 position, const quat rotation, const vec3 linear_velocity, const vec3 angular_velocity, const u64 ns_time, const u32 unit);
+void 			r_proxy3d_set_linear_speculation(const vec3 position, const quat rotation, const vec3 linear_velocity, const vec3 angular_velocity, const u64 ns_time, const u32 proxy);
 
 /********************************************************
  *			r_scene.c			*
  ********************************************************/
 
-/********************** Render Instance *************************/
-/* r_instance : Draw instance of a render unit. While render units contain shared data used for all drawing 
- * instances, such as mesh data, a render instance contains per instance draw data, such as the drawing 
- * instruction. Every instance is local to a render scene. 
- */
-
 enum r_instance_type
 {
-	R_INSTANCE_UNIT,	/* instance of a unit 		*/
+	R_INSTANCE_PROXY3D,	/* instance of a proxy3d	*/
 	R_INSTANCE_UI, 		/* instance of a ui bucket	*/
 	R_INSTANCE_COUNT
 };
@@ -319,17 +296,12 @@ struct r_instance
 	enum r_instance_type	type;			/* draw type of unit 				*/
 	union
 	{
-		u64		unit;	/* hash key : [ generation(32) | unit_handle(32) ]. 
-						   if unit_handle == U32_MAX then the instance has 
-						   no unit tied to it. (This simplies logic for ui) */
+		u32		unit;	
 		struct ui_draw_bucket *ui_bucket;
 	};
-	u32			r_cmd_index;	/* index of r_unit's render command 		*/
-	u32			type_index;	/* index/id of type draw data			*/
-
 };
 
-struct r_instance *	r_instance_add(const u32 unit, const u32 generation, const u64 cmd);
+struct r_instance *	r_instance_add(const u32 unit, const u64 cmd);
 struct r_instance *	r_instance_add_non_cached(const u64 cmd); /* add non cached instance with no unit. These
 								     simplifies stuff for when we want to draw 
 								     instances of things that only last one 
@@ -412,7 +384,7 @@ struct r_scene
 	struct arena *		mem_frame;
 	u64 			frame;
 
-	struct hash_map *	unit_to_instance_map;	/* map[ unit_generation(32) | unit_index(32) ] -> instance */
+	struct hash_map *	proxy3d_to_instance_map;	/* map[ generation(32) | index(32) ] -> instance */
 	struct array_list_intrusive *instance_list;		/* instance storage 					   */
 
 	u32 			instance_new_first;	/* non-cached instance [ instance_dll ]	*/
@@ -443,27 +415,14 @@ void		r_scene_frame_end(void);
  *			r_mesh.c			*
  ********************************************************/
 
-/*
- * triangle layouts are described by the following attributes. The vertex data comes in the order of the attributes;
- * low valued attributes before higher valued attributes (POSITION | COLOR | UV | NORMAL)
- */
-enum r_mesh_attribute
-{
-	R_MESH_ATTRIBUTE_POSITION 	= (1 << 0),	/* vec3 */
-	R_MESH_ATTRIBUTE_COLOR 	  	= (1 << 1),	/* vec4 */
-	R_MESH_ATTRIBUTE_UV       	= (1 << 2),	/* vec2 */
-	R_MESH_ATTRIBUTE_NORMAL   	= (1 << 3),	/* vec3 */
-};
-
 struct r_mesh
 {
 	STRING_DATABASE_SLOT_STATE;				/* internal header, MAY NOT BE MOVED */
-	u32				attribute_flags;	/* attribute flags describing layout of triangles */
 	u32				index_count;		
 	u32 *				index_data; 		/* index_data[index_count] */
 	u32				index_max_used;		/* max used index */
 	u32				vertex_count;   	
-	void *				vertex_data;		/* vertex_data[vertex_count] : layout according to attributes */
+	void *				vertex_data;		/* vertex_data[vertex_count] */
 };
 
 /**************** TEMPORARY: quick and dirty mesh generation *****************/
