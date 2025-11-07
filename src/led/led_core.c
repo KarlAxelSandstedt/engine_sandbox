@@ -19,6 +19,11 @@
 
 #include "led_local.h"
 
+void cmd_led_compile(void);
+void cmd_led_run(void);
+void cmd_led_pause(void);
+void cmd_led_stop(void);
+
 void cmd_led_node_add(void);
 void cmd_led_node_remove(void);
 void cmd_led_node_set_position(void);
@@ -45,6 +50,11 @@ u32 cmd_led_node_set_rb_prefab_id;
 u32 cmd_led_node_set_csg_brush_id;
 u32 cmd_led_node_set_proxy3d_id;
 
+u32	cmd_led_compile_id;
+u32	cmd_led_run_id;
+u32	cmd_led_pause_id;
+u32	cmd_led_stop_id;
+
 u32 cmd_rb_prefab_add_id;
 u32 cmd_rb_prefab_remove_id;
 
@@ -65,6 +75,11 @@ void led_core_init_commands(void)
 	cmd_led_node_set_rb_prefab_id = cmd_function_register(utf8_inline("led_node_set_rb_prefab"), 2, &cmd_led_node_set_rb_prefab).index;
 	cmd_led_node_set_csg_brush_id = cmd_function_register(utf8_inline("led_node_set_csg_brush"), 2, &cmd_led_node_set_csg_brush).index;
 	cmd_led_node_set_proxy3d_id = cmd_function_register(utf8_inline("led_node_set_proxy3d"), 7, &cmd_led_node_set_proxy3d).index;
+
+	cmd_led_compile_id = cmd_function_register(utf8_inline("led_compile"), 0, &cmd_led_compile).index;
+	cmd_led_run_id = cmd_function_register(utf8_inline("led_run"), 0, &cmd_led_run).index;
+	cmd_led_pause_id = cmd_function_register(utf8_inline("led_pause"), 0, &cmd_led_pause).index;
+	cmd_led_stop_id = cmd_function_register(utf8_inline("led_stop"), 0, &cmd_led_stop).index;
 
 	cmd_rb_prefab_add_id = cmd_function_register(utf8_inline("rb_prefab_add"), 6, &cmd_rb_prefab_add).index;
 	cmd_rb_prefab_remove_id = cmd_function_register(utf8_inline("rb_prefab_remove"), 1, &cmd_rb_prefab_remove).index;
@@ -426,7 +441,7 @@ struct slot led_node_add(struct led *led, const utf8 id)
 			axis_angle_to_quaternion(node->rotation, axis, 0.0f);
 
 			node->rb_prefab = STRING_DATABASE_STUB_INDEX;
-			node->proxy3d_unit = HI_NULL_INDEX;
+			node->proxy = HI_NULL_INDEX;
 			node->csg_brush = STRING_DATABASE_STUB_INDEX;
 		}
 	}
@@ -473,9 +488,9 @@ static void led_remove_marked_structs(struct led *led)
 			dll_remove(&led->node_selected_list, led->node_pool.buf, i);
 		}
 
-		if (node->proxy3d_unit != HI_NULL_INDEX)
+		if (node->proxy != HI_NULL_INDEX)
 		{
-			r_proxy3d_dealloc(&led->frame, node->proxy3d_unit);
+			r_proxy3d_dealloc(&led->frame, node->proxy);
 		}
 
 		string_database_dereference(&led->rb_prefab_db, node->rb_prefab);
@@ -483,7 +498,7 @@ static void led_remove_marked_structs(struct led *led)
 
 		node->rb_prefab = STRING_DATABASE_STUB_INDEX;
 		node->csg_brush = STRING_DATABASE_STUB_INDEX;
-		node->proxy3d_unit = HI_NULL_INDEX;
+		node->proxy = HI_NULL_INDEX;
 
 		hash_map_remove(led->node_map, node->key, i);
 		thread_free_256B(node->id.buf);
@@ -601,11 +616,11 @@ void led_node_set_proxy3d(struct led *led, const utf8 id, const utf8 mesh, const
 	}
 	else
 	{
-		if (node->proxy3d_unit != HI_NULL_INDEX)
+		if (node->proxy != HI_NULL_INDEX)
 		{
 			struct arena tmp = arena_alloc_1MB();
-			r_proxy3d_dealloc(&tmp, node->proxy3d_unit);
-			node->proxy3d_unit = HI_NULL_INDEX;
+			r_proxy3d_dealloc(&tmp, node->proxy);
+			node->proxy = HI_NULL_INDEX;
 			arena_free_1MB(&tmp);
 		}
 
@@ -621,7 +636,7 @@ void led_node_set_proxy3d(struct led *led, const utf8 id, const utf8 mesh, const
 		config.blend = blend; 
 		vec3_copy(config.position, node->position);
 		quat_copy(config.rotation, node->rotation);
-		node->proxy3d_unit = r_proxy3d_alloc(&config);
+		node->proxy = r_proxy3d_alloc(&config);
 	}
 }
 
@@ -907,7 +922,288 @@ void led_wall_smash_simulation_setup(struct led *led)
 	}
 }
 
-void led_core(struct led *led)
+void cmd_led_compile(void)
+{
+	return led_compile(g_editor);
+}
+
+void cmd_led_run(void)
+{
+	return led_run(g_editor);
+}
+
+void cmd_led_pause(void)
+{
+	return led_pause(g_editor);
+}
+
+void cmd_led_stop(void)
+{
+	return led_stop(g_editor);
+}
+
+void led_compile(struct led *led)
+{
+	KAS_TASK(__func__, T_LED);
+
+	KAS_END;
+}
+
+void led_run(struct led *led)
+{
+	KAS_TASK(__func__, T_LED);
+
+	led->pending_engine_initalized = 1;
+	led->pending_engine_running = 1;
+
+	KAS_END;
+}
+
+void led_pause(struct led *led)
+{
+	KAS_TASK(__func__, T_LED);
+
+	led->pending_engine_running = 0;
+
+	KAS_END;
+}
+
+void led_stop(struct led *led)
+{
+	KAS_TASK(__func__, T_LED);
+
+	led->pending_engine_initalized = 0;
+	led->pending_engine_running = 0;
+
+	KAS_END;
+}
+
+static void led_engine_flush(struct led *led)
+{
+	//TODO flush and reset visuals to led_node 
+}
+
+static void led_engine_init(struct led *led)
+{
+	//TODO move this into engine flush
+	physics_pipeline_flush(&led->physics);		
+
+	struct led_node *node = NULL;
+	for (u32 i = led->node_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(node))
+	{
+		node = gpool_address(&led->node_pool, i);
+		if (node->flags & LED_PHYSICS)
+		{
+			struct rigid_body_prefab *prefab = string_database_address(&led->rb_prefab_db, node->rb_prefab);
+			physics_pipeline_rigid_body_alloc(&led->physics, prefab, node->position, node->rotation, i);
+		}
+	}
+}
+
+static void led_engine_run(struct led *led, const u64 ns_tick)
+{
+	led->ns_engine_running += ns_tick;
+	led->physics.ns_elapsed += ns_tick;
+
+	//const u64 game_frames_to_run = (game->ns_elapsed - (game->frames_completed * game->ns_tick)) / game->ns_tick;
+	const u64 physics_frames_to_run = (led->physics.ns_elapsed - (led->physics.frames_completed * led->physics.ns_tick)) / led->physics.ns_tick;
+
+	//u64 ns_next_game_frame = game->frames_completed * game->ns_tick;
+	u64 ns_next_physics_frame = led->physics.frames_completed * led->physics.ns_tick;
+
+
+	for (u64 i = 0; i < /* game_frames_to_run + */ physics_frames_to_run; ++i)
+	{
+		//if (ns_next_game_frame <= ns_next_physics_frame)
+		//{
+		//	arena_flush(&game->frame);
+		//	game_tick(game);
+		//	game->frames_completed += 1;
+		//	ns_next_game_frame += game->ns_tick;
+		//}
+		//else
+		//{
+			physics_pipeline_tick(&led->physics);
+			ns_next_physics_frame += led->physics.ns_tick;
+		//}
+	}
+
+	//if (physics_frames_to_run)
+	//{
+	//	R_PHYSICS_DEBUG_FRAME_CLEAR;
+	//	R_PHYSICS_DEBUG_FRAME_INIT(&game->physics);
+	//}
+
+	for (u32 i = 0; i < led->physics.event_count; ++i)
+	{
+		switch (led->physics.event[i].type)
+		{
+			//case PHYSICS_EVENT_CONTACT_NEW:
+			//{
+#ifdef KCS_DEBUG
+			//	if (g_collision_debug->draw_collision)
+			//	{
+			//		const struct contact *c = net_list_address(led->physics.c_db.contacts, led->physics.event[i].contact);
+
+			//		const struct rigid_body *body1 = array_list_intrusive_address(led->physics.body_list, c->cm.i1);
+			//		const struct rigid_body *body2 = array_list_intrusive_address(led->physics.body_list, c->cm.i2);
+			//		const u32 unit1_index = game_rigid_body_r_unit_index(game, c->cm.i1);
+			//		const u32 unit2_index = game_rigid_body_r_unit_index(game, c->cm.i2);
+			//		struct r_unit *unit1 = r_unit_lookup(unit1_index);
+			//		struct r_unit *unit2 = r_unit_lookup(unit2_index);
+			//		kas_assert(unit1 && unit2 && body1->header.allocated && body2->header.allocated);
+			//		if (RB_IS_DYNAMIC(body1))
+			//		{
+			//			vec4_copy(unit1->color, g_collision_debug->collision_color);
+			//			//r_command_update_transparency(unit1_index, R_CMD_TRANSPARENCY_ADDITIVE);
+			//		}
+			//		if (RB_IS_DYNAMIC(body2))
+			//		{
+			//			vec4_copy(unit2->color, g_collision_debug->collision_color);
+			//			//r_command_update_transparency(unit2_index, R_CMD_TRANSPARENCY_ADDITIVE);
+			//		}
+			//	}
+#endif
+			//} break;
+
+			//case PHYSICS_EVENT_CONTACT_REMOVED:
+			//{
+#ifdef KCS_DEBUG
+			//	if (g_collision_debug->draw_collision)
+			//	{
+			//		const struct rigid_body *body1 = array_list_intrusive_address(led->physics.body_list, led->physics.event[i].contact_bodies.body1);
+			//		const struct rigid_body *body2 = array_list_intrusive_address(led->physics.body_list, led->physics.event[i].contact_bodies.body2);
+			//		const u32 unit1_index = game_rigid_body_r_unit_index(game, led->physics.event[i].contact_bodies.body1);
+			//		const u32 unit2_index = game_rigid_body_r_unit_index(game, led->physics.event[i].contact_bodies.body2);
+			//		struct r_unit *unit1 = r_unit_lookup(unit1_index);
+			//		struct r_unit *unit2 = r_unit_lookup(unit2_index);
+
+			//		kas_assert(unit1 && unit2 && body1->header.allocated && body2->header.allocated);
+			//		if (RB_IS_DYNAMIC(body1))
+			//		{
+			//			if (body1->first_contact_index == NET_LIST_NODE_NULL_INDEX)
+			//			{
+			//				vec4_copy(unit1->color, body1->color);
+			//				//r_command_update_transparency(unit1_index, R_CMD_TRANSPARENCY_OPAQUE);
+			//			}
+			//		}
+			//		else
+			//		{
+			//			vec4_copy(unit1->color, g_collision_debug->island_static_color);
+			//		}
+			//		
+			//		if (RB_IS_DYNAMIC(body2))
+			//		{
+			//			if (body2->first_contact_index == NET_LIST_NODE_NULL_INDEX)
+			//			{
+			//				vec4_copy(unit2->color, body2->color);
+			//				//r_command_update_transparency(unit2_index, R_CMD_TRANSPARENCY_OPAQUE);
+			//			}
+			//		}
+			//		else
+			//		{
+			//			vec4_copy(unit2->color, g_collision_debug->island_static_color);
+			//		}
+			//	}
+#endif
+			//} break;
+
+			//case PHYSICS_EVENT_ISLAND_NEW:
+			//{
+			//	const vec4 color = 
+			//	{
+			//		LCG_f32_normalized(&led->prng),
+			//		LCG_f32_normalized(&led->prng),
+			//		LCG_f32_normalized(&led->prng),
+			//		1.0f,	
+			//	};
+
+			//	if (g_collision_debug->draw_island)
+			//	{
+			//		if (bit_vec_get_bit(&led->physics.is_db.island_usage, led->physics.event[i].island))
+			//		{
+			//			game_push_color_to_island_and_bodies(game, led->physics.event[i].island, color);
+			//		}
+			//	}
+			//	else if (g_collision_debug->draw_sleeping)
+			//	{
+			//		const struct island *is = array_list_address(led->physics.is_db.islands, led->physics.event[i].island);
+			//		game_push_color_to_island_and_bodies(game, led->physics.event[i].island, g_collision_debug->island_awake_color);
+
+			//	}
+			//} break;
+
+			//case PHYSICS_EVENT_ISLAND_MERGED_INTO:
+			//{
+#ifdef KCS_DEBUG
+			//	if (g_collision_debug->draw_island)
+			//	{
+			//		if (bit_vec_get_bit(&led->physics.is_db.island_usage, led->physics.event[i].island))
+			//		{
+			//			const struct island *is = array_list_address(led->physics.is_db.islands, led->physics.event[i].island);
+
+			//			game_push_color_to_island_and_bodies(game, led->physics.event[i].island, is->color);
+			//		}
+			//	}
+#endif
+			//} break;
+
+			//case PHYSICS_EVENT_ISLAND_REMOVED:
+			//{
+
+			//} break;
+
+			//case PHYSICS_EVENT_ISLAND_AWAKE:
+			//{
+			//	if (g_collision_debug->draw_sleeping)
+			//	{
+			//		const struct island *is = array_list_address(led->physics.is_db.islands, led->physics.event[i].island);
+			//		game_push_color_to_island_and_bodies(game, led->physics.event[i].island, g_collision_debug->island_awake_color);
+			//	}
+			//} break;
+
+			//case PHYSICS_EVENT_ISLAND_ASLEEP:
+			//{
+			//	if (g_collision_debug->draw_sleeping)
+			//	{
+			//		const struct island *is = array_list_address(led->physics.is_db.islands, led->physics.event[i].island);
+			//		game_push_color_to_island_and_bodies(game, led->physics.event[i].island, g_collision_debug->island_sleeping_color);
+			//	}
+			//} break;
+			
+			//case PHYSICS_EVENT_BODY_NEW:
+			//{
+			//	//TODO Generate new color 
+			//	// if draw bodies => push color
+			//	// if draw islands => push island color 
+			//} break;
+
+			//case PHYSICS_EVENT_BODY_REMOVED:
+			//{
+
+			//} break;
+
+			case PHYSICS_EVENT_BODY_ORIENTATION:
+			{
+				const struct rigid_body *body = physics_pipeline_rigid_body_lookup(&led->physics, led->physics.event[i].body);
+				struct led_node *node = pool_address(&led->node_pool, body->entity);
+
+				vec3 linear_velocity;
+				vec3_scale(linear_velocity, body->linear_momentum, 1.0f / body->mass);
+				r_proxy3d_set_linear_speculation(body->position
+						, body->rotation
+						, linear_velocity
+						, body->angular_velocity
+						, led->physics.event[i].ns
+						, node->proxy);
+			} break;
+		}
+	}
+
+	led->physics.event_count = 0;
+}
+
+void led_core(struct led *led, const u64 ns_delta)
 {
 	KAS_TASK(__func__, T_LED);
 
@@ -920,6 +1216,21 @@ void led_core(struct led *led)
 		led_wall_smash_simulation_setup(led);
 	}
 	led_remove_marked_structs(led);
+
+	if (!led->engine_initalized && led->pending_engine_initalized)
+	{
+		led->ns_engine_running = 0;
+		led_engine_init(led);
+	}
+	led->engine_initalized = led->pending_engine_initalized;
+
+	led->engine_running = led->pending_engine_running;
+	if (led->engine_running)
+	{
+		led_engine_run(led, ns_delta);
+	}
+
+	//TODO: led_draw();
 
 	KAS_END;
 }

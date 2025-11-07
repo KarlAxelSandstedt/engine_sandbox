@@ -450,7 +450,8 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 					if (ui_button_f(UI_DRAW_BACKGROUND | UI_DRAW_SPRITE, "###play") & UI_INTER_LEFT_CLICK)
 					{
 						//ui_background_color(vec4_inline(0.0f, 0.5f, 0.5f, 0.5f))
-						fprintf(stderr, "Play!\n");
+						cmd_submit_f(g_ui->mem_frame, "led_compile");
+						cmd_submit_f(g_ui->mem_frame, "led_run");
 					}
 					
 					ui_pad();
@@ -461,7 +462,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 					ui_sprite(SPRITE_LED_PAUSE)
 					if (ui_button_f(UI_DRAW_SPRITE, "###pause") & UI_INTER_LEFT_CLICK)
 					{
-						fprintf(stderr, "Pause!\n");
+						cmd_submit_f(g_ui->mem_frame, "led_pause");
 					}
 
 					ui_pad();
@@ -472,7 +473,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 					ui_sprite(SPRITE_LED_STOP)
 					if (ui_button_f(UI_DRAW_SPRITE, "###stop") & UI_INTER_LEFT_CLICK)
 					{
-						fprintf(stderr, "Stop!\n");
+						cmd_submit_f(g_ui->mem_frame, "led_stop");
 					}
 				}
 

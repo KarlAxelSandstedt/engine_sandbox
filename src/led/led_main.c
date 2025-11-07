@@ -175,7 +175,7 @@ void led_main(struct led *led, const u64 ns_delta)
 	/*
 	 * (1) process user input => (2) build ui => (3) led_core(): process systems in order
 	 */
-	led_core(led);
+	led_core(led, ns_delta);
 
 	KAS_END;
 }

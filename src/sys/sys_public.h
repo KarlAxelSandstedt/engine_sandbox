@@ -388,7 +388,7 @@ u32 	semaphore_trywait(semaphore *sem);
 
 extern struct task_context *g_task_ctx;
 
-typedef void *(*TASK)(void *);
+typedef void (*TASK)(void *);
 
 struct worker
 {

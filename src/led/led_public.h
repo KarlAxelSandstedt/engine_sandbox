@@ -101,14 +101,14 @@ struct led_node
 	quat			rotation;
 
 	u32			rb_prefab; 
-	u32 			proxy3d_unit;	
+	u32 			proxy;	
 	u32			csg_brush;	
 };
 
 /*
 led
 ===
-level editor main structure; TODO
+level editor main structure
  */
 struct led
 {
@@ -122,6 +122,14 @@ struct led
 		
 	u64			ns;		/* current time in ns */
 	u32			running;
+
+	u64			ns_engine_running;
+
+	u32			pending_engine_running;
+	u32			pending_engine_initalized;
+
+	u32			engine_running;		
+	u32			engine_initalized;
 
 	utf8			viewport_id;
 	vec2			viewport_position;

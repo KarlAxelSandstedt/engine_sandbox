@@ -135,6 +135,8 @@ struct physics_pipeline
 {
 	struct arena 	frame;			/* frame memory */
 
+	//TODO physics_pipeline_start -> set ns_start, we want timings reported in a unified clock setting
+	u64		ns_start;		/* external ns at start of physics pipeline */
 	u64		ns_elapsed;		/* actual ns elasped in pipeline (= 0 at start) */
 	u64		ns_tick;		/* ns per game tick */
 	u64 		frames_completed;	/* number of completed physics frames */ 
@@ -173,8 +175,8 @@ void 			physics_pipeline_free(struct physics_pipeline *physics_pipeline);
 void			physics_pipeline_flush(struct physics_pipeline *physics_pipeline);
 /* pipeline main method: simulate a single physics frame and update internal state  */
 void 			physics_pipeline_tick(struct physics_pipeline *pipeline);
-/* allocate new rigid body in pipeline and return its handle */
-u32			physics_pipeline_rigid_body_alloc(struct physics_pipeline *pipeline);
+/* allocate new rigid body in pipeline and return its slot */
+struct slot		physics_pipeline_rigid_body_alloc(struct physics_pipeline *pipeline, struct rigid_body_prefab *prefab, const vec3 position, const quat rotation, const u32 entity);
 /* lookup a collision shape given its handle; return NULL if body isn't found */
 struct rigid_body *	physics_pipeline_rigid_body_lookup(const struct physics_pipeline *pipeline, const u32 handle);
 /* deallocate a collision shape associated with the given handle. If no shape is found, do nothing */
@@ -182,9 +184,9 @@ void			physics_pipeline_rigid_body_dealloc(struct physics_pipeline *pipeline, co
 /* validate and assert internal state of physics pipeline */
 void			physics_pipeline_validate(const struct physics_pipeline *pipeline);
 /* return 0 if no hit, 1 if hit. If 1, set hit_index to the body's pipeline handle. */
-u32 			physics_pipeline_raycast(u32 *hit_handle, struct arena *mem_tmp, const struct physics_pipeline *pipeline, const struct ray *ray);
+u32 			physics_pipeline_raycast(struct arena *mem_tmp, struct slot *slot, const struct physics_pipeline *pipeline, const struct ray *ray);
 /* return, IF hit, parameter t of ray at first collision. Otherwise return F32_INFINITY */
-f32 			physics_pipeline_raycast_parameter(u32 *hit_handle, struct arena *mem_tmp, const struct physics_pipeline *pipeline, const struct ray *ray);
+f32 			physics_pipeline_raycast_parameter(struct arena *mem_tmp, struct slot *slot, const struct physics_pipeline *pipeline, const struct ray *ray);
 
 #ifdef KAS_DEBUG
 #define PHYSICS_PIPELINE_VALIDATE(pipeline)	physics_pipeline_validate(pipeline)
@@ -198,11 +200,6 @@ f32 			physics_pipeline_raycast_parameter(u32 *hit_handle, struct arena *mem_tmp
 void 			internal_physics_pipeline_simulate_frame(struct physics_pipeline *pipeline, const f32 delta);
 /* push physics event into pipeline memory and return pointer to allocated event */
 struct physics_event *	physics_pipeline_event_push(struct physics_pipeline *pipeline);
-
-/**************** TODO TEMPORARY ****************/
-
-u32	physics_pipeline_rigid_body_add(struct physics_pipeline *pipeline, const utf8 shape_id, const vec3 translation, const f32 density, const u32 dynamic, const f32 restitution, const f32 friction);
-void 	physics_pipeline_rigid_body_remove(struct physics_pipeline *pipeline, const u32 handle);
 
 /**************** TODO MOVE ****************/
 

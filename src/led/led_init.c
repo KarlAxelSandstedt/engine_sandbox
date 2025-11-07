@@ -91,6 +91,12 @@ struct led *led_alloc(void)
 	g_editor->cs_db = string_database_alloc(NULL, 32, 32, struct collision_shape, GROWABLE);
 	g_editor->physics = physics_pipeline_alloc(NULL, 1024, NSEC_PER_SEC / (u64) 60, 1024*1024, &g_editor->cs_db, &g_editor->rb_prefab_db);
 
+	g_editor->pending_engine_running = 0;
+	g_editor->pending_engine_initalized = 0;
+	g_editor->engine_running = 0;
+	g_editor->engine_initalized = 0;
+	g_editor->ns_engine_running = 0;
+
 	struct r_mesh *r_mesh_stub = string_database_address(&g_editor->render_mesh_db, STRING_DATABASE_STUB_INDEX);
 	r_mesh_set_stub_box(r_mesh_stub);
 

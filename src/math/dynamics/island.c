@@ -738,7 +738,7 @@ static u32 *island_solve(struct arena *mem_frame, struct physics_pipeline *pipel
 	return bodies_simulated;
 }
 
-void *thread_island_solve(void *task_input)
+void thread_island_solve(void *task_input)
 {
 	KAS_TASK(__func__, T_PHYSICS);
 
@@ -748,5 +748,4 @@ void *thread_island_solve(void *task_input)
 	args->out->bodies = island_solve(&t_ctx->executor->mem_frame, args->pipeline, args->is, args->timestep);
 
 	KAS_END;
-	return NULL;
 }

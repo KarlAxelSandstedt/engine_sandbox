@@ -99,7 +99,16 @@ extern struct led *g_editor;
 /* initate global commands and identifers */
 void 		led_core_init_commands(void);
 /* run level editor systems */
-void 		led_core(struct led *led);
+void 		led_core(struct led *led, const u64 ns_tick);
+
+/* compile level editor map */
+void		led_compile(struct led *led);
+/* run level editor map, and  */
+void		led_run(struct led *led);
+/* pause running level editor map */
+void		led_pause(struct led *led);
+/* stop running level editor map */
+void		led_stop(struct led *led);
 
 /* Allocate node with the given id. Returns (NULL, U32_MAX) if id.size > 256B or id.len == 0 */
 struct slot 	led_node_add(struct led *led, const utf8 id);
@@ -144,6 +153,11 @@ extern u32 	cmd_led_node_set_position_id;
 extern u32 	cmd_led_node_set_rb_prefab_id;
 extern u32 	cmd_led_node_set_csg_brush_id;
 extern u32 	cmd_led_node_set_r_unit_id;
+
+extern u32	cmd_led_compile_id;
+extern u32	cmd_led_run_id;
+extern u32	cmd_led_pause_id;
+extern u32	cmd_led_stop_id;
 
 extern u32 	cmd_rb_prefab_add_id;
 extern u32 	cmd_rb_prefab_remove_id;

@@ -123,13 +123,6 @@ void physics_pipeline_tick(struct physics_pipeline *pipeline)
 	KAS_END;
 }
 
-u32 physics_pipeline_rigid_body_alloc(struct physics_pipeline *pipeline)
-{
-	const u32 handle = array_list_intrusive_reserve_index(pipeline->body_list);
-	PHYSICS_EVENT_BODY_NEW(pipeline, handle);
-	return handle;
-}
-
 struct rigid_body *physics_pipeline_rigid_body_lookup(const struct physics_pipeline *pipeline, const u32 handle)
 {
 
@@ -224,51 +217,53 @@ void physics_pipeline_validate(const struct physics_pipeline *pipeline)
 	KAS_END;
 }
 
-u32 physics_pipeline_rigid_body_add(struct physics_pipeline *pipeline, const utf8 shape_id, const vec3 translation, const f32 density, const u32 dynamic, const f32 restitution, const f32 friction)
+struct slot physics_pipeline_rigid_body_alloc(struct physics_pipeline *pipeline, struct rigid_body_prefab *prefab, const vec3 position, const quat rotation, const u32 entity)
 {
-	const u32 handle  = physics_pipeline_rigid_body_alloc(pipeline);
-	struct rigid_body *body = physics_pipeline_rigid_body_lookup(pipeline, handle);
+	struct slot slot = array_list_intrusive_add(pipeline->body_list);
+	PHYSICS_EVENT_BODY_NEW(pipeline, slot.index);
+	struct rigid_body *body = slot.address;
 
 	memset(((u8 *) body) + sizeof(struct array_list_intrusive_node), 0, sizeof(struct rigid_body) - sizeof(struct array_list_intrusive_node));
 
-	vec3 axis = { 0.0f, 1.0f, 0.0f };
-	axis_angle_to_quaternion(body->rotation, axis, 0.0f);
-	vec3_copy(body->position, translation);
+	body->entity = entity;
+	vec3_copy(body->position, position);
+	quat_copy(body->rotation, rotation);
+	vec3_set(body->velocity, 0.0f, 0.0f, 0.0f);
 	vec3_set(body->angular_velocity, 0.0f, 0.0f, 0.0f);
 
-	const u32 dynamic_flag = (dynamic) ? RB_DYNAMIC : 0;
+	const u32 dynamic_flag = (prefab->dynamic) ? RB_DYNAMIC : 0;
 	body->flags = RB_ACTIVE | (g_solver_config->sleep_enabled * RB_AWAKE) | dynamic_flag;
 	body->margin = 0.25f;
 
-	const struct slot slot = string_database_reference(pipeline->shape_db, shape_id);
-	const struct collision_shape *shape = slot.address;
-	body->shape_handle = slot.index;
+
+	const struct collision_shape *shape = string_database_address(pipeline->shape_db, prefab->shape);
+	const struct slot shape_slot = string_database_reference(pipeline->shape_db, shape->id);
+	body->shape_handle = shape_slot.index;
 	body->shape_type = shape->type;
 
-	body->restitution = restitution;
-	body->friction = friction;
+	mat3_copy(body->inertia_tensor, prefab->inertia_tensor);
+	mat3_copy(body->inv_inertia_tensor, prefab->inv_inertia_tensor);
+	body->mass = prefab->mass;
+	body->restitution = prefab->restitution;
+	body->friction = prefab->friction;
 	body->low_velocity_time = 0.0f;
-	vec3_set(body->position, 0.0f, 0.0f, 0.0f);
-	statics_setup(body, shape, density);
-	vec3_translate(body->position, translation);	
 
 	struct AABB proxy;
 	rigid_body_update_local_box(body, shape);
 	rigid_body_proxy(&proxy, body);
-	body->proxy = dbvt_insert(&pipeline->dynamic_tree, handle, &proxy);
+	body->proxy = dbvt_insert(&pipeline->dynamic_tree, slot.index, &proxy);
 
 	body->first_contact_index = NET_LIST_NODE_NULL_INDEX;
 	if (body->flags & RB_DYNAMIC)
 	{
-		is_db_init_island_from_body(pipeline, handle);
+		is_db_init_island_from_body(pipeline, slot.index);
 	}
 	else
 	{
 		body->island_index = ISLAND_STATIC;
 	}
 	
-
-	return handle;
+	return slot;
 }
 
 static void internal_update_dynamic_tree(struct physics_pipeline *pipeline)
@@ -314,11 +309,11 @@ struct tpc_output
 	u32 cm_count;
 };
 
-static void *thread_push_contacts(void *task_addr)
+static void thread_push_contacts(void *task_addr)
 {
 	KAS_TASK("contact creation", T_PHYSICS);
 
-	const struct task *task = task_addr;
+	struct task *task = task_addr;
 	struct worker *worker = task->executor;
 	const struct task_range *range = task->range;
 	const struct physics_pipeline *pipeline = task->input;
@@ -355,7 +350,7 @@ static void *thread_push_contacts(void *task_addr)
 	arena_pop_packed(&worker->mem_frame, (range->count - out->cm_count) * sizeof(struct contact_manifold));
 
 	KAS_END;
-	return out;
+	task->output = out;
 }
 
 static void internal_parallel_push_contacts(struct arena *mem_frame, struct physics_pipeline *pipeline)
@@ -718,7 +713,7 @@ void physics_pipeline_clear_frame(struct physics_pipeline *pipeline)
 	arena_flush(&pipeline->frame);
 }
 
-f32 physics_pipeline_raycast_parameter(u32 *hit_handle, struct arena *mem_tmp, const struct physics_pipeline *pipeline, const struct ray *ray)
+f32 physics_pipeline_raycast_parameter(struct arena *mem_tmp, struct slot *slot, const struct physics_pipeline *pipeline, const struct ray *ray)
 {
 	arena_push_record(mem_tmp);
 
@@ -739,7 +734,8 @@ f32 physics_pipeline_raycast_parameter(u32 *hit_handle, struct arena *mem_tmp, c
 		if (t < t_best)
 		{
 			t_best = t;
-			*hit_handle = proxies_hit[i];
+			slot->index = proxies_hit[i];
+			slot->address = body;
 		}
 	}
 
@@ -748,9 +744,9 @@ physics_pipeline_raycast_parameter_cleanup:
 	return t_best;
 }
 
-u32 physics_pipeline_raycast(u32 *hit_handle, struct arena *mem_tmp, const struct physics_pipeline *pipeline, const struct ray *ray)
+u32 physics_pipeline_raycast(struct arena *mem_tmp, struct slot *slot, const struct physics_pipeline *pipeline, const struct ray *ray)
 {
-	return (physics_pipeline_raycast_parameter(hit_handle, mem_tmp, pipeline, ray) != F32_INFINITY) ? 1 : 0;
+	return (physics_pipeline_raycast_parameter(mem_tmp, slot, pipeline, ray) != F32_INFINITY) ? 1 : 0;
 }
 
 struct physics_event *physics_pipeline_event_push(struct physics_pipeline *pipeline)

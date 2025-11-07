@@ -47,6 +47,7 @@ struct rigid_body
 	struct array_list_intrusive_node header;	/* node header, MUST BE AT THE TOP OF STRUCT! */
 	struct AABB local_box;	/* bounding AABB */
 
+	u32 entity;
 	i32 proxy;
 	f32 margin;
 	u32 flags;

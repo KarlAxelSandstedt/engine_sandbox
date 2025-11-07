@@ -247,6 +247,6 @@ struct island_solve_input
  * - writes to island->contacts (unique to thread, memory in c_db)
  * - writes to island->bodies	(unique to thread, memory in pipeline)
  */
-void *thread_island_solve(void *task_input);
+void	thread_island_solve(void *task_input);
 
 #endif
