@@ -188,3 +188,151 @@ void dll_slot_set_not_in_list(struct dll *dll, void *slot)
 	*node_prev = DLL_NOT_IN_LIST;
 	*node_next = DLL_NOT_IN_LIST;
 }
+
+struct nll nll_alloc_internal(struct arena *mem, 
+		const u32 initial_length, 
+		const u64 data_size, 
+		const u64 pool_slot_offset, 
+		const u64 next_offset, 
+		const u64 prev_offset, 
+		u32 (*index_in_prev_node)(struct nll *, void **, const void *, const u32),
+	       	u32 (*index_in_next_node)(struct nll *, void **, const void *, const u32),
+		const u32 growable)
+{
+	kas_assert(!growable || !mem);
+	kas_assert(initial_length);
+	
+	struct nll net =
+	{
+		.index_in_prev_node = index_in_prev_node,
+	       	.index_in_next_node = index_in_next_node,
+		.next_offset = next_offset,
+		.prev_offset = prev_offset,
+	};
+
+	if (mem)
+	{
+		net.heap_allocated = 0;
+		net.pool = pool_alloc_internal(mem, initial_length, data_size, pool_slot_offset, U64_MAX, 0);
+	}
+	else
+	{
+		net.heap_allocated = 1;
+		net.pool = pool_alloc_internal(mem, initial_length, data_size, pool_slot_offset, U64_MAX, growable);
+	}
+
+	if (!net.pool.length)
+	{
+		log_string(T_SYSTEM, S_FATAL, "Failed to allocate net list");
+		fatal_cleanup_and_exit(kas_thread_self_tid());
+	}
+
+	struct slot slot = pool_add(&net.pool);
+	u32 *next = (u32 *)((u8 *) slot.address + net.next_offset);
+	u32 *prev = (u32 *)((u8 *) slot.address + net.prev_offset);
+	next[0] = NLL_NULL;
+	next[1] = NLL_NULL;
+	prev[0] = NLL_NULL;
+	prev[1] = NLL_NULL;
+	kas_assert(slot.index == NLL_NULL);
+
+	return net;	
+}
+
+void nll_dealloc(struct nll *net)
+{
+	if (net->heap_allocated)
+	{
+		pool_dealloc(&net->pool);
+	}
+}
+
+void nll_flush(struct nll *net)
+{
+	pool_flush(&net->pool);
+	struct slot slot = pool_add(&net->pool);
+	u32 *next = (u32 *)((u8 *) slot.address + net->next_offset);
+	u32 *prev = (u32 *)((u8 *) slot.address + net->prev_offset);
+	next[0] = NLL_NULL;
+	next[1] = NLL_NULL;
+	prev[0] = NLL_NULL;
+	prev[1] = NLL_NULL;
+	kas_assert(slot.index == NLL_NULL);
+}
+
+struct slot nll_add(struct nll *net, void *data, const u32 next_0, const u32 next_1)
+{
+	struct slot slot = pool_add(&net->pool);
+
+	/* copy over internal data required in index_in_prev_node function call */
+	memcpy((u8*) data + net->pool.slot_allocation_offset, (u8*) slot.address + net->pool.slot_allocation_offset, sizeof(u32));
+	memcpy(slot.address, data, net->pool.slot_size);
+
+	u32 *next = (u32 *)((u8 *) slot.address + net->next_offset);
+	u32 *prev = (u32 *)((u8 *) slot.address + net->prev_offset);
+
+	next[0] = next_0;
+	next[1] = next_1;
+	prev[0] = NLL_NULL;
+	prev[1] = NLL_NULL;
+
+       	u8 *node_next_0;
+       	u8 *node_next_1;
+
+	const u32 index_next_0 = net->index_in_next_node(net, (void **) &node_next_0, slot.address, 0);
+	const u32 index_next_1 = net->index_in_next_node(net, (void **) &node_next_1, slot.address, 1);
+
+	prev = (u32 *)((u8 *) node_next_0 + net->prev_offset);
+	kas_assert_string(next_0 == NLL_NULL || prev[index_next_0] == NLL_NULL, "either the next node must be the NULL NODE, indicating a list of size 1, or the previous head in the list which should have its previous node as the NULL NODE");
+	prev[index_next_0] = slot.index;
+	
+	prev = (u32 *)((u8 *) node_next_1 + net->prev_offset);
+	kas_assert_string(next_1 == NLL_NULL || prev[index_next_1] == NLL_NULL, "either the next node must be the NULL NODE, indicating a list of size 1, or the previous head in the list which should have its previous node as the NULL NODE");
+	prev[index_next_1] = slot.index;
+
+	u8 *tmp;
+	kas_assert(next_0 == NLL_NULL || net->index_in_prev_node(net, (void **) &tmp, node_next_0, index_next_0) == 0);
+	kas_assert(next_1 == NLL_NULL || net->index_in_prev_node(net, (void **) &tmp, node_next_1, index_next_1) == 1);
+
+	return slot;
+}
+
+void nll_remove(struct nll *net, const u32 index)
+{
+	u8 *node = pool_address(&net->pool, index);
+	u32 *node_next = (u32 *)((u8 *) node + net->next_offset);
+	u32 *node_prev = (u32 *)((u8 *) node + net->prev_offset);
+
+	u8 *node_prev_0, *node_prev_1, *node_next_0, *node_next_1; 
+	const u32 index_prev_0 = net->index_in_prev_node(net, (void **) &node_prev_0, node, 0);
+	const u32 index_prev_1 = net->index_in_prev_node(net, (void **) &node_prev_1, node, 1);
+	const u32 index_next_0 = net->index_in_next_node(net, (void **) &node_next_0, node, 0);
+	const u32 index_next_1 = net->index_in_next_node(net, (void **) &node_next_1, node, 1);
+
+	u32 *node_prev_0_next = (u32 *)((u8 *) node_prev_0 + net->next_offset) + index_prev_0;
+	u32 *node_prev_1_next = (u32 *)((u8 *) node_prev_1 + net->next_offset) + index_prev_1;
+	u32 *node_next_0_prev = (u32 *)((u8 *) node_next_0 + net->prev_offset) + index_next_0;
+	u32 *node_next_1_prev = (u32 *)((u8 *) node_next_1 + net->prev_offset) + index_next_1;
+
+	kas_assert(node_prev[0] == NLL_NULL || *node_prev_0_next == index);
+	kas_assert(node_prev[1] == NLL_NULL || *node_prev_1_next == index);
+	kas_assert(node_next[0] == NLL_NULL || *node_next_0_prev == index);
+	kas_assert(node_next[1] == NLL_NULL || *node_next_1_prev == index);
+
+	*node_prev_0_next = node_next[0];
+	*node_prev_1_next = node_next[1];
+	*node_next_0_prev = node_prev[0];
+	*node_next_1_prev = node_prev[1];
+
+	pool_remove(&net->pool, index);
+}
+
+void *nll_address(const struct nll *net, const u32 index)
+{
+	return pool_address(&net->pool, index);
+}
+
+u32 nll_index(const struct nll *net, const void *address)
+{
+	return pool_index(&net->pool, address);
+}

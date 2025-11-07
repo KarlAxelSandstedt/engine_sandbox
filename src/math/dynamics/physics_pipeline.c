@@ -219,7 +219,7 @@ struct slot physics_pipeline_rigid_body_alloc(struct physics_pipeline *pipeline,
 			body->local_box.hw[2] + body->margin);
 	body->proxy = dbvt_insert(&pipeline->dynamic_tree, slot.index, &proxy);
 
-	body->first_contact_index = NET_LIST_NODE_NULL_INDEX;
+	body->first_contact_index = NLL_NULL;
 	if (body->flags & RB_DYNAMIC)
 	{
 		is_db_init_island_from_body(pipeline, slot.index);
@@ -369,7 +369,7 @@ static void internal_parallel_push_contacts(struct arena *mem_frame, struct phys
 			{
 				const struct contact *c = c_db_add_contact(pipeline, out->cm + j, out->cm[j].i1, out->cm[j].i2);
 				/* add to new links if needed */
-				const u32 index = (u32) net_list_index(pipeline->c_db.contacts, c);
+				const u32 index = (u32) nll_index(&pipeline->c_db.contact_net, c);
 				if (index >= pipeline->c_db.contacts_persistent_usage.bit_count
 					 || bit_vec_get_bit(&pipeline->c_db.contacts_persistent_usage, index) == 0)
 				{
@@ -389,7 +389,7 @@ static void internal_merge_islands(struct arena *mem_frame, struct physics_pipel
 	KAS_TASK(__func__, T_PHYSICS);
 	for (u32 i = 0; i < pipeline->contact_new_count; ++i)
 	{
-		struct contact *c = net_list_address(pipeline->c_db.contacts, pipeline->contact_new[i]);
+		struct contact *c = nll_address(&pipeline->c_db.contact_net, pipeline->contact_new[i]);
 		const struct rigid_body *body1 = pool_address(&pipeline->body_pool, c->cm.i1);
 		const struct rigid_body *body2 = pool_address(&pipeline->body_pool, c->cm.i2);
 		const u32 is1 = body1->island_index;
@@ -423,7 +423,7 @@ static void internal_merge_islands(struct arena *mem_frame, struct physics_pipel
 static void internal_remove_contacts_and_tag_split_islands(struct arena *mem_frame, struct physics_pipeline *pipeline)
 {
 	KAS_TASK(__func__, T_PHYSICS);
-	if (pipeline->c_db.contacts->count == 0) 
+	if (pipeline->c_db.contact_net.pool.count == 0) 
 	{ 
 		KAS_END;
 		return; 
@@ -457,7 +457,7 @@ static void internal_remove_contacts_and_tag_split_islands(struct arena *mem_fra
 				: 0;
 		
 			//fprintf(stderr, " %lu", ci);
-			struct contact *c = net_list_address(pipeline->c_db.contacts, ci);
+			struct contact *c = nll_address(&pipeline->c_db.contact_net, ci);
 
 			/* tag island, if any exist, to split */
 			const u32 b1 = CONTACT_KEY_TO_BODY_0(c->key);

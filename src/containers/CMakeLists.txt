@@ -16,8 +16,6 @@ add_library(containers STATIC
 	array_list.h
 	list.c
 	list.h
-	net_list.c
-	net_list.h
 	hierarchy_index.c
 	hierarchy_index.h
 	string_database.c

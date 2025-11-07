@@ -28,7 +28,6 @@
 #include "hash_map.h"
 #include "bit_vector.h"
 #include "array_list.h"
-#include "net_list.h"
 #include "kas_math.h"
 
 struct rigid_body;
@@ -40,11 +39,9 @@ struct physics_pipeline;
 =================================================================================================================
 */
 
-#define C_DB_NULL 	NET_LIST_NODE_NULL_INDEX
-
 struct contact
 {
-	struct net_list_node	header;	/* net list intrusive header, MAY NOT BE MOVED FROM TOP */
+	NLL_SLOT_STATE;
 	struct contact_manifold cm;
 	u64 			key;
 
@@ -80,11 +77,11 @@ struct contact_database
 	 * contact net list nodes are owned as follows:
 	 *
 	 * contact->key & (0xffffffff00000000) >> 32 identifier owns slot 0
-	 * contact->key & (0x=0000000ffffffff) >>  0 identifier owns slot 1
+	 * contact->key & (0x00000000ffffffff) >>  0 identifier owns slot 1
 	 *
 	 * i.e. the smaller index owns slot 0 and the larger index owns slot 1.
 	 */
-	struct net_list *contacts;
+	struct nll	contact_net;
 	struct hash_map *contact_map;		/* growable */
 
 	/* PERSISTENT DATA, GROWABLE, keeps track of which slots in contacts are currently being used. */
