@@ -17,9 +17,8 @@
 ==========================================================================
 */
 
-#include "contact_database.h"
 #include "sys_public.h"
-#include "physics_pipeline.h"
+#include "dynamics.h"
 
 u32 c_db_index_in_previous_contact_node(struct net_list *net, void **prev_node, const void *cur_node, const u32 cur_index)
 {
@@ -92,8 +91,8 @@ void c_db_validate(const struct physics_pipeline *pipeline)
 			//	       c->header.prev[0],	
 			//	       c->header.prev[1]);
 
-			const struct rigid_body *b1 = physics_pipeline_rigid_body_lookup(pipeline, c->cm.i1);
-			const struct rigid_body *b2 = physics_pipeline_rigid_body_lookup(pipeline, c->cm.i2);
+			const struct rigid_body *b1 = pool_address(&pipeline->body_pool, c->cm.i1);
+			const struct rigid_body *b2 = pool_address(&pipeline->body_pool, c->cm.i2);
 
 			u32 prev, k, found; 
 			prev = NET_LIST_NODE_NULL_INDEX;
@@ -184,10 +183,6 @@ void c_db_clear_frame(struct contact_database *c_db)
 	c_db->contacts_frame_usage.bits = NULL;
 	c_db->contacts_frame_usage.bit_count = 0;
 	c_db->contacts_frame_usage.block_count = 0;
-	c_db->broken_list = NULL;
-	c_db->new_list = NULL;
-	c_db->broken_count = 0;
-	c_db->new_count = 0;
 }
 
 struct contact *c_db_add_contact(struct physics_pipeline *pipeline, const struct contact_manifold *cm, const u32 i1, const u32 i2)
@@ -204,8 +199,8 @@ struct contact *c_db_add_contact(struct physics_pipeline *pipeline, const struct
 		b2 = i1;
 	}
 
-	struct rigid_body *body1 = physics_pipeline_rigid_body_lookup(pipeline, b1);
-	struct rigid_body *body2 = physics_pipeline_rigid_body_lookup(pipeline, b2);
+	struct rigid_body *body1 = pool_address(&pipeline->body_pool, b1);
+	struct rigid_body *body2 = pool_address(&pipeline->body_pool, b2);
 
 	const u64 key = key_gen_u32_u32(b1, b2);
 	kas_assert(b1 == CONTACT_KEY_TO_BODY_0(key));
@@ -222,8 +217,8 @@ struct contact *c_db_add_contact(struct physics_pipeline *pipeline, const struct
 		};
 
 		/* smaller valued body owns slot 0, larger valued body owns slot 1 in node header */
-		kas_assert(body1->header.allocated);
-		kas_assert(body2->header.allocated);
+		kas_assert(POOL_SLOT_ALLOCATED(body1));
+		kas_assert(POOL_SLOT_ALLOCATED(body2));
 		const u32 ci = net_list_push(pipeline->c_db.contacts, &cpy, body1->first_contact_index, body2->first_contact_index);
 		body1->first_contact_index = ci;
 		body2->first_contact_index = ci;
@@ -251,8 +246,8 @@ struct contact *c_db_add_contact(struct physics_pipeline *pipeline, const struct
 void c_db_remove_contact(struct physics_pipeline *pipeline, const u64 key, const u32 index)
 {
 	struct contact *c = net_list_address(pipeline->c_db.contacts, index);
-	struct rigid_body *body0 = physics_pipeline_rigid_body_lookup(pipeline, (u32) CONTACT_KEY_TO_BODY_0(c->key));
-	struct rigid_body *body1 = physics_pipeline_rigid_body_lookup(pipeline, (u32) CONTACT_KEY_TO_BODY_1(c->key));
+	struct rigid_body *body0 = pool_address(&pipeline->body_pool, (u32) CONTACT_KEY_TO_BODY_0(c->key));
+	struct rigid_body *body1 = pool_address(&pipeline->body_pool, (u32) CONTACT_KEY_TO_BODY_1(c->key));
 	
 	if (body0->first_contact_index == index)
 	{
@@ -271,7 +266,7 @@ void c_db_remove_contact(struct physics_pipeline *pipeline, const u64 key, const
 
 void c_db_remove_body_contacts(struct physics_pipeline *pipeline, const u32 body_index)
 {
-	struct rigid_body *body = array_list_intrusive_address(pipeline->body_list, body_index);
+	struct rigid_body *body = pool_address(&pipeline->body_pool, body_index);
 	u32 ci = body->first_contact_index;
 	body->first_contact_index = C_DB_NULL;
 	while (ci != C_DB_NULL)
@@ -281,12 +276,12 @@ void c_db_remove_body_contacts(struct physics_pipeline *pipeline, const u32 body
 		if (body_index == CONTACT_KEY_TO_BODY_0(c->key))
 		{
 			next_i = 0;
-			body = array_list_intrusive_address(pipeline->body_list, CONTACT_KEY_TO_BODY_1(c->key));
+			body = pool_address(&pipeline->body_pool, CONTACT_KEY_TO_BODY_1(c->key));
 		}
 		else
 		{
 			next_i = 1;
-			body = array_list_intrusive_address(pipeline->body_list, CONTACT_KEY_TO_BODY_0(c->key));
+			body = pool_address(&pipeline->body_pool, CONTACT_KEY_TO_BODY_0(c->key));
 		}
 
 		if (body->first_contact_index == ci)
@@ -308,7 +303,7 @@ u32 *c_db_remove_static_contacts_and_store_affected_islands(struct arena *mem, u
 	u32 *array = (u32 *) mem->stack_ptr;
 	*count = 0;
 
-	struct rigid_body *body = array_list_intrusive_address(pipeline->body_list, static_index);
+	struct rigid_body *body = pool_address(&pipeline->body_pool, static_index);
 	kas_assert(body->island_index == ISLAND_STATIC);
 	u32 ci = body->first_contact_index;
 	body->first_contact_index = C_DB_NULL;
@@ -319,12 +314,12 @@ u32 *c_db_remove_static_contacts_and_store_affected_islands(struct arena *mem, u
 		if (static_index == CONTACT_KEY_TO_BODY_0(c->key))
 		{
 			next_i = 0;
-			body = array_list_intrusive_address(pipeline->body_list, CONTACT_KEY_TO_BODY_1(c->key));
+			body = pool_address(&pipeline->body_pool, CONTACT_KEY_TO_BODY_1(c->key));
 		}
 		else
 		{
 			next_i = 1;
-			body = array_list_intrusive_address(pipeline->body_list, CONTACT_KEY_TO_BODY_0(c->key));
+			body = pool_address(&pipeline->body_pool, CONTACT_KEY_TO_BODY_0(c->key));
 		}
 
 		if (body->first_contact_index == ci)

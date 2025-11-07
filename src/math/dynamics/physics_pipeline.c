@@ -19,13 +19,12 @@
 
 #include <stdlib.h>
 #include <string.h>
-#include "physics_pipeline.h"
-#include "contact_solver.h"
-#include "collision.h"
+#include <float.h>
+
+#include "dynamics.h"
 #include "kas_profiler.h"
-#include "island.h"
 #include "float32.h"
-#include "bit_vector.h"
+
 
 struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 initial_size, const u64 ns_tick, const u64 frame_memory, struct string_database *shape_db, struct string_database *prefab_db)
 {
@@ -38,13 +37,8 @@ struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 init
 		.ns_tick = ns_tick,
 		.ns_elapsed = 0,
 		.frame = arena_alloc(frame_memory),
-		.event_count = 0,
 		.frames_completed = 0,
 	};
-
-	vec4_set(pipeline.debug.island_static_color, 0.6f, 0.6f, 0.6f, 1.0f);
-	vec4_set(pipeline.debug.island_sleeping_color, 113.0f/256.0f, 241.0f/256.0f, 157.0f/256.0f, 1.0f);
-	vec4_set(pipeline.debug.island_awake_color, 255.0f/256.0f, 36.0f/256.0f, 48.0f/256.0f, 1.0f);
 
 	static u32 init_solver_once = 0;
 	if (!init_solver_once)
@@ -66,12 +60,16 @@ struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 init
 		f32 sleep_angular_velocity_sq_limit = 0.01f*0.01f*2.0f*F32_PI;
 		contact_solver_config_init(iteration_count, block_solver, warmup_solver, gravity, baumgarte_constant, max_condition, linear_dampening, angular_dampening, linear_slop, restitution_threshold, sleep_enabled, sleep_time_threshold, sleep_linear_velocity_sq_limit, sleep_angular_velocity_sq_limit);
 
-		pipeline.event_len = 1024;
-		pipeline.event = malloc(pipeline.event_len * sizeof(struct physics_event));
 	}
 
 	kas_assert_string(is_power_of_two(initial_size), "For simplicity of future data structures, expect pipeline sizes to be powers of two");
-	pipeline.body_list = array_list_intrusive_alloc(NULL, initial_size, sizeof(struct rigid_body), ARRAY_LIST_GROWABLE);
+
+	pipeline.body_pool = pool_alloc(NULL, initial_size, struct rigid_body, GROWABLE);
+	pipeline.body_marked_list = dll_init(struct rigid_body);
+	pipeline.body_non_marked_list = dll_init(struct rigid_body);
+
+	pipeline.event_pool = pool_alloc(NULL, 256, struct physics_event, GROWABLE);
+	pipeline.event_list = dll_init(struct physics_event);
 
 	pipeline.c_state.margin_on = 1;
 	pipeline.c_state.margin = COLLISION_MARGIN_DEFAULT;
@@ -90,22 +88,27 @@ void physics_pipeline_free(struct physics_pipeline *pipeline)
 	dbvt_free(&pipeline->dynamic_tree);
 	c_db_free(&pipeline->c_db);
 	is_db_free(&pipeline->is_db);
-	array_list_intrusive_free(pipeline->body_list);
-	free(pipeline->event);
+	pool_dealloc(&pipeline->body_pool);
+	pool_dealloc(&pipeline->event_pool);
 }
 
 void physics_pipeline_flush(struct physics_pipeline *pipeline)
 {
 	collision_state_clear_frame(&pipeline->c_state);
-	array_list_intrusive_flush(pipeline->body_list);
 	dbvt_flush(&pipeline->dynamic_tree);
 	c_db_flush(&pipeline->c_db);
 	is_db_flush(&pipeline->is_db);
 	
+	pool_flush(&pipeline->body_pool);
+	dll_flush(&pipeline->body_marked_list);
+	dll_flush(&pipeline->body_non_marked_list);
+
+	pool_flush(&pipeline->event_pool);
+	dll_flush(&pipeline->event_list);
+
 	arena_flush(&pipeline->frame);
 	pipeline->frames_completed = 0;
 	pipeline->ns_elapsed = 0;
-	pipeline->event_count = 0;
 }
 
 void physics_pipeline_tick(struct physics_pipeline *pipeline)
@@ -123,92 +126,6 @@ void physics_pipeline_tick(struct physics_pipeline *pipeline)
 	KAS_END;
 }
 
-struct rigid_body *physics_pipeline_rigid_body_lookup(const struct physics_pipeline *pipeline, const u32 handle)
-{
-
-	struct rigid_body *body = array_list_intrusive_address(pipeline->body_list, handle);
-	return (body->header.allocated) 
-		? body 
-		: NULL;
-}
-
-void physics_pipeline_rigid_body_dealloc(struct physics_pipeline *pipeline, const u32 handle)
-{
-	struct rigid_body *body = physics_pipeline_rigid_body_lookup(pipeline, handle);
-	kas_assert(body->header.allocated);
-
-	string_database_dereference(pipeline->shape_db, body->shape_handle);
-	dbvt_remove(&pipeline->dynamic_tree, body->proxy);
-	if (body->island_index != ISLAND_STATIC)
-	{
-		is_db_island_remove_body_resources(pipeline, body->island_index, handle);
-		c_db_remove_body_contacts(pipeline, handle);
-		if (bit_vec_get_bit(&pipeline->is_db.island_usage, body->island_index) && ((struct island *) array_list_address(pipeline->is_db.islands, body->island_index))->contact_count > 0)
-		{
-			is_db_split_island(&pipeline->frame, pipeline, body->island_index);
-		}
-	}
-	else
-	{
-		arena_push_record(&pipeline->frame);
-		u32 island_count;
-		u32 *island = c_db_remove_static_contacts_and_store_affected_islands(&pipeline->frame, &island_count, pipeline, handle);
-		for (u32 i = 0; i < island_count; ++i)
-		{
-			struct island *is = array_list_address(pipeline->is_db.islands, island[i]);
-			struct is_index_entry *prev = NULL;
-			struct is_index_entry *entry;
-			u32 prev_index = ISLAND_NULL;
-			u32 index = is->contact_first;
-			do 
-			{
-				entry = array_list_address(pipeline->is_db.island_contact_lists, index);
-				const u32 next = entry->next;
-				if (bit_vec_get_bit(&pipeline->c_db.contacts_persistent_usage, entry->index) == 0)
-				{
-					if (prev)
-					{
-						prev->next = entry->next;
-					}
-					else
-					{
-						is->contact_first = entry->next;
-					}
-					entry->next = ISLAND_NULL;
-					entry->index = ISLAND_NULL;
-					array_list_remove_index(pipeline->is_db.island_contact_lists, index);
-					is->contact_count -= 1;
-				}
-				else
-				{
-					prev_index = index;
-					prev = entry;
-				}
-				index = next;
-			} 
-			while (index != ISLAND_NULL);
-
-			is->contact_last = prev_index;
-			if (is->contact_count > 0)
-			{
-				is_db_split_island(&pipeline->frame, pipeline, island[i]);
-			}
-			else
-			{
-				is->flags &= ~(ISLAND_SPLIT);
-				if (!(is->flags & ISLAND_AWAKE))
-				{
-					PHYSICS_EVENT_ISLAND_AWAKE(pipeline, island[i]);	
-				}
-				is->flags |= ISLAND_SLEEP_RESET | ISLAND_AWAKE;
-			}
-		}
-		arena_pop_record(&pipeline->frame);
-	}
-	array_list_intrusive_remove(pipeline->body_list, body);
-	PHYSICS_EVENT_BODY_REMOVED(pipeline, handle);
-}
-
 void physics_pipeline_validate(const struct physics_pipeline *pipeline)
 {
 	KAS_TASK(__func__, T_PHYSICS);
@@ -217,13 +134,60 @@ void physics_pipeline_validate(const struct physics_pipeline *pipeline)
 	KAS_END;
 }
 
+static void rigid_body_update_local_box(struct rigid_body *body, const struct collision_shape *shape)
+{
+	//TODO: Place in lookup table 
+	//TODO: Does not take into account rotations
+
+	vec3 min = { FLT_MAX, FLT_MAX, FLT_MAX };
+	vec3 max = { -FLT_MAX, -FLT_MAX, -FLT_MAX };
+
+	vec3 v;
+	mat3 rot;
+	quat_to_mat3(rot, body->rotation);
+
+	if (body->shape_type == COLLISION_SHAPE_CONVEX_HULL)
+	{
+		for (u32 i = 0; i < shape->hull.v_count; ++i)
+		{
+			mat3_vec_mul(v, rot, shape->hull.v[i]);
+			min[0] = f32_min(min[0], v[0]); 
+			min[1] = f32_min(min[1], v[1]);			
+			min[2] = f32_min(min[2], v[2]);			
+                                                   
+			max[0] = f32_max(max[0], v[0]);			
+			max[1] = f32_max(max[1], v[1]);			
+			max[2] = f32_max(max[2], v[2]);			
+		}
+	}
+	else if (body->shape_type == COLLISION_SHAPE_SPHERE)
+	{
+		const f32 r = shape->sphere.radius;
+		vec3_set(min, -r, -r, -r);
+		vec3_set(max, r, r, r);
+	}
+	else if (body->shape_type == COLLISION_SHAPE_CAPSULE)
+	{
+		mat3_vec_mul(v, rot, shape->capsule.p1);
+		vec3_set(max, 
+			f32_max(-v[0], v[0]),
+			f32_max(-v[1], v[1]),
+			f32_max(-v[2], v[2]));
+		vec3_add_constant(max, shape->capsule.radius);
+		vec3_negative_to(min, max);
+	}
+
+	vec3_sub(body->local_box.hw, max, min);
+	vec3_mul_constant(body->local_box.hw, 0.5f);
+	vec3_add(body->local_box.center, min, body->local_box.hw);
+}
+
 struct slot physics_pipeline_rigid_body_alloc(struct physics_pipeline *pipeline, struct rigid_body_prefab *prefab, const vec3 position, const quat rotation, const u32 entity)
 {
-	struct slot slot = array_list_intrusive_add(pipeline->body_list);
+	struct slot slot = pool_add(&pipeline->body_pool);
 	PHYSICS_EVENT_BODY_NEW(pipeline, slot.index);
 	struct rigid_body *body = slot.address;
-
-	memset(((u8 *) body) + sizeof(struct array_list_intrusive_node), 0, sizeof(struct rigid_body) - sizeof(struct array_list_intrusive_node));
+	dll_append(&pipeline->body_non_marked_list, pipeline->body_pool.buf, slot.index);
 
 	body->entity = entity;
 	vec3_copy(body->position, position);
@@ -234,7 +198,6 @@ struct slot physics_pipeline_rigid_body_alloc(struct physics_pipeline *pipeline,
 	const u32 dynamic_flag = (prefab->dynamic) ? RB_DYNAMIC : 0;
 	body->flags = RB_ACTIVE | (g_solver_config->sleep_enabled * RB_AWAKE) | dynamic_flag;
 	body->margin = 0.25f;
-
 
 	const struct collision_shape *shape = string_database_address(pipeline->shape_db, prefab->shape);
 	const struct slot shape_slot = string_database_reference(pipeline->shape_db, shape->id);
@@ -248,9 +211,12 @@ struct slot physics_pipeline_rigid_body_alloc(struct physics_pipeline *pipeline,
 	body->friction = prefab->friction;
 	body->low_velocity_time = 0.0f;
 
-	struct AABB proxy;
 	rigid_body_update_local_box(body, shape);
-	rigid_body_proxy(&proxy, body);
+	struct AABB proxy;
+	vec3_add(proxy.center, body->local_box.center, body->position);
+	vec3_set(proxy.hw, body->local_box.hw[0] + body->margin,
+			body->local_box.hw[1] + body->margin,
+			body->local_box.hw[2] + body->margin);
 	body->proxy = dbvt_insert(&pipeline->dynamic_tree, slot.index, &proxy);
 
 	body->first_contact_index = NET_LIST_NODE_NULL_INDEX;
@@ -272,11 +238,11 @@ static void internal_update_dynamic_tree(struct physics_pipeline *pipeline)
 	struct AABB world_AABB;
 
 	const u32 flags = RB_ACTIVE | RB_DYNAMIC | (g_solver_config->sleep_enabled * RB_AWAKE);
-	//TODO use dll...
-	for (u32 i = 0; i < pipeline->body_list->max_count; ++i)
+	struct rigid_body *b = NULL;
+	for (u32 i = pipeline->body_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(b))
 	{
-		struct rigid_body *b = physics_pipeline_rigid_body_lookup(pipeline, i);
-		if (b && (b->flags & flags) == flags)
+		struct rigid_body *b = pool_address(&pipeline->body_pool, i);
+		if ((b->flags & flags) == flags)
 		{
 			const struct collision_shape *shape = string_database_address(pipeline->shape_db, b->shape_handle);
 			rigid_body_update_local_box(b, shape);
@@ -328,8 +294,8 @@ static void thread_push_contacts(void *task_addr)
 
 	for (u64 i = 0; i < range->count; ++i)
 	{
-		b1 = physics_pipeline_rigid_body_lookup(pipeline, proxy_overlap[i].id1);
-		b2 = physics_pipeline_rigid_body_lookup(pipeline, proxy_overlap[i].id2);
+		b1 = pool_address(&pipeline->body_pool, proxy_overlap[i].id1);
+		b2 = pool_address(&pipeline->body_pool, proxy_overlap[i].id2);
 
 		if (body_body_contact_manifold(&worker->mem_frame, out->cm + out->cm_count, pipeline, b1, b2, margin))
 		{
@@ -391,7 +357,8 @@ static void internal_parallel_push_contacts(struct arena *mem_frame, struct phys
 	kas_assert(pipeline->c_db.contacts_frame_usage.block_count == pipeline->c_db.contacts_persistent_usage.block_count);
 	kas_assert(pipeline->c_db.contacts_frame_usage.bit_count == pipeline->c_db.contacts_persistent_usage.bit_count);
 
-	pipeline->c_db.new_list = (u32 *) mem_frame->stack_ptr;
+	pipeline->contact_new_count = 0;
+	pipeline->contact_new = (u32 *) mem_frame->stack_ptr;
 	if (bundle)
 	{
 		//fprintf(stderr, "A: {");
@@ -406,7 +373,7 @@ static void internal_parallel_push_contacts(struct arena *mem_frame, struct phys
 				if (index >= pipeline->c_db.contacts_persistent_usage.bit_count
 					 || bit_vec_get_bit(&pipeline->c_db.contacts_persistent_usage, index) == 0)
 				{
-						pipeline->c_db.new_count += 1;
+						pipeline->contact_new_count += 1;
 						arena_push_packed_memcpy(mem_frame, &index, sizeof(index));
 				}
 				//fprintf(stderr, " %u", index);
@@ -420,11 +387,13 @@ static void internal_parallel_push_contacts(struct arena *mem_frame, struct phys
 static void internal_merge_islands(struct arena *mem_frame, struct physics_pipeline *pipeline)
 {
 	KAS_TASK(__func__, T_PHYSICS);
-	for (u32 i = 0; i < pipeline->c_db.new_count; ++i)
+	for (u32 i = 0; i < pipeline->contact_new_count; ++i)
 	{
-		struct contact *c = net_list_address(pipeline->c_db.contacts, pipeline->c_db.new_list[i]);
-		const u32 is1 = ((struct rigid_body *)pipeline->body_list->data)[c->cm.i1].island_index;
-		const u32 is2 = ((struct rigid_body *)pipeline->body_list->data)[c->cm.i2].island_index;
+		struct contact *c = net_list_address(pipeline->c_db.contacts, pipeline->contact_new[i]);
+		const struct rigid_body *body1 = pool_address(&pipeline->body_pool, c->cm.i1);
+		const struct rigid_body *body2 = pool_address(&pipeline->body_pool, c->cm.i2);
+		const u32 is1 = body1->island_index;
+		const u32 is2 = body2->island_index;
 		const u32 d1 = (is1 != ISLAND_STATIC) ? 0x2 : 0x0;
 		const u32 d2 = (is2 != ISLAND_STATIC) ? 0x1 : 0x0;
 		switch (d1 | d2)
@@ -432,19 +401,19 @@ static void internal_merge_islands(struct arena *mem_frame, struct physics_pipel
 			/* dynamic-dynamic */
 			case 0x3: 
 			{
-				is_db_merge_islands(pipeline, pipeline->c_db.new_list[i], c->cm.i1, c->cm.i2);
+				is_db_merge_islands(pipeline, pipeline->contact_new[i], c->cm.i1, c->cm.i2);
 			} break;
 
 			/* dynamic-static */
 			case 0x2:
 			{
-				is_db_add_contact_to_island(&pipeline->is_db, is1, pipeline->c_db.new_list[i]);
+				is_db_add_contact_to_island(&pipeline->is_db, is1, pipeline->contact_new[i]);
 			} break;
 
 			/* static-dynamic */
 			case 0x1:
 			{
-				is_db_add_contact_to_island(&pipeline->is_db, is2, pipeline->c_db.new_list[i]);
+				is_db_add_contact_to_island(&pipeline->is_db, is2, pipeline->contact_new[i]);
 			} break;
 		}
 	}
@@ -493,13 +462,15 @@ static void internal_remove_contacts_and_tag_split_islands(struct arena *mem_fra
 			/* tag island, if any exist, to split */
 			const u32 b1 = CONTACT_KEY_TO_BODY_0(c->key);
 			const u32 b2 = CONTACT_KEY_TO_BODY_1(c->key);
-			if (((struct rigid_body *)pipeline->body_list->data)[b1].island_index != ISLAND_STATIC)
+			const struct rigid_body *body1 = pool_address(&pipeline->body_pool, b1);
+			const struct rigid_body *body2 = pool_address(&pipeline->body_pool, b2);
+			if (body1->island_index != ISLAND_STATIC)
 			{
 				struct island *is = is_db_body_to_island(pipeline, b1);
 				assert(is->contact_count > 0);
 				is_db_tag_for_splitting(pipeline, b1);
 			}
-			else if (((struct rigid_body *)pipeline->body_list->data)[b2].island_index != ISLAND_STATIC)
+			else if (body2->island_index != ISLAND_STATIC)
 			{
 				struct island *is = is_db_body_to_island(pipeline, b2);
 				assert(is->contact_count > 0);
@@ -602,7 +573,6 @@ static void internal_parallel_solve_islands(struct arena *mem_frame, struct phys
 			struct physics_event *event = physics_pipeline_event_push(pipeline);
 			event->type = PHYSICS_EVENT_BODY_ORIENTATION;
 			event->body = output->bodies[i];
-			event->ns = pipeline->frames_completed * pipeline->ns_tick;
 		}
 	}
 
@@ -616,11 +586,11 @@ void physics_pipeline_enable_sleeping(struct physics_pipeline *pipeline)
 	{
 		g_solver_config->sleep_enabled = 1;
 		const u32 body_flags = RB_ACTIVE | RB_DYNAMIC;
-		//TODO only want to iterate over stuff once...
-		for (u32 i = 0; i < pipeline->body_list->max_count; ++i)
+		struct rigid_body *body = NULL;
+		for (u32 i = pipeline->body_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(body))
 		{
-			struct rigid_body *body = physics_pipeline_rigid_body_lookup(pipeline, i);
-			if (body->header.allocated && (body->flags & body_flags))
+			struct rigid_body *body = pool_address(&pipeline->body_pool, i);
+			if (body->flags & body_flags)
 			{
 				body->flags |= RB_AWAKE;
 			}
@@ -642,9 +612,10 @@ void physics_pipeline_disable_sleeping(struct physics_pipeline *pipeline)
 	{
 		g_solver_config->sleep_enabled = 0;
 		const u32 body_flags = RB_ACTIVE | RB_DYNAMIC;
-		for (u32 i = 0; i < pipeline->body_list->max_count; ++i)
+		struct rigid_body *body = NULL;
+		for (u32 i = pipeline->body_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(body))
 		{
-			struct rigid_body *body = physics_pipeline_rigid_body_lookup(pipeline, i);
+			struct rigid_body *body = pool_address(&pipeline->body_pool, i);
 			if (body->flags & body_flags)
 			{
 				body->flags |= RB_AWAKE;
@@ -682,9 +653,112 @@ static void internal_update_contact_solver_config(struct physics_pipeline *pipel
 
 }
 
+static void physics_pipeline_rigid_body_dealloc(struct physics_pipeline *pipeline, const u32 handle)
+{
+	struct rigid_body *body = pool_address(&pipeline->body_pool, handle);
+	kas_assert(POOL_SLOT_ALLOCATED(body));
+
+	string_database_dereference(pipeline->shape_db, body->shape_handle);
+	dbvt_remove(&pipeline->dynamic_tree, body->proxy);
+	if (body->island_index != ISLAND_STATIC)
+	{
+		is_db_island_remove_body_resources(pipeline, body->island_index, handle);
+		c_db_remove_body_contacts(pipeline, handle);
+		if (bit_vec_get_bit(&pipeline->is_db.island_usage, body->island_index) && ((struct island *) array_list_address(pipeline->is_db.islands, body->island_index))->contact_count > 0)
+		{
+			is_db_split_island(&pipeline->frame, pipeline, body->island_index);
+		}
+	}
+	else
+	{
+		arena_push_record(&pipeline->frame);
+		u32 island_count;
+		u32 *island = c_db_remove_static_contacts_and_store_affected_islands(&pipeline->frame, &island_count, pipeline, handle);
+		for (u32 i = 0; i < island_count; ++i)
+		{
+			struct island *is = array_list_address(pipeline->is_db.islands, island[i]);
+			struct is_index_entry *prev = NULL;
+			struct is_index_entry *entry;
+			u32 prev_index = ISLAND_NULL;
+			u32 index = is->contact_first;
+			do 
+			{
+				entry = array_list_address(pipeline->is_db.island_contact_lists, index);
+				const u32 next = entry->next;
+				if (bit_vec_get_bit(&pipeline->c_db.contacts_persistent_usage, entry->index) == 0)
+				{
+					if (prev)
+					{
+						prev->next = entry->next;
+					}
+					else
+					{
+						is->contact_first = entry->next;
+					}
+					entry->next = ISLAND_NULL;
+					entry->index = ISLAND_NULL;
+					array_list_remove_index(pipeline->is_db.island_contact_lists, index);
+					is->contact_count -= 1;
+				}
+				else
+				{
+					prev_index = index;
+					prev = entry;
+				}
+				index = next;
+			} 
+			while (index != ISLAND_NULL);
+
+			is->contact_last = prev_index;
+			if (is->contact_count > 0)
+			{
+				is_db_split_island(&pipeline->frame, pipeline, island[i]);
+			}
+			else
+			{
+				is->flags &= ~(ISLAND_SPLIT);
+				if (!(is->flags & ISLAND_AWAKE))
+				{
+					PHYSICS_EVENT_ISLAND_AWAKE(pipeline, island[i]);	
+				}
+				is->flags |= ISLAND_SLEEP_RESET | ISLAND_AWAKE;
+			}
+		}
+		arena_pop_record(&pipeline->frame);
+	}
+	pool_remove(&pipeline->body_pool, handle);
+	PHYSICS_EVENT_BODY_REMOVED(pipeline, handle);
+}
+
+void physics_pipeline_rigid_body_tag_for_removal(struct physics_pipeline *pipeline, const u32 handle)
+{
+	struct rigid_body *b = pool_address(&pipeline->body_pool, handle);
+	if (!RB_IS_MARKED(b))
+	{
+		b->flags |= RB_MARKED_FOR_REMOVAL;
+		dll_remove(&pipeline->body_non_marked_list, pipeline->body_pool.buf, handle);
+		dll_append(&pipeline->body_marked_list, pipeline->body_pool.buf, handle);
+	}
+}
+
+static void internal_remove_marked_bodies(struct physics_pipeline *pipeline)
+{
+	struct rigid_body *b = NULL;
+	for (u32 i = pipeline->body_marked_list.first; i != DLL_NULL; i = DLL_NEXT(b))
+	{
+		struct rigid_body *b = pool_address(&pipeline->body_pool, i);
+		physics_pipeline_rigid_body_dealloc(pipeline, i);
+	}
+
+	dll_flush(&pipeline->body_non_marked_list);
+}
+
 void internal_physics_pipeline_simulate_frame(struct physics_pipeline *pipeline, const f32 delta)
 {
 	KAS_TASK(__func__, T_PHYSICS);
+
+	//TODO remove marked bodies
+	internal_remove_marked_bodies(pipeline);
 
 	/* update, if possible, any pending values in contact solver config */
 	internal_update_contact_solver_config(pipeline);
@@ -729,7 +803,7 @@ f32 physics_pipeline_raycast_parameter(struct arena *mem_tmp, struct slot *slot,
 	f32 t;
 	for (u32 i = 0; i < proxy_count; ++i)
 	{
-		struct rigid_body *body = physics_pipeline_rigid_body_lookup(pipeline, proxies_hit[i]);
+		struct rigid_body *body = pool_address(&pipeline->body_pool, proxies_hit[i]);
 		t = body_raycast_parameter(pipeline, body, ray);
 		if (t < t_best)
 		{
@@ -751,19 +825,311 @@ u32 physics_pipeline_raycast(struct arena *mem_tmp, struct slot *slot, const str
 
 struct physics_event *physics_pipeline_event_push(struct physics_pipeline *pipeline)
 {
-	if (pipeline->event_count == pipeline->event_len)
-	{
-		const u32 new_len = 2*pipeline->event_len;
-		pipeline->event = realloc(pipeline->event, new_len * sizeof(struct physics_event));
-		if (!pipeline->event)
-		{
-			log(T_SYSTEM, S_FATAL, "Failed to reallocate physics event array to new size[%u], aborting.", new_len);
-			fatal_cleanup_and_exit(kas_thread_self_tid());
-		}
-		pipeline->event_len = new_len;
-	}
-	
-	struct physics_event *event = pipeline->event + pipeline->event_count;
-	pipeline->event_count += 1;
+	struct slot slot = pool_add(&pipeline->event_pool);
+	dll_append(&pipeline->event_list, pipeline->event_pool.buf, slot.index);
+	struct physics_event *event = slot.address;
+	event->ns = pipeline->frames_completed * pipeline->ns_tick;
 	return event;
+}
+
+#define VOL	0 
+#define T_X 	1
+#define T_Y 	2
+#define T_Z 	3
+#define T_XX	4
+#define T_YY	5
+#define T_ZZ	6
+#define T_XY	7
+#define T_YZ	8
+#define T_ZX	9
+	    
+//TODO: REPLACE using table
+static u32 comb(const u32 o, const u32 u)
+{
+	assert(u <= o);
+
+	u32 v1 = 1;
+	u32 v2 = 1;
+	u32 rep = (u <= o-u) ? u : o-u;
+
+	for (u32 i = 0; i < rep; ++i)
+	{
+		v1 *= (o-i);
+		v2 *= (i+1);
+	}
+
+	assert(v1 % v2 == 0);
+
+	return v1 / v2;
+}
+
+static f32 statics_internal_line_integrals(const vec2 v0, const vec2 v1, const vec2 v2, const u32 p, const u32 q, const vec3 int_scalars)
+{
+       assert(p <= 4 && q <= 4);
+       
+       f32 sum = 0.0f;
+       for (u32 i = 0; i <= p; ++i)
+       {
+               for (u32 j = 0; j <= q; ++j)
+               {
+                       sum += int_scalars[0] * comb(p, i) * comb(q, j) * f32_pow(v1[0], (f32) i) * f32_pow(v0[0], (f32) (p-i)) * f32_pow(v1[1], (f32) j) * f32_pow(v0[1], (f32) (q-j)) / comb(p+q, i+j);
+                       sum += int_scalars[1] * comb(p, i) * comb(q, j) * f32_pow(v2[0], (f32) i) * f32_pow(v1[0], (f32) (p-i)) * f32_pow(v2[1], (f32) j) * f32_pow(v1[1], (f32) (q-j)) / comb(p+q, i+j);
+                       sum += int_scalars[2] * comb(p, i) * comb(q, j) * f32_pow(v0[0], (f32) i) * f32_pow(v2[0], (f32) (p-i)) * f32_pow(v0[1], (f32) j) * f32_pow(v2[1], (f32) (q-j)) / comb(p+q, i+j);
+               }
+       }
+
+       return sum / (p+q+1);
+}
+
+/*
+ *  alpha beta gamma CCW
+ */ 
+static void statics_internal_calculate_face_integrals(f32 integrals[10], const struct collision_shape *shape, const u32 fi)
+{
+	f32 P_1   = 0.0f;
+	f32 P_a   = 0.0f;
+	f32 P_aa  = 0.0f;
+	f32 P_aaa = 0.0f;
+	f32 P_b   = 0.0f;
+	f32 P_bb  = 0.0f;
+	f32 P_bbb = 0.0f;
+	f32 P_ab  = 0.0f;
+	f32 P_aab = 0.0f;
+	f32 P_abb = 0.0f;
+
+	vec3 n, a, b;
+	vec2 v0, v1, v2;
+
+	vec3ptr v = shape->hull.v;
+	struct hull_face *f = shape->hull.f + fi;
+	struct hull_half_edge *e0 = shape->hull.e + f->first;
+	struct hull_half_edge *e1 = shape->hull.e + f->first + 1;
+	struct hull_half_edge *e2 = shape->hull.e + f->first + 2;
+
+	vec3_sub(a, v[e1->origin], v[e0->origin]);
+	vec3_sub(b, v[e2->origin], v[e0->origin]);
+	vec3_cross(n, a, b);
+	vec3_mul_constant(n, 1.0f / vec3_length(n));
+	const f32 d = -vec3_dot(n, v[e0->origin]);
+
+	u32 max_index = 0;
+	if (n[max_index]*n[max_index] < n[1]*n[1]) { max_index = 1; }
+	if (n[max_index]*n[max_index] < n[2]*n[2]) { max_index = 2; }
+
+	/* maxized normal direction determines projected surface integral axes (we maximse the projected surface area) */
+	
+	const u32 a_i = (1+max_index) % 3;
+	const u32 b_i = (2+max_index) % 3;
+	const u32 y_i = max_index % 3;
+
+	//vec3_set(n, n[a_i], n[b_i], n[y_i]);
+
+	/* TODO: REPLACE */
+	union { f32 f; u32 bits; } val = { .f = n[y_i] };
+	const f32 n_sign = (val.bits >> 31) ? -1.0f : 1.0f;
+
+	const u32 tri_count = f->count - 2;
+	for (u32 i = 0; i < tri_count; ++i)
+	{
+		e0 = shape->hull.e + f->first;
+		e1 = shape->hull.e + f->first + 1 + i;
+		e2 = shape->hull.e + f->first + 2 + i;
+
+		vec2_set(v0, v[e0->origin][a_i], v[e0->origin][b_i]);
+		vec2_set(v1, v[e1->origin][a_i], v[e1->origin][b_i]);
+		vec2_set(v2, v[e2->origin][a_i], v[e2->origin][b_i]);
+		
+		const vec3 delta_a =
+		{
+			v1[0] - v0[0],
+			v2[0] - v1[0],
+			v0[0] - v2[0],
+		};
+		
+		const vec3 delta_b = 
+		{
+			v1[1] - v0[1],
+			v2[1] - v1[1],
+			v0[1] - v2[1],
+		};
+
+		/* simplify cross product of v1-v0, v2-v0 to get this */
+		P_1   += ((v0[0] + v1[0])*delta_b[0] + (v1[0] + v2[0])*delta_b[1] + (v0[0] + v2[0])*delta_b[2]) / 2.0f;
+		P_a   +=  statics_internal_line_integrals(v0, v1, v2, 2, 0, delta_b);
+		P_aa  +=  statics_internal_line_integrals(v0, v1, v2, 3, 0, delta_b);
+		P_aaa +=  statics_internal_line_integrals(v0, v1, v2, 4, 0, delta_b);
+		P_b   += -statics_internal_line_integrals(v0, v1, v2, 0, 2, delta_a);
+		P_bb  += -statics_internal_line_integrals(v0, v1, v2, 0, 3, delta_a);
+		P_bbb += -statics_internal_line_integrals(v0, v1, v2, 0, 4, delta_a);
+		P_ab  +=  statics_internal_line_integrals(v0, v1, v2, 2, 1, delta_b);
+		P_aab +=  statics_internal_line_integrals(v0, v1, v2, 3, 1, delta_b);
+		P_abb +=  statics_internal_line_integrals(v0, v1, v2, 1, 3, delta_b);
+	}
+
+	P_1   *= n_sign;
+	P_a   *= (n_sign / 2.0f); 
+	P_aa  *= (n_sign / 3.0f); 
+	P_aaa *= (n_sign / 4.0f); 
+	P_b   *= (n_sign / 2.0f); 
+	P_bb  *= (n_sign / 3.0f); 
+	P_bbb *= (n_sign / 4.0f); 
+	P_ab  *= (n_sign / 2.0f); 
+	P_aab *= (n_sign / 3.0f); 
+	P_abb *= (n_sign / 3.0f); 
+
+	const f32 a_y_div = n_sign / n[y_i];
+	const f32 n_y_div = 1.0f / n[y_i];
+
+	/* surface integrals */
+	const f32 S_a 	= a_y_div * P_a;
+	const f32 S_aa 	= a_y_div * P_aa;
+	const f32 S_aaa = a_y_div * P_aaa;
+	const f32 S_aab = a_y_div * P_aab;
+	const f32 S_b 	= a_y_div * P_b;
+	const f32 S_bb 	= a_y_div * P_bb;
+	const f32 S_bbb = a_y_div * P_bbb;
+	const f32 S_bby = -a_y_div * n_y_div * (n[a_i]*P_abb + n[b_i]*P_bbb + d*P_bb);
+	const f32 S_y 	= -a_y_div * n_y_div * (n[a_i]*P_a + n[b_i]*P_b + d*P_1);
+	const f32 S_yy 	= a_y_div * n_y_div * n_y_div * (n[a_i]*n[a_i]*P_aa + 2.0f*n[a_i]*n[b_i]*P_ab + n[b_i]*n[b_i]*P_bb 
+			+ 2.0f*d*n[a_i]*P_a + 2.0f*d*n[b_i]*P_b + d*d*P_1);	
+	const f32 S_yyy = -a_y_div * n_y_div * n_y_div * n_y_div * (n[a_i]*n[a_i]*n[a_i]*P_aaa + 3.0f*n[a_i]*n[a_i]*n[b_i]*P_aab
+			+ 3.0f*n[a_i]*n[b_i]*n[b_i]*P_abb + n[b_i]*n[b_i]*n[b_i]*P_bbb + 3.0f*d*n[a_i]*n[a_i]*P_aa 
+			+ 6.0f*d*n[a_i]*n[b_i]*P_ab + 3.0f*d*n[b_i]*n[b_i]*P_bb + 3.0f*d*d*n[a_i]*P_a
+		       	+ 3.0f*d*d*n[b_i]*P_b + d*d*d*P_1);
+	const f32 S_yya = a_y_div * n_y_div * n_y_div * (n[a_i]*n[a_i]*P_aaa + 2.0f*n[a_i]*n[b_i]*P_aab + n[b_i]*n[b_i]*P_abb 
+			+ 2.0f*d*n[a_i]*P_aa + 2.0f*d*n[b_i]*P_ab + d*d*P_a);	
+
+	if (max_index == 2)
+	{
+		integrals[VOL] += S_a * n[0];
+	}
+	else if (max_index == 1)
+	{
+		integrals[VOL] += S_b * n[0];
+	}
+	else
+	{
+		integrals[VOL] += S_y * n[0];
+	}
+
+	integrals[T_X + a_i] += S_aa * n[a_i] / 2.0f;
+	integrals[T_X + b_i] += S_bb * n[b_i] / 2.0f;
+	integrals[T_X + y_i] += S_yy * n[y_i] / 2.0f;
+
+	integrals[T_XX + a_i] += S_aaa * n[a_i] / 3.0f;
+	integrals[T_XX + b_i] += S_bbb * n[b_i] / 3.0f;
+	integrals[T_XX + y_i] += S_yyy * n[y_i] / 3.0f;
+
+	integrals[T_XY + a_i] += S_aab * n[a_i] / 2.0f;
+	integrals[T_XY + b_i] += S_bby * n[b_i] / 2.0f;
+	integrals[T_XY + y_i] += S_yya * n[y_i] / 2.0f;
+}
+
+void prefab_statics_setup(struct rigid_body_prefab *prefab, const struct collision_shape *shape, const f32 density)
+{
+	f32 I_xx = 0.0f;
+	f32 I_yy = 0.0f;
+	f32 I_zz = 0.0f;
+	f32 I_xy = 0.0f;
+	f32 I_xz = 0.0f;
+	f32 I_yz = 0.0f;
+	vec3 com = VEC3_ZERO;
+
+	if (shape->type == COLLISION_SHAPE_CONVEX_HULL)
+	{
+		f32 integrals[10] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f }; 
+
+		for (u32 fi = 0; fi < shape->hull.f_count; ++fi)
+		{
+			statics_internal_calculate_face_integrals(integrals, shape, fi);
+		}
+
+//		fprintf(stderr, "c_hull Volume integrals: %f, %f, %f, %f, %f, %f, %f, %f, %f, %f\n",
+//				 integrals[VOL ],
+//				 integrals[T_X ],
+//				 integrals[T_Y ],
+//				 integrals[T_Z ],
+//				 integrals[T_XX],
+//				 integrals[T_YY],
+//				 integrals[T_ZZ],
+//      	                   integrals[T_XY],
+//      	                   integrals[T_YZ],
+//      	                   integrals[T_ZX]);
+
+		prefab->mass = integrals[VOL] * density;
+		assert(prefab->mass >= 0.0f);
+
+		/* center of mass */
+		vec3_set(com,
+			integrals[T_X] * density / prefab->mass,
+		       	integrals[T_Y] * density / prefab->mass,
+		       	integrals[T_Z] * density / prefab->mass
+		);
+
+		I_xx = density * (integrals[T_YY] + integrals[T_ZZ]) - prefab->mass * (com[1]*com[1] + com[2]*com[2]);
+		I_yy = density * (integrals[T_XX] + integrals[T_ZZ]) - prefab->mass * (com[0]*com[0] + com[2]*com[2]);
+		I_zz = density * (integrals[T_XX] + integrals[T_YY]) - prefab->mass * (com[0]*com[0] + com[1]*com[1]);
+		I_xy = density * integrals[T_XY] - prefab->mass * com[0] * com[1];
+		I_xz = density * integrals[T_ZX] - prefab->mass * com[0] * com[2];
+		I_yz = density * integrals[T_YZ] - prefab->mass * com[1] * com[2];
+	
+		/* set local frame coordinates */
+		vec3_copy(prefab->center_of_mass, com);
+		vec3_negative(com);
+
+		for (u32 i = 0; i < shape->hull.v_count; ++i)
+		{
+			vec3_translate(shape->hull.v[i], com);
+		}
+
+		mat3_set(prefab->inertia_tensor, I_xx, -I_xy, -I_xz,
+			       		 	 -I_xy,  I_yy, -I_yz,
+						 -I_xz, -I_yz, I_zz);
+	}
+	else if (shape->type == COLLISION_SHAPE_SPHERE)
+	{
+		const f32 r = shape->sphere.radius;
+		const f32 rr = r*r;
+		const f32 rrr = rr*r;
+		prefab->mass = density * 4.0f * F32_PI * rrr / 3.0f;
+		I_xx = 2.0f * prefab->mass * rr / 5.0f;
+		I_yy = I_xx;
+		I_zz = I_xx;
+		I_xy = 0.0f;
+		I_yz = 0.0f;
+		I_xz = 0.0f;
+
+		mat3_set(prefab->inertia_tensor, I_xx, -I_xy, -I_xz,
+			       		 	 -I_xy,  I_yy, -I_yz,
+						 -I_xz, -I_yz, I_zz);
+	}
+	else if (shape->type == COLLISION_SHAPE_CAPSULE)
+	{
+		const f32 r = shape->capsule.radius;
+		const f32 h = vec3_length(shape->capsule.p1);
+		const f32 hpr = h+r;
+		const f32 hmr = h-r;
+
+		prefab->mass = density * 4.0f * F32_PI * r*r*r / 3.0f + density * 2.0f *h * F32_PI * r*r;
+
+		const f32 I_xx_cap_up = (4.0f * F32_PI * r*r * h*h*h + 3.0f * F32_PI * r*r*r*r * h) / 6.0f;
+		const f32 I_xx_sph_up = 2.0f * F32_PI * r*r * (hpr*hpr*hpr - hmr*hmr*hmr) / 3.0f + F32_PI * r*r*r*r*r;
+		const f32 I_xx_up = I_xx_sph_up + I_xx_cap_up;
+		const f32 I_zz_up = I_xx_up;
+
+		const f32 I_yy_cap_up = F32_PI * r*r*r*r * h;
+		const f32 I_yy_sph_up = 2.0f * F32_PI * r*r*r*r*r;
+		const f32 I_yy_up = I_yy_cap_up + I_yy_sph_up;
+
+		const f32 I_xy_up = 0;
+		const f32 I_yz_up = 0;
+		const f32 I_xz_up = 0;
+
+		/* Derive */
+		mat3_set(prefab->inertia_tensor, I_xx_up, -I_xy_up, -I_xz_up,
+			       		 	 -I_xy_up,  I_yy_up, -I_yz_up,
+						 -I_xz_up, -I_yz_up,  I_zz_up);
+	}
+
+	mat3_inverse(prefab->inv_inertia_tensor, prefab->inertia_tensor);
 }

@@ -19,10 +19,8 @@
 
 #include <stdlib.h>
 
-#include "contact_solver.h"
 #include "collision.h"
-#include "physics_pipeline.h"
-#include "rigid_body.h"
+#include "dynamics.h"
 #include "sys_public.h"
 
 /* used in contact solver to cleanup the code from if-statements */
@@ -149,12 +147,15 @@ void contact_solver_init_velocity_constraints(struct arena *mem, struct contact_
 	for (u32 i = 0; i < solver->contact_count; ++i)
 	{			
 		struct velocity_constraint *vc = solver->vcs + i;
-			
-		const u32 b1_static = (((struct rigid_body *) pipeline->body_list->data)[is->contacts[i]->cm.i1].island_index == ISLAND_STATIC) ? 1 : 0; 
-		const u32 b2_static = (((struct rigid_body *) pipeline->body_list->data)[is->contacts[i]->cm.i2].island_index == ISLAND_STATIC) ? 1 : 0; 
 
-		const f32 b1_friction = ((struct rigid_body *) pipeline->body_list->data)[is->contacts[i]->cm.i1].friction;
-	       	const f32 b2_friction = ((struct rigid_body *) pipeline->body_list->data)[is->contacts[i]->cm.i2].friction;
+		const struct rigid_body *b1 = pool_address(&pipeline->body_pool, is->contacts[i]->cm.i1);
+		const struct rigid_body *b2 = pool_address(&pipeline->body_pool, is->contacts[i]->cm.i2);
+			
+		const u32 b1_static = (b1->island_index == ISLAND_STATIC) ? 1 : 0; 
+		const u32 b2_static = (b2->island_index == ISLAND_STATIC) ? 1 : 0; 
+
+		const f32 b1_friction = b1->friction;
+	       	const f32 b2_friction = b2->friction;
 		const u32 static_contact = (b1_static | b2_static);
 
 		/* 
@@ -174,8 +175,8 @@ void contact_solver_init_velocity_constraints(struct arena *mem, struct contact_
 			vec3_copy(vc->normal, is->contacts[i]->cm.n);
 		}
 
-		const struct rigid_body *b1 = solver->bodies[vc->lb1];
-		const struct rigid_body *b2 = solver->bodies[vc->lb2];
+		b1 = solver->bodies[vc->lb1];
+		b2 = solver->bodies[vc->lb2];
 		mat3ptr Iw_inv1 = solver->Iw_inv + vc->lb1;
 		mat3ptr Iw_inv2 = solver->Iw_inv + vc->lb2;
 

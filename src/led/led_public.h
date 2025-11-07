@@ -25,7 +25,7 @@
 #include "sys_public.h"
 #include "allocator.h"
 #include "csg.h"
-#include "physics_pipeline.h"
+#include "dynamics.h"
 #include "hash_map.h"
 #include "list.h"
 #include "cmd.h"

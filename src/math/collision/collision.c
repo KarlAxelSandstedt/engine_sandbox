@@ -20,8 +20,7 @@
 #include <float.h>
 #include "float32.h"
 #include "collision.h"
-#include "rigid_body.h"
-#include "physics_pipeline.h"
+#include "dynamics.h"
 
 /********************************** Contact Manifold helpers **********************************/
 

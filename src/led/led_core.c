@@ -1034,9 +1034,11 @@ static void led_engine_run(struct led *led, const u64 ns_tick)
 	//	R_PHYSICS_DEBUG_FRAME_INIT(&game->physics);
 	//}
 
-	for (u32 i = 0; i < led->physics.event_count; ++i)
+	struct physics_event *event = NULL;
+	for (u32 i = led->physics.event_list.first; i != DLL_NULL; i = DLL_NEXT(event))
 	{
-		switch (led->physics.event[i].type)
+		event = pool_address(&led->physics.event_pool, i);
+		switch (event->type)
 		{
 			//case PHYSICS_EVENT_CONTACT_NEW:
 			//{
@@ -1185,7 +1187,7 @@ static void led_engine_run(struct led *led, const u64 ns_tick)
 
 			case PHYSICS_EVENT_BODY_ORIENTATION:
 			{
-				const struct rigid_body *body = physics_pipeline_rigid_body_lookup(&led->physics, led->physics.event[i].body);
+				const struct rigid_body *body = pool_address(&led->physics.body_pool, event->body);
 				struct led_node *node = pool_address(&led->node_pool, body->entity);
 
 				vec3 linear_velocity;
@@ -1194,13 +1196,13 @@ static void led_engine_run(struct led *led, const u64 ns_tick)
 						, body->rotation
 						, linear_velocity
 						, body->angular_velocity
-						, led->physics.event[i].ns
+						, event->ns
 						, node->proxy);
 			} break;
 		}
 	}
-
-	led->physics.event_count = 0;
+	
+	dll_flush(&led->physics.event_list);
 }
 
 void led_core(struct led *led, const u64 ns_delta)
