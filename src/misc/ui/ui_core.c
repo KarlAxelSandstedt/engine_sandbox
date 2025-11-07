@@ -125,7 +125,8 @@ struct ui *ui_alloc(void)
 	struct ui *ui = malloc(sizeof(struct ui));
 	ui->node_hierarchy = hierarchy_index_alloc(NULL, INITIAL_UNIT_COUNT, sizeof(struct ui_node), GROWABLE);
 	ui->node_map = hash_map_alloc(NULL, U16_MAX, U16_MAX, GROWABLE);
-	ui->bucket_allocator = array_list_intrusive_alloc(NULL, 64, sizeof(struct ui_draw_bucket), GROWABLE);
+	ui->bucket_pool = pool_alloc(NULL, 64, struct ui_draw_bucket, GROWABLE);
+	ui->bucket_list = dll_init(struct ui_draw_bucket);
 	ui->bucket_map = hash_map_alloc(NULL, 128, 128, GROWABLE);
 	ui->frame = 0;
 	ui->root = HI_ROOT_STUB_INDEX;
@@ -205,12 +206,13 @@ struct ui *ui_alloc(void)
 	ui->stack_recursive_interaction_flags.next = 1;
 	ui->stack_recursive_interaction_flags.arr[0] = UI_FLAG_NONE;
 
-	ui->bucket_first = array_list_intrusive_reserve(ui->bucket_allocator);
-	ui->bucket_last = ui->bucket_first;
-	ui->bucket_cache = ui->bucket_first;
-	ui->bucket_count = 0;
-	ui->bucket_first->cmd = 0;
-	ui->bucket_first->count = 0;
+	/* setup stub bucket */
+	struct slot slot = pool_add(&ui->bucket_pool);
+	dll_append(&ui->bucket_list, ui->bucket_pool.buf, slot.index);
+	ui->bucket_cache = slot.index;
+	struct ui_draw_bucket *bucket = slot.address;
+	bucket->cmd = 0;
+	bucket->count = 0;
 
 	return ui;
 }
@@ -255,7 +257,7 @@ void ui_dealloc(struct ui *ui)
 	stack_u32_free(&ui->stack_floating_depth);
 	stack_u32_free(&ui->stack_fixed_depth);
 	hash_map_free(ui->node_map);
-	array_list_intrusive_free(ui->bucket_allocator);
+	pool_dealloc(&ui->bucket_pool);
 	hash_map_free(ui->bucket_map);
 	hierarchy_index_free(ui->node_hierarchy);
 	free(ui);
@@ -267,17 +269,13 @@ void ui_dealloc(struct ui *ui)
 
 static void ui_draw_bucket_add_node(const u32 cmd, const u32 index)
 {
-	struct ui_draw_bucket *bucket;
-	if (g_ui->bucket_cache->cmd == cmd)
-	{
-		bucket = g_ui->bucket_cache;
-	}
-	else
+	struct ui_draw_bucket *bucket = pool_address(&g_ui->bucket_pool, g_ui->bucket_cache);
+	if (bucket->cmd != cmd)
 	{
 		u32 bi = hash_map_first(g_ui->bucket_map, cmd);
 		for (; bi != HASH_NULL; bi = hash_map_next(g_ui->bucket_map, bi))
 		{
-			bucket = array_list_intrusive_address(g_ui->bucket_allocator, bi);
+			bucket = pool_address(&g_ui->bucket_pool, bi);
 			if (bucket->cmd == cmd)
 			{
 				break;
@@ -286,15 +284,14 @@ static void ui_draw_bucket_add_node(const u32 cmd, const u32 index)
 
 		if (bi == HASH_NULL)
 		{
-			bi = array_list_intrusive_reserve_index(g_ui->bucket_allocator);
+			struct slot slot = pool_add(&g_ui->bucket_pool);
+			bi = slot.index;
 			hash_map_add(g_ui->bucket_map, cmd, bi);
-			bucket = array_list_intrusive_address(g_ui->bucket_allocator, bi);
+			dll_append(&g_ui->bucket_list, g_ui->bucket_pool.buf, bi);
+			bucket = slot.address;
 			bucket->cmd = cmd;
 			bucket->count = 0;
 			bucket->list = NULL;
-			g_ui->bucket_last->next = bucket;
-			g_ui->bucket_last = bucket;
-			g_ui->bucket_count += 1;
 		}
 	}
 
@@ -840,16 +837,17 @@ void ui_frame_begin(const vec2u32 window_size, const struct ui_visual *base)
 	g_ui->frame += 1;
 	g_ui->mem_frame = g_ui->mem_frame_arr + (g_ui->frame & 0x1);
 	arena_flush(g_ui->mem_frame);
-	array_list_intrusive_flush(g_ui->bucket_allocator);
+	dll_flush(&g_ui->bucket_list);
+	pool_flush(&g_ui->bucket_pool);
 	hash_map_flush(g_ui->bucket_map);
 	
 	/* setup stub bucket */
-	g_ui->bucket_first = array_list_intrusive_reserve(g_ui->bucket_allocator);
-	g_ui->bucket_last = g_ui->bucket_first;
-	g_ui->bucket_cache = g_ui->bucket_first;
-	g_ui->bucket_count = 0;
-	g_ui->bucket_first->cmd = 0;
-	g_ui->bucket_first->count = 0;
+	struct slot slot = pool_add(&g_ui->bucket_pool);
+	dll_append(&g_ui->bucket_list, g_ui->bucket_pool.buf, slot.index);
+	g_ui->bucket_cache = slot.index;
+	struct ui_draw_bucket *bucket = slot.address;
+	bucket->cmd = 0;
+	bucket->count = 0;
 
 	g_ui->frame_stack_text_selection.next = 0;
 

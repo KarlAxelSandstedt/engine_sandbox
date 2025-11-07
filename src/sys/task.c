@@ -32,12 +32,10 @@ static void worker_init(struct worker *w)
 	w->mem_frame = arena_alloc_1MB();
 }
 
-static void *worker_exit(void *void_task)
+static void worker_exit(void *void_task)
 {
 	struct task *task = void_task;
 	kas_thread_exit(task->executor->thr);
-	kas_assert_string(0, "Should not happen, only here to remove compiler warnings");
-	return NULL;
 }
 
 static void task_run(struct task *task_info, struct worker *w)

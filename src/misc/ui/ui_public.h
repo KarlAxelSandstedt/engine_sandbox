@@ -27,6 +27,7 @@
 #include "array_list.h"
 #include "hierarchy_index.h"
 #include "kas_vector.h"
+#include "list.h"
 
 #define UI_SCOPE(PUSH, POP)	for (i32 __i = ((PUSH), 0); __i < 1; ++__i, (POP))
 
@@ -409,8 +410,8 @@ struct ui_draw_node
 
 struct ui_draw_bucket
 {
-	struct array_list_intrusive_node header;
-	struct ui_draw_bucket *	next;
+	POOL_SLOT_STATE;
+	DLL_SLOT_STATE;
 	u32 			cmd;
 	u32 			count;
 	struct ui_draw_node *	list;
@@ -518,15 +519,12 @@ DECLARE_STACK(utf32);
 /* Per window ui struct */
 struct ui
 {
-	struct array_list_intrusive_node header; /* DO NOT MOVE */
-
 	struct ui_interaction		inter;
 
-	struct array_list_intrusive *	bucket_allocator;
+	struct pool			bucket_pool;
+	struct dll			bucket_list;
 	struct hash_map *		bucket_map;
-	struct ui_draw_bucket *		bucket_first;
-	struct ui_draw_bucket *		bucket_last;
-	struct ui_draw_bucket *		bucket_cache;	/* for quick cmd check */
+	u32				bucket_cache;	/* for quick cmd check */
 	u32				bucket_count;
 
 	/* node map for all u's  */
