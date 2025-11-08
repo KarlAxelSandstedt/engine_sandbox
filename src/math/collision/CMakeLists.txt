@@ -3,7 +3,6 @@ cmake_minimum_required(VERSION 3.14.3)
 add_library(collision STATIC
 	collision.h
 	collision.c
-	dbvt.h
 	dbvt.c
 	collision_debug.c
 	shape.c

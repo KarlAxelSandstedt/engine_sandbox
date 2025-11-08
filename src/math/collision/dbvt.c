@@ -21,102 +21,53 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "sys_public.h"
-#include "dbvt.h"
+#include "collision.h"
 
-static i32 dbvt_internal_alloc_node(struct dbvt *tree, const i32 id, const struct AABB *box)
+static struct slot dbvt_internal_alloc_node(struct dbvt *tree, const u32 id, const struct AABB *box)
 {
-	if (tree->next == DBVT_NO_NODE)
-	{
-		const u32 start = tree->len;
-		tree->len *= 2;
-		tree->nodes = realloc(tree->nodes, tree->len * sizeof(struct dbvt_node));
-		if (!tree->nodes)
-		{
-			log(T_ASSERT, S_FATAL, "Out of memory in function %s at %s:%u", __func__, __FILE__, __LINE__);
-			fatal_cleanup_and_exit(kas_thread_self_tid());
-		}
+	struct slot slot = pool_add(&tree->node_pool);
 
-		for (i32 i = start; i < tree->len-1; ++i)
-		{
-			tree->nodes[i].id = i+1;
-		}
-		tree->nodes[tree->len-1].id = DBVT_NO_NODE;
-		tree->next = start;
-	}
+	struct dbvt_node *node = slot.address;
+	node->id = id;
+	node->parent = DBVT_NO_NODE;
+	node->left = DBVT_NO_NODE;
+	node->right = DBVT_NO_NODE;
+	node->box = *box;
 
-	tree->node_count += 1;
-	const i32 index = tree->next;
-	tree->next = tree->nodes[index].id;
-	tree->nodes[index].id = id;
-	tree->nodes[index].parent = DBVT_NO_NODE;
-	tree->nodes[index].left = DBVT_NO_NODE;
-	tree->nodes[index].right = DBVT_NO_NODE;
-	memcpy(&tree->nodes[index].box, box, sizeof(struct AABB));
-
-	return index;	
+	return slot;	
 }
 
-static i32 dbvt_internal_free_node(struct dbvt *tree, const i32 index)
+static void dbvt_internal_free_node(struct dbvt *tree, const u32 index)
 {
-	kas_assert_string(index >= 0 && index < tree->len, "DBVT: free index out of bounds");
-
-	tree->node_count -= 1;
-	const i32 id = tree->nodes[index].id;
-	tree->nodes[index].id = tree->next;
-	tree->next = index;
-
-	return id;
+	pool_remove(&tree->node_pool, index);
 }
 
-struct dbvt dbvt_alloc(struct arena *mem, const i32 len)
+struct dbvt dbvt_alloc(const u32 initial_length)
 {
 	struct dbvt tree =
 	{
-		.len = len,
-		.node_count = 0,
 		.proxy_count = 0,
 		.root = DBVT_NO_NODE,
-		.next = 0,
 	};
 
-	if (mem)
-	{
-		tree.nodes = malloc(len * sizeof(struct dbvt_node));
-		tree.cost_queue = min_queue_new(mem, COST_QUEUE_MAX);
-	}
-	else
-	{
-		tree.nodes = malloc(len * sizeof(struct dbvt_node));
-		tree.cost_queue = min_queue_new(NULL, COST_QUEUE_MAX);
-	}
-
-	for (i32 i = 0; i < len-1; ++i)
-	{
-		tree.nodes[i].id = i+1;
-	}
-	tree.nodes[len-1].id = DBVT_NO_NODE;
+	tree.node_pool = pool_alloc(NULL, initial_length, struct dbvt_node, GROWABLE);
+	tree.cost_queue = min_queue_new(NULL, COST_QUEUE_INITIAL_COUNT, GROWABLE);
 
 	return tree;
 }
 
 void dbvt_free(struct dbvt *tree)
 {
-	free(tree->nodes);
+	pool_dealloc(&tree->node_pool);
+	min_queue_free(&tree->cost_queue);
 }
 
 void dbvt_flush(struct dbvt *tree)
 {
 	tree->proxy_count = 0;
 	tree->root = DBVT_NO_NODE;
-	tree->next = 0;
-
-	for (i32 i = 0; i < tree->len-1; ++i)
-	{
-		tree->nodes[i].id = i+1;
-	}
-	tree->nodes[tree->len-1].id = DBVT_NO_NODE;
-	min_queue_flush(tree->cost_queue);
+	pool_flush(&tree->node_pool);
+	min_queue_flush(&tree->cost_queue);
 }
 
 static f32 cost_SAT(const struct AABB *box)
@@ -124,56 +75,57 @@ static f32 cost_SAT(const struct AABB *box)
 	return box->hw[0]*(box->hw[1] + box->hw[2]) + box->hw[1]*box->hw[2];
 }
 
-static void dbvt_internal_balance_node(struct dbvt *tree, const i32 node)
+static void dbvt_internal_balance_node(struct dbvt *tree, const u32 node)
 {
+	struct dbvt_node *nodes = (struct dbvt_node *) tree->node_pool.buf;
 	/* (1) find best rotation */
-	i32 left = tree->nodes[node].left;
-	i32 right = tree->nodes[node].right;
+	u32 left = nodes[node].left;
+	u32 right = nodes[node].right;
 	struct AABB box_union;
 	f32 cost_rotation, cost_original, cost_best = F32_INFINITY;
 			
-	i32 upper_rotation; /* child to rotate */
-	i32 best_rotation = DBVT_NO_NODE; /* best grandchild to rotate */
-	if (tree->nodes[left].left != DBVT_NO_NODE)
+	u32 upper_rotation; /* child to rotate */
+	u32 best_rotation = DBVT_NO_NODE; /* best grandchild to rotate */
+	if (nodes[left].left != DBVT_NO_NODE)
 	{
-		AABB_union(&box_union, &tree->nodes[tree->nodes[left].left].box, &tree->nodes[right].box);
-		cost_original = cost_SAT(&tree->nodes[left].box);	
+		AABB_union(&box_union, &nodes[nodes[left].left].box, &nodes[right].box);
+		cost_original = cost_SAT(&nodes[left].box);	
 		cost_rotation = cost_SAT(&box_union);
 		if (cost_rotation < cost_original)
 		{
 			upper_rotation = right;
-			best_rotation = tree->nodes[left].right;
+			best_rotation = nodes[left].right;
 			cost_best = cost_rotation;
 		}
 
-		AABB_union(&box_union, &tree->nodes[tree->nodes[left].right].box, &tree->nodes[right].box);
+		AABB_union(&box_union, &nodes[nodes[left].right].box, &nodes[right].box);
 		cost_rotation = cost_SAT(&box_union);
 		if (cost_rotation < cost_best && cost_rotation < cost_original)
 		{
 			upper_rotation = right;
-			best_rotation = tree->nodes[left].left;
+			best_rotation = nodes[left].left;
 			cost_best = cost_rotation;
 		}
 	}
 
-	if (tree->nodes[right].left != DBVT_NO_NODE)
+	if (nodes[right].left != DBVT_NO_NODE)
 	{
-		AABB_union(&box_union, &tree->nodes[tree->nodes[right].left].box, &tree->nodes[left].box);
-		cost_original = cost_SAT(&tree->nodes[right].box);	
+		AABB_union(&box_union, &nodes[nodes[right].left].box, &nodes[left].box);
+		cost_original = cost_SAT(&nodes[right].box);	
 		cost_rotation = cost_SAT(&box_union);
 		if (cost_rotation < cost_best && cost_rotation < cost_original)
 		{
 			upper_rotation = left;
-			best_rotation = tree->nodes[right].right;
+			best_rotation = nodes[right].right;
 			cost_best = cost_rotation;
 		}
 
-		AABB_union(&box_union, &tree->nodes[tree->nodes[right].right].box, &tree->nodes[left].box);
+		AABB_union(&box_union, &nodes[nodes[right].right].box, &nodes[left].box);
 		cost_rotation = cost_SAT(&box_union);
 		if (cost_rotation < cost_best && cost_rotation < cost_original)
 		{
 			upper_rotation = left;
-			best_rotation = tree->nodes[right].left;
+			best_rotation = nodes[right].left;
 			cost_best = cost_rotation;
 		}
 	}
@@ -181,57 +133,57 @@ static void dbvt_internal_balance_node(struct dbvt *tree, const i32 node)
 	/* (2) apply rotation */
 	if (best_rotation != DBVT_NO_NODE)
 	{
-		tree->nodes[best_rotation].parent = node;
+		nodes[best_rotation].parent = node;
 		if (upper_rotation == left)
 		{
-			tree->nodes[upper_rotation].parent = right;
-			tree->nodes[node].left = best_rotation;
-			if (best_rotation == tree->nodes[right].left)
+			nodes[upper_rotation].parent = right;
+			nodes[node].left = best_rotation;
+			if (best_rotation == nodes[right].left)
 			{
-				AABB_union(&tree->nodes[right].box, 
-						&tree->nodes[tree->nodes[right].right].box,
-					       	&tree->nodes[upper_rotation].box);
-				tree->nodes[right].left = upper_rotation;
+				AABB_union(&nodes[right].box, 
+						&nodes[nodes[right].right].box,
+					       	&nodes[upper_rotation].box);
+				nodes[right].left = upper_rotation;
 			}
 			else
 			{
-				AABB_union(&tree->nodes[right].box, 
-						&tree->nodes[tree->nodes[right].left].box,
-					       	&tree->nodes[upper_rotation].box);
-				tree->nodes[right].right = upper_rotation;
+				AABB_union(&nodes[right].box, 
+						&nodes[nodes[right].left].box,
+					       	&nodes[upper_rotation].box);
+				nodes[right].right = upper_rotation;
 			}
 			left = best_rotation;
 		}
 		else
 		{
-			tree->nodes[upper_rotation].parent = left;
-			tree->nodes[node].right = best_rotation;
-			if (best_rotation == tree->nodes[left].left)
+			nodes[upper_rotation].parent = left;
+			nodes[node].right = best_rotation;
+			if (best_rotation == nodes[left].left)
 			{
-				AABB_union(&tree->nodes[left].box, 
-						&tree->nodes[tree->nodes[left].right].box,
-					       	&tree->nodes[upper_rotation].box);
-				tree->nodes[left].left = upper_rotation;
+				AABB_union(&nodes[left].box, 
+						&nodes[nodes[left].right].box,
+					       	&nodes[upper_rotation].box);
+				nodes[left].left = upper_rotation;
 			}
 			else
 			{
-				AABB_union(&tree->nodes[left].box, 
-						&tree->nodes[tree->nodes[left].left].box,
-					       	&tree->nodes[upper_rotation].box);
-				tree->nodes[left].right = upper_rotation;
+				AABB_union(&nodes[left].box, 
+						&nodes[nodes[left].left].box,
+					       	&nodes[upper_rotation].box);
+				nodes[left].right = upper_rotation;
 			}
 			right = best_rotation;
 		}
 	}
 
 	/* (3) refit node's box */
-	AABB_union(&tree->nodes[node].box, &tree->nodes[left].box, &tree->nodes[right].box);
+	AABB_union(&nodes[node].box, &nodes[left].box, &nodes[right].box);
 }
 
-i32 dbvt_insert(struct dbvt *tree, const i32 id, const struct AABB *box)
+u32 dbvt_insert(struct dbvt *tree, const u32 id, const struct AABB *box)
 {
 	tree->proxy_count += 1;
-	const i32 index = dbvt_internal_alloc_node(tree, id, box);
+	const u32 index = dbvt_internal_alloc_node(tree, id, box).index;
 	if (tree->root == DBVT_NO_NODE)
 	{
 		tree->root = index;
@@ -246,23 +198,24 @@ i32 dbvt_insert(struct dbvt *tree, const i32 id, const struct AABB *box)
 		 * the node achieving it. When no node achieves a better score, we are done and set the best scoring
 		 * one as the sibling.
 		 */
-		i32 best_index = tree->root;
+		u32 best_index = tree->root;
 		f32 best_cost = F32_INFINITY;
 		f32 node_cost = 0.0f; 
 	
-		tree->cost_index[min_queue_insert(tree->cost_queue, node_cost)] = tree->root;
-		kas_assert(tree->cost_queue->elements[0].priority == 0.0f);
+		min_queue_insert(&tree->cost_queue, node_cost, tree->root);
+		kas_assert(tree->cost_queue.elements[0].priority == 0.0f);
 
-		i32 node;
+		u32 node;
 		f32 inherited_cost, cost;
 		struct AABB box_union;
 	
-		while(tree->cost_queue->num_elements > 0)
+		while (tree->cost_queue.object_pool.count > 0)
 		{
+			struct dbvt_node *nodes = (struct dbvt_node *) tree->node_pool.buf;
 			/* (i) Get cost of node */
-			inherited_cost = tree->cost_queue->elements[0].priority; 
-			node = tree->cost_index[min_queue_extract_min(tree->cost_queue)];
-			AABB_union(&box_union, &tree->nodes[index].box, &tree->nodes[node].box);
+			inherited_cost = tree->cost_queue.elements[0].priority; 
+			node = min_queue_extract_min(&tree->cost_queue);
+			AABB_union(&box_union, &nodes[index].box, &nodes[node].box);
 			/* Inherited area cost + expanded node area cost */
 			cost = inherited_cost + cost_SAT(&box_union);
 
@@ -279,55 +232,48 @@ i32 dbvt_insert(struct dbvt *tree, const i32 id, const struct AABB *box)
 			 * consider them as viable siblings. Their priorities become the increase in cost 
 			 * to node's path when adding the new box (the inherited cost).
 			 */
-			cost -= cost_SAT(&tree->nodes[node].box);
+			cost -= cost_SAT(&nodes[node].box);
 
-			if (tree->nodes[node].left != DBVT_NO_NODE && cost + cost_SAT(&tree->nodes[index].box) < best_cost)
+			if (nodes[node].left != DBVT_NO_NODE && cost + cost_SAT(&nodes[index].box) < best_cost)
 			{
-				kas_assert(tree->cost_queue->num_elements < COST_QUEUE_MAX-1);
-
-				i32 j = min_queue_insert(tree->cost_queue, cost);
-				tree->cost_index[j] = tree->nodes[node].left;
-
-				j = min_queue_insert(tree->cost_queue, cost);
-				tree->cost_index[j] = tree->nodes[node].right;
+				min_queue_insert(&tree->cost_queue, cost, nodes[node].left);
+				min_queue_insert(&tree->cost_queue, cost, nodes[node].right);
 			}
 		}
 
 		/* (2) Setup a new parent node for the new node and its sibling */
-		const i32 parent = dbvt_internal_alloc_node(tree, DBVT_NO_NODE, box);
-		/* TODO: cleanup below */
-		if (tree->nodes[best_index].parent != DBVT_NO_NODE)
+		const u32 parent = dbvt_internal_alloc_node(tree, DBVT_NO_NODE, box).index; 
+		struct dbvt_node *nodes = (struct dbvt_node *) tree->node_pool.buf;
+		if (nodes[best_index].parent != DBVT_NO_NODE)
 		{
-			if (tree->nodes[tree->nodes[best_index].parent].left == best_index)
+			if (nodes[nodes[best_index].parent].left == best_index)
 			{
-				tree->nodes[tree->nodes[best_index].parent].left = parent;
+				nodes[nodes[best_index].parent].left = parent;
 			}
 			else
 			{
-				tree->nodes[tree->nodes[best_index].parent].right = parent;
+				nodes[nodes[best_index].parent].right = parent;
 			}
 		}
 
-		tree->nodes[parent].parent = tree->nodes[best_index].parent;
-		tree->nodes[parent].left = best_index;
-		tree->nodes[parent].right = index;
-		tree->nodes[best_index].parent = parent;
-		tree->nodes[index].parent = parent;
-		AABB_union(&tree->nodes[parent].box, &tree->nodes[index].box, &tree->nodes[best_index].box);
+		nodes[parent].parent = nodes[best_index].parent;
+		nodes[parent].left = best_index;
+		nodes[parent].right = index;
+		nodes[best_index].parent = parent;
+		nodes[index].parent = parent;
+		AABB_union(&nodes[parent].box, &nodes[index].box, &nodes[best_index].box);
 		if (best_index == tree->root)
 		{
 			tree->root = parent;
 		} 
 
-
 		//printf("parent: %i,%i,%i,%i\n", tree->nodes[parent].parent, tree->nodes[parent].id, tree->nodes[parent].left, tree->nodes[parent].right);
-
-		node = tree->nodes[parent].parent;
+		node = nodes[parent].parent;
 		/* (3) Traverse from grandparent of leaf, refitting and rotating node up to the root */
 		while (node != DBVT_NO_NODE)
 		{
 			dbvt_internal_balance_node(tree, node);
-			node = tree->nodes[node].parent;
+			node = nodes[node].parent;
 		}
 	}
 
@@ -336,14 +282,15 @@ i32 dbvt_insert(struct dbvt *tree, const i32 id, const struct AABB *box)
 	return index;
 }
 
-void dbvt_remove(struct dbvt *tree, const i32 index)
+void dbvt_remove(struct dbvt *tree, const u32 index)
 {
 	tree->proxy_count -= 1;
+	struct dbvt_node *nodes = (struct dbvt_node *) tree->node_pool.buf;
 
-	kas_assert(tree->nodes[index].left  == DBVT_NO_NODE);
-	kas_assert(tree->nodes[index].right == DBVT_NO_NODE);
+	kas_assert(nodes[index].left  == DBVT_NO_NODE);
+	kas_assert(nodes[index].right == DBVT_NO_NODE);
 
-	i32 parent = tree->nodes[index].parent;
+	u32 parent = nodes[index].parent;
 	if (parent == DBVT_NO_NODE)
 	{
 		tree->root = DBVT_NO_NODE;
@@ -351,18 +298,12 @@ void dbvt_remove(struct dbvt *tree, const i32 index)
 	}
 	else
 	{
-		i32 sibling;
-		if (tree->nodes[parent].left == index)
-		{
-			sibling = tree->nodes[parent].right;
-		}
-		else
-		{
-			sibling = tree->nodes[parent].left;
-		}
+		u32 sibling = (nodes[parent].left == index)
+			? nodes[parent].right
+			: nodes[parent].left;
 
-		const i32 grand_parent = tree->nodes[parent].parent;
-		tree->nodes[sibling].parent = grand_parent;
+		const u32 grand_parent = nodes[parent].parent;
+		nodes[sibling].parent = grand_parent;
 
 		dbvt_internal_free_node(tree, parent);
 		dbvt_internal_free_node(tree, index);
@@ -374,23 +315,23 @@ void dbvt_remove(struct dbvt *tree, const i32 index)
 		}
 		else
 		{
-			if (tree->nodes[grand_parent].left == parent)
+			if (nodes[grand_parent].left == parent)
 			{
-				tree->nodes[grand_parent].left = sibling;
+				nodes[grand_parent].left = sibling;
 			}
 			else
 			{
-				tree->nodes[grand_parent].right = sibling;
+				nodes[grand_parent].right = sibling;
 			}
 
-			AABB_union(&tree->nodes[grand_parent].box, 
-					&tree->nodes[tree->nodes[grand_parent].left].box,
-					&tree->nodes[tree->nodes[grand_parent].right].box);
-			parent = tree->nodes[grand_parent].parent;
+			AABB_union(&nodes[grand_parent].box, 
+					&nodes[nodes[grand_parent].left].box,
+					&nodes[nodes[grand_parent].right].box);
+			parent = nodes[grand_parent].parent;
 			while (parent != DBVT_NO_NODE)
 			{
 				dbvt_internal_balance_node(tree, parent);
-				parent = tree->nodes[parent].parent;
+				parent = nodes[parent].parent;
 			}
 		}
 	}
@@ -398,52 +339,57 @@ void dbvt_remove(struct dbvt *tree, const i32 index)
 	//dbvt_validate(tree);
 }
 
-i32 dbvt_internal_descend_a(const struct dbvt_node *a, const struct dbvt_node *b)
+u32 dbvt_internal_descend_a(const struct dbvt_node *a, const struct dbvt_node *b)
 {
 	return (b->left == DBVT_NO_NODE || (a->left != DBVT_NO_NODE && cost_SAT(&b->box) < cost_SAT(&a->box))) ? 1 : 0;
 }
 
-u32 dbvt_internal_push_subtree_overlap_pairs(struct arena *mem, const struct dbvt *tree, i32 subA, i32 subB, struct dbvt_overlap stack[COST_QUEUE_MAX])
+u32 dbvt_internal_push_subtree_overlap_pairs(struct arena *mem, const struct dbvt *tree, u32 subA, u32 subB, struct dbvt_overlap *stack, const u64 stack_len)
 {
 	kas_assert(subA != DBVT_NO_NODE && subB != DBVT_NO_NODE);
 
+	struct dbvt_node *nodes = (struct dbvt_node *) tree->node_pool.buf;
 	u32 overlap_count = 0;
 	struct dbvt_overlap overlap;
-	i32 q = -1;
+	u32 q = U32_MAX;
 
 	while (1)
 	{
-		if (AABB_test(&tree->nodes[subA].box, &tree->nodes[subB].box))
+		if (AABB_test(&nodes[subA].box, &nodes[subB].box))
 		{
-			if (tree->nodes[subA].left == DBVT_NO_NODE && tree->nodes[subB].left == DBVT_NO_NODE)
+			if (nodes[subA].left == DBVT_NO_NODE && nodes[subB].left == DBVT_NO_NODE)
 			{
 				overlap_count += 1;
-				overlap.id1 = tree->nodes[subA].id;	
-				overlap.id2 = tree->nodes[subB].id;	
+				overlap.id1 = nodes[subA].id;	
+				overlap.id2 = nodes[subB].id;	
 				arena_push_packed_memcpy(mem, &overlap, sizeof(overlap));
 			}
 			else
 			{
 				/* if a is larger than b, descend into a first  */
-				if (dbvt_internal_descend_a(tree->nodes + subA, tree->nodes + subB))
+				if (dbvt_internal_descend_a(nodes + subA, nodes + subB))
 				{
-					stack[++q].id1 = tree->nodes[subA].left;
+					stack[++q].id1 = nodes[subA].left;
 					stack[q].id2 = subB;
-					subA = tree->nodes[subA].right;
+					subA = nodes[subA].right;
 				}
 				else
 				{
-					stack[++q].id1 = tree->nodes[subB].left;
+					stack[++q].id1 = nodes[subB].left;
 					stack[q].id2 = subA;
-					subB = tree->nodes[subB].right;
+					subB = nodes[subB].right;
 				}
 
-				kas_assert(q < COST_QUEUE_MAX);
+				if (q+1 >= stack_len)
+				{
+					log_string(T_PHYSICS, S_FATAL, "out-of-memory in arena based stack, increase arena size!");		
+					fatal_cleanup_and_exit(kas_thread_self_tid());
+				}
 				continue;
 			}
 		}
 
-		if (q != -1)
+		if (q != U32_MAX)
 		{
 			subA = stack[q].id1;
 			subB = stack[q--].id2;
@@ -460,34 +406,46 @@ u32 dbvt_internal_push_subtree_overlap_pairs(struct arena *mem, const struct dbv
 struct dbvt_overlap *dbvt_push_overlap_pairs(struct arena *mem, u32 *count, struct dbvt *tree)
 {
 	if (tree->proxy_count < 2) { return 0; }
+	struct dbvt_node *nodes = (struct dbvt_node *) tree->node_pool.buf;
 
 	*count = 0;
-	i32 a = tree->nodes[tree->root].left;
-	i32 b = tree->nodes[tree->root].right;
-	i32 q = -1;
-	struct dbvt_overlap stack1[COST_QUEUE_MAX];
-	struct dbvt_overlap stack2[COST_QUEUE_MAX];
-	struct dbvt_overlap *overlaps = (struct dbvt_overlap *) mem->stack_ptr;
+	u32 a = nodes[tree->root].left;
+	u32 b = nodes[tree->root].right;
+	u32 q = U32_MAX;
+
+	struct arena tmp1 = arena_alloc_1MB();
+	struct arena tmp2 = arena_alloc_1MB();
+
+	struct allocation_array arr1 = arena_push_aligned_all(&tmp1, sizeof(struct dbvt_overlap), 8); 
+	struct allocation_array arr2 = arena_push_aligned_all(&tmp2, sizeof(struct dbvt_overlap), 8); 
+
+	struct dbvt_overlap *stack1 = arr1.addr;
+	struct dbvt_overlap *stack2 = arr2.addr;
+	struct dbvt_overlap *overlaps = (struct dbvt_overlap *) mem->stack_ptr; 
 
 	while (1)
 	{
-		*count += dbvt_internal_push_subtree_overlap_pairs(mem, tree, a, b, stack2);
+		*count += dbvt_internal_push_subtree_overlap_pairs(mem, tree, a, b, stack2, arr2.len);
 
-		if (tree->nodes[a].left != DBVT_NO_NODE)
+		if (nodes[a].left != DBVT_NO_NODE)
 		{
-			stack1[++q].id1 = tree->nodes[a].left;
-			stack1[q].id2 = tree->nodes[a].right;	
-			kas_assert(q < COST_QUEUE_MAX);
+			stack1[++q].id1 = nodes[a].left;
+			stack1[q].id2 = nodes[a].right;	
+			if (q >= arr1.len)
+			{
+				log_string(T_PHYSICS, S_FATAL, "out-of-memory in arena based stack, increase arena size!");		
+				fatal_cleanup_and_exit(kas_thread_self_tid());
+			}
 		}
 
-		if (tree->nodes[b].left != DBVT_NO_NODE)
+		if (nodes[b].left != DBVT_NO_NODE)
 		{
-			 a = tree->nodes[b].left;	
-			 b = tree->nodes[b].right;	
+			 a = nodes[b].left;	
+			 b = nodes[b].right;	
 			 continue;
 		}
 
-		if (q != -1)
+		if (q != U32_MAX)
 		{
 			a = stack1[q].id1;
 			b = stack1[q--].id2;
@@ -498,6 +456,9 @@ struct dbvt_overlap *dbvt_push_overlap_pairs(struct arena *mem, u32 *count, stru
 		}
 	}
 
+	arena_free_1MB(&tmp1);
+	arena_free_1MB(&tmp2);
+
 	return (*count) ? overlaps : NULL;
 }
 
@@ -505,34 +466,33 @@ u32 dbvt_raycast(struct arena *mem, const struct dbvt *tree, const struct ray *r
 {
 	if (tree->proxy_count == 0) { return 0; }
 
-	i32 *hits = arena_push_packed(mem, tree->proxy_count * sizeof(i32));
+	u32 *hits = arena_push_packed(mem, tree->proxy_count * sizeof(i32));
 	struct arena record = *mem;
-	i32 *stack = arena_push_packed(mem, tree->proxy_count * sizeof(i32));
+	u32 *stack = arena_push_packed(mem, tree->proxy_count * sizeof(i32));
 
 	vec3 tmp;
-	i32 i = tree->root;
+	u32 i = tree->root;
 	u32 s_len = 0;
 	u32 h_len = 0;
 	const struct dbvt_node *node;
 
 	while (1)
 	{
-		node = tree->nodes + i;
-		if (i < tree->len)
+		node = pool_address(&tree->node_pool, i);
+		kas_assert (i < tree->node_pool.count);
+
+		if (AABB_raycast(tmp, &node->box, ray))
 		{
-			if (AABB_raycast(tmp, &node->box, ray))
+			if (node->left != DBVT_NO_NODE)
 			{
-				if (node->left != DBVT_NO_NODE)
-				{
-					i = node->left;
-					stack[s_len++] = node->right;
-					continue;
-				}
-				else
-				{
-					
-					hits[h_len++] = node->id;
-				}
+				i = node->left;
+				stack[s_len++] = node->right;
+				continue;
+			}
+			else
+			{
+				
+				hits[h_len++] = node->id;
 			}
 		}
 
@@ -551,34 +511,37 @@ u32 dbvt_raycast(struct arena *mem, const struct dbvt *tree, const struct ray *r
 
 void dbvt_validate(struct dbvt *tree)
 {
-	i32 i = tree->root;
-	i32 q = DBVT_NO_NODE;
+	u32 i = tree->root;
+	u32 q = DBVT_NO_NODE;
+	struct dbvt_node *nodes = (struct dbvt_node *) tree->node_pool.buf;
+	
+	u32 cost_index[COST_QUEUE_INITIAL_COUNT];
 
-	i32 node_count = 0;
+	u32 node_count = 0;
 	while (i != DBVT_NO_NODE)
 	{
 		node_count++;
-		const i32 parent = tree->nodes[i].parent;
+		const u32 parent = nodes[i].parent;
 		if (parent != DBVT_NO_NODE)
 		{
-			const i32 parent_left = tree->nodes[parent].left;
-			const i32 parent_right = tree->nodes[parent].right;
+			const u32 parent_left = nodes[parent].left;
+			const u32 parent_right = nodes[parent].right;
 			kas_assert(parent_left != parent_right);
 			kas_assert(parent_left == i || parent_right == i);
 		}
 	
-		kas_assert((tree->nodes[i].left == DBVT_NO_NODE && tree->nodes[i].right == DBVT_NO_NODE) 
-				|| (tree->nodes[i].left != DBVT_NO_NODE && tree->nodes[i].right != DBVT_NO_NODE));
+		kas_assert((nodes[i].left == DBVT_NO_NODE && nodes[i].right == DBVT_NO_NODE) 
+				|| (nodes[i].left != DBVT_NO_NODE && nodes[i].right != DBVT_NO_NODE));
 
-		if (tree->nodes[i].left != DBVT_NO_NODE)
+		if (nodes[i].left != DBVT_NO_NODE)
 		{
-			tree->cost_index[++q] = tree->nodes[i].right;
-			i = tree->nodes[i].left;
-			kas_assert(q < COST_QUEUE_MAX);
+			cost_index[++q] = nodes[i].right;
+			i = nodes[i].left;
+			kas_assert(q < COST_QUEUE_INITIAL_COUNT);
 		}
 		else if (q != DBVT_NO_NODE)
 		{
-			i = tree->cost_index[q--];
+			i = cost_index[q--];
 			kas_assert(i != DBVT_NO_NODE);
 		}
 		else
@@ -601,7 +564,7 @@ void dbvt_validate(struct dbvt *tree)
 //		if (tree->nodes[i].left != DBVT_NO_NODE)
 //		{
 //			tree->cost_index[++q] = tree->nodes[i].right;
-//			kas_assert(q < COST_QUEUE_MAX);
+//			kas_assert(q < COST_QUEUE_INITIAL_COUNT);
 //			i = tree->nodes[i].left;
 //		}
 //		else if (q != DBVT_NO_NODE)

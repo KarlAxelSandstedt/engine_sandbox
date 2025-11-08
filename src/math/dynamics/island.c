@@ -519,10 +519,6 @@ void is_db_split_island(struct arena *mem_tmp, struct physics_pipeline *pipeline
 	u32 sc = 0;
 	u32 *body_stack = arena_push(mem_tmp, split->body_count * sizeof(u32));
 
-	//TODO TMP
-	//u32 new_island_count = 0;
-	//u32 *new_islands = arena_push(mem_tmp, NULL, split->body_count * sizeof(u32));
-
 	struct is_index_entry *entry = NULL;
 	for (u32 i = split->body_first; i != ISLAND_NULL;)
 	{
@@ -539,8 +535,6 @@ void is_db_split_island(struct arena *mem_tmp, struct physics_pipeline *pipeline
 		{
 			/* TODO: Make thread-safe */
 			struct island *new_island = is_db_init_island_from_body(pipeline, body);
-			//TODO TMP
-			//new_islands[new_island_count++] = b->island_index;
 
 			/* Body-Contact breadth-first search */
 			while (1)
@@ -607,12 +601,6 @@ void is_db_split_island(struct arena *mem_tmp, struct physics_pipeline *pipeline
 			is_db_internal_add_contact_to_island(&pipeline->is_db, is, index);
 		}
 	}
-
-	//TODO TMP
-	//for (u32 i = 0; i < new_island_count; ++i)
-	//{
-	//	is_db_print_island(stderr, &pipeline->is_db, &pipeline->c_db, new_islands[i], "NEW");
-	//}
 
 	/* TODO: Make thread safe */
 	/* Remove split island */

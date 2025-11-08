@@ -133,7 +133,8 @@ Operations:
 
 Auxilliary Operation:
 	(1)	contact_cache_get_persistent_contacts()	
-	(2)	contact_cache_get_new_contacts() * 	(3)	contact_cache_get_deleted_contacts()
+	(2)	contact_cache_get_new_contacts() 
+  	(3)	contact_cache_get_deleted_contacts()
 
 
 ----- Island Consistency: Knowing when to split, and when to merge -----
@@ -240,10 +241,6 @@ struct island
 
 	u32 body_count;
 	u32 contact_count;
-
-#ifdef	KAS_PHYSICS_DEBUG
-	vec4 	color;
-#endif
 };
 
 struct is_index_entry

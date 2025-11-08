@@ -74,7 +74,7 @@ struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 init
 	pipeline.c_state.margin_on = 1;
 	pipeline.c_state.margin = COLLISION_MARGIN_DEFAULT;
 
-	pipeline.dynamic_tree = dbvt_alloc(mem, 2*initial_size);
+	pipeline.dynamic_tree = dbvt_alloc(2*initial_size);
 
 	pipeline.c_db = c_db_alloc(mem, initial_size);
 	pipeline.is_db = is_db_alloc(mem, initial_size);
@@ -136,9 +136,6 @@ void physics_pipeline_validate(const struct physics_pipeline *pipeline)
 
 static void rigid_body_update_local_box(struct rigid_body *body, const struct collision_shape *shape)
 {
-	//TODO: Place in lookup table 
-	//TODO: Does not take into account rotations
-
 	vec3 min = { FLT_MAX, FLT_MAX, FLT_MAX };
 	vec3 max = { -FLT_MAX, -FLT_MAX, -FLT_MAX };
 
@@ -248,7 +245,8 @@ static void internal_update_dynamic_tree(struct physics_pipeline *pipeline)
 			rigid_body_update_local_box(b, shape);
 			vec3_add(world_AABB.center, b->local_box.center, b->position);
 			vec3_copy(world_AABB.hw, b->local_box.hw);
-			const struct AABB *proxy = &pipeline->dynamic_tree.nodes[b->proxy].box;
+			const struct dbvt_node *node = pool_address(&pipeline->dynamic_tree.node_pool, b->proxy);
+			const struct AABB *proxy = &node->box;
 			if (!AABB_contains(proxy, &world_AABB))
 			{
 				world_AABB.hw[0] += b->margin;

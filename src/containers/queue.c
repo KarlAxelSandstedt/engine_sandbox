@@ -21,7 +21,7 @@
 #include <stdlib.h>
 #include <float.h>
 #include "queue.h"
-#include "sys_common.h"
+#include "sys_public.h"
 
 /**
  * parent_index() - get queue index of parent.
@@ -29,9 +29,9 @@
  * queue_index - index of child
  *
  * RETURNS: the index of the parent. If the function is called on the element first in the queue (index 0),
- * 	then an error value of -1 is returned: 0/2 - ((0 AND 1) XOR 1) = 0 - (0 XOR 1) = -1.
+ * 	then an error value of U32_MAX is returned: 0/2 - ((0 AND 1) XOR 1) = 0 - (0 XOR 1) = U32_MAX.
  */
-static i32 parent_index(const i32 queue_index)
+static u32 parent_index(const u32 queue_index)
 {
 	return queue_index / 2 - ((queue_index & 0x1) ^ 0x1);
 }
@@ -41,9 +41,9 @@ static i32 parent_index(const i32 queue_index)
  *
  * queue_index - index of parent 
  */
-static i32 left_index(const i32 queue_index)
+static u32 left_index(const u32 queue_index)
 {
-	return (queue_index << 1) | 0x1;
+	return (queue_index << 1) + 1;
 }
 
 /**
@@ -51,7 +51,7 @@ static i32 left_index(const i32 queue_index)
  *
  * queue_index - index of parent 
  */
-static i32 right_index(const i32 queue_index)
+static u32 right_index(const u32 queue_index)
 {
 	return (queue_index + 1) << 1;
 }
@@ -64,11 +64,13 @@ static i32 right_index(const i32 queue_index)
  * i1 - queue index of element 1
  * i2 - queue index of element 2
  */
-static void min_queue_change_elements(struct min_queue * const queue, const i32 i1, const i32 i2)
+static void min_queue_change_elements(struct min_queue * const queue, const u32 i1, const u32 i2)
 {
 	/* Update data queue indices */
-	queue->queue_indices[queue->elements[i1].object_index] = i2;
-	queue->queue_indices[queue->elements[i2].object_index] = i1;
+	struct queue_object *obj1 = pool_address(&queue->object_pool, queue->elements[i1].object_index);
+	struct queue_object *obj2 = pool_address(&queue->object_pool, queue->elements[i2].object_index);
+	obj1->queue_index = i2;
+	obj2->queue_index = i1;
 
 	/* Update priorities */
 	const f32 tmp_priority = queue->elements[i1].priority;
@@ -76,7 +78,7 @@ static void min_queue_change_elements(struct min_queue * const queue, const i32 
 	queue->elements[i2].priority = tmp_priority;
 
 	/* update queue's data indices */
-	const i32 tmp_index = queue->elements[i1].object_index;
+	const u32 tmp_index = queue->elements[i1].object_index;
 	queue->elements[i1].object_index = queue->elements[i2].object_index;
 	queue->elements[i2].object_index = tmp_index;
 }
@@ -85,27 +87,28 @@ static void min_queue_change_elements(struct min_queue * const queue, const i32 
  * min_queue_heapify_up() - Keep the queue coherent after a decrease of the queue_index's priority has been made.
  * 	A Decrease of the priority may destroy the coherency of the queue, as the parent should always be infront
  * 	of the children in the queue. decreasing the priority of a child may thus result in the child having a
- * 	lower priority than it's parent, so they have to be i32erchanged.
+ * 	lower priority than it's parent, so they have to be interchanged.
  *
  * queue - The queue
  * queue_index - The index of the queue element who just had it's priority decreased.
  */
-static void min_queue_heapify_up(struct min_queue * const queue, i32 queue_index)
+static void min_queue_heapify_up(struct min_queue * const queue, u32 queue_index)
 {
-	i32 parent = parent_index(queue_index);
+	u32 parent = parent_index(queue_index);
 
 	/* Continue until parent's priority is smaller than child or the root has been reached */
-	while (parent != -1 && queue->elements[queue_index].priority < queue->elements[parent].priority) {
+	while (parent != U32_MAX && queue->elements[queue_index].priority < queue->elements[parent].priority) 
+	{
 		min_queue_change_elements(queue, queue_index, parent);
 		queue_index = parent;
 		parent = parent_index(queue_index); 
 	}
 }
 
-static void recursion_done(struct min_queue * const queue, const i32 queue_index, const i32 small_priority_index);
-static void recursive_call(struct min_queue * const queue, const i32 queue_index, const i32 small_priority_index);
+static void recursion_done(struct min_queue * const queue, const u32 queue_index, const u32 small_priority_index);
+static void recursive_call(struct min_queue * const queue, const u32 queue_index, const u32 small_priority_index);
 
-void (*func[2])(struct min_queue * const, const i32, const i32) = { &recursion_done, &recursive_call };
+void (*func[2])(struct min_queue * const, const u32, const u32) = { &recursion_done, &recursive_call };
 
 /**
  * min_queue_heapify_down() - Keeps the queue coherent when the element at queue_index has had 
@@ -115,257 +118,132 @@ void (*func[2])(struct min_queue * const, const i32, const i32) = { &recursion_d
  * queue - The queue
  * queue_index - Index of the element whose priority has been increased
  */
-static void min_queue_heapify_down(struct min_queue * const queue, const i32 queue_index)
+static void min_queue_heapify_down(struct min_queue * const queue, const u32 queue_index)
 {
-	const i32 left = left_index(queue_index);
-	const i32 right = right_index(queue_index);
-	i32 smallest_priority_index = queue_index;
+	const u32 left = left_index(queue_index);
+	const u32 right = right_index(queue_index);
+	u32 smallest_priority_index = queue_index;
 
-	if (left < queue->num_elements && queue->elements[left].priority < queue->elements[smallest_priority_index].priority)
+	if (left < queue->object_pool.count && queue->elements[left].priority < queue->elements[smallest_priority_index].priority)
 		smallest_priority_index = left;
 	
-	if (right < queue->num_elements && queue->elements[right].priority < queue->elements[smallest_priority_index].priority)
+	if (right < queue->object_pool.count && queue->elements[right].priority < queue->elements[smallest_priority_index].priority)
 		smallest_priority_index = right;
 	
 	/* Child had smaller priority */
-	/* assumes i32 == 4B */
 	func[ ((u32) queue_index - smallest_priority_index) >> 31 ](queue, queue_index, smallest_priority_index);
 }
 
-static void recursion_done(struct min_queue * const queue, const i32 queue_index, const i32 small_priority_index)
+static void recursion_done(struct min_queue * const queue, const u32 queue_index, const u32 small_priority_index)
 {
 	return;
 }
 
-static void recursive_call(struct min_queue * const queue, const i32 queue_index, const i32 smallest_priority_index)
+static void recursive_call(struct min_queue * const queue, const u32 queue_index, const u32 smallest_priority_index)
 {
 		min_queue_change_elements(queue, queue_index, smallest_priority_index);
 		/* Now child may break the min-heap property */
 		min_queue_heapify_down(queue, smallest_priority_index);
 }
 
-struct min_queue *min_queue_new(struct arena *arena, const i32 num_objects)
+struct min_queue min_queue_new(struct arena *arena, const u32 initial_length, const u32 growable)
 {
-	kas_assert(num_objects > 0);
+	kas_assert(initial_length);
+	kas_assert(!arena || !growable);
 
-	struct min_queue *queue = NULL;
+	struct min_queue queue;
 
 	if (arena)
 	{
-		queue = (struct min_queue *) arena_push(arena, sizeof(struct min_queue));
-		queue->queue_indices = (i32 *) arena_push(arena, num_objects * sizeof(i32));
-		queue->elements = (struct queue_element *) arena_push(arena, num_objects * sizeof(struct queue_element));
+		queue.object_pool = pool_alloc(arena, initial_length, struct queue_object, !GROWABLE);
+		queue.elements = arena_push(arena, initial_length * sizeof(struct queue_element));
+		queue.heap_allocated = 0;
 	}
 	else
 	{
-		queue = malloc(sizeof(struct min_queue));
-		queue->queue_indices = malloc(num_objects * sizeof(i32));
-		queue->elements = malloc(num_objects * sizeof(struct queue_element));
+		queue.object_pool = pool_alloc(NULL, initial_length, struct queue_object, !GROWABLE);
+		queue.elements = malloc(initial_length * sizeof(struct queue_element));
+		queue.heap_allocated = 1;
 	}
 
-	queue->num_objects = num_objects;
-	queue->num_elements = 0;
+	queue.growable = growable;
+
+	if (queue.object_pool.length == 0 || queue.elements == NULL)
+	{
+		log_string(T_SYSTEM, S_FATAL, "Failed to allocate min queue, exiting.");
+		fatal_cleanup_and_exit(kas_thread_self_tid());
+	}
 		
-	for (i32 i = 0; i < num_objects; ++i) {
-		queue->queue_indices[i] = i;
-		queue->elements[i].object_index = i;
-		queue->elements[i].priority = FLT_MAX;
-	}
-
 	return queue;
 }
 
 void min_queue_free(struct min_queue * const queue)
 {
-	free(queue->queue_indices);
-	free(queue->elements);
-	free(queue);
+	if (queue->heap_allocated)
+	{
+		pool_dealloc(&queue->object_pool);
+		free(queue->elements);
+	}
 }
 
-i32 min_queue_extract_min(struct min_queue * const queue)
+u32 min_queue_extract_min(struct min_queue * const queue)
 {
-	kas_assert(queue->num_elements > 0 && "Queue should have elements to extract\n");
-	queue->num_elements -= 1;
-	const i32 object_index = queue->elements[0].object_index;
+	kas_assert_string(queue->object_pool.count > 0, "Queue should have elements to extract\n");
+	struct queue_object *obj = pool_address(&queue->object_pool, queue->elements[0].object_index);
+	const u32 external_index = obj->external_index;
 	queue->elements[0].priority = FLT_MAX;
 
 	/* Keep the array of elements compact */
-	min_queue_change_elements(queue, 0, queue->num_elements);
+	min_queue_change_elements(queue, 0, queue->object_pool.count-1);
 	/* Check coherence of the queue from the start */
 	min_queue_heapify_down(queue, 0);
 
-	//queue->queue_indices[queue->num_elements] = queue->num_elements;
-	//queue->elements[queue->num_elements].object_index = queue->num_elements;
+	pool_remove_address(&queue->object_pool, obj);
 
-	return object_index;
+	return external_index;
 }
 
-i32 min_queue_insert(struct min_queue * const queue, const f32 priority)
+u32 min_queue_insert(struct min_queue * const queue, const f32 priority, const u32 external_index)
 {
-	const i32 queue_index = queue->num_elements;
-	//kas_assert_string(priority >= 0.0f, "Priorities should be non-negative");
-	kas_assert_string(queue_index < queue->num_objects, "Queue index should be withing queue bounds");
+	const u32 old_length = queue->object_pool.length;
+	const u32 queue_index = queue->object_pool.count;
+	struct slot slot = pool_add(&queue->object_pool);
+	if (old_length != queue->object_pool.length)
+	{
+		kas_assert(queue->growable);
+		queue->elements = realloc(queue->elements, queue->object_pool.length * sizeof(struct queue_element));
+		if (queue->elements == NULL)
+		{
+			log_string(T_SYSTEM, S_FATAL, "Failed to reallocate min queue, exiting.");
+			fatal_cleanup_and_exit(kas_thread_self_tid());
+		}
+	}
 
-	queue->num_elements += 1;	
-	const i32 object_index = queue->elements[queue_index].object_index;
 	queue->elements[queue_index].priority = priority;
+	queue->elements[queue_index].object_index = slot.index;
+
+	struct queue_object *object = slot.address;
+	object->external_index = external_index;
+	object->queue_index = queue_index;
+
 	min_queue_heapify_up(queue, queue_index);
 
-	return object_index;
+	return slot.index;
 }
 
-void min_queue_decrease_priority(struct min_queue * const queue, const i32 queue_index, const f32 priority)
+void min_queue_decrease_priority(struct min_queue * const queue, const u32 object_index, const f32 priority)
 {
-	//kas_assert_string(priority >= 0.0f, "Priorities should be non-negative");
-	kas_assert_string(queue_index < queue->num_elements, "Queue index should be withing queue bounds");
+	kas_assert_string(object_index < queue->object_pool.count, "Queue index should be withing queue bounds");
 
-	if (priority < queue->elements[queue_index].priority) {
-		queue->elements[queue_index].priority = priority;
-		min_queue_heapify_up(queue, queue_index);
+	struct queue_object *obj = pool_address(&queue->object_pool, object_index);
+	if (priority < queue->elements[obj->queue_index].priority) 
+	{
+		queue->elements[obj->queue_index].priority = priority;
+		min_queue_heapify_up(queue, obj->queue_index);
 	}
 }
 
 void min_queue_flush(struct min_queue * const queue)
 {
-	for (i32 i = 0; i < queue->num_elements; ++i) {
-		queue->elements[i].priority = FLT_MAX;
-	}
-
-	queue->num_elements = 0;
-}
-
-static void min_heap_change_elements(struct min_heap * const heap, const i32 i1, const i32 i2)
-{
-	/* Update priorities */
-	const f32 tmp_priority = heap->elements[i1].priority;
-	heap->elements[i1].priority = heap->elements[i2].priority;
-	heap->elements[i2].priority = tmp_priority;
-
-	/* update heap's data indices */
-	const u64 tmp_id = heap->elements[i1].id;
-	heap->elements[i1].id = heap->elements[i2].id;
-	heap->elements[i2].id = tmp_id;
-}
-
-
-static void min_heap_heapify_up(struct min_heap * const heap, i32 heap_index)
-{
-	i32 parent = parent_index(heap_index);
-
-	/* Continue until parent's priority is smaller than child or the root has been reached */
-	while (parent != -1 && heap->elements[heap_index].priority < heap->elements[parent].priority) {
-		min_heap_change_elements(heap, heap_index, parent);
-		heap_index = parent;
-		parent = parent_index(heap_index); 
-	}
-}
-
-static void heap_recursion_done(struct min_heap * const heap, const i32 heap_index, const i32 small_priority_index);
-static void heap_recursive_call(struct min_heap * const heap, const i32 heap_index, const i32 small_priority_index);
-
-void (*heap_func[2])(struct min_heap * const, const i32, const i32) = { &heap_recursion_done, &heap_recursive_call };
-
-/**
- * min_heap_heapify_down() - Keeps the heap coherent when the element at heap_index has had 
- * 	it's priority increased. Then the element may have a higher priority than it's children, breaking
- * 	the min-heap property.
- *
- * heap - The heap
- * heap_index - Index of the element whose priority has been increased
- */
-static void min_heap_heapify_down(struct min_heap * const heap, const i32 heap_index)
-{
-	const i32 left = left_index(heap_index);
-	const i32 right = right_index(heap_index);
-	i32 smallest_priority_index = heap_index;
-
-	if (left < heap->count && heap->elements[left].priority < heap->elements[smallest_priority_index].priority)
-		smallest_priority_index = left;
-	
-	if (right < heap->count && heap->elements[right].priority < heap->elements[smallest_priority_index].priority)
-		smallest_priority_index = right;
-	
-	/* Child had smaller priority */
-	heap_func[ ((u32) heap_index - smallest_priority_index) >> 31 ](heap, heap_index, smallest_priority_index);
-}
-
-static void heap_recursion_done(struct min_heap * const heap, const i32 heap_index, const i32 small_priority_index)
-{
-	return;
-}
-
-static void heap_recursive_call(struct min_heap * const heap, const i32 heap_index, const i32 smallest_priority_index)
-{
-		min_heap_change_elements(heap, heap_index, smallest_priority_index);
-		min_heap_heapify_down(heap, smallest_priority_index);
-}
-
-struct min_heap *min_heap_new(struct arena *mem, const i32 max_count)
-{
-	kas_assert(max_count > 0);
-
-	struct min_heap *heap = NULL;
-	if (mem)
-	{
-		heap = arena_push(mem, sizeof(struct min_heap));
-		heap->elements = arena_push(mem, max_count * sizeof(struct heap_slot));
-	}
-	else
-	{
-		heap = malloc(sizeof(struct min_heap));
-		heap->elements = malloc(max_count * sizeof(struct heap_slot));
-	}
-
-	heap->max_count = max_count;
-	heap->count = 0;
-
-	return heap;
-}
-
-void min_heap_free(struct min_heap *heap)
-{
-	free(heap->elements);
-	free(heap);
-}
-
-void min_heap_push(struct min_heap *heap, const f32 priority, const u64 id)
-{
-	const i32 heap_index = heap->count;
-	kas_assert_string(heap_index < heap->max_count, "Heap index should be withing heap bounds");
-
-	heap->count += 1;	
-	heap->elements[heap_index].priority = priority;
-	heap->elements[heap_index].id = id;
-	min_heap_heapify_up(heap, heap_index);
-}
-
-u64 min_heap_pop(struct min_heap *heap)
-{
-	kas_assert_string(heap->count > 0, "Heap should have elements to extract\n");
-	heap->count -= 1;
-
-	const u64 id = heap->elements[0].id;
-	min_heap_change_elements(heap, 0, heap->count);
-	min_heap_heapify_down(heap, 0);
-
-	return id;
-}
-
-u64 min_heap_peek(struct min_heap *heap)
-{
-	kas_assert_string(heap->count > 0, "Heap should have elements to extract\n");
-	const u64 id = heap->elements[0].id;
-
-	return id;
-}
-
-void min_heap_print(FILE *log, struct min_heap *heap)
-{
-	fprintf(log, "min heap %p: ", heap);
-	fprintf(log, "{ ");
-	for (i32 i = 0; i < heap->count; ++i)
-	{
-		fprintf(log, "%f, ", heap->elements[i].priority);
-	}
-	fprintf(log, "}\n");
+	pool_flush(&queue->object_pool);
 }
