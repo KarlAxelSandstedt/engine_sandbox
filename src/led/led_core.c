@@ -666,9 +666,12 @@ void led_wall_smash_simulation_setup(struct led *led)
 {
 	struct system_window *sys_win = system_window_address(g_editor->window);
 
+	const u32 tower1_count = 3;
+	const u32 tower2_count = 3;
 	const u32 tower1_box_count = 40;
 	const u32 tower2_box_count = 10;
 	const u32 pyramid_layers = 10;
+	const u32 pyramid_count = 3;
 	const u32 bodies = tower1_box_count + tower2_box_count + 3 + pyramid_layers*(pyramid_layers+1) / 2;
 
 	/* Setup rigid bodies */
@@ -852,95 +855,111 @@ void led_wall_smash_simulation_setup(struct led *led)
 	sys_win->cmd_queue->regs[6].f32 = 1.0f;
 	cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_proxy3d_id);
 	
-	for (u32 i = 0; i < pyramid_layers; ++i)
+	for (u32 k = 0; k < pyramid_count; ++k)
 	{
-		const f32 local_y = i * box_side;
-		for (u32 j = 0; j < pyramid_layers-i; ++j)
+		for (u32 i = 0; i < pyramid_layers; ++i)
 		{
-			const f32 local_x = j -(pyramid_layers-i-1) * box_side / 2.0f;
-			vec3 translation;
-			vec3_copy(translation, box_base_translation);
-			translation[0] += local_x;
-			translation[1] += local_y;
+			const f32 local_y = i * box_side;
+			for (u32 j = 0; j < pyramid_layers-i; ++j)
+			{
+				const f32 local_x = j -(pyramid_layers-i-1) * box_side / 2.0f;
+				vec3 translation;
+				vec3_copy(translation, box_base_translation);
+				translation[0] += local_x;
+				translation[1] += local_y;
+				translation[2] += 2.0f * k;
 
-			utf8 id = utf8_format(sys_win->ui->mem_frame, "pyramid_%u_%u", i, j);
-			sys_win->cmd_queue->regs[0].utf8 = id;
-			cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_add_id);
-			sys_win->cmd_queue->regs[0].utf8 = id;
-			sys_win->cmd_queue->regs[1].f32 = translation[0];
-			sys_win->cmd_queue->regs[2].f32 = translation[1];
-			sys_win->cmd_queue->regs[3].f32 = translation[2];
-			cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_position_id);
-			sys_win->cmd_queue->regs[0].utf8 = id;
-			sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rb_box");
-			cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_rb_prefab_id);
-			sys_win->cmd_queue->regs[0].utf8 = id;
-			sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rm_box");
-			sys_win->cmd_queue->regs[2].f32 = pyramid_color[0];
-			sys_win->cmd_queue->regs[3].f32 = pyramid_color[1];
-			sys_win->cmd_queue->regs[4].f32 = pyramid_color[2];
-			sys_win->cmd_queue->regs[5].f32 = pyramid_color[3];
-			sys_win->cmd_queue->regs[6].f32 = 1.0f;
-			cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_proxy3d_id);
+				utf8 id = utf8_format(sys_win->ui->mem_frame, "pyramid_%u_%u_%u", i, j, k);
+				sys_win->cmd_queue->regs[0].utf8 = id;
+				cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_add_id);
+				sys_win->cmd_queue->regs[0].utf8 = id;
+				sys_win->cmd_queue->regs[1].f32 = translation[0];
+				sys_win->cmd_queue->regs[2].f32 = translation[1];
+				sys_win->cmd_queue->regs[3].f32 = translation[2];
+				cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_position_id);
+				sys_win->cmd_queue->regs[0].utf8 = id;
+				sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rb_box");
+				cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_rb_prefab_id);
+				sys_win->cmd_queue->regs[0].utf8 = id;
+				sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rm_box");
+				sys_win->cmd_queue->regs[2].f32 = pyramid_color[0];
+				sys_win->cmd_queue->regs[3].f32 = pyramid_color[1];
+				sys_win->cmd_queue->regs[4].f32 = pyramid_color[2];
+				sys_win->cmd_queue->regs[5].f32 = pyramid_color[3];
+				sys_win->cmd_queue->regs[6].f32 = 1.0f;
+				cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_proxy3d_id);
+			}
 		}
 	}
 
-	for (u32 i = 0; i < tower1_box_count; ++i)
+	for (u32 k = 0; k < tower1_count; ++k)
 	{
-		vec3 translation;
-		vec3_copy(translation, box_base_translation);
-		translation[2] += 15.0f;
-		translation[1] += (f32) i * box_aabb.hw[1] * 2.10f;
-		translation[0] += 15.0f;
+		for (u32 j = 0; j < tower1_count; ++j)
+		{
+			for (u32 i = 0; i < tower1_box_count; ++i)
+			{
+				vec3 translation;
+				vec3_copy(translation, box_base_translation);
+				translation[2] += 15.0f + 2.0f*k;
+				translation[1] += (f32) i * box_aabb.hw[1] * 2.10f;
+				translation[0] += 15.0f + 2.0f*j;
 
-		utf8 id = utf8_format(sys_win->ui->mem_frame, "tower1_%u", i);
-		sys_win->cmd_queue->regs[0].utf8 = id;
-		cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_add_id);
-		sys_win->cmd_queue->regs[0].utf8 = id;
-		sys_win->cmd_queue->regs[1].f32 = translation[0];
-		sys_win->cmd_queue->regs[2].f32 = translation[1];
-		sys_win->cmd_queue->regs[3].f32 = translation[2];
-		cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_position_id);
-		sys_win->cmd_queue->regs[0].utf8 = id;
-		sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rb_box");
-		cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_rb_prefab_id);
-		sys_win->cmd_queue->regs[0].utf8 = id;
-		sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rm_box");
-		sys_win->cmd_queue->regs[2].f32 = tower1_color[0];
-		sys_win->cmd_queue->regs[3].f32 = tower1_color[1];
-		sys_win->cmd_queue->regs[4].f32 = tower1_color[2];
-		sys_win->cmd_queue->regs[5].f32 = tower1_color[3];
-		sys_win->cmd_queue->regs[6].f32 = 1.0f;
-		cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_proxy3d_id);
+				utf8 id = utf8_format(sys_win->ui->mem_frame, "tower1_%u_%u_%u", i, j, k);
+				sys_win->cmd_queue->regs[0].utf8 = id;
+				cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_add_id);
+				sys_win->cmd_queue->regs[0].utf8 = id;
+				sys_win->cmd_queue->regs[1].f32 = translation[0];
+				sys_win->cmd_queue->regs[2].f32 = translation[1];
+				sys_win->cmd_queue->regs[3].f32 = translation[2];
+				cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_position_id);
+				sys_win->cmd_queue->regs[0].utf8 = id;
+				sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rb_box");
+				cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_rb_prefab_id);
+				sys_win->cmd_queue->regs[0].utf8 = id;
+				sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rm_box");
+				sys_win->cmd_queue->regs[2].f32 = tower1_color[0];
+				sys_win->cmd_queue->regs[3].f32 = tower1_color[1];
+				sys_win->cmd_queue->regs[4].f32 = tower1_color[2];
+				sys_win->cmd_queue->regs[5].f32 = tower1_color[3];
+				sys_win->cmd_queue->regs[6].f32 = 1.0f;
+				cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_proxy3d_id);
+			}
+		}
 	}
 
-	for (u32 i = 0; i < tower2_box_count; ++i)
+	for (u32 k = 0; k < tower2_count; ++k)
 	{
-		vec3 translation;
-		vec3_copy(translation, box_base_translation);
-		translation[2] += 15.0f;
-		translation[1] += (f32) i * box_aabb.hw[1] * 2.10f;
-		translation[0] -= 15.0f;
-	
-		utf8 id = utf8_format(sys_win->ui->mem_frame, "tower2_%u", i);
-		sys_win->cmd_queue->regs[0].utf8 = id;
-		cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_add_id);
-		sys_win->cmd_queue->regs[0].utf8 = id;
-		sys_win->cmd_queue->regs[1].f32 = translation[0];
-		sys_win->cmd_queue->regs[2].f32 = translation[1];
-		sys_win->cmd_queue->regs[3].f32 = translation[2];
-		cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_position_id);
-		sys_win->cmd_queue->regs[0].utf8 = id;
-		sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rb_box");
-		cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_rb_prefab_id);
-		sys_win->cmd_queue->regs[0].utf8 = id;
-		sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rm_box");
-		sys_win->cmd_queue->regs[2].f32 = tower2_color[0];
-		sys_win->cmd_queue->regs[3].f32 = tower2_color[1];
-		sys_win->cmd_queue->regs[4].f32 = tower2_color[2];
-		sys_win->cmd_queue->regs[5].f32 = tower2_color[3];
-		sys_win->cmd_queue->regs[6].f32 = 1.0f;
-		cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_proxy3d_id);
+		for (u32 j = 0; j < tower2_count; ++j)
+		{
+			for (u32 i = 0; i < tower2_box_count; ++i)
+			{
+				vec3 translation;
+				vec3_copy(translation, box_base_translation);
+				translation[2] += 15.0f + 2.0f*k;
+				translation[1] += (f32) i * box_aabb.hw[1] * 2.10f;
+				translation[0] -= 15.0f + 2.0f*j;
+			
+				utf8 id = utf8_format(sys_win->ui->mem_frame, "tower2_%u_%u_%u", i, j, k);
+				sys_win->cmd_queue->regs[0].utf8 = id;
+				cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_add_id);
+				sys_win->cmd_queue->regs[0].utf8 = id;
+				sys_win->cmd_queue->regs[1].f32 = translation[0];
+				sys_win->cmd_queue->regs[2].f32 = translation[1];
+				sys_win->cmd_queue->regs[3].f32 = translation[2];
+				cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_position_id);
+				sys_win->cmd_queue->regs[0].utf8 = id;
+				sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rb_box");
+				cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_rb_prefab_id);
+				sys_win->cmd_queue->regs[0].utf8 = id;
+				sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rm_box");
+				sys_win->cmd_queue->regs[2].f32 = tower2_color[0];
+				sys_win->cmd_queue->regs[3].f32 = tower2_color[1];
+				sys_win->cmd_queue->regs[4].f32 = tower2_color[2];
+				sys_win->cmd_queue->regs[5].f32 = tower2_color[3];
+				sys_win->cmd_queue->regs[6].f32 = 1.0f;
+				cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_proxy3d_id);
+			}
+		}
 	}
 }
 
