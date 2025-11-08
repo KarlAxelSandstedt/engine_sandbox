@@ -23,7 +23,6 @@
 #include "kas_common.h"
 #include "allocator.h"
 #include "list.h"
-#include "dbvt.h"
 #include "collision.h"
 #include "hash_map.h"
 #include "bit_vector.h"
@@ -662,7 +661,6 @@ struct physics_pipeline
 {
 	struct arena 	frame;				/* frame memory */
 
-	//TODO physics_pipeline_start -> set ns_start, we want timings reported in a unified clock setting
 	u64			ns_start;		/* external ns at start of physics pipeline */
 	u64			ns_elapsed;		/* actual ns elasped in pipeline (= 0 at start) */
 	u64			ns_tick;		/* ns per game tick */
@@ -712,6 +710,10 @@ void			physics_pipeline_validate(const struct physics_pipeline *pipeline);
 u32 			physics_pipeline_raycast(struct arena *mem_tmp, struct slot *slot, const struct physics_pipeline *pipeline, const struct ray *ray);
 /* return, IF hit, parameter t of ray at first collision. Otherwise return F32_INFINITY */
 f32 			physics_pipeline_raycast_parameter(struct arena *mem_tmp, struct slot *slot, const struct physics_pipeline *pipeline, const struct ray *ray);
+/* enable sleeping in pipeline */
+void 			physics_pipeline_enable_sleeping(struct physics_pipeline *pipeline);
+/* disable sleeping in pipeline */
+void 			physics_pipeline_disable_sleeping(struct physics_pipeline *pipeline);
 
 #ifdef KAS_DEBUG
 #define PHYSICS_PIPELINE_VALIDATE(pipeline)	physics_pipeline_validate(pipeline)
@@ -721,22 +723,8 @@ f32 			physics_pipeline_raycast_parameter(struct arena *mem_tmp, struct slot *sl
 
 /**************** PHYISCS PIPELINE INTERNAL API ****************/
 
-/* run a physics frame with given timestep  and update pipeline state */
-void 			internal_physics_pipeline_simulate_frame(struct physics_pipeline *pipeline, const f32 delta);
 /* push physics event into pipeline memory and return pointer to allocated event */
 struct physics_event *	physics_pipeline_event_push(struct physics_pipeline *pipeline);
-
-/**************** TODO MOVE ****************/
-
-//void 	physics_pipeline_push_convex_hulls(const struct physics_pipeline *pipeline, struct drawbuffer *buf, const vec4 color, struct arena *mem_1, struct arena *mem_2, struct arena *mem_3, struct arena *mem_4, struct arena *mem_5, i32 i_count[], i32 i_offset[]);
-void	physics_pipeline_push_positions(void *buf, const struct physics_pipeline *pipeline);
-void physics_pipeline_push_closest_points_between_bodies(struct physics_pipeline *pipeline);
-void physics_pipeline_simulate(struct physics_pipeline *pipeline, const f32 delta);
-
-void 	physics_pipeline_clear_frame(struct physics_pipeline *pipeline);
-
-void physics_pipeline_enable_sleeping(struct physics_pipeline *pipeline);
-void physics_pipeline_disable_sleeping(struct physics_pipeline *pipeline);
 
 //void	physics_pipeline_push_dbvt(struct drawbuffer *buf, struct physics_pipeline *pipeline, const vec4 color);
 //void	physics_pipeline_push_proxies(struct drawbuffer *buf, const struct physics_pipeline *pipeline, const vec4 color);

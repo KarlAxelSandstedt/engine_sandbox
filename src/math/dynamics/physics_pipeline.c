@@ -92,6 +92,16 @@ void physics_pipeline_free(struct physics_pipeline *pipeline)
 	pool_dealloc(&pipeline->event_pool);
 }
 
+static void internal_physics_pipeline_clear_frame(struct physics_pipeline *pipeline)
+{
+	COLLISION_DEBUG_CLEAR();
+	collision_state_clear_frame(&pipeline->c_state);
+	is_db_clear_frame(&pipeline->is_db);
+	c_db_clear_frame(&pipeline->c_db);
+	arena_flush(&pipeline->frame);
+}
+
+
 void physics_pipeline_flush(struct physics_pipeline *pipeline)
 {
 	collision_state_clear_frame(&pipeline->c_state);
@@ -109,21 +119,6 @@ void physics_pipeline_flush(struct physics_pipeline *pipeline)
 	arena_flush(&pipeline->frame);
 	pipeline->frames_completed = 0;
 	pipeline->ns_elapsed = 0;
-}
-
-void physics_pipeline_tick(struct physics_pipeline *pipeline)
-{
-	KAS_TASK(__func__, T_PHYSICS);
-
-	if (pipeline->frames_completed > 0)
-	{
-		physics_pipeline_clear_frame(pipeline);
-	}
-	const f32 delta = (f32) pipeline->ns_tick / NSEC_PER_SEC;
-	pipeline->frames_completed += 1;
-	internal_physics_pipeline_simulate_frame(pipeline, delta);
-
-	KAS_END;
 }
 
 void physics_pipeline_validate(const struct physics_pipeline *pipeline)
@@ -755,7 +750,6 @@ void internal_physics_pipeline_simulate_frame(struct physics_pipeline *pipeline,
 {
 	KAS_TASK(__func__, T_PHYSICS);
 
-	//TODO remove marked bodies
 	internal_remove_marked_bodies(pipeline);
 
 	/* update, if possible, any pending values in contact solver config */
@@ -776,13 +770,19 @@ void internal_physics_pipeline_simulate_frame(struct physics_pipeline *pipeline,
 	KAS_END;
 }
 
-void physics_pipeline_clear_frame(struct physics_pipeline *pipeline)
+void physics_pipeline_tick(struct physics_pipeline *pipeline)
 {
-	COLLISION_DEBUG_CLEAR();
-	collision_state_clear_frame(&pipeline->c_state);
-	is_db_clear_frame(&pipeline->is_db);
-	c_db_clear_frame(&pipeline->c_db);
-	arena_flush(&pipeline->frame);
+	KAS_TASK(__func__, T_PHYSICS);
+
+	if (pipeline->frames_completed > 0)
+	{
+		internal_physics_pipeline_clear_frame(pipeline);
+	}
+	const f32 delta = (f32) pipeline->ns_tick / NSEC_PER_SEC;
+	pipeline->frames_completed += 1;
+	internal_physics_pipeline_simulate_frame(pipeline, delta);
+
+	KAS_END;
 }
 
 f32 physics_pipeline_raycast_parameter(struct arena *mem_tmp, struct slot *slot, const struct physics_pipeline *pipeline, const struct ray *ray)
@@ -826,7 +826,7 @@ struct physics_event *physics_pipeline_event_push(struct physics_pipeline *pipel
 	struct slot slot = pool_add(&pipeline->event_pool);
 	dll_append(&pipeline->event_list, pipeline->event_pool.buf, slot.index);
 	struct physics_event *event = slot.address;
-	event->ns = pipeline->frames_completed * pipeline->ns_tick;
+	event->ns = pipeline->ns_start + pipeline->frames_completed * pipeline->ns_tick;
 	return event;
 }
 

@@ -715,7 +715,7 @@ void led_wall_smash_simulation_setup(struct led *led)
 	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_floor");
 	sys_win->cmd_queue->regs[2].f32 = 1.0f;
 	sys_win->cmd_queue->regs[3].f32 = 0.0f;
-	sys_win->cmd_queue->regs[4].f32 = 0.0f;
+	sys_win->cmd_queue->regs[4].f32 = floor_friction;
 	sys_win->cmd_queue->regs[5].u32 = 0;
 	cmd_queue_submit(sys_win->cmd_queue, cmd_rb_prefab_add_id);
 
@@ -987,6 +987,7 @@ static void led_engine_init(struct led *led)
 {
 	//TODO move this into engine flush
 	physics_pipeline_flush(&led->physics);		
+	led->physics.ns_start = led->ns;
 
 	struct led_node *node = NULL;
 	for (u32 i = led->node_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(node))
