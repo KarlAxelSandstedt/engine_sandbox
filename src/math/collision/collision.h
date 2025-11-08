@@ -166,10 +166,6 @@ struct collision_shape
 	};
 };
 
-void	sphere_world_support(vec3 support, const vec3 dir, const struct sphere *sph, const vec3 pos);
-void	capsule_world_support(vec3 support, const vec3 dir, const struct capsule *cap, mat3 rot, const vec3 pos);
-u64	dcel_world_support(vec3 support, const vec3 dir, const struct dcel *hull, mat3 rot, const vec3 pos);
-
 struct contact_manifold
 {
 	vec3 	v[4];

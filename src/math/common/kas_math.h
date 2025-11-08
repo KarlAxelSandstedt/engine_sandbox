@@ -35,12 +35,6 @@
 #define MM_PI       3.14159265358979323846
 #define MM_PI_2     (2.0 * MM_PI)
 
-union f32_bit_representation 
-{
-	f32 value;
-	i32 bits;
-};
-
 /* Return 1 if n = 2*k for some k >= 0, otherwise return 0 */
 u32	is_power_of_two(const u64 n);
 /* Return smallest value 2^k >= n where k >= 0 */

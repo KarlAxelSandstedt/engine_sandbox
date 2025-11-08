@@ -104,6 +104,10 @@ struct capsule
 struct sphere 	sphere_construct(const vec3 center, const f32 radius);
 /* return t: smallest t >= 0 such that p = origin + t*dir is a point on the sphere, or F32_INF if no such t exist */
 f32 		sphere_raycast_parameter(const struct sphere *sph, const struct ray *ray);
+/* Return 1 if raycast hit sphere, 0 otherwise. If hit, set intersection  */
+u32 		sphere_raycast(vec3 intersection, const struct sphere *sph, const struct ray *ray);
+/* Return support of sphere in given direction. sph->position is ignored here, so use pos as the real position */
+void		sphere_support(vec3 support, const vec3 dir, const struct sphere *sph, const vec3 pos);
 
 /*********************************** ray ************************************/
 
@@ -119,7 +123,6 @@ f32 		ray_point_closest_point_parameter(const struct ray *ray, const vec3 p);
 f32 		ray_point_distance_sq(vec3 ray_point, const struct ray *ray, const vec3 p);
 /* return squared distance from s to ray, and set r_c and s_c to the closest points on the primitives */
 f32 		ray_segment_distance_sq(vec3 r_c, vec3 s_c, const struct ray *ray, const struct segment *s);
-/* return squared distance from s to ray, and set r_c and s_c to the closest points on the primitives */
 
 /********************************* segment **********************************/
 
@@ -174,6 +177,11 @@ u32 		AABB_contains(const struct AABB *a, const struct AABB *b);
 /* If the ray hits aabb, return 1 and set intersection. otherwise return 0. */
 u32 		AABB_raycast(vec3 intersection, const struct AABB *aabb, const struct ray *ray);
 
+/********************************* capsule **********************************/
+
+/* Return support of capsule in given direction. */
+void	capsule_support(vec3 support, const vec3 dir, const struct capsule *cap, mat3 rot, const vec3 pos);
+
 /********************************** dcel ************************************/
 
 struct dcel_face
@@ -205,10 +213,16 @@ struct dcel
 	u32 v_count;
 };
 
-
+/* return dcel { 0 } */
+struct dcel 	dcel_empty(void);
+/* return dcel box stub */
 struct dcel 	dcel_box_stub(void);
+/* return arena allocated dcel box with given half widths */
 struct dcel 	dcel_box(struct arena *mem, const vec3 hw);
+/* Return support of dcel in given direction, and return supporting vertex index */
+u32		dcel_support(vec3 support, const vec3 dir, const struct dcel *hull, mat3 rot, const vec3 pos);
 
+/* TODO: document, go through ... */
 void 		dcel_face_direction(vec3 dir, const struct dcel *h, const u32 fi); /* not normalized */
 void 		dcel_face_normal(vec3 normal, const struct dcel *h, const u32 fi); /* normalized */
 struct plane 	dcel_face_plane(const struct dcel *h, mat3 rot, const vec3 pos, const u32 fi);
@@ -220,6 +234,7 @@ void 		dcel_half_edge_normal(vec3 dir, const struct dcel *h, const u32 ei);
 void 		dcel_half_edge_direction(vec3 dir, const struct dcel *h, const u32 ei);
 struct segment 	dcel_half_edge_segment(const struct dcel *h, mat3 rot, const vec3 pos, const u32 ei);
 
+/* TODO: merge with newer commented out dcel_assert_topology... */
 void 		dcel_assert_topology(struct dcel *dcel);
 
 #ifdef KAS_DEBUG
@@ -228,104 +243,15 @@ void 		dcel_assert_topology(struct dcel *dcel);
 #define COLLISION_HULL_ASSERT(dcel)	
 #endif
 
+/********************************* vertex operations ***********************************/
 
-///* dcel_allocator: Dynamically allocates resources for dcel as required. */
-//struct dcel_allocator
-//{
-//	vec3ptr			vertex;
-//	struct dcel_half_edge *	edge;
-//
-//	struct pool_external	vertex_pool;
-//	struct pool_external	edge_pool;
-//};
-//
-///* allocate resources */
-//struct dcel_allocator * dcel_allocator_alloc(const u32 initial_vertex_count, const u32 initial_edge_count);
-///* deallocate resources */
-//void			dcel_allocator_dealloc(struct dcel_allocator *allocator);
-///* flush resources */
-//void			dcel_allocator_flush(struct dcel_allocator *allocator);
-///* return index to allocated vertex */
-//u32			dcel_allocator_add_vertex(struct dcel_allocator *allocator);
-///* remove allocated vertex */
-//void			dcel_allocator_remove_vertex(struct dcel_allocator *allocator, const u32 index);
-///* return index to allocated edge */
-//u32			dcel_allocator_add_edge(struct dcel_allocator *allocator);
-///* remove allocated edge */
-//void			dcel_allocator_remove_edge(struct dcel_allocator *allocator, const u32 index);
+/* Return: support of vertex set given the direction, and supporting vertex index */
+u32 	vertex_support(vec3 support, const vec3 dir, const vec3ptr v, const u32 v_count);
+void 	vertex_centroid(vec3 centroid, const vec3ptr vs, const u32 n);
 
-/********************************* vertex ***********************************/
+/********************************* triangle operations ***********************************/
 
-/* Return: support of vertex set given the direction. */
-void 		vertex_support(vec3 support, const vec3 dir, const vec3ptr v, const u32 v_count);
-
-/****************************************************************************/
-
-#define SIMPLEX_0	0
-#define SIMPLEX_1	1
-#define SIMPLEX_2	2
-#define SIMPLEX_3	3
-
-/**
- * Gilbert-Johnson-Keerthi intersection algorithm in 3D. Based on the original paper. 
- *
- * For understanding, see [ Collision Detection in Interactive 3D environments, chapter 4.3.1 - 4.3.8 ]
- */
-struct gjk_simplex
-{
-	vec3 p[4];
-	u64 id[4];
-	f32 dot[4];
-	u32 type;
-};
-
-
-u32 	GJK_test(const vec3 pos_1, vec3ptr vs_1, const u32 n_1, const vec3 pos_2, vec3ptr vs_2, const u32 n_2, const f32 abs_tol, const f32 tol); /* [Page 146] -1 on error (To few points, or no initial tetrahedron). 0 == no collision, 1 == collision. */
-f32 	GJK_distance(vec3 c_1, vec3 c_2, const vec3 pos_1, vec3ptr vs_1, const u32 n_1, const vec3 pos_2, vec3ptr vs_2, const u32 n_2, const f32 rel_tol, const f32 abs_tol); /* Retrieve shortest distance between objects and the convex objects' closest points, or 0.0f if collision. */
-
-void 	convex_centroid(vec3 centroid, vec3ptr vs, const u32 n);
-u32 	convex_support(vec3 support, const vec3 dir, vec3ptr vs, const u32 n);
-/* support of A-B, A,B convex */
-u64 	convex_minkowski_difference_support(vec3 support, const vec3 dir, vec3ptr A, const u32 n_A, vec3ptr B, const u32 n_B);
-
-/* Reorder (If necessary) triangle t such that it is CCW ([0] -> [1] -> [2] -> [0]) from p's point of view (switch [0] and [1]) */
-void 	triangle_CCW_relative_to(vec3 BCA[3], const vec3 p);
-void 	triangle_CCW_relative_to_origin(vec3 BCA[3]);
-void 	triangle_CCW_normal(vec3 normal, const vec3 p0, const vec3 p1, const vec3 p2);
-
-/**************************************************************/
-
-/* Shortest distance methods from point to given primitive (negative distance == behind plane) */
-f32 point_plane_distance(const vec3 point, const struct plane *plane);
-f32 point_plane_signed_distance(const vec3 point, const struct plane *plane);
-f32 point_sphere_distance(const vec3 point, const struct sphere *sph);
-f32 point_AABB_distance(const vec3 point, const struct AABB *aabb);
-
-f32 AABB_distance(const struct AABB *a, const struct AABB *b);
-//f32 sphere_distance(const struct sphere *a, const struct sphere *b);
-
-//i32 sphere_test(const struct sphere *a, const struct sphere *b);
-
-i32 AABB_intersection(struct AABB *dst, const struct AABB *a, const struct AABB *b);
-//i32 sphere_intersection(struct tmp *dst, const struct sphere *a, const struct sphere *b);
-
-/* Closest point on primitive to point */
-void point_plane_closest_point(vec3 closest_point, const vec3 point, const struct plane *plane);
-void point_sphere_closest_point(vec3 closest_point, const vec3 point, const struct sphere *sph);
-void point_AABB_closest_point(vec3 closest_point, const vec3 point, const struct AABB *aabb);
-
-/* Intersection tests for ray primitive against given primitives, RETURN 0 == no intersect, 1 == intersect */
-i32 ray_plane_intersection(vec3 intersection, const vec3 ray_origin, const vec3 ray_direction, const struct plane *plane);
-i32 ray_sphere_intersection(vec3 intersection, const vec3 ray_origin, const vec3 ray_direction, const struct sphere * sph);
-i32 ray_AABB_intersection(vec3 intersection, const vec3 ray_origin, const vec3 ray_direction, const struct AABB *abb);
-
-/* We make no assumption of CW or CCW ordering here, so not optimized */
-u32 tetrahedron_point_test(const vec3 tetra[4], const vec3 p);
-
-/* CCW!?? lambda is set to barocentric coordinates of the closest point */
-f32 triangle_origin_closest_point(vec3 lambda, const vec3 A, const vec3 B, const vec3 C);
-
-/* returns 0 if not internal, 1 if internal, and lambda is set to the barocentric coordinates of A,B,C */
-u32 triangle_origin_closest_point_is_internal(vec3 lambda, const vec3 A, const vec3 B, const vec3 C);
+/* get normal of ccw triangle */
+void 	tri_ccw_normal(vec3 normal, const vec3 p0, const vec3 p1, const vec3 p2);
 
 #endif

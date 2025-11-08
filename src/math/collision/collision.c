@@ -882,7 +882,7 @@ static f32 capsule_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pip
 	return dist;
 }
 
-static f32 dcel_sphere_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+static f32 hull_sphere_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
 	kas_assert(b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
 	kas_assert(b2->shape_type == COLLISION_SHAPE_SPHERE);
@@ -917,7 +917,7 @@ static f32 dcel_sphere_distance(vec3 c1, vec3 c2, const struct physics_pipeline 
 	return f32_sqrt(dist_sq);
 }
 
-static f32 dcel_capsule_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+static f32 hull_capsule_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
 	kas_assert(b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
 	kas_assert(b2->shape_type == COLLISION_SHAPE_CAPSULE);
@@ -956,7 +956,7 @@ static f32 dcel_capsule_distance(vec3 c1, vec3 c2, const struct physics_pipeline
 
 }
 
-static f32 dcel_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+static f32 hull_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
 	kas_assert (b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
 	kas_assert (b2->shape_type == COLLISION_SHAPE_CONVEX_HULL);
@@ -1029,22 +1029,22 @@ static u32 capsule_test(const struct physics_pipeline *pipeline, const struct ri
 	return capsule_distance(c1, c2, pipeline, b1, b2, margin) == 0.0f;
 }
 
-static u32 dcel_sphere_test(const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+static u32 hull_sphere_test(const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
 	vec3 c1, c2;
-	return dcel_sphere_distance(c1, c2, pipeline, b1, b2, margin) == 0.0f;
+	return hull_sphere_distance(c1, c2, pipeline, b1, b2, margin) == 0.0f;
 }
 
-static u32 dcel_capsule_test(const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+static u32 hull_capsule_test(const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
 	vec3 c1, c2;
-	return dcel_capsule_distance(c1, c2, pipeline, b1, b2, margin) == 0.0f;
+	return hull_capsule_distance(c1, c2, pipeline, b1, b2, margin) == 0.0f;
 }
 
-static u32 dcel_test(const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+static u32 hull_test(const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
 	vec3 c1, c2;
-	return dcel_distance(c1, c2, pipeline, b1, b2, margin) == 0.0f;
+	return hull_distance(c1, c2, pipeline, b1, b2, margin) == 0.0f;
 }
 
 /********************************** CONTACT MANIFOLD METHODS **********************************/
@@ -1260,7 +1260,7 @@ static u32 capsule_contact(struct arena *garbage, struct contact_manifold *cm, c
 	return contact_generated;
 }
 
-static u32 dcel_sphere_contact(struct arena *garbage, struct contact_manifold *cm, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+static u32 hull_sphere_contact(struct arena *garbage, struct contact_manifold *cm, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
 	kas_assert (b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
 	kas_assert (b2->shape_type == COLLISION_SHAPE_SPHERE);
@@ -1336,7 +1336,7 @@ static u32 dcel_sphere_contact(struct arena *garbage, struct contact_manifold *c
 	return contact_generated;
 }
 
-static u32 dcel_capsule_contact(struct arena *garbage, struct contact_manifold *cm, const struct physics_pipeline *pipeline,  const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+static u32 hull_capsule_contact(struct arena *garbage, struct contact_manifold *cm, const struct physics_pipeline *pipeline,  const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
 	kas_assert(b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
 	kas_assert(b2->shape_type == COLLISION_SHAPE_CAPSULE);
@@ -1572,7 +1572,7 @@ struct sat_edge_query
 	f32 depth;
 };
 
-static u32 dcel_contact_internal_face_contact(struct arena *mem_tmp, struct contact_manifold *cm, struct sat_face_query query[2], const struct rigid_body *b1, const struct dcel *dcel1, constvec3ptr v1_world, const struct rigid_body *b2, const struct dcel *dcel2, constvec3ptr v2_world)
+static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct contact_manifold *cm, struct sat_face_query query[2], const struct rigid_body *b1, const struct dcel *dcel1, constvec3ptr v1_world, const struct rigid_body *b2, const struct dcel *dcel2, constvec3ptr v2_world)
 {
 	vec3 n_ref, n_inc, tmp1, tmp2, n;
 
@@ -1883,7 +1883,7 @@ static u32 dcel_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 	return is_colliding;
 }
 
-static u32 dcel_contact_internal_fv_seperation(struct sat_face_query *query, const struct dcel *h1, constvec3ptr v1_world, const struct dcel *h2, constvec3ptr v2_world)
+static u32 hull_contact_internal_fv_seperation(struct sat_face_query *query, const struct dcel *h1, constvec3ptr v1_world, const struct dcel *h2, constvec3ptr v2_world)
 {
 	for (u32 fi = 0; fi < h1->f_count; ++fi)
 	{
@@ -1947,7 +1947,7 @@ static u32 internal_ee_is_minkowski_face(const vec3 n1_1, const vec3 n1_2, const
  * For full algorithm: see GDC talk by Dirk Gregorius - 
  * 	Physics for Game Programmers: The Separating Axis Test between Convex Polyhedra
  */
-static u32 dcel_contact_internal_ee_seperation(struct sat_edge_query *query, const struct dcel *h1, constvec3ptr v1_world, const struct dcel *h2, constvec3ptr v2_world, const vec3 h1_world_center)
+static u32 hull_contact_internal_ee_seperation(struct sat_edge_query *query, const struct dcel *h1, constvec3ptr v1_world, const struct dcel *h2, constvec3ptr v2_world, const vec3 h1_world_center)
 {
 	vec3 n1_1, n1_2, n2_1, n2_2, e1, e2;
 	for (u32 e1_1 = 0; e1_1 < h1->e_count; ++e1_1)
@@ -2024,7 +2024,7 @@ static u32 dcel_contact_internal_ee_seperation(struct sat_edge_query *query, con
  * 	(Game Physics Pearls, Chapter 4)
  *	(GDC 2013 Dirk Gregorius, https://www.gdcvault.com/play/1017646/Physics-for-Game-Programmers-The)
  */
-static u32 dcel_contact(struct arena *tmp, struct contact_manifold *cm, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+static u32 hull_contact(struct arena *tmp, struct contact_manifold *cm, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
 	kas_assert(b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
 	kas_assert(b2->shape_type == COLLISION_SHAPE_CONVEX_HULL);
@@ -2075,19 +2075,19 @@ static u32 dcel_contact(struct arena *tmp, struct contact_manifold *cm, const st
 	struct sat_face_query f_query[2] = { { .depth = -FLT_MAX }, { .depth = -FLT_MAX } };
 	struct sat_edge_query e_query = { .depth = -FLT_MAX };
 
-	if (dcel_contact_internal_fv_seperation(&f_query[0], h1, v1_world, h2, v2_world))
+	if (hull_contact_internal_fv_seperation(&f_query[0], h1, v1_world, h2, v2_world))
 	{
 		is_colliding = 0;
 		goto sat_cleanup;
 	}
 
-	if (dcel_contact_internal_fv_seperation(&f_query[1], h2, v2_world, h1, v1_world))
+	if (hull_contact_internal_fv_seperation(&f_query[1], h2, v2_world, h1, v1_world))
 	{
 		is_colliding = 0;
 		goto sat_cleanup;
 	}
 
-	if (dcel_contact_internal_ee_seperation(&e_query, h1, v1_world, h2, v2_world, h1_world_center))
+	if (hull_contact_internal_ee_seperation(&e_query, h1, v1_world, h2, v2_world, h1_world_center))
 	{
 		is_colliding = 0;
 		goto sat_cleanup;
@@ -2096,7 +2096,7 @@ static u32 dcel_contact(struct arena *tmp, struct contact_manifold *cm, const st
 	//fprintf(stderr, "%f\n%f\n%f\n", f_query[0].depth, f_query[1].depth, e_query.depth);
 	if ((1.0f - 100.0f * F32_EPSILON) * f_query[0].depth >= e_query.depth || (1.0f - 100.0f * F32_EPSILON) * f_query[1].depth >= e_query.depth)
 	{
-		is_colliding = dcel_contact_internal_face_contact(tmp, cm, f_query, b1, h1, v1_world, b2, h2, v2_world);
+		is_colliding = hull_contact_internal_face_contact(tmp, cm, f_query, b1, h1, v1_world, b2, h2, v2_world);
 	}
 	/* edge_contact */
 	else
@@ -2152,7 +2152,7 @@ f32 capsule_raycast_parameter(const struct physics_pipeline *pipeline, const str
 	return sphere_raycast_parameter(&sph, ray);
 }
 
-f32 dcel_raycast_parameter(const struct physics_pipeline *pipeline, const struct rigid_body *b, const struct ray *ray)
+f32 hull_raycast_parameter(const struct physics_pipeline *pipeline, const struct rigid_body *b, const struct ray *ray)
 {
 	kas_assert(b->shape_type == COLLISION_SHAPE_CONVEX_HULL);
 
@@ -2189,7 +2189,7 @@ u32 (*shape_tests[COLLISION_SHAPE_COUNT][COLLISION_SHAPE_COUNT])(const struct ph
 {
 	{ sphere_test, 		0, 			0, 		0, },
 	{ capsule_sphere_test,	capsule_test, 		0, 		0, },
-	{ dcel_sphere_test, 	dcel_capsule_test,	dcel_test,	0, },
+	{ hull_sphere_test, 	hull_capsule_test,	hull_test,	0, },
 	{ 0, 			0, 			0, 		0, },
 };
 
@@ -2197,7 +2197,7 @@ f32 (*distance_methods[COLLISION_SHAPE_COUNT][COLLISION_SHAPE_COUNT])(vec3 c1, v
 {
 	{ sphere_distance,	 	0,			0, 		0, },
 	{ capsule_sphere_distance,	capsule_distance, 	0, 		0, },
-	{ dcel_sphere_distance, 	dcel_capsule_distance, 	dcel_distance,	0, },
+	{ hull_sphere_distance, 	hull_capsule_distance, 	hull_distance,	0, },
 	{ 0, 				0, 			0,		0, },
 };
 
@@ -2205,7 +2205,7 @@ u32 (*contact_methods[COLLISION_SHAPE_COUNT][COLLISION_SHAPE_COUNT])(struct aren
 {
 	{ sphere_contact,	 	0, 			0,		0, },
 	{ capsule_sphere_contact, 	capsule_contact,	0, 		0, },
-	{ dcel_sphere_contact, 	  	dcel_capsule_contact,	dcel_contact, 	0, },
+	{ hull_sphere_contact, 	  	hull_capsule_contact,	hull_contact, 	0, },
 	{ 0, 			  	0,			0, 		0, },
 };
 
@@ -2213,7 +2213,7 @@ f32 (*shape_raycast_parameter_methods[COLLISION_SHAPE_COUNT])(const struct physi
 {
 	_sphere_raycast_parameter,
 	capsule_raycast_parameter,
-	dcel_raycast_parameter,
+	hull_raycast_parameter,
 	0,
 };
 
