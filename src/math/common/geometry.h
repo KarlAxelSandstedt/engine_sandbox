@@ -77,11 +77,25 @@ struct segment
 	vec3 dir;	/* p1-p0 */
 };
 
-/* TODO replace c_sphere with this... */
+/**
+ * segment: geomtrical primitive
+ * p0: segment start
+ * p1: segment end 
+ * dir: non-normalized direction vector
+ */
 struct sphere
 {
 	vec3 center;
 	f32 radius;
+};
+
+/**
+ * capsule: geometrical primitive
+ */
+struct capsule
+{
+	f32 half_height;	/* capsule extends from [0, -half_height, 0] x [0, half_height, 0] */
+	f32 radius;	
 };
 
 /********************************** sphere **********************************/
@@ -162,12 +176,17 @@ u32 		AABB_raycast(vec3 intersection, const struct AABB *aabb, const struct ray 
 
 /********************************** dcel ************************************/
 
+struct dcel_face
+{
+	u32 first;	/* first half edge */
+	u32 count;	/* edge count */
+};
+
 struct dcel_half_edge
 {
-	u32 	origin;	/* vertex index origin 			   */
-	u32 	twin; 	/* twin half edge 			   */
-	u32 	next;	/* next half edge in ccw traversal of face */
-	u32 	prev;	/* prev half edge in ccw traversal of face */
+	u32 origin;	/* vertex index origin */
+	u32 twin; 	/* twin half edge */
+	u32 face_ccw; 	/* face to the left of half edge */
 };
 
 /*
@@ -178,124 +197,67 @@ struct dcel_half_edge
  */
 struct dcel
 {
-	const struct dcel_half_edge *	edge;		/* array[edge_count] 	    */
-	constvec3ptr			vertex;		/* array[vertex_count] 	    */
-	u32				edge_count;
-	u32				vertex_count;
+	struct dcel_face *f;		/* f[i] = half-edge of face i */
+	struct dcel_half_edge *e;
+	vec3ptr	v;
+	u32 f_count;
+	u32 e_count;
+	u32 v_count;
 };
 
-/* returns a dcel structure aliasing box data */
-struct dcel	dcel_box(void);
 
-/*TODO:
- * floating point utilities for checking max/min angles, vertex aliasing, max/min distances...
- */
+struct dcel 	dcel_box_stub(void);
+struct dcel 	dcel_box(struct arena *mem, const vec3 hw);
 
-/* debug assert dcel topology */
-void		dcel_assert_topology(const struct dcel *dcel);
+void 		dcel_face_direction(vec3 dir, const struct dcel *h, const u32 fi); /* not normalized */
+void 		dcel_face_normal(vec3 normal, const struct dcel *h, const u32 fi); /* normalized */
+struct plane 	dcel_face_plane(const struct dcel *h, mat3 rot, const vec3 pos, const u32 fi);
+struct plane 	dcel_face_clip_plane(const struct dcel *h, mat3 rot, const vec3 pos, const vec3 face_normal, const u32 e0, const u32 e1); /* Return clip plane of face containing edge e0e1, orthogonal to the face normal */
+struct segment 	dcel_face_clip_segment(const struct dcel *h, mat3 rot, const vec3 pos, const u32 fi, const struct segment *s); /* clip segment against face fi's edge-planes (No projection onto face plane!) */
+u32 		dcel_face_projected_point_test(const struct dcel *h, mat3 rot, const vec3 pos, const u32 fi, const vec3 p); /* Project p onto face plane and test if it is on the face */
+
+void 		dcel_half_edge_normal(vec3 dir, const struct dcel *h, const u32 ei);
+void 		dcel_half_edge_direction(vec3 dir, const struct dcel *h, const u32 ei);
+struct segment 	dcel_half_edge_segment(const struct dcel *h, mat3 rot, const vec3 pos, const u32 ei);
+
+void 		dcel_assert_topology(struct dcel *dcel);
+
+#ifdef KAS_DEBUG
+#define COLLISION_HULL_ASSERT(dcel)	dcel_assert_topology(dcel)
+#else
+#define COLLISION_HULL_ASSERT(dcel)	
+#endif
 
 
-/* dcel_allocator: Dynamically allocates resources for dcel as required. */
-struct dcel_allocator
-{
-	vec3ptr			vertex;
-	struct dcel_half_edge *	edge;
-
-	struct pool_external	vertex_pool;
-	struct pool_external	edge_pool;
-};
-
-/* allocate resources */
-struct dcel_allocator * dcel_allocator_alloc(const u32 initial_vertex_count, const u32 initial_edge_count);
-/* deallocate resources */
-void			dcel_allocator_dealloc(struct dcel_allocator *allocator);
-/* flush resources */
-void			dcel_allocator_flush(struct dcel_allocator *allocator);
-/* return index to allocated vertex */
-u32			dcel_allocator_add_vertex(struct dcel_allocator *allocator);
-/* remove allocated vertex */
-void			dcel_allocator_remove_vertex(struct dcel_allocator *allocator, const u32 index);
-/* return index to allocated edge */
-u32			dcel_allocator_add_edge(struct dcel_allocator *allocator);
-/* remove allocated edge */
-void			dcel_allocator_remove_edge(struct dcel_allocator *allocator, const u32 index);
+///* dcel_allocator: Dynamically allocates resources for dcel as required. */
+//struct dcel_allocator
+//{
+//	vec3ptr			vertex;
+//	struct dcel_half_edge *	edge;
+//
+//	struct pool_external	vertex_pool;
+//	struct pool_external	edge_pool;
+//};
+//
+///* allocate resources */
+//struct dcel_allocator * dcel_allocator_alloc(const u32 initial_vertex_count, const u32 initial_edge_count);
+///* deallocate resources */
+//void			dcel_allocator_dealloc(struct dcel_allocator *allocator);
+///* flush resources */
+//void			dcel_allocator_flush(struct dcel_allocator *allocator);
+///* return index to allocated vertex */
+//u32			dcel_allocator_add_vertex(struct dcel_allocator *allocator);
+///* remove allocated vertex */
+//void			dcel_allocator_remove_vertex(struct dcel_allocator *allocator, const u32 index);
+///* return index to allocated edge */
+//u32			dcel_allocator_add_edge(struct dcel_allocator *allocator);
+///* remove allocated edge */
+//void			dcel_allocator_remove_edge(struct dcel_allocator *allocator, const u32 index);
 
 /********************************* vertex ***********************************/
 
 /* Return: support of vertex set given the direction. */
 void 		vertex_support(vec3 support, const vec3 dir, const vec3ptr v, const u32 v_count);
-
-/******* TODO: Everything below this line should be re-evaluated... *********/
-
-// TODO Cleanup dcel api
-
-struct DCEL_half_edge {
-	i32 he;		/* half edge */
-	i32 origin;	/* vertex index origin */
-	i32 twin; 	/* twin half edge */
-	i32 face_ccw; 	/* face to the left of half edge */
-	i32 next;	/* next half edge in ccw traversal of face_ccw */
-	i32 prev;	/* prev half edge in ccw traversal of face_ccw */
-};
-
-/**
- * - If ccw face is in free chain, he_index == next free face index and relation_unit == -1 
- * - If face_index == related_to, the face has no current relations
- */
-struct DCEL_face {
-	i32 he_index; 
-	i32 relation_unit;
-};
-
-/**
- * (Computational Geometry Algorithms and Applications, Section 2.2) 
- * DCEL - doubly-connected edge list. Can represent convex 3d bodies (with no holes in polygons)
- * 	  and 2d planar graphs.
- */
-struct DCEL {
-	struct DCEL_face *faces; 
-	struct DCEL_half_edge *he_table; /* indexed table | free chain (next == next free) containing half edge information */
-	i32 next_he; /* next free slot in edges, -1 == no memory left in free chain */
-	i32 next_face; /* next free slot in edges, -1 == no memory left in free chain */
-	i32 num_faces;
-	i32 num_he;
-};
-
-#define DCEL_ALLOC_EDGES(dcel_ptr, table_arena_ptr, n) 							\
-{													\
-	struct DCEL_half_edge *new_table = (struct DCEL_half_edge *)arena_push_packed(table_arena_ptr, n*sizeof(struct DCEL_half_edge)); 	\
-	new_table[n-1].next = (dcel_ptr)->next_he;							\
-	(dcel_ptr)->next_he = (dcel_ptr)->num_he;							\
-	for (i32 k = 0; k < n-1; ++k)									\
-	{												\
-		new_table[k].next = (dcel_ptr)->num_he + 1 + k;						\
-	}												\
-	assert(&((dcel_ptr)->he_table[(dcel_ptr)->next_he]) == new_table);				\
-}													\
-	(dcel_ptr)->num_he += n								
-
-#define DCEL_ALLOC_FACES(dcel_ptr, faces_arena_ptr, n) 						\
-{												\
-	struct DCEL_face *new_faces = (struct DCEL_face *)arena_push_packed(faces_arena_ptr, n * sizeof(struct DCEL_face));	\
-	new_faces[n-1].he_index = (dcel_ptr)->next_face;					\
-	new_faces[n-1].relation_unit = -1;							\
-	(dcel_ptr)->next_face = (dcel_ptr)->num_faces;						\
-	for (i32 k = 0; k < n-1; ++k)								\
-	{											\
-		new_faces[k].he_index = (dcel_ptr)->num_faces + 1 + k;				\
-		new_faces[k].relation_unit = -1;						\
-	}											\
-	assert(&((dcel_ptr)->faces[(dcel_ptr)->next_face]) == new_faces);			\
-}												\
-	(dcel_ptr)->num_faces += n;									
-
-i32 DCEL_half_edge_add(struct DCEL *dcel, struct arena *table_mem, const i32 origin, const i32 twin, const i32 face_ccw, const i32 next, const i32 prev);
-i32 DCEL_half_edge_reserve(struct DCEL *dcel, struct arena *table_mem);
-void DCEL_half_edge_set(struct DCEL *dcel, const i32 he, const i32 origin, const i32 twin, const i32 face_ccw, const i32 next, const i32 prev);
-void DCEL_half_edge_remove(struct DCEL *dcel, const i32 he);
-/* returns face index */
-i32 DCEL_face_add(struct DCEL *dcel, struct arena *face_mem, const i32 edge, const i32 unit);
-void DCEL_face_remove(struct DCEL *dcel, const i32 face);
 
 /****************************************************************************/
 
@@ -326,9 +288,6 @@ u32 	convex_support(vec3 support, const vec3 dir, vec3ptr vs, const u32 n);
 /* support of A-B, A,B convex */
 u64 	convex_minkowski_difference_support(vec3 support, const vec3 dir, vec3ptr A, const u32 n_A, vec3ptr B, const u32 n_B);
 
-/* Get indices for initial tetrahedron using given tolerance. return 0 on no initial tetrahedron, 1 otherwise. */
-i32 	tetrahedron_indices(i32 indices[4], const vec3ptr v, const i32 v_count, const f32 tol);
-
 /* Reorder (If necessary) triangle t such that it is CCW ([0] -> [1] -> [2] -> [0]) from p's point of view (switch [0] and [1]) */
 void 	triangle_CCW_relative_to(vec3 BCA[3], const vec3 p);
 void 	triangle_CCW_relative_to_origin(vec3 BCA[3]);
@@ -336,54 +295,29 @@ void 	triangle_CCW_normal(vec3 normal, const vec3 p0, const vec3 p1, const vec3 
 
 /**************************************************************/
 
-struct OBB {
-	vec3 center;
-	vec3 hw;
-	vec3 x_axis;
-	vec3 z_axis;
-};
-
-struct cylinder {
-	vec3 center;
-	f32 radius;
-	f32 half_height;
-};
-
 /* Shortest distance methods from point to given primitive (negative distance == behind plane) */
 f32 point_plane_distance(const vec3 point, const struct plane *plane);
 f32 point_plane_signed_distance(const vec3 point, const struct plane *plane);
 f32 point_sphere_distance(const vec3 point, const struct sphere *sph);
 f32 point_AABB_distance(const vec3 point, const struct AABB *aabb);
-f32 point_OBB_distance(const vec3 point, const struct OBB *obb);
-f32 point_cylinder_distance(const vec3 point, const struct cylinder *cyl);
 
 f32 AABB_distance(const struct AABB *a, const struct AABB *b);
-f32 OBB_distance(const struct OBB *a, const struct OBB *b);
 //f32 sphere_distance(const struct sphere *a, const struct sphere *b);
-f32 cylinder_distance(const struct cylinder *a, const struct cylinder *b);
 
-i32 OBB_test(const struct OBB *a, const struct OBB *b);
 //i32 sphere_test(const struct sphere *a, const struct sphere *b);
-i32 cylinder_test(const struct cylinder *a, const struct cylinder *b);
 
 i32 AABB_intersection(struct AABB *dst, const struct AABB *a, const struct AABB *b);
-//i32 OBB_intersection(struct tmp *dst, const struct OBB *a, const struct OBB *b);
 //i32 sphere_intersection(struct tmp *dst, const struct sphere *a, const struct sphere *b);
-//i32 cylinder_intersection(struct tmp *dst, const struct cylinder *a, const struct cylinder *b);
 
 /* Closest point on primitive to point */
 void point_plane_closest_point(vec3 closest_point, const vec3 point, const struct plane *plane);
 void point_sphere_closest_point(vec3 closest_point, const vec3 point, const struct sphere *sph);
 void point_AABB_closest_point(vec3 closest_point, const vec3 point, const struct AABB *aabb);
-void point_OBB_closest_point(vec3 closest_point, const vec3 point, const struct OBB *obb);
-void point_cylinder_closest_point(vec3 closest_point, const vec3 point, const struct cylinder *cyl);
 
 /* Intersection tests for ray primitive against given primitives, RETURN 0 == no intersect, 1 == intersect */
 i32 ray_plane_intersection(vec3 intersection, const vec3 ray_origin, const vec3 ray_direction, const struct plane *plane);
 i32 ray_sphere_intersection(vec3 intersection, const vec3 ray_origin, const vec3 ray_direction, const struct sphere * sph);
 i32 ray_AABB_intersection(vec3 intersection, const vec3 ray_origin, const vec3 ray_direction, const struct AABB *abb);
-i32 ray_OBB_intersection(vec3 intersection, const vec3 ray_origin, const vec3 ray_direction, const struct OBB *obb);
-i32 ray_cylinder_intersection(vec3 intersection, const vec3 ray_origin, const vec3 ray_direction, const struct cylinder *cyl);
 
 /* We make no assumption of CW or CCW ordering here, so not optimized */
 u32 tetrahedron_point_test(const vec3 tetra[4], const vec3 p);

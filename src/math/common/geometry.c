@@ -539,152 +539,6 @@ u32 AABB_raycast(vec3 intersection, const struct AABB *aabb, const struct ray *r
 	return 0;
 }
 
-i32 DCEL_half_edge_add(struct DCEL *dcel, struct arena *table_mem, const i32 origin, const i32 twin, const i32 face_ccw, const i32 next, const i32 prev)
-{
-	if (dcel->next_he == -1) 
-	{ 
-		dcel->next_he = dcel->num_he;
-		arena_push_packed(table_mem, sizeof(struct DCEL_half_edge));
-		dcel->he_table[dcel->next_he].next = -1;
-		dcel->num_he += 1;
-       	}
-
-	const i32 tmp = dcel->he_table[dcel->next_he].next;
-	dcel->he_table[dcel->next_he].he = dcel->next_he;
-	dcel->he_table[dcel->next_he].origin = origin;
-	dcel->he_table[dcel->next_he].twin = twin;
-	dcel->he_table[dcel->next_he].face_ccw = face_ccw;
-	dcel->he_table[dcel->next_he].next = next;
-	dcel->he_table[dcel->next_he].prev = prev;
-	dcel->next_he = tmp;
-
-	return dcel->he_table[dcel->next_he].he;
-}
-
-i32 DCEL_half_edge_reserve(struct DCEL *dcel, struct arena *table_mem)
-{
-	if (dcel->next_he == -1) 
-	{ 
-		dcel->next_he = dcel->num_he;
-		arena_push_packed(table_mem, sizeof(struct DCEL_half_edge));
-		dcel->he_table[dcel->next_he].next = -1;
-		dcel->num_he += 1;
-	}
-
-	const i32 he = dcel->next_he;
-	dcel->next_he = dcel->he_table[he].next;
-
-	return he;
-}
-
-void DCEL_half_edge_set(struct DCEL *dcel, const i32 he, const i32 origin, const i32 twin, const i32 face_ccw, const i32 next, const i32 prev)
-{
-	assert(he >= 0 && he < dcel->num_he);
-
-	dcel->he_table[he].he = he;
-	dcel->he_table[he].origin = origin;
-	dcel->he_table[he].twin = twin;
-	dcel->he_table[he].face_ccw = face_ccw;
-	dcel->he_table[he].next = next;
-	dcel->he_table[he].prev = prev;
-}
-
-i32 DCEL_face_add(struct DCEL *dcel, struct arena *face_mem, const i32 edge, const i32 unit)
-{
-	if (dcel->next_face == -1) 
-	{ 
-		dcel->next_face = dcel->num_faces;
-		arena_push_packed(face_mem, sizeof(struct DCEL_face));
-		dcel->num_faces += 1;
-		dcel->faces[dcel->next_face].he_index = -1;
-	}
-
-	const i32 face = dcel->next_face;
-	const i32 tmp = dcel->faces[face].he_index;
-	dcel->faces[face].he_index = edge;
-	dcel->faces[face].relation_unit = unit;
-	dcel->next_face = tmp;
-
-	return face;
-}
-
-void DCEL_half_edge_remove(struct DCEL *dcel, const i32 he)
-{
-	assert(he >= 0 && he < dcel->num_he);
-
-	const i32 tmp = dcel->next_he;
-	dcel->next_he = he;
-	dcel->he_table[he].next = tmp;
-	dcel->he_table[he].face_ccw = -1;
-}
-
-void DCEL_face_remove(struct DCEL *dcel, const i32 face)
-{
-	assert(face >= 0 && face < dcel->num_faces);
-
-	const i32 tmp = dcel->next_face;
-	dcel->next_face = face;
-	dcel->faces[face].he_index = tmp;
-	dcel->faces[face].relation_unit = -1;
-}
-
-i32 tetrahedron_indices(i32 indices[4], const vec3ptr v, const i32 v_count, const f32 tol)
-{
-	vec3 a, b, c, d;
-
-	/* Find two points not to close to each other */
-	for (i32 i = 1; i <= v_count; ++i)
-	{
-		/* all points are distance <= tol from first point */
-		if (i == v_count) { return 0; }
-
-		vec3_sub(a, v[i], v[0]);
-		const f32 len = vec3_length(a);
-		if (len > tol)
-		{
-			vec3_mul_constant(a, 1.0f / len);
-			indices[1] = i;
-			break;
-		}
-	}	
-
-	/* Find non-collinear point */
-	for (i32 i = indices[1] + 1; i <= v_count; ++i)
-	{
-		/* all points are collinear */
-		if (i == v_count) { return 0; }
-
-		vec3_sub(b, v[i], v[0]);
-		const f32 dot = vec3_dot(a, b);
-		
-		if (f32_sqrt(vec3_length(b)*vec3_length(b) - dot*dot) > tol)
-		{
-			indices[2] = i;
-			break;
-		}
-	}
-
-	/* Find non-coplanar point */
-	for (i32 i = indices[2] + 1; i <= v_count; ++i)
-	{
-		/* all points are coplanar */
-		if (i == v_count) { return 0; }
-
-		/* plane normal */
-		vec3_cross(c, a, b);
-		vec3_mul_constant(c, 1.0f / vec3_length(c));
-
-		vec3_sub(d, v[i], v[0]);
-		if (f32_abs(vec3_dot(d, c)) > tol)
-		{
-			indices[3] = i;
-			break;
-		}
-	}
-
-	return 1;
-}
-
 void triangle_CCW_relative_to(vec3 BCA[3], const vec3 p)
 {
 	vec3 AB, AC, AP, N;
@@ -1636,34 +1490,6 @@ f32 point_AABB_distance(const vec3 point, const struct AABB *aabb)
 	return f32_sqrt(x*x + y*y + z*z);
 }
 
-f32 point_OBB_distance(const vec3 point, const struct OBB *obb)
-{
-	vec3 y_axis;
-	vec3_cross(y_axis, obb->z_axis, obb->x_axis);
-	mat3 transform;
-	mat3_set_rows(transform, obb->x_axis, y_axis, obb->z_axis);
-
-	vec3 tmp, point_obb_space;
-	vec3_sub(tmp, point, obb->center);
-	mat3_vec_mul(point_obb_space, transform, tmp);
-
-	f32 x,y,z;
-
-	x = f32_abs(point_obb_space[0]);
-	y = f32_abs(point_obb_space[1]);
-	z = f32_abs(point_obb_space[2]);
-
-	x -= obb->hw[0]; 
-	y -= obb->hw[1];
-	z -= obb->hw[2];
-
-	x *= (1 - f32_sign_bit(x));  
-	y *= (1 - f32_sign_bit(y)); 
-	z *= (1 - f32_sign_bit(z)); 
-
-	return f32_sqrt(x*x + y*y + z*z);
-}
-
 void point_AABB_closest_point(vec3 closest_point, const vec3 point, const struct AABB *aabb)
 {
 	 f32 x,y,z;
@@ -1687,315 +1513,6 @@ void point_AABB_closest_point(vec3 closest_point, const vec3 point, const struct
 	 ,point[1]*f32_sign_bit(y) + (1-f32_sign_bit(y)) * (aabb->center[1] + sign[1] * aabb->hw[1]) 
 	 ,point[2]*f32_sign_bit(z) + (1-f32_sign_bit(z)) * (aabb->center[2] + sign[2] * aabb->hw[2]));
 }
-
-void point_OBB_closest_point(vec3 closest_point, const vec3 point, const struct OBB *obb)
-{
-	vec3 y_axis;
-	vec3_cross(y_axis, obb->z_axis, obb->x_axis);
-	mat3 transform;
-	mat3_set_rows(transform, obb->x_axis, y_axis, obb->z_axis);
-
-	vec3 tmp, point_obb_space;
-	vec3_sub(tmp, point, obb->center);
-	mat3_vec_mul(point_obb_space, transform, tmp);
-
-	f32 x,y,z;
-
-	x = point_obb_space[0];
-	y = point_obb_space[1];
-	z = point_obb_space[2];
-
-	const vec3 sign = { f32_sign(x), f32_sign(y), f32_sign(z) };
-
-	x = f32_abs(x);
-	y = f32_abs(y);
-	z = f32_abs(z);
-
-	x -= obb->hw[0]; 
-	y -= obb->hw[1];
-	z -= obb->hw[2];
-
-	vec3_set(tmp
-	 ,point_obb_space[0]*f32_sign_bit(x) + (1-f32_sign_bit(x)) * sign[0] * obb->hw[0] 
-	 ,point_obb_space[1]*f32_sign_bit(y) + (1-f32_sign_bit(y)) * sign[1] * obb->hw[1] 
-	 ,point_obb_space[2]*f32_sign_bit(z) + (1-f32_sign_bit(z)) * sign[2] * obb->hw[2]);
-	
-	mat3_set_columns(transform, obb->x_axis, y_axis, obb->z_axis);
-	mat3_vec_mul(closest_point, transform, tmp);
-	vec3_translate(closest_point, obb->center);
-}
-
-i32 ray_OBB_intersection(vec3 intersection, const vec3 ray_origin, const vec3 ray_direction, const struct OBB *obb)
-{
-	vec3 y_axis;
-	vec3_cross(y_axis, obb->z_axis, obb->x_axis);
-	mat3 transform;
-	mat3_set_rows(transform, obb->x_axis, y_axis, obb->z_axis);
-
-	vec3 tmp, p, ray_direction_obb;
-	vec3_sub(tmp, ray_origin, obb->center);
-	mat3_vec_mul(p, transform, tmp);
-	mat3_vec_mul(ray_direction_obb, transform, ray_direction);
-
-	struct ray ray = ray_construct(p, ray_direction_obb);
-	mat3_set_columns(transform, obb->x_axis, y_axis, obb->z_axis);
-
-	f32 x,y,z;
-
-	x = p[0];
-	y = p[1];
-	z = p[2];
-
-	const vec3 sign = { f32_sign(x), f32_sign(y), f32_sign(z) };
-
-	x = f32_abs(x);
-	y = f32_abs(y);
-	z = f32_abs(z);
-
-	x -= obb->hw[0]; 
-	y -= obb->hw[1];
-	z -= obb->hw[2];
-
-	const u32 sx = f32_sign_bit(x);
-	const u32 sy = f32_sign_bit(y);
-	const u32 sz = f32_sign_bit(z);
-
-	/* Check planes towards */
-	if (sx + sy + sz == 3)
-	{
-		x = ray_direction_obb[0];
-		struct plane plane;
-		vec3_set(plane.normal, f32_sign(x), 0.0f, 0.0f);
-		plane.signed_distance = obb->hw[0];
-		if (ray_direction_obb[0] != 0.0f
-			         && plane_raycast(tmp, &plane, &ray)
-				 && (tmp[1] >= -obb->hw[1] && tmp[1] <= obb->hw[1])
-				 && (tmp[2] >= -obb->hw[2] && tmp[2] <= obb->hw[2])
-				)
-		{
-			mat3_vec_mul(intersection, transform, tmp);
-			vec3_translate(intersection, obb->center);
-			return 1;	
-		}
-
-		y = ray_direction_obb[1];
-		vec3_set(plane.normal, 0.0f, f32_sign(y), 0.0f);
-		plane.signed_distance = obb->hw[1];
-		if (ray_direction_obb[1] != 0.0f
-			         && plane_raycast(tmp, &plane, &ray)
-				 && (tmp[0] >= -obb->hw[0] && tmp[0] <= obb->hw[0])
-				 && (tmp[2] >= -obb->hw[2] && tmp[2] <= obb->hw[2])
-				)
-		{
-			mat3_vec_mul(intersection, transform, tmp);
-			vec3_translate(intersection, obb->center);
-			return 1;	
-		}
-
-		z = ray_direction_obb[2];
-		vec3_set(plane.normal, 0.0f, 0.0f, f32_sign(z));
-		plane.signed_distance = obb->hw[2];
-		if (ray_direction_obb[2] != 0.0f
-			         && plane_raycast(tmp, &plane, &ray)
-				 && (tmp[0] >= -obb->hw[0] && tmp[0] <= obb->hw[0])
-				 && (tmp[1] >= -obb->hw[1] && tmp[1] <= obb->hw[1])
-				)
-		{
-			mat3_vec_mul(intersection, transform, tmp);
-			vec3_translate(intersection, obb->center);
-			return 1;	
-		}
-
-	}
-	/* check planes against */
-	else
-	{
-		struct plane plane;
-		vec3_set(plane.normal, sign[0], 0.0f, 0.0f);
-		plane.signed_distance = obb->hw[0];
-		if (sx == 0 
-			         && plane_raycast(tmp, &plane, &ray)
-				 && (tmp[1] >= -obb->hw[1] && tmp[1] <= obb->hw[1])
-				 && (tmp[2] >= -obb->hw[2] && tmp[2] <= obb->hw[2])
-				)
-		{
-			mat3_vec_mul(intersection, transform, tmp);
-			vec3_translate(intersection, obb->center);
-			return 1;	
-		}
-
-		vec3_set(plane.normal, 0.0f, sign[1], 0.0f);
-		plane.signed_distance = obb->hw[1];
-		if (sy == 0 
-			         && plane_raycast(tmp, &plane, &ray)
-				 && (tmp[0] >= -obb->hw[0] && tmp[0] <= obb->hw[0])
-				 && (tmp[2] >= -obb->hw[2] && tmp[2] <= obb->hw[2])
-				)
-		{
-			mat3_vec_mul(intersection, transform, tmp);
-			vec3_translate(intersection, obb->center);
-			return 1;	
-		}
-
-		vec3_set(plane.normal, 0.0f, 0.0f, sign[2]);
-		plane.signed_distance = obb->hw[2];
-		if (sz == 0 
-			         && plane_raycast(tmp, &plane, &ray)
-				 && (tmp[0] >= -obb->hw[0] && tmp[0] <= obb->hw[0])
-				 && (tmp[1] >= -obb->hw[1] && tmp[1] <= obb->hw[1])
-				)
-		{
-			mat3_vec_mul(intersection, transform, tmp);
-			vec3_translate(intersection, obb->center);
-			return 1;	
-		}
-	}
-
-	return 0;
-}
-
-f32 point_cylinder_distance(const vec3 point, const struct cylinder *cyl)
-{
-	vec3 tmp;
-	vec3_sub(tmp, point, cyl->center);
-	
-	f32 r,y;
-	
-	r = f32_sqrt(tmp[0]*tmp[0] + tmp[2]*tmp[2]) - cyl->radius;
-
-	y = tmp[1];
-	y = f32_abs(y);
-	y -= cyl->half_height;
-
-	return f32_sqrt(y*y*(1-f32_sign_bit(y)) + r*r*(1-f32_sign_bit(r)));
-}
-
-void point_cylinder_closest_point(vec3 closest_point, const vec3 point, const struct cylinder *cyl)
-{
-	vec3 tmp;
-	vec3_sub(tmp, point, cyl->center);
-	
-	f32 r,y;
-	
-	const f32 xz_dist = f32_sqrt(tmp[0]*tmp[0] + tmp[2]*tmp[2]);
-	r = xz_dist - cyl->radius;
-
-	y = tmp[1];
-	const f32 y_sign = f32_sign(y);
-	y = f32_abs(y);
-	y -= cyl->half_height;
-
-	closest_point[0] = tmp[0] * f32_sign_bit(r) + (1 - f32_sign_bit(r)) * cyl->radius * tmp[0] / xz_dist;
-	closest_point[1] = tmp[1] * f32_sign_bit(y) + (1 - f32_sign_bit(y)) * cyl->half_height * y_sign;
-	closest_point[2] = tmp[2] * f32_sign_bit(r) + (1 - f32_sign_bit(r)) * cyl->radius * tmp[2] / xz_dist;
-	vec3_translate(closest_point, cyl->center);
-}
-
-i32 ray_cylinder_intersection(vec3 intersection, const vec3 ray_origin, const vec3 ray_direction, const struct cylinder *cyl)
-{
-	vec3_sub(intersection, ray_origin, cyl->center);
-
-	f32 y, r;
-	
-	r = intersection[0]*intersection[0] + intersection[2]*intersection[2] - cyl->radius*cyl->radius;
-
-	y = intersection[1];
-	const f32 y_sign = f32_sign(y);
-	y = f32_abs(y); 
-	y -= cyl->half_height;
-
-	switch ((f32_sign_bit(y) << 1) + f32_sign_bit(r))
-	{
-		/* above/below AND infront/behind cylinder  */
-		case 0:
-		{
-			/* ray turned away from surface plane */
-			const f32 d = y_sign * ray_direction[1];
-			if (d >= 0.0f) { return 0; }
-			
-			vec3 tmp = { intersection[0], intersection[1], intersection[2] };
-			vec3_translate_scaled(tmp, ray_direction, y / (-d));
-			f32 r2 = tmp[0]*tmp[0] + tmp[2]*tmp[2] - cyl->radius*cyl->radius;
-			if (f32_sign_bit(r2)) 
-			{ 
-				vec3_add(intersection, tmp, cyl->center);
-				return 1;
-		       	}
-
-			if (ray_direction[0] == 0.0f && ray_direction[2] == 0.0f) { return 0; }
-			const f32 r_dist = f32_sqrt(ray_direction[0]*ray_direction[0] + ray_direction[2]*ray_direction[2]);
-			const f32 n_d = (intersection[0]*ray_direction[0] + intersection[2]*ray_direction[2]) / r_dist;
-			//const f32 n_n = intersection[0]*intersection[0] + intersection[2]*intersection[2];
-			const f32 discr = n_d*n_d - r;
-			if (discr < 0.0f) { return 0; }
-
-			const f32 t = -n_d - f32_sqrt(discr); 
-			vec3_translate_scaled(intersection, ray_direction, t / r_dist);
-			y = f32_abs(intersection[1]);
-			y -= cyl->half_height;
-			vec3_translate(intersection, cyl->center);
-			return f32_sign_bit(y);
-		}
-		/* directly above or below cylinder  */
-		case 1:
-		{
-			/* ray turned away from surface plane */
-			const f32 d = y_sign * ray_direction[1];
-			if (d >= 0.0f) { return 0; }
-
-			vec3_translate_scaled(intersection, ray_direction, y / (-d));
-			r = intersection[0]*intersection[0] + intersection[2]*intersection[2] - cyl->radius*cyl->radius;
-			vec3_translate(intersection, cyl->center);
-			return f32_sign_bit(r);
-		}
-		/* infront of cylinder (same height as the cylinder) */
-		case 2:
-		{
-			if (ray_direction[0] == 0.0f && ray_direction[2] == 0.0f) { return 0; }
-			const f32 r_dist = f32_sqrt(ray_direction[0]*ray_direction[0] + ray_direction[2]*ray_direction[2]);
-			const f32 n_d = (intersection[0]*ray_direction[0] + intersection[2]*ray_direction[2]) / r_dist;
-			const f32 discr = n_d*n_d - r;
-			if (discr < 0.0f) { return 0; }
-
-			const f32 t = -n_d - f32_sqrt(discr); 
-			vec3_translate_scaled(intersection, ray_direction, t / r_dist);
-			y = f32_abs(intersection[1]);
-			y -= cyl->half_height;
-			vec3_translate(intersection, cyl->center);
-			return f32_sign_bit(y);
-		}
-		/* inside cylinder */
-		case 3:
-		{
-			f32 t = F32_INFINITY;
-
-			if (ray_origin[1] != 0.0f)
-			{
-				t = ray_direction[1];
-				t = ((1 - f32_sign_bit(t)) * (cyl->half_height - intersection[1]) + f32_sign_bit(t) * (cyl->half_height + intersection[1])) / (f32_sign(t) * t);
-			}
-
-			if (ray_direction[0] != 0.0f || ray_direction[2] != 0.0f) 
-			{
-				const f32 r_dist = f32_sqrt(ray_direction[0]*ray_direction[0] + ray_direction[2]*ray_direction[2]);
-				const f32 n_d = (intersection[0]*ray_direction[0] + intersection[2]*ray_direction[2]) / r_dist;
-				const f32 discr = n_d*n_d - r;
-				assert(discr >= 0.0f);
-				t = f32_min(t, (-n_d + f32_sqrt(discr)) / r_dist);
-			}
-	
-			vec3_translate_scaled(intersection, ray_direction, t);
-			vec3_translate(intersection, cyl->center);
-			return 1;
-		}
-		default:
-		{
-			assert(false && "should not happen");
-			return 0;
-		}
-	}
-}
-
 
 f32 AABB_distance(const struct AABB *a, const struct AABB *b)
 {
@@ -2054,39 +1571,6 @@ i32 AABB_intersection(struct AABB *dst, const struct AABB *a, const struct AABB 
 
 }
 
-f32 cylinder_distance(const struct cylinder *a, const struct cylinder *b)
-{
-	vec2 dist = { 0.0f, 0.0f };
-	f32 m, t = (a->center[0] - b->center[0]) * (a->center[0] - b->center[0])
-	       	+ (a->center[2] - b->center[2]) * (a->center[2] - b->center[2]);
-	if (t > (a->radius+b->radius)*(a->radius+b->radius)) { dist[0] = f32_sqrt(t) - a->radius - b->radius; }
-	
-	m = b->center[1] - b->half_height - (a->center[1] + a->half_height);
-	t = a->center[1] - a->half_height - (b->center[1] + b->half_height);
-	if (m > 0.0f || t > 0.0f) { dist[1] = f32_max(m,t); }
-
-	return vec2_length(dist);
-}
-
-i32 cylinder_test(const struct cylinder *a, const struct cylinder *b)
-{
-	f32 m, t = (a->center[0] - b->center[0]) * (a->center[0] - b->center[0])
-	       	+ (a->center[2] - b->center[2]) * (a->center[2] - b->center[2])
-	       	- (a->radius + b->radius) * (a->radius + b->radius);
-	if (t > 0.0f) { return 0; }
-
-	m = b->center[1] - b->half_height - (a->center[1] + a->half_height);
-	t = a->center[1] - a->half_height - (b->center[1] + b->half_height);
-	if (m > 0.0f || t > 0.0f) { return 0; }
-
-	return 1;
-}
-
-//i32 cylinder_intersection(struct tmp *dst, const struct cylinder *a, const struct cylinder *b)
-//{
-//	return 0;
-//}
-
 //f32 sphere_distance(const struct sphere *a, const struct sphere *b)
 //{
 //	return 0.0f;
@@ -2102,21 +1586,6 @@ i32 cylinder_test(const struct cylinder *a, const struct cylinder *b)
 //	return 0;
 //}
 //
-//f32 OBB_distance(const struct OBB *a, const struct OBB *b)
-//{
-//	return 0.0f;
-//}
-//
-//i32 OBB_test(const struct OBB *a, const struct OBB *b)
-//{
-//	return 0;
-//}
-//
-//i32 OBB_intersection(struct tmp *dst, const struct OBB *a, const struct OBB *b)
-//{
-//	return 0;
-//}
-
 u32 tetrahedron_point_test(const vec3 tetra[4], const vec3 p)
 {
 	vec3 v[4], n;
@@ -2189,172 +1658,366 @@ u32 triangle_origin_closest_point_is_internal(vec3 lambda, const vec3 A, const v
 	return (lambda[0] < 0.0f || lambda[1] < 0.0f || lambda[2] < 0.0f) ? 0 : 1;
 }
 
-static const vec3 box_vertex[] =
+vec3 box_stub_vertex[8] =
 {
-	{  0.5f,  0.5f, -0.5f },
-	{  0.5f,  0.5f,  0.5f },	
-	{ -0.5f,  0.5f,  0.5f },	
+	{  0.5f,  0.5f,  0.5f }, 
+	{  0.5f,  0.5f, -0.5f },	
 	{ -0.5f,  0.5f, -0.5f },	
-	{  0.5f, -0.5f, -0.5f },
-	{  0.5f, -0.5f,  0.5f },	
-	{ -0.5f, -0.5f,  0.5f },	
+	{ -0.5f,  0.5f,  0.5f },	
+	{  0.5f, -0.5f,  0.5f },
+	{  0.5f, -0.5f, -0.5f },	
 	{ -0.5f, -0.5f, -0.5f },	
+	{ -0.5f, -0.5f,  0.5f },	
 };
 
-static const struct dcel_half_edge box_edge[] =
+
+static struct dcel_face box_face[] =
 {
-	{ .origin = 0, .twin =  7, /* .face = 0,*/ .next =  1, . prev =  3, },
-	{ .origin = 1, .twin = 11, /* .face = 0,*/ .next =  2, . prev =  0, },
-	{ .origin = 2, .twin = 15, /* .face = 0,*/ .next =  3, . prev =  1, },
-	{ .origin = 3, .twin = 19, /* .face = 0,*/ .next =  0, . prev =  2, },
-
-	{ .origin = 0, .twin = 18, /* .face = 1,*/ .next =  5, . prev =  7, },
-	{ .origin = 4, .twin = 21, /* .face = 1,*/ .next =  6, . prev =  4, },
-	{ .origin = 5, .twin =  8, /* .face = 1,*/ .next =  7, . prev =  5, },
-	{ .origin = 1, .twin =  0, /* .face = 1,*/ .next =  4, . prev =  6, },
-
-	{ .origin = 1, .twin =  6, /* .face = 2,*/ .next =  9, . prev = 11, },
-	{ .origin = 5, .twin = 20, /* .face = 2,*/ .next = 10, . prev =  8, },
-	{ .origin = 6, .twin = 12, /* .face = 2,*/ .next = 11, . prev =  9, },
-	{ .origin = 2, .twin =  1, /* .face = 2,*/ .next =  8, . prev = 10, },
-
-	{ .origin = 2, .twin = 10, /* .face = 3,*/ .next = 13, . prev = 15, },
-	{ .origin = 6, .twin = 23, /* .face = 3,*/ .next = 14, . prev = 12, },
-	{ .origin = 7, .twin = 16, /* .face = 3,*/ .next = 15, . prev = 13, },
-	{ .origin = 3, .twin =  2, /* .face = 3,*/ .next = 12, . prev = 14, },
-
-	{ .origin = 3, .twin = 14, /* .face = 4,*/ .next = 17, . prev = 19, },
-	{ .origin = 7, .twin = 22, /* .face = 4,*/ .next = 18, . prev = 16, },
-	{ .origin = 4, .twin =  4, /* .face = 4,*/ .next = 19, . prev = 17, },
-	{ .origin = 0, .twin =  3, /* .face = 4,*/ .next = 16, . prev = 18, },
-
-	{ .origin = 6, .twin =  9, /* .face = 5,*/ .next = 21, . prev = 23, },
-	{ .origin = 5, .twin =  5, /* .face = 5,*/ .next = 22, . prev = 20, },
-	{ .origin = 4, .twin = 17, /* .face = 5,*/ .next = 23, . prev = 21, },
-	{ .origin = 7, .twin = 13, /* .face = 5,*/ .next = 20, . prev = 22, },
+	{ .first  =  0, .count = 4 },
+	{ .first  =  4, .count = 4 },
+	{ .first  =  8, .count = 4 },
+	{ .first  = 12, .count = 4 },
+	{ .first  = 16, .count = 4 },
+	{ .first  = 20, .count = 4 },
 };
 
-/* 
-const u32 box_face_to_edge_map[] = { 0, 4, 8, 12, 16, 20 };
-*/
+static struct dcel_half_edge box_edge[] =
+{
+	{ .origin = 0, .twin =  7,  .face_ccw = 0, },
+	{ .origin = 1, .twin = 11,  .face_ccw = 0, },
+	{ .origin = 2, .twin = 15,  .face_ccw = 0, },
+	{ .origin = 3, .twin = 19,  .face_ccw = 0, },
 
-struct dcel dcel_box(void)
+	{ .origin = 0, .twin = 18,  .face_ccw = 1, },
+	{ .origin = 4, .twin = 21,  .face_ccw = 1, },
+	{ .origin = 5, .twin =  8,  .face_ccw = 1, },
+	{ .origin = 1, .twin =  0,  .face_ccw = 1, },
+
+	{ .origin = 1, .twin =  6,  .face_ccw = 2, },
+	{ .origin = 5, .twin = 20,  .face_ccw = 2, },
+	{ .origin = 6, .twin = 12,  .face_ccw = 2, },
+	{ .origin = 2, .twin =  1,  .face_ccw = 2, },
+
+	{ .origin = 2, .twin = 10,  .face_ccw = 3, },
+	{ .origin = 6, .twin = 23,  .face_ccw = 3, },
+	{ .origin = 7, .twin = 16,  .face_ccw = 3, },
+	{ .origin = 3, .twin =  2,  .face_ccw = 3, },
+
+	{ .origin = 3, .twin = 14,  .face_ccw = 4, },
+	{ .origin = 7, .twin = 22,  .face_ccw = 4, },
+	{ .origin = 4, .twin =  4,  .face_ccw = 4, },
+	{ .origin = 0, .twin =  3,  .face_ccw = 4, },
+
+	{ .origin = 6, .twin =  9,  .face_ccw = 5, },
+	{ .origin = 5, .twin =  5,  .face_ccw = 5, },
+	{ .origin = 4, .twin = 17,  .face_ccw = 5, },
+	{ .origin = 7, .twin = 13,  .face_ccw = 5, },
+};
+
+struct dcel dcel_box_stub(void)
 {
 	struct dcel box = 
 	{
-		.vertex = box_vertex,
-		.edge = box_edge,
-		.vertex_count = 8,
-		.edge_count = 24,
+		.v = box_stub_vertex,
+		.e = box_edge,
+		.f = box_face,
+		.e_count = 24,
+		.v_count = 8,
+		.f_count = 6,
 	};
 
 	return box; 
 }
 
-void dcel_assert_topology(const struct dcel *dcel)
+struct dcel dcel_box(struct arena *mem, const vec3 hw)
 {
-	struct arena tmp = arena_alloc_1MB();
+	vec3ptr box_vertex = arena_push(mem, 8*sizeof(vec3));
 
-	u32 face_count = 0;
-	u32 vertex_count = 0;
+	vec3_set(box_vertex[0],  hw[0],  hw[1],  hw[2]); 
+	vec3_set(box_vertex[1],  hw[0],  hw[1], -hw[2]);	
+	vec3_set(box_vertex[2], -hw[0],  hw[1], -hw[2]);	
+	vec3_set(box_vertex[3], -hw[0],  hw[1],  hw[2]);	
+	vec3_set(box_vertex[4],  hw[0], -hw[1],  hw[2]);
+	vec3_set(box_vertex[5],  hw[0], -hw[1], -hw[2]);	
+	vec3_set(box_vertex[6], -hw[0], -hw[1], -hw[2]);	
+	vec3_set(box_vertex[7], -hw[0], -hw[1],  hw[2]);	
 
-	u32 *vertex_check = arena_push_zero(&tmp, dcel->vertex_count * sizeof(u32));
-	u32 *edge_check = arena_push_zero(&tmp, dcel->edge_count * sizeof(u32));
-	u32 *face_check = arena_push_zero(&tmp, 3*dcel->vertex_count * sizeof(u32));
-
-	for (u32 i = 0; i < dcel->edge_count; ++i)
+	struct dcel box = 
 	{
-		if (!edge_check[i])
+		.v = box_vertex,
+		.e = box_edge,
+		.f = box_face,
+		.e_count = 24,
+		.v_count = 8,
+		.f_count = 6,
+	};
+
+	return box; 
+}
+
+void dcel_face_direction(vec3 dir, const struct dcel *h, const u32 fi)
+{
+	vec3 a, b;
+	struct dcel_half_edge *e0 = h->e + h->f[fi].first;
+	struct dcel_half_edge *e1 = h->e + h->f[fi].first + 1;
+	struct dcel_half_edge *e2 = h->e + h->f[fi].first + 2;
+	vec3_sub(a, h->v[e1->origin], h->v[e0->origin]);
+	vec3_sub(b, h->v[e2->origin], h->v[e0->origin]);
+	vec3_cross(dir, a, b);
+	assert(vec3_length(dir) >= 100.0f*F32_EPSILON);
+}
+
+void dcel_face_normal(vec3 normal, const struct dcel *h, const u32 fi)
+{
+	dcel_face_direction(normal, h, fi);
+	vec3_mul_constant(normal, 1.0f/vec3_length(normal));	
+}
+
+struct plane dcel_face_plane(const struct dcel *h, mat3 rot, const vec3 pos, const u32 fi)
+{
+	vec3 n, p;
+	dcel_face_normal(p, h, fi);
+	mat3_vec_mul(n, rot, p);
+	mat3_vec_mul(p, rot, h->v[h->e[h->f[fi].first].origin]);
+	vec3_translate(p, pos);
+	return plane_construct(n, p);
+}
+
+struct segment dcel_face_clip_segment(const struct dcel *h, mat3 rot, const vec3 pos, const u32 fi, const struct segment *s)
+{
+	vec3 f_n, p_n, p_p0, p_p1;
+
+	dcel_face_normal(p_n, h, fi);
+	mat3_vec_mul(f_n, rot, p_n);
+
+	f32 min_p = 0.0f;
+	f32 max_p = 1.0f;
+
+	struct dcel_face *f = h->f + fi;
+	for (u32 i = 0; i < f->count; ++i)
+	{
+		const u32 e0 = f->first + i;
+		const u32 e1 = f->first + ((i + 1) % f->count);
+		struct plane clip_plane = dcel_face_clip_plane(h, rot, pos, f_n, e0, e1);
+
+		const f32 bc_c = plane_segment_clip_parameter(&clip_plane, s);
+		if (min_p <= bc_c && bc_c <= max_p)
 		{
-			face_count += 1;
-			u32 next;
-		        u32 prev; 
-			u32 current = i;
-			u32 edge_count = 0;
-			do
+			if (vec3_dot(s->dir, clip_plane.normal) >= 0.0f)
 			{
-				edge_count += 1;
-				const struct dcel_half_edge *c = dcel->edge + current;
-				const struct dcel_half_edge *p = dcel->edge + c->prev;
-				const struct dcel_half_edge *n = dcel->edge + c->next;
-				const struct dcel_half_edge *t = dcel->edge + c->twin;
-
-				kas_assert(c->origin < dcel->vertex_count);
-				kas_assert(p->next == current);
-				kas_assert(n->prev == current);
-				kas_assert(t->twin == current);
-				kas_assert(t->origin == n->origin);
-
-				edge_check[current] = 1;
-				vertex_count += (1 - vertex_check[c->origin]);
-				vertex_check[c->origin] = 1;
-
-				current = c->next;
-			} while (current != i);
-
-			kas_assert(edge_count >= 3);
+				max_p = bc_c;
+			}
+			else
+			{
+				min_p = bc_c;
+			}
 		}
-	}
+	}	
 
-	arena_free_1MB(&tmp);
-
-	kas_assert(vertex_count == dcel->vertex_count);
-	kas_assert(face_count >= 4);
+	segment_bc(p_p0, s, min_p);
+	segment_bc(p_p1, s, max_p);
+	return segment_construct(p_p0, p_p1);
 }
 
-struct dcel_allocator *dcel_allocator_alloc(const u32 initial_vertex_count, const u32 initial_edge_count)
+struct plane dcel_face_clip_plane(const struct dcel *h, mat3 rot, const vec3 pos, const vec3 face_normal, const u32 e0, const u32 e1)
 {
-	struct dcel_allocator *allocator = malloc(sizeof(struct dcel_allocator));
+	vec3 diff, p0, p1;
+	struct dcel_half_edge *edge0 = h->e + e0; 
+	struct dcel_half_edge *edge1 = h->e + e1; 
 
-	allocator->vertex_pool = pool_external_alloc((void **) &allocator->vertex, initial_vertex_count, sizeof(vec3), GROWABLE);
-	if (!allocator->vertex_pool.external_buf)
+	mat3_vec_mul(p0, rot, h->v[edge0->origin]);
+	mat3_vec_mul(p1, rot, h->v[edge1->origin]);
+	vec3_translate(p0, pos);
+	vec3_translate(p1, pos);
+	vec3_sub(diff, p1, p0);
+	vec3_cross(p1, diff, face_normal);
+	vec3_mul_constant(p1, 1.0f/vec3_length(p1));
+
+	return plane_construct(p1, p0);
+}
+
+u32 dcel_face_projected_point_test(const struct dcel *h, mat3 rot, const vec3 pos, const u32 fi, const vec3 p)
+{
+	vec3 f_n, p_n;
+
+	dcel_face_normal(p_n, h, fi);
+	mat3_vec_mul(f_n, rot, p_n);
+
+	f32 min_p = 0.0f;
+	f32 max_p = 1.0f;
+
+	struct dcel_face *f = h->f + fi;
+	for (u32 i = 0; i < f->count; ++i)
 	{
-		free(allocator);
-		allocator = NULL;
-	}
-	else
-	{
-		allocator->edge_pool = pool_external_alloc((void **) &allocator->edge, initial_edge_count, sizeof(struct dcel_half_edge), GROWABLE);
-		if (!allocator->edge_pool.external_buf)
+		const u32 e0 = f->first + i;
+		const u32 e1 = f->first + ((i + 1) % f->count);
+		struct plane clip_plane = dcel_face_clip_plane(h, rot, pos, f_n, e0, e1);
+		if (vec3_dot(clip_plane.normal, p) > clip_plane.signed_distance)
 		{
-			pool_external_dealloc(&allocator->vertex_pool);
-			free(allocator);
-			allocator = NULL;
+			return 0;
+		}
+	}	
+
+	return 1;
+}
+
+void dcel_half_edge_direction(vec3 dir, const struct dcel *h, const u32 ei)
+{
+	struct dcel_half_edge *e0 = h->e + ei;
+	struct dcel_face *f = h->f + e0->face_ccw;
+	const u32 next = f->first + ((ei - f->first + 1) % f->count);
+	struct dcel_half_edge *e1 = h->e + next;
+	vec3_sub(dir, h->v[e1->origin], h->v[e0->origin]);
+	assert(vec3_length(dir) >= 100.0f*F32_EPSILON);
+}
+
+void dcel_half_edge_normal(vec3 dir, const struct dcel *h, const u32 ei)
+{
+	dcel_half_edge_direction(dir, h, ei);
+	vec3_mul_constant(dir, 1.0f / vec3_length(dir));
+}
+
+struct segment dcel_half_edge_segment(const struct dcel *h, mat3 rot, const vec3 pos, const u32 ei)
+{
+	vec3 p0, p1;
+	const u32 first = h->f[h->e[ei].face_ccw].first;
+	const u32 count = h->f[h->e[ei].face_ccw].count;
+	const u32 e0 = ei;
+	const u32 e1 = first + ((ei - first + 1) % count); 
+
+	mat3_vec_mul(p0, rot, h->v[h->e[e0].origin]);
+	mat3_vec_mul(p1, rot, h->v[h->e[e1].origin]);
+	vec3_translate(p0, pos);
+	vec3_translate(p1, pos);
+
+	return segment_construct(p0, p1);
+}
+
+void sphere_world_support(vec3 support, const vec3 dir, const struct sphere *sph, const vec3 pos)
+{
+	vec3_scale(support, dir, sph->radius / vec3_length(dir));
+	vec3_translate(support, pos);
+}
+
+void capsule_world_support(vec3 support, const vec3 dir, const struct capsule *cap, mat3 rot, const vec3 pos)
+{
+	vec3 p1, p2;
+	p1[0] = rot[1][0] * cap->half_height,	
+	p1[1] = rot[1][1] * cap->half_height,	
+	p1[2] = rot[1][2] * cap->half_height,	
+	vec3_negative_to(p2, p1);
+
+	vec3_scale(support, dir, cap->radius / vec3_length(dir));
+	vec3_translate(support, pos);
+	(vec3_dot(dir, p1) > vec3_dot(dir, p2))
+		? vec3_translate(support, p1) 
+		: vec3_translate(support, p2);
+}
+
+u64 dcel_world_support(vec3 support, const vec3 dir, const struct dcel *dcel, mat3 rot, const vec3 pos)
+{
+	f32 max = -F32_INFINITY;
+	u64 max_index = 0;
+	vec3 p;
+	for (u32 i = 0; i < dcel->v_count; ++i)
+	{
+		mat3_vec_mul(p, rot, dcel->v[i]);
+		const f32 dot = vec3_dot(p, dir);
+		if (max < dot)
+		{
+			max_index = i;
+			max = dot; 
 		}
 	}
 
-	return allocator;
+	mat3_vec_mul(support, rot, dcel->v[max_index]);
+	vec3_translate(support, pos);
+	return max_index;
 }
 
-void dcel_allocator_dealloc(struct dcel_allocator *allocator)
+struct dcel dcel_empty(void)
 {
-	pool_external_dealloc(&allocator->vertex_pool);
-	pool_external_dealloc(&allocator->edge_pool);
-	free(allocator);
+	struct dcel dcel = { 0 };
+
+	return dcel;
 }
 
-void dcel_allocator_flush(struct dcel_allocator *allocator)
+void dcel_assert_topology(struct dcel *dcel)
 {
-	pool_external_flush(&allocator->vertex_pool);
-	pool_external_flush(&allocator->edge_pool);
+	struct dcel_face *f;
+	struct dcel_half_edge *e;
+	for (u32 i = 0; i < dcel->f_count; ++i)
+	{
+		f = dcel->f + i;
+		e = dcel->e + f->first;
+		for (u32 j = 0; j < f->count; ++j)
+		{
+			assert(e->face_ccw == i);
+ 			e = dcel->e + f->first + j + 1;
+		}
+
+		if (f->first + f->count < dcel->e_count)
+		{
+			assert(e->face_ccw != i);
+		}
+	}
+
+	for (u32 i = 0; i < dcel->e_count; ++i)
+	{
+		e = dcel->e + i;
+		assert(i == (dcel->e + e->twin)->twin);
+	}
 }
 
-u32 dcel_allocator_add_vertex(struct dcel_allocator *allocator)
-{
-	return pool_external_add(&allocator->vertex_pool).index;
-}
+//void dcel_assert_topology(const struct dcel *dcel)
+//{
+//	struct arena tmp = arena_alloc_1MB();
+//
+//	u32 face_count = 0;
+//	u32 vertex_count = 0;
+//
+//	u32 *vertex_check = arena_push_zero(&tmp, dcel->vertex_count * sizeof(u32));
+//	u32 *edge_check = arena_push_zero(&tmp, dcel->edge_count * sizeof(u32));
+//	u32 *face_check = arena_push_zero(&tmp, 3*dcel->vertex_count * sizeof(u32));
+//
+//	for (u32 i = 0; i < dcel->edge_count; ++i)
+//	{
+//		if (!edge_check[i])
+//		{
+//			face_count += 1;
+//			u32 next;
+//		        u32 prev; 
+//			u32 current = i;
+//			u32 edge_count = 0;
+//			do
+//			{
+//				edge_count += 1;
+//				const struct dcel_half_edge *c = dcel->edge + current;
+//				const struct dcel_half_edge *p = dcel->edge + c->prev;
+//				const struct dcel_half_edge *n = dcel->edge + c->next;
+//				const struct dcel_half_edge *t = dcel->edge + c->twin;
+//
+//				kas_assert(c->origin < dcel->vertex_count);
+//				kas_assert(p->next == current);
+//				kas_assert(n->prev == current);
+//				kas_assert(t->twin == current);
+//				kas_assert(t->origin == n->origin);
+//
+//				edge_check[current] = 1;
+//				vertex_count += (1 - vertex_check[c->origin]);
+//				vertex_check[c->origin] = 1;
+//
+//				current = c->next;
+//			} while (current != i);
+//
+//			kas_assert(edge_count >= 3);
+//		}
+//	}
+//
+//	arena_free_1MB(&tmp);
+//
+//	kas_assert(vertex_count == dcel->vertex_count);
+//	kas_assert(face_count >= 4);
+//}
 
-void dcel_allocator_remove_vertex(struct dcel_allocator *allocator, const u32 index)
-{
-	pool_external_remove(&allocator->vertex_pool, index);
-}
 
-u32 dcel_allocator_add_edge(struct dcel_allocator *allocator)
-{
-	return pool_external_add(&allocator->edge_pool).index;
-}
-
-void dcel_allocator_remove_edge(struct dcel_allocator *allocator, const u32 index)
-{
-	pool_external_remove(&allocator->edge_pool, index);
-}

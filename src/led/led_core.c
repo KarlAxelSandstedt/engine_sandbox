@@ -156,14 +156,22 @@ void cmd_collision_box_add(void)
 		g_queue->cmd_exec->arg[2].f32,
 		g_queue->cmd_exec->arg[3].f32,
 	};
-	struct collision_shape shape =
-	{
-		.id = g_queue->cmd_exec->arg[0].utf8,
-		.type = COLLISION_SHAPE_CONVEX_HULL,
-		.hull = collision_box(&sys_win->mem_persistent, hw), 
-	};
 
-	led_collision_shape_add(g_editor, &shape);
+	if (hw[0] > 0.0f && hw[1] > 0.0f && hw[2] > 0.0f)
+	{
+		struct collision_shape shape =
+		{
+			.id = g_queue->cmd_exec->arg[0].utf8,
+			.type = COLLISION_SHAPE_CONVEX_HULL,
+			.hull = dcel_box(&sys_win->mem_persistent, hw), 
+		};
+
+		led_collision_shape_add(g_editor, &shape);
+	}
+	else
+	{
+		log_string(T_LED, S_WARNING, "Failed to allocate collision box: bad parameters");
+	}
 }
 
 void cmd_collision_sphere_add(void)
@@ -175,7 +183,14 @@ void cmd_collision_sphere_add(void)
 		.sphere = { .radius = g_queue->cmd_exec->arg[1].f32 },
 	};
 
-	led_collision_shape_add(g_editor, &shape);
+	if (shape.sphere.radius > 0.0f)
+	{
+		led_collision_shape_add(g_editor, &shape);
+	}
+	else
+	{
+		log_string(T_LED, S_WARNING, "Failed to allocate collision sphere: bad parameters");
+	}
 }
 
 void cmd_collision_capsule_add(void)
@@ -187,11 +202,18 @@ void cmd_collision_capsule_add(void)
 		.capsule = 
 		{ 
 			.radius = g_queue->cmd_exec->arg[1].f32,
-			.p1 = { 0.0f, g_queue->cmd_exec->arg[2].f32/2.0f, 0.0f },
+			.half_height = g_queue->cmd_exec->arg[2].f32,
 		},
 	};
 
-	led_collision_shape_add(g_editor, &shape);
+	if (shape.capsule.radius > 0.0f && shape.capsule.half_height > 0.0f)
+	{
+		led_collision_shape_add(g_editor, &shape);
+	}
+	else
+	{
+		log_string(T_LED, S_WARNING, "Failed to allocate collision capsule: bad parameters");
+	}
 }
 
 void cmd_collision_shape_remove(void)

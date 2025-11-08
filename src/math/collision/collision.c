@@ -691,8 +691,8 @@ static u32 gjk_internal_support(vec3 support, const vec3 dir, struct gjk_input *
 
 static f32 gjk_distance_sq(vec3 c1, vec3 c2, struct gjk_input *in1, struct gjk_input *in2)
 {
-	assert(in1->v_count > 0);
-	assert(in2->v_count > 0);
+	kas_assert(in1->v_count > 0);
+	kas_assert(in2->v_count > 0);
 	
 	const f32 abs_tol = 100.0f * F32_EPSILON;
 	const f32 tol = 100.0f * F32_EPSILON;
@@ -726,8 +726,8 @@ static f32 gjk_distance_sq(vec3 c1, vec3 c2, struct gjk_input *in1, struct gjk_i
 				|| simplex.id[0] == support_id || simplex.id[1] == support_id 
 				|| simplex.id[2] == support_id || simplex.id[3] == support_id)
 		{
-			assert(simplex.id != 0);
-			assert(dist_sq != FLT_MAX);
+			kas_assert(simplex.id != 0);
+			kas_assert(dist_sq != FLT_MAX);
 			simplex.type -= 1;
 			gjk_internal_closest_points(c1, c2, in1, &simplex, lambda);
 			return dist_sq;
@@ -740,7 +740,7 @@ static f32 gjk_distance_sq(vec3 c1, vec3 c2, struct gjk_input *in1, struct gjk_i
 		 */
 		if (gjk_internal_johnsons_algorithm(&simplex, c_v, lambda))
 		{
-			assert(dist_sq != FLT_MAX);
+			kas_assert(dist_sq != FLT_MAX);
 			simplex.type -= 1;
 			gjk_internal_closest_points(c1, c2, in1, &simplex, lambda);
 			return dist_sq;
@@ -780,7 +780,7 @@ static f32 gjk_distance_sq(vec3 c1, vec3 c2, struct gjk_input *in1, struct gjk_i
 
 static f32 sphere_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	assert(b1->shape_type == COLLISION_SHAPE_SPHERE && b2->shape_type == COLLISION_SHAPE_SPHERE);
+	kas_assert(b1->shape_type == COLLISION_SHAPE_SPHERE && b2->shape_type == COLLISION_SHAPE_SPHERE);
 
 	const struct collision_shape *shape1 = string_database_address(pipeline->shape_db, b1->shape_handle);
 	const struct collision_shape *shape2 = string_database_address(pipeline->shape_db, b2->shape_handle);
@@ -805,11 +805,11 @@ static f32 sphere_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipe
 
 static f32 capsule_sphere_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	assert(b1->shape_type == COLLISION_SHAPE_CAPSULE && b2->shape_type == COLLISION_SHAPE_SPHERE);
+	kas_assert(b1->shape_type == COLLISION_SHAPE_CAPSULE && b2->shape_type == COLLISION_SHAPE_SPHERE);
 
 	const struct collision_shape *shape2 = string_database_address(pipeline->shape_db, b2->shape_handle);
 
-	const struct collision_capsule *cap = &((struct collision_shape *) string_database_address(pipeline->shape_db, b1->shape_handle))->capsule;
+	const struct capsule *cap = &((struct collision_shape *) string_database_address(pipeline->shape_db, b1->shape_handle))->capsule;
 	f32 r_sum = cap->radius + shape2->sphere.radius + 2.0f * margin;
 
 	mat3 rot;
@@ -817,7 +817,9 @@ static f32 capsule_sphere_distance(vec3 c1, vec3 c2, const struct physics_pipeli
 
 	vec3 s_p1, s_p2, diff;
 	vec3_sub(c2, b2->position, b1->position);
-	mat3_vec_mul(s_p1, rot, cap->p1);
+	s_p1[0] = rot[1][0] * cap->half_height;	
+	s_p1[1] = rot[1][1] * cap->half_height;	
+	s_p1[2] = rot[1][2] * cap->half_height;	
 	vec3_negative_to(s_p2, s_p1);
 	struct segment s = segment_construct(s_p1, s_p2);
 
@@ -839,25 +841,29 @@ static f32 capsule_sphere_distance(vec3 c1, vec3 c2, const struct physics_pipeli
 
 static f32 capsule_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	assert(b1->shape_type == COLLISION_SHAPE_CAPSULE && b2->shape_type == COLLISION_SHAPE_CAPSULE);
+	kas_assert(b1->shape_type == COLLISION_SHAPE_CAPSULE && b2->shape_type == COLLISION_SHAPE_CAPSULE);
 
 
-	struct collision_capsule *cap1 = &((struct collision_shape *) string_database_address(pipeline->shape_db, b1->shape_handle))->capsule;
-	struct collision_capsule *cap2 = &((struct collision_shape *) string_database_address(pipeline->shape_db, b2->shape_handle))->capsule;
+	struct capsule *cap1 = &((struct collision_shape *) string_database_address(pipeline->shape_db, b1->shape_handle))->capsule;
+	struct capsule *cap2 = &((struct collision_shape *) string_database_address(pipeline->shape_db, b2->shape_handle))->capsule;
 	f32 r_sum = cap1->radius + cap2->radius + 2.0f * margin;
 
 	mat3 rot;
 	vec3 p0, p1; /* line points */
 
 	quat_to_mat3(rot, b1->rotation);
-	mat3_vec_mul(p0, rot, cap1->p1);
+	p0[0] = rot[1][0] * cap1->half_height,	
+	p0[1] = rot[1][1] * cap1->half_height,	
+	p0[2] = rot[1][2] * cap1->half_height,	
 	vec3_negative_to(p1, p0);
 	vec3_translate(p0, b1->position);
 	vec3_translate(p1, b1->position);
 	struct segment s1 = segment_construct(p0, p1);
 	
 	quat_to_mat3(rot, b2->rotation);
-	mat3_vec_mul(p0, rot, cap2->p1);
+	p0[0] = rot[1][0] * cap2->half_height,	
+	p0[1] = rot[1][1] * cap2->half_height,	
+	p0[2] = rot[1][2] * cap2->half_height,	
 	vec3_negative_to(p1, p0);
 	vec3_translate(p0, b2->position);
 	vec3_translate(p1, b2->position);
@@ -876,10 +882,10 @@ static f32 capsule_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pip
 	return dist;
 }
 
-static f32 hull_sphere_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+static f32 dcel_sphere_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	assert (b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
-	assert (b2->shape_type == COLLISION_SHAPE_SPHERE);
+	kas_assert(b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
+	kas_assert(b2->shape_type == COLLISION_SHAPE_SPHERE);
 
 	const struct collision_shape *shape1 = string_database_address(pipeline->shape_db, b1->shape_handle);
 	const struct collision_shape *shape2 = string_database_address(pipeline->shape_db, b2->shape_handle);
@@ -897,7 +903,7 @@ static f32 hull_sphere_distance(vec3 c1, vec3 c2, const struct physics_pipeline 
 	const f32 r_sum = shape2->sphere.radius + 2.0f * margin;
 
 	if (dist_sq <= r_sum*r_sum)
-	{
+	{  
 		dist_sq = 0.0f;
 	}
 	else
@@ -911,10 +917,10 @@ static f32 hull_sphere_distance(vec3 c1, vec3 c2, const struct physics_pipeline 
 	return f32_sqrt(dist_sq);
 }
 
-static f32 hull_capsule_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+static f32 dcel_capsule_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	assert (b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
-	assert (b2->shape_type == COLLISION_SHAPE_CAPSULE);
+	kas_assert(b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
+	kas_assert(b2->shape_type == COLLISION_SHAPE_CAPSULE);
 
 	const struct collision_shape *shape1 = string_database_address(pipeline->shape_db, b1->shape_handle);
 	const struct collision_shape *shape2 = string_database_address(pipeline->shape_db, b2->shape_handle);
@@ -924,8 +930,8 @@ static f32 hull_capsule_distance(vec3 c1, vec3 c2, const struct physics_pipeline
 	quat_to_mat3(g1.rot, b1->rotation);
 
 	vec3 segment[2];
-	vec3_copy(segment[0], shape2->capsule.p1);
-	vec3_negative_to(segment[1], segment[0]);
+	vec3_set(segment[0], 0.0f, shape2->capsule.half_height, 0.0f);
+	vec3_set(segment[1], 0.0f, -shape2->capsule.half_height, 0.0f);
 	struct gjk_input g2 = { .v = segment, .v_count = 2, };
 	vec3_copy(g2.pos, b2->position);
 	mat3_identity(g2.rot);
@@ -950,10 +956,10 @@ static f32 hull_capsule_distance(vec3 c1, vec3 c2, const struct physics_pipeline
 
 }
 
-static f32 hull_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+static f32 dcel_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	assert (b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
-	assert (b2->shape_type == COLLISION_SHAPE_CONVEX_HULL);
+	kas_assert (b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
+	kas_assert (b2->shape_type == COLLISION_SHAPE_CONVEX_HULL);
 
 	const struct collision_shape *shape1 = string_database_address(pipeline->shape_db, b1->shape_handle);
 	const struct collision_shape *shape2 = string_database_address(pipeline->shape_db, b2->shape_handle);
@@ -984,7 +990,7 @@ static f32 hull_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeli
 
 static u32 sphere_test(const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	assert(b1->shape_type == COLLISION_SHAPE_SPHERE && b2->shape_type == COLLISION_SHAPE_SPHERE);
+	kas_assert(b1->shape_type == COLLISION_SHAPE_SPHERE && b2->shape_type == COLLISION_SHAPE_SPHERE);
 
 	const struct collision_shape *shape1 = string_database_address(pipeline->shape_db, b1->shape_handle);
 	const struct collision_shape *shape2 = string_database_address(pipeline->shape_db, b2->shape_handle);
@@ -995,12 +1001,12 @@ static u32 sphere_test(const struct physics_pipeline *pipeline, const struct rig
 
 static u32 capsule_sphere_test(const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	assert(b1->shape_type == COLLISION_SHAPE_CAPSULE && b2->shape_type == COLLISION_SHAPE_SPHERE);
+	kas_assert(b1->shape_type == COLLISION_SHAPE_CAPSULE && b2->shape_type == COLLISION_SHAPE_SPHERE);
 
 	const struct collision_shape *shape1 = string_database_address(pipeline->shape_db, b1->shape_handle);
 	const struct collision_shape *shape2 = string_database_address(pipeline->shape_db, b2->shape_handle);
 
-	const struct collision_capsule *cap = &shape1->capsule;
+	const struct capsule *cap = &shape1->capsule;
 	f32 r_sum = cap->radius + shape2->sphere.radius + 2.0f * margin;
 
 	mat3 rot;
@@ -1008,7 +1014,9 @@ static u32 capsule_sphere_test(const struct physics_pipeline *pipeline, const st
 
 	vec3 c1, c2, s_p1, s_p2;
 	vec3_sub(c2, b2->position, b1->position);
-	mat3_vec_mul(s_p1, rot, cap->p1);
+	s_p1[0] = rot[1][0] * cap->half_height;	
+	s_p1[1] = rot[1][1] * cap->half_height;	
+	s_p1[2] = rot[1][2] * cap->half_height;	
 	vec3_negative_to(s_p2, s_p1);
 	struct segment s = segment_construct(s_p1, s_p2);
 
@@ -1021,30 +1029,30 @@ static u32 capsule_test(const struct physics_pipeline *pipeline, const struct ri
 	return capsule_distance(c1, c2, pipeline, b1, b2, margin) == 0.0f;
 }
 
-static u32 hull_sphere_test(const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+static u32 dcel_sphere_test(const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
 	vec3 c1, c2;
-	return hull_sphere_distance(c1, c2, pipeline, b1, b2, margin) == 0.0f;
+	return dcel_sphere_distance(c1, c2, pipeline, b1, b2, margin) == 0.0f;
 }
 
-static u32 hull_capsule_test(const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+static u32 dcel_capsule_test(const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
 	vec3 c1, c2;
-	return hull_capsule_distance(c1, c2, pipeline, b1, b2, margin) == 0.0f;
+	return dcel_capsule_distance(c1, c2, pipeline, b1, b2, margin) == 0.0f;
 }
 
-static u32 hull_test(const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+static u32 dcel_test(const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
 	vec3 c1, c2;
-	return hull_distance(c1, c2, pipeline, b1, b2, margin) == 0.0f;
+	return dcel_distance(c1, c2, pipeline, b1, b2, margin) == 0.0f;
 }
 
 /********************************** CONTACT MANIFOLD METHODS **********************************/
 
 static u32 sphere_contact(struct arena *garbage, struct contact_manifold *cm, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	assert(b1->shape_type == COLLISION_SHAPE_SPHERE);
-	assert(b2->shape_type == COLLISION_SHAPE_SPHERE);
+	kas_assert(b1->shape_type == COLLISION_SHAPE_SPHERE);
+	kas_assert(b2->shape_type == COLLISION_SHAPE_SPHERE);
 
 	const struct collision_shape *shape1 = string_database_address(pipeline->shape_db, b1->shape_handle);
 	const struct collision_shape *shape2 = string_database_address(pipeline->shape_db, b2->shape_handle);
@@ -1082,15 +1090,15 @@ static u32 sphere_contact(struct arena *garbage, struct contact_manifold *cm, co
 
 static u32 capsule_sphere_contact(struct arena *garbage, struct contact_manifold *cm, const struct physics_pipeline *pipeline,  const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	assert(b1->shape_type == COLLISION_SHAPE_CAPSULE);
-	assert(b2->shape_type == COLLISION_SHAPE_SPHERE);
+	kas_assert(b1->shape_type == COLLISION_SHAPE_CAPSULE);
+	kas_assert(b2->shape_type == COLLISION_SHAPE_SPHERE);
 
 	const struct collision_shape *shape1 = string_database_address(pipeline->shape_db, b1->shape_handle);
 	const struct collision_shape *shape2 = string_database_address(pipeline->shape_db, b2->shape_handle);
 
 	u32 contact_generated = 0;
 
-	const struct collision_capsule *cap = &shape1->capsule;
+	const struct capsule *cap = &shape1->capsule;
 	const f32 r_sum = cap->radius + shape2->sphere.radius + 2.0f * margin;
 
 	mat3 rot;
@@ -1098,7 +1106,9 @@ static u32 capsule_sphere_contact(struct arena *garbage, struct contact_manifold
 
 	vec3 c1, c2, s_p1, s_p2, diff;
 	vec3_sub(c2, b2->position, b1->position);
-	mat3_vec_mul(s_p1, rot, cap->p1);
+	s_p1[0] = rot[1][0] * cap->half_height;	
+	s_p1[1] = rot[1][1] * cap->half_height;	
+	s_p1[2] = rot[1][2] * cap->half_height;	
 	vec3_negative_to(s_p2, s_p1);
 	struct segment s = segment_construct(s_p1, s_p2);
 	const f32 dist_sq = segment_point_distance_sq(c1, &s, c2);
@@ -1145,27 +1155,31 @@ static u32 capsule_sphere_contact(struct arena *garbage, struct contact_manifold
 
 static u32 capsule_contact(struct arena *garbage, struct contact_manifold *cm, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	assert(b1->shape_type == COLLISION_SHAPE_CAPSULE);
-	assert(b2->shape_type == COLLISION_SHAPE_CAPSULE);
+	kas_assert(b1->shape_type == COLLISION_SHAPE_CAPSULE);
+	kas_assert(b2->shape_type == COLLISION_SHAPE_CAPSULE);
 
 	u32 contact_generated = 0;
 
-	const struct collision_capsule *cap1 = &((struct collision_shape *) string_database_address(pipeline->shape_db, b1->shape_handle))->capsule;
-	const struct collision_capsule *cap2 = &((struct collision_shape *) string_database_address(pipeline->shape_db, b2->shape_handle))->capsule;
+	const struct capsule *cap1 = &((struct collision_shape *) string_database_address(pipeline->shape_db, b1->shape_handle))->capsule;
+	const struct capsule *cap2 = &((struct collision_shape *) string_database_address(pipeline->shape_db, b2->shape_handle))->capsule;
 	f32 r_sum = cap1->radius + cap2->radius + 2.0f * margin;
 
 	mat3 rot;
 	vec3 c1, c2, p0, p1; /* line points */
 
 	quat_to_mat3(rot, b1->rotation);
-	mat3_vec_mul(p0, rot, cap1->p1);
+	p0[0] = rot[1][0] * cap1->half_height;	
+	p0[1] = rot[1][1] * cap1->half_height;	
+	p0[2] = rot[1][2] * cap1->half_height;	
 	vec3_negative_to(p1, p0);
 	vec3_translate(p0, b1->position);
 	vec3_translate(p1, b1->position);
 	struct segment s1 = segment_construct(p0, p1);
 	
 	quat_to_mat3(rot, b2->rotation);
-	mat3_vec_mul(p0, rot, cap2->p1);
+	p0[0] = rot[1][0] * cap2->half_height;	
+	p0[1] = rot[1][1] * cap2->half_height;	
+	p0[2] = rot[1][2] * cap2->half_height;	
 	vec3_negative_to(p1, p0);
 	vec3_translate(p0, b2->position);
 	vec3_translate(p1, b2->position);
@@ -1246,10 +1260,10 @@ static u32 capsule_contact(struct arena *garbage, struct contact_manifold *cm, c
 	return contact_generated;
 }
 
-static u32 hull_sphere_contact(struct arena *garbage, struct contact_manifold *cm, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+static u32 dcel_sphere_contact(struct arena *garbage, struct contact_manifold *cm, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	assert (b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
-	assert (b2->shape_type == COLLISION_SHAPE_SPHERE);
+	kas_assert (b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
+	kas_assert (b2->shape_type == COLLISION_SHAPE_SPHERE);
 
 	const struct collision_shape *shape1 = string_database_address(pipeline->shape_db, b1->shape_handle);
 	const struct collision_shape *shape2 = string_database_address(pipeline->shape_db, b2->shape_handle);
@@ -1276,13 +1290,13 @@ static u32 hull_sphere_contact(struct arena *garbage, struct contact_manifold *c
 		cm->v_count = 1;
 
 		vec3 n;	
-		const struct collision_hull *h = &shape1->hull;
+		const struct dcel *h = &shape1->hull;
 		f32 min_depth = FLT_MAX;
 		vec3 diff;
 		vec3 p, best_p;
 		for (u32 fi = 0; fi < h->f_count; ++fi)
 		{
-			collision_hull_face_normal(p, h, fi);
+			dcel_face_normal(p, h, fi);
 			mat3_vec_mul(n, g1.rot, p);
 			mat3_vec_mul(p, g1.rot, h->v[h->e[h->f[fi].first].origin]);
 			vec3_translate(p, b1->position);
@@ -1322,23 +1336,24 @@ static u32 hull_sphere_contact(struct arena *garbage, struct contact_manifold *c
 	return contact_generated;
 }
 
-static u32 hull_capsule_contact(struct arena *garbage, struct contact_manifold *cm, const struct physics_pipeline *pipeline,  const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+static u32 dcel_capsule_contact(struct arena *garbage, struct contact_manifold *cm, const struct physics_pipeline *pipeline,  const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	assert(b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
-	assert(b2->shape_type == COLLISION_SHAPE_CAPSULE);
+	kas_assert(b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
+	kas_assert(b2->shape_type == COLLISION_SHAPE_CAPSULE);
 
 	u32 contact_generated = 0;
 
 	const struct collision_shape *shape1 = string_database_address(pipeline->shape_db, b1->shape_handle);
 	const struct collision_shape *shape2 = string_database_address(pipeline->shape_db, b2->shape_handle);
 
-	const struct collision_hull *h = &shape1->hull;
+	const struct dcel *h = &shape1->hull;
 	struct gjk_input g1 = { .v = h->v, .v_count = h->v_count, };
 	vec3_copy(g1.pos, b1->position);
 	quat_to_mat3(g1.rot, b1->rotation);
 
 	vec3 segment[2];
-	vec3_copy(segment[0], shape2->capsule.p1);
+	vec3_set(segment[0], 0.0f, shape2->capsule.half_height, 0.0f);
+	vec3_set(segment[1], 0.0f, -shape2->capsule.half_height, 0.0f);
 	vec3_negative_to(segment[1], segment[0]);
 	struct gjk_input g2 = { .v = segment, .v_count = 2, };
 	vec3_copy(g2.pos, b2->position);
@@ -1376,7 +1391,7 @@ static u32 hull_capsule_contact(struct arena *garbage, struct contact_manifold *
 
 			for (u32 fi = 0; fi < h->f_count; ++fi)
 			{
-				struct plane pl = collision_hull_face_plane(h, g1.rot, b1->position, fi);
+				struct plane pl = dcel_face_plane(h, g1.rot, b1->position, fi);
 
 				const f32 d0 = plane_point_signed_distance(&pl, cap_s.p0);
 				const f32 d1 = plane_point_signed_distance(&pl, cap_s.p1);
@@ -1395,7 +1410,7 @@ static u32 hull_capsule_contact(struct arena *garbage, struct contact_manifold *
 			{
 				for (u32 ei = 0; ei < h->e_count; ++ei)
 				{
-					struct segment edge_s = collision_hull_half_edge_segment(h, g1.rot, g1.pos, best_index);
+					struct segment edge_s = dcel_half_edge_segment(h, g1.rot, g1.pos, best_index);
 					
 					const f32 d = -f32_sqrt(segment_distance_sq(c1, c2, &edge_s, &cap_s));
 					if (max_signed_depth < d)
@@ -1414,7 +1429,7 @@ static u32 hull_capsule_contact(struct arena *garbage, struct contact_manifold *
 			if (edge_best)
 			{
 				cm->v_count = 1;
-				struct segment edge_s = collision_hull_half_edge_segment(h, g1.rot, g1.pos, best_index);
+				struct segment edge_s = dcel_half_edge_segment(h, g1.rot, g1.pos, best_index);
 				segment_distance_sq(c1, c2, &edge_s, &cap_s);
 				vec3_sub(cm->n, c1, c2);
 				vec3_mul_constant(cm->n, 1.0f / vec3_length(cm->n));
@@ -1423,10 +1438,10 @@ static u32 hull_capsule_contact(struct arena *garbage, struct contact_manifold *
 			else
 			{
 				cm->v_count = 2;
-				collision_hull_face_normal(c1, h, best_index);
+				dcel_face_normal(c1, h, best_index);
 				mat3_vec_mul(cm->n, g1.rot, c1);
-				struct segment s = collision_hull_face_clip_segment(h, g1.rot, g1.pos, best_index, &cap_s);
-				const struct plane pl = collision_hull_face_plane(h, g1.rot, g1.pos, best_index);
+				struct segment s = dcel_face_clip_segment(h, g1.rot, g1.pos, best_index, &cap_s);
+				const struct plane pl = dcel_face_plane(h, g1.rot, g1.pos, best_index);
 
 				//COLLISION_DEBUG_ADD_SEGMENT(cap_s);
 				//COLLISION_DEBUG_ADD_SEGMENT(s);
@@ -1461,7 +1476,7 @@ static u32 hull_capsule_contact(struct arena *garbage, struct contact_manifold *
 			vec3_sub(cm->n, c2, c1);
 			vec3_mul_constant(cm->n, 1.0f / vec3_length(cm->n));
 
-			const struct collision_hull *h = &shape1->hull;
+			const struct dcel *h = &shape1->hull;
 
 			/* (1) compute closest face points for end-point segement */
 			vec3 s_dir, diff;
@@ -1477,11 +1492,11 @@ static u32 hull_capsule_contact(struct arena *garbage, struct contact_manifold *
 			{
 				/* (2) Check if capsule is infront of some parallel plane   */
 				/* find parallel face with vec3_dot(face_normal, segment_points) > 0.0f */
-				struct hull_face *f;
+				struct dcel_face *f;
 				for (fi = 0; fi < h->f_count; ++fi)
 				{
 					f = h->f + fi;
-					collision_hull_face_normal(n1, h, fi);
+					dcel_face_normal(n1, h, fi);
 
 					const f32 d1d1 = vec3_dot(n1, n1);
 					const f32 d2d2 = vec3_dot(s_dir, s_dir);
@@ -1514,12 +1529,12 @@ static u32 hull_capsule_contact(struct arena *garbage, struct contact_manifold *
 			if (parallel)
 			{
 				cm->v_count = 2;
-				collision_hull_face_normal(cm->n, h, fi);
+				dcel_face_normal(cm->n, h, fi);
 				vec3_translate_scaled(c1, cm->n, margin);
 				vec3_translate_scaled(c2, cm->n, -(shape2->capsule.radius + margin));
 				cm->depth[0] = vec3_dot(cm->n, c1) - vec3_dot(cm->n, c2);
 				cm->depth[1] = cm->depth[0];
-				struct segment s = collision_hull_face_clip_segment(h, g1.rot, g1.pos, fi, &cap_s);
+				struct segment s = dcel_face_clip_segment(h, g1.rot, g1.pos, fi, &cap_s);
 				vec3_copy(cm->v[0], s.p0);
 				vec3_copy(cm->v[1], s.p1);
 				vec3_translate_scaled(cm->v[0], cm->n, -(shape2->capsule.radius + 2.0f*margin -cm->depth[0]));
@@ -1557,13 +1572,13 @@ struct sat_edge_query
 	f32 depth;
 };
 
-static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct contact_manifold *cm, struct sat_face_query query[2], const struct rigid_body *b1, const struct collision_hull *hull1, constvec3ptr v1_world, const struct rigid_body *b2, const struct collision_hull *hull2, constvec3ptr v2_world)
+static u32 dcel_contact_internal_face_contact(struct arena *mem_tmp, struct contact_manifold *cm, struct sat_face_query query[2], const struct rigid_body *b1, const struct dcel *dcel1, constvec3ptr v1_world, const struct rigid_body *b2, const struct dcel *dcel2, constvec3ptr v2_world)
 {
 	vec3 n_ref, n_inc, tmp1, tmp2, n;
 
 	/* (1) setup reference_face */
-	const struct collision_hull *ref_hull, *incollision_hull;
-	struct hull_face *ref_face, *inc_face;
+	const struct dcel *ref_dcel, *indcel;
+	struct dcel_face *ref_face, *inc_face;
 	u32 ref_i, inc_i;
 
 	if (query[0].depth > query[1].depth)
@@ -1572,8 +1587,8 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 		inc_i = 1;
 		vec3_copy(cm->n, query[0].normal);
 		cm->depth[0] = -query[0].depth;
-		ref_hull = hull1;
-		incollision_hull = hull2;
+		ref_dcel = dcel1;
+		indcel = dcel2;
 		query[ref_i].v = v1_world;
 		query[inc_i].v = v2_world;
 	}
@@ -1583,23 +1598,23 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 		inc_i = 0;
 		vec3_scale(cm->n, query[1].normal, -1.0f);
 		cm->depth[0] = -query[1].depth;
-		ref_hull = hull2;
-		incollision_hull = hull1;
+		ref_dcel = dcel2;
+		indcel = dcel1;
 		query[ref_i].v = v2_world;
 		query[inc_i].v = v1_world;
 	}
 
-	ref_face = ref_hull->f + query[ref_i].fi;
+	ref_face = ref_dcel->f + query[ref_i].fi;
 	vec3_copy(n_ref, query[ref_i].normal);
 	vec3_copy(n_inc, query[inc_i].normal);
 
 	/* (2) determine incident_face */
 	u32 inc_fi = 0;
 	f32 min_dot = 1.0f;
-	for (u32 fi = 0; fi < incollision_hull->f_count; ++fi)
+	for (u32 fi = 0; fi < indcel->f_count; ++fi)
 	{
-		vec3_sub(tmp1, query[inc_i].v[incollision_hull->e[incollision_hull->f[fi].first + 1].origin], query[inc_i].v[incollision_hull->e[incollision_hull->f[fi].first].origin]);
-		vec3_sub(tmp2, query[inc_i].v[incollision_hull->e[incollision_hull->f[fi].first + 2].origin], query[inc_i].v[incollision_hull->e[incollision_hull->f[fi].first].origin]);
+		vec3_sub(tmp1, query[inc_i].v[indcel->e[indcel->f[fi].first + 1].origin], query[inc_i].v[indcel->e[indcel->f[fi].first].origin]);
+		vec3_sub(tmp2, query[inc_i].v[indcel->e[indcel->f[fi].first + 2].origin], query[inc_i].v[indcel->e[indcel->f[fi].first].origin]);
 		vec3_cross(n, tmp1, tmp2);
 		vec3_mul_constant(n, 1.0f / vec3_length(n));
 
@@ -1611,7 +1626,7 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 		}
 
 	}
-	inc_face = incollision_hull->f + inc_fi;
+	inc_face = indcel->f + inc_fi;
 
 	/* (3) Setup world polygons */
 	vec3ptr ref_v = arena_push(mem_tmp, ref_face->count * sizeof(vec3));
@@ -1619,13 +1634,13 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 
 	for (u32 i = 0; i < ref_face->count; ++i)
 	{
-		const u32 vi = ref_hull->e[ref_face->first + i].origin;
+		const u32 vi = ref_dcel->e[ref_face->first + i].origin;
 		vec3_copy(ref_v[i], query[ref_i].v[vi]);
 	}
 
 	for (u32 i = 0; i < inc_face->count; ++i)
 	{
-		const u32 vi = incollision_hull->e[inc_face->first + i].origin;
+		const u32 vi = indcel->e[inc_face->first + i].origin;
 		vec3_copy(inc_v[i], query[inc_i].v[vi]);
 	}
 
@@ -1868,7 +1883,7 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 	return is_colliding;
 }
 
-static u32 hull_contact_internal_fv_seperation(struct sat_face_query *query, const struct collision_hull *h1, constvec3ptr v1_world, const struct collision_hull *h2, constvec3ptr v2_world)
+static u32 dcel_contact_internal_fv_seperation(struct sat_face_query *query, const struct dcel *h1, constvec3ptr v1_world, const struct dcel *h2, constvec3ptr v2_world)
 {
 	for (u32 fi = 0; fi < h1->f_count; ++fi)
 	{
@@ -1932,7 +1947,7 @@ static u32 internal_ee_is_minkowski_face(const vec3 n1_1, const vec3 n1_2, const
  * For full algorithm: see GDC talk by Dirk Gregorius - 
  * 	Physics for Game Programmers: The Separating Axis Test between Convex Polyhedra
  */
-static u32 hull_contact_internal_ee_seperation(struct sat_edge_query *query, const struct collision_hull *h1, constvec3ptr v1_world, const struct collision_hull *h2, constvec3ptr v2_world, const vec3 h1_world_center)
+static u32 dcel_contact_internal_ee_seperation(struct sat_edge_query *query, const struct dcel *h1, constvec3ptr v1_world, const struct dcel *h2, constvec3ptr v2_world, const vec3 h1_world_center)
 {
 	vec3 n1_1, n1_2, n2_1, n2_2, e1, e2;
 	for (u32 e1_1 = 0; e1_1 < h1->e_count; ++e1_1)
@@ -1941,20 +1956,20 @@ static u32 hull_contact_internal_ee_seperation(struct sat_edge_query *query, con
 		{
 			u32 e1_2 = h1->e[e1_1].twin;
 			u32 e2_2 = h2->e[e2_1].twin;
-			const struct hull_face *f1 = h1->f + h1->e[e1_1].face_ccw;
-			const struct hull_face *f2 = h2->f + h2->e[e2_1].face_ccw;
-			collision_hull_face_direction(n1_1, h1, h1->e[e1_1].face_ccw);
-			collision_hull_face_direction(n1_2, h1, h1->e[e1_2].face_ccw);
-			collision_hull_face_direction(n2_1, h2, h2->e[e2_1].face_ccw);
-			collision_hull_face_direction(n2_2, h2, h2->e[e2_2].face_ccw);
+			const struct dcel_face *f1 = h1->f + h1->e[e1_1].face_ccw;
+			const struct dcel_face *f2 = h2->f + h2->e[e2_1].face_ccw;
+			dcel_face_direction(n1_1, h1, h1->e[e1_1].face_ccw);
+			dcel_face_direction(n1_2, h1, h1->e[e1_2].face_ccw);
+			dcel_face_direction(n2_1, h2, h2->e[e2_1].face_ccw);
+			dcel_face_direction(n2_2, h2, h2->e[e2_2].face_ccw);
 
 			/* we are working with minkowski difference A - B, so gauss map of B is (-B) */
 			vec3_negative(n2_1);	
 			vec3_negative(n2_2);
 
 			/* No need to negate here, since e2 is orthogonal n2_1 and n2_2 either way */
-			collision_hull_half_edge_direction(e1, h1, e1_1);
-			collision_hull_half_edge_direction(e2, h2, e2_1);
+			dcel_half_edge_direction(e1, h1, e1_1);
+			dcel_half_edge_direction(e2, h2, e2_1);
 
 			/* 
 			 * test if A, -B edges intersect on gauss map, only if they do, 
@@ -2009,10 +2024,10 @@ static u32 hull_contact_internal_ee_seperation(struct sat_edge_query *query, con
  * 	(Game Physics Pearls, Chapter 4)
  *	(GDC 2013 Dirk Gregorius, https://www.gdcvault.com/play/1017646/Physics-for-Game-Programmers-The)
  */
-static u32 hull_contact(struct arena *tmp, struct contact_manifold *cm, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+static u32 dcel_contact(struct arena *tmp, struct contact_manifold *cm, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	assert(b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
-	assert(b2->shape_type == COLLISION_SHAPE_CONVEX_HULL);
+	kas_assert(b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
+	kas_assert(b2->shape_type == COLLISION_SHAPE_CONVEX_HULL);
 
 	/* 
 	 * we want penetration depth d and direction normal n (b1->b2), 
@@ -2036,8 +2051,8 @@ static u32 hull_contact(struct arena *tmp, struct contact_manifold *cm, const st
 	quat_to_mat3(rot1, b1->rotation);
 	quat_to_mat3(rot2, b2->rotation);
 
-	struct collision_hull *h1 = &((struct collision_shape *) string_database_address(pipeline->shape_db, b1->shape_handle))->hull;
-	struct collision_hull *h2 = &((struct collision_shape *) string_database_address(pipeline->shape_db, b2->shape_handle))->hull;
+	struct dcel *h1 = &((struct collision_shape *) string_database_address(pipeline->shape_db, b1->shape_handle))->hull;
+	struct dcel *h2 = &((struct collision_shape *) string_database_address(pipeline->shape_db, b2->shape_handle))->hull;
 
 	vec3ptr v1_world = arena_push(tmp, h1->v_count * sizeof(vec3));
 	vec3ptr v2_world = arena_push(tmp, h2->v_count * sizeof(vec3));
@@ -2060,19 +2075,19 @@ static u32 hull_contact(struct arena *tmp, struct contact_manifold *cm, const st
 	struct sat_face_query f_query[2] = { { .depth = -FLT_MAX }, { .depth = -FLT_MAX } };
 	struct sat_edge_query e_query = { .depth = -FLT_MAX };
 
-	if (hull_contact_internal_fv_seperation(&f_query[0], h1, v1_world, h2, v2_world))
+	if (dcel_contact_internal_fv_seperation(&f_query[0], h1, v1_world, h2, v2_world))
 	{
 		is_colliding = 0;
 		goto sat_cleanup;
 	}
 
-	if (hull_contact_internal_fv_seperation(&f_query[1], h2, v2_world, h1, v1_world))
+	if (dcel_contact_internal_fv_seperation(&f_query[1], h2, v2_world, h1, v1_world))
 	{
 		is_colliding = 0;
 		goto sat_cleanup;
 	}
 
-	if (hull_contact_internal_ee_seperation(&e_query, h1, v1_world, h2, v2_world, h1_world_center))
+	if (dcel_contact_internal_ee_seperation(&e_query, h1, v1_world, h2, v2_world, h1_world_center))
 	{
 		is_colliding = 0;
 		goto sat_cleanup;
@@ -2081,7 +2096,7 @@ static u32 hull_contact(struct arena *tmp, struct contact_manifold *cm, const st
 	//fprintf(stderr, "%f\n%f\n%f\n", f_query[0].depth, f_query[1].depth, e_query.depth);
 	if ((1.0f - 100.0f * F32_EPSILON) * f_query[0].depth >= e_query.depth || (1.0f - 100.0f * F32_EPSILON) * f_query[1].depth >= e_query.depth)
 	{
-		is_colliding = hull_contact_internal_face_contact(tmp, cm, f_query, b1, h1, v1_world, b2, h2, v2_world);
+		is_colliding = dcel_contact_internal_face_contact(tmp, cm, f_query, b1, h1, v1_world, b2, h2, v2_world);
 	}
 	/* edge_contact */
 	else
@@ -2105,23 +2120,25 @@ sat_cleanup:
 
 /********************************** RAYCAST **********************************/
 
-f32 collision_sphere_raycast_parameter(const struct physics_pipeline *pipeline, const struct rigid_body *b, const struct ray *ray)
+f32 _sphere_raycast_parameter(const struct physics_pipeline *pipeline, const struct rigid_body *b, const struct ray *ray)
 {
-	assert(b->shape_type == COLLISION_SHAPE_SPHERE);
+	kas_assert(b->shape_type == COLLISION_SHAPE_SPHERE);
 	const struct collision_shape *shape = string_database_address(pipeline->shape_db, b->shape_handle);
 	struct sphere sph = sphere_construct(b->position, shape->sphere.radius);
 	return sphere_raycast_parameter(&sph, ray);	
 }
 
-f32 collision_capsule_raycast_parameter(const struct physics_pipeline *pipeline, const struct rigid_body *b, const struct ray *ray)
+f32 capsule_raycast_parameter(const struct physics_pipeline *pipeline, const struct rigid_body *b, const struct ray *ray)
 {
-	assert(b->shape_type == COLLISION_SHAPE_CAPSULE);
+	kas_assert(b->shape_type == COLLISION_SHAPE_CAPSULE);
 
 	const struct collision_shape *shape = string_database_address(pipeline->shape_db, b->shape_handle);
 	mat3 rot;
 	vec3 p0, p1;
 	quat_to_mat3(rot, b->rotation);
-	mat3_vec_mul(p0, rot, shape->capsule.p1);
+	p0[0] = rot[1][0] * shape->capsule.half_height;	
+	p0[1] = rot[1][1] * shape->capsule.half_height;	
+	p0[2] = rot[1][2] * shape->capsule.half_height;	
 	vec3_negative_to(p1, p0);
 	vec3_translate(p0, b->position);
 	vec3_translate(p1, b->position);
@@ -2135,28 +2152,28 @@ f32 collision_capsule_raycast_parameter(const struct physics_pipeline *pipeline,
 	return sphere_raycast_parameter(&sph, ray);
 }
 
-f32 collision_hull_raycast_parameter(const struct physics_pipeline *pipeline, const struct rigid_body *b, const struct ray *ray)
+f32 dcel_raycast_parameter(const struct physics_pipeline *pipeline, const struct rigid_body *b, const struct ray *ray)
 {
-	assert(b->shape_type == COLLISION_SHAPE_CONVEX_HULL);
+	kas_assert(b->shape_type == COLLISION_SHAPE_CONVEX_HULL);
 
 	vec3 n, p;
 	mat3 rot;
 	quat_to_mat3(rot, b->rotation);
-	const struct collision_hull *h = &((struct collision_shape *) string_database_address(pipeline->shape_db, b->shape_handle))->hull;
+	const struct dcel *h = &((struct collision_shape *) string_database_address(pipeline->shape_db, b->shape_handle))->hull;
 	f32 t_best = F32_INFINITY;
 
 	for (u32 fi = 0; fi < h->f_count; ++fi)
 	{
-		collision_hull_face_normal(p, h, fi);
+		dcel_face_normal(p, h, fi);
 		mat3_vec_mul(n, rot, p);
 		vec3_translate(p, b->position);
 
-		struct plane pl = collision_hull_face_plane(h, rot, b->position, fi);
+		struct plane pl = dcel_face_plane(h, rot, b->position, fi);
 		const f32 t = plane_raycast_parameter(&pl, ray);
 		if (t < t_best && t >= 0.0f)
 		{
 			ray_point(p, ray, t);
-			if (collision_hull_face_projected_point_test(h, rot, b->position, fi, p))
+			if (dcel_face_projected_point_test(h, rot, b->position, fi, p))
 			{
 				t_best = t;
 			}
@@ -2172,7 +2189,7 @@ u32 (*shape_tests[COLLISION_SHAPE_COUNT][COLLISION_SHAPE_COUNT])(const struct ph
 {
 	{ sphere_test, 		0, 			0, 		0, },
 	{ capsule_sphere_test,	capsule_test, 		0, 		0, },
-	{ hull_sphere_test, 	hull_capsule_test,	hull_test,	0, },
+	{ dcel_sphere_test, 	dcel_capsule_test,	dcel_test,	0, },
 	{ 0, 			0, 			0, 		0, },
 };
 
@@ -2180,7 +2197,7 @@ f32 (*distance_methods[COLLISION_SHAPE_COUNT][COLLISION_SHAPE_COUNT])(vec3 c1, v
 {
 	{ sphere_distance,	 	0,			0, 		0, },
 	{ capsule_sphere_distance,	capsule_distance, 	0, 		0, },
-	{ hull_sphere_distance, 	hull_capsule_distance, 	hull_distance,	0, },
+	{ dcel_sphere_distance, 	dcel_capsule_distance, 	dcel_distance,	0, },
 	{ 0, 				0, 			0,		0, },
 };
 
@@ -2188,21 +2205,21 @@ u32 (*contact_methods[COLLISION_SHAPE_COUNT][COLLISION_SHAPE_COUNT])(struct aren
 {
 	{ sphere_contact,	 	0, 			0,		0, },
 	{ capsule_sphere_contact, 	capsule_contact,	0, 		0, },
-	{ hull_sphere_contact, 	  	hull_capsule_contact,	hull_contact, 	0, },
+	{ dcel_sphere_contact, 	  	dcel_capsule_contact,	dcel_contact, 	0, },
 	{ 0, 			  	0,			0, 		0, },
 };
 
 f32 (*shape_raycast_parameter_methods[COLLISION_SHAPE_COUNT])(const struct physics_pipeline *, const struct rigid_body *, const struct ray *) =
 {
-	collision_sphere_raycast_parameter,
-	collision_capsule_raycast_parameter,
-	collision_hull_raycast_parameter,
+	_sphere_raycast_parameter,
+	capsule_raycast_parameter,
+	dcel_raycast_parameter,
 	0,
 };
 
 u32 body_body_test(const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	assert(margin >= 0.0f);
+	kas_assert(margin >= 0.0f);
 	return (b1->shape_type >= b2->shape_type)  
 		? shape_tests[b1->shape_type][b2->shape_type](pipeline, b1, b2, margin)
 		: shape_tests[b2->shape_type][b1->shape_type](pipeline, b2, b1, margin);
@@ -2210,7 +2227,7 @@ u32 body_body_test(const struct physics_pipeline *pipeline, const struct rigid_b
 
 f32 body_body_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	assert(margin >= 0.0f);
+	kas_assert(margin >= 0.0f);
 	return (b1->shape_type >= b2->shape_type)  
 		? distance_methods[b1->shape_type][b2->shape_type](c1, c2, pipeline, b1, b2, margin)
 		: distance_methods[b2->shape_type][b1->shape_type](c2, c1, pipeline, b2, b1, margin);

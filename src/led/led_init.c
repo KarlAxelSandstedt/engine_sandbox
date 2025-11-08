@@ -102,7 +102,7 @@ struct led *led_alloc(void)
 
 	struct collision_shape *shape_stub = string_database_address(&g_editor->cs_db, STRING_DATABASE_STUB_INDEX);
 	shape_stub->type = COLLISION_SHAPE_CONVEX_HULL;
-	shape_stub->hull = collision_box(&sys_win->mem_persistent, vec3_inline(0.5f, 0.5f, 0.5f));
+	shape_stub->hull = dcel_box(&sys_win->mem_persistent, vec3_inline(0.5f, 0.5f, 0.5f));
 
 	struct rigid_body_prefab *prefab_stub = string_database_address(&g_editor->rb_prefab_db, STRING_DATABASE_STUB_INDEX);
 	prefab_stub->shape = string_database_reference(&g_editor->cs_db, utf8_inline("")).index;

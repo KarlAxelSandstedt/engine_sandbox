@@ -312,7 +312,7 @@ void r_mesh_set_capsule(struct arena *mem, struct r_mesh *mesh, const vec3 p1, c
 	mesh->vertex_data = (void *) vertex_data;
 }
 
-void r_mesh_set_hull(struct arena *mem, struct r_mesh *mesh, const struct collision_hull *hull)
+void r_mesh_set_hull(struct arena *mem, struct r_mesh *mesh, const struct dcel *hull)
 {
 	mesh->vertex_data = mem->stack_ptr;
 	mesh->vertex_count = 0;
@@ -320,10 +320,10 @@ void r_mesh_set_hull(struct arena *mem, struct r_mesh *mesh, const struct collis
 	for (u32 fi = 0; fi < hull->f_count; ++fi)
 	{
 		vec3 normal;
-		struct hull_face *f = hull->f + fi;
-		struct hull_half_edge *e0 = hull->e + f->first;
-		struct hull_half_edge *e1 = hull->e + f->first + 1;
-		struct hull_half_edge *e2 = hull->e + f->first + 2;
+		struct dcel_face *f = hull->f + fi;
+		struct dcel_half_edge *e0 = hull->e + f->first;
+		struct dcel_half_edge *e1 = hull->e + f->first + 1;
+		struct dcel_half_edge *e2 = hull->e + f->first + 2;
 		triangle_CCW_normal(normal, 
 				hull->v[e0->origin],
 				hull->v[e1->origin],
@@ -368,7 +368,7 @@ void r_mesh_set_hull(struct arena *mem, struct r_mesh *mesh, const struct collis
 		arena_push_packed_memcpy(mem, indices, sizeof(indices));
 		mesh->index_count += 3;
 
-		struct hull_face *f = hull->f + fi;
+		struct dcel_face *f = hull->f + fi;
 		const u32 tri_count = f->count - 2;
 		for (u32 ti = 1; ti < tri_count; ++ti)
 		{

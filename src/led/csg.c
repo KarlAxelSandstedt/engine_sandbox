@@ -41,7 +41,7 @@ struct csg csg_alloc(void)
 
 	struct csg_brush *stub_brush = string_database_address(&csg.brush_db, STRING_DATABASE_STUB_INDEX);
 	stub_brush->primitive = CSG_PRIMITIVE_BOX;
-	stub_brush->dcel = dcel_box();
+	stub_brush->dcel = dcel_box_stub();
 	stub_brush->flags = CSG_CONSTANT;
 	stub_brush->delta = NULL;
 	stub_brush->cache = ui_node_cache_null();
@@ -141,7 +141,7 @@ struct slot csg_brush_add(struct csg *csg, const utf8 id)
 	{
 		struct csg_brush *brush = slot.address;
 		brush->primitive = CSG_PRIMITIVE_BOX;
-		brush->dcel = dcel_box();
+		brush->dcel = dcel_box_stub();
 		brush->flags = CSG_FLAG_NONE;
 		brush->delta = NULL;
 

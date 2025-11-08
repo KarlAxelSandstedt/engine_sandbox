@@ -160,7 +160,9 @@ static void rigid_body_update_local_box(struct rigid_body *body, const struct co
 	}
 	else if (body->shape_type == COLLISION_SHAPE_CAPSULE)
 	{
-		mat3_vec_mul(v, rot, shape->capsule.p1);
+		v[0] = rot[1][0] * shape->capsule.half_height;	
+		v[1] = rot[1][1] * shape->capsule.half_height;	
+		v[2] = rot[1][2] * shape->capsule.half_height;	
 		vec3_set(max, 
 			f32_max(-v[0], v[0]),
 			f32_max(-v[1], v[1]),
@@ -899,10 +901,10 @@ static void statics_internal_calculate_face_integrals(f32 integrals[10], const s
 	vec2 v0, v1, v2;
 
 	vec3ptr v = shape->hull.v;
-	struct hull_face *f = shape->hull.f + fi;
-	struct hull_half_edge *e0 = shape->hull.e + f->first;
-	struct hull_half_edge *e1 = shape->hull.e + f->first + 1;
-	struct hull_half_edge *e2 = shape->hull.e + f->first + 2;
+	struct dcel_face *f = shape->hull.f + fi;
+	struct dcel_half_edge *e0 = shape->hull.e + f->first;
+	struct dcel_half_edge *e1 = shape->hull.e + f->first + 1;
+	struct dcel_half_edge *e2 = shape->hull.e + f->first + 2;
 
 	vec3_sub(a, v[e1->origin], v[e0->origin]);
 	vec3_sub(b, v[e2->origin], v[e0->origin]);
@@ -1104,7 +1106,7 @@ void prefab_statics_setup(struct rigid_body_prefab *prefab, const struct collisi
 	else if (shape->type == COLLISION_SHAPE_CAPSULE)
 	{
 		const f32 r = shape->capsule.radius;
-		const f32 h = vec3_length(shape->capsule.p1);
+		const f32 h = shape->capsule.half_height;
 		const f32 hpr = h+r;
 		const f32 hmr = h-r;
 

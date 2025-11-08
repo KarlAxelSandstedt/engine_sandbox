@@ -167,4 +167,3 @@ void collision_debug_add_AABB_outline(const struct AABB box)
 	collision_debug_add_segment(segment_construct(v[5], v[7]));
 	collision_debug_add_segment(segment_construct(v[6], v[7]));
 }
-

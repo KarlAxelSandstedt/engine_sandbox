@@ -154,103 +154,49 @@ enum collision_shape_type
 	COLLISION_SHAPE_COUNT,
 };
 
-struct collision_sphere
-{
-	f32 radius;
-};
-
-struct collision_capsule
-{
-	vec3 p1; /* p2 = -p1 */
-	f32 radius;
-};
-
-struct hull_face
-{
-	u32 first;	/* first half edge */
-	u32 count;	/* edge count */
-};
-
-struct hull_half_edge
-{
-	u32 origin;	/* vertex index origin */
-	u32 twin; 	/* twin half edge */
-	u32 face_ccw; 	/* face to the left of half edge */
-};
-
-struct collision_hull
-{
-	struct hull_face *f;		/* f[i] = half-edge of face i */
-	struct hull_half_edge *e;
-	vec3ptr	v;
-	u32 f_count;
-	u32 e_count;
-	u32 v_count;
-};
-
 struct collision_shape
 {
 	STRING_DATABASE_SLOT_STATE;
 	enum	collision_shape_type type;
 	union
 	{
-		struct collision_sphere 	sphere;
-		struct collision_capsule 	capsule;
-		struct collision_hull		hull;
+		struct sphere 	sphere;
+		struct capsule 	capsule;
+		struct dcel	hull;
 	};
 };
 
-struct collision_hull collision_box(struct arena *mem, const vec3 hw);
-
-void collision_hull_face_direction(vec3 dir, const struct collision_hull *h, const u32 fi); /* not normalized */
-void collision_hull_face_normal(vec3 normal, const struct collision_hull *h, const u32 fi); /* normalized */
-struct plane collision_hull_face_plane(const struct collision_hull *h, mat3 rot, const vec3 pos, const u32 fi);
-struct plane collision_hull_face_clip_plane(const struct collision_hull *h, mat3 rot, const vec3 pos, const vec3 face_normal, const u32 e0, const u32 e1); /* Return clip plane of face containing edge e0e1, orthogonal to the face normal */
-struct segment collision_hull_face_clip_segment(const struct collision_hull *h, mat3 rot, const vec3 pos, const u32 fi, const struct segment *s); /* clip segment against face fi's edge-planes (No projection onto face plane!) */
-u32 collision_hull_face_projected_point_test(const struct collision_hull *h, mat3 rot, const vec3 pos, const u32 fi, const vec3 p); /* Project p onto face plane and test if it is on the face */
-
-void collision_hull_half_edge_normal(vec3 dir, const struct collision_hull *h, const u32 ei);
-void collision_hull_half_edge_direction(vec3 dir, const struct collision_hull *h, const u32 ei);
-struct segment collision_hull_half_edge_segment(const struct collision_hull *h, mat3 rot, const vec3 pos, const u32 ei);
-
-#ifdef KAS_DEBUG
-void collision_hull_assert(struct collision_hull *hull);
-#define COLLISION_HULL_ASSERT(hull)	collision_hull_assert(hull)
-#else
-#define COLLISION_HULL_ASSERT(hull)	
-#endif
-
-void sphere_world_support(vec3 support, const vec3 dir, const struct collision_sphere *sph, const vec3 pos);
-void capsule_world_support(vec3 support, const vec3 dir, const struct collision_capsule *cap, mat3 rot, const vec3 pos);
-u64 collision_hull_world_support(vec3 support, const vec3 dir, const struct collision_hull *hull, mat3 rot, const vec3 pos);
+void	sphere_world_support(vec3 support, const vec3 dir, const struct sphere *sph, const vec3 pos);
+void	capsule_world_support(vec3 support, const vec3 dir, const struct capsule *cap, mat3 rot, const vec3 pos);
+u64	dcel_world_support(vec3 support, const vec3 dir, const struct dcel *hull, mat3 rot, const vec3 pos);
 
 struct contact_manifold
 {
-	vec3 v[4];
-	f32 depth[4];
-	vec3 n;		/* B1 -> B2 */
-	u32 v_count;
-	u32 i1;
-	u32 i2;
+	vec3 	v[4];
+	f32 	depth[4];
+	vec3 	n;		/* B1 -> B2 */
+	u32 	v_count;
+	u32 	i1;
+	u32 	i2;
 };
 
-void contact_manifold_debug_print(FILE *file, const struct contact_manifold *cm);
+void 	contact_manifold_debug_print(FILE *file, const struct contact_manifold *cm);
 
 /********************************** RIGID BODY METHODS  **********************************/
 
 struct physics_pipeline;
 struct rigid_body;
 
-/* test for intersection between bodies, with each body having the given margin */
-u32 body_body_test(const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin);
+/* test for intersection between bodies, with each body having the given margin. returns 1 if intersection. */
+u32	body_body_test(const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin);
 /* return closest points c1 and c2 on bodies b1 and b2 (with no margin), respectively, given no intersection */
-f32 body_body_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin);
+f32 	body_body_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin);
 /* returns contact manifold pointing from b1 to b2, given that the bodies are colliding  */
-u32 body_body_contact_manifold(struct arena *tmp, struct contact_manifold *cm, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin);
+u32 	body_body_contact_manifold(struct arena *tmp, struct contact_manifold *cm, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin);
 /* Return t such that ray.origin + t*ray.dir == closest point on rigid body */
-f32 body_raycast_parameter(const struct physics_pipeline *pipeline, const struct rigid_body *b, const struct ray *ray);
+f32 	body_raycast_parameter(const struct physics_pipeline *pipeline, const struct rigid_body *b, const struct ray *ray);
 /* Return 1 if ray hit body, 0 otherwise. If hit, we return the closest intersection point */
-u32 body_raycast(vec3 intersection, const struct physics_pipeline *pipeline, const struct rigid_body *b, const struct ray *ray);
+u32 	body_raycast(vec3 intersection, const struct physics_pipeline *pipeline, const struct rigid_body *b, const struct ray *ray);
 
 /*
 =================================================================================================================
@@ -324,21 +270,21 @@ struct dbvt_overlap
 };
 
 /* If mem == NULL, standard malloc is used */
-struct 	dbvt dbvt_alloc(const u32 len);
+struct dbvt 		dbvt_alloc(const u32 len);
 /* free allocated resources */
-void 	dbvt_free(struct dbvt *tree);
+void 			dbvt_free(struct dbvt *tree);
 /* flush / reset the hierarchy  */
-void 	dbvt_flush(struct dbvt *tree);
+void 			dbvt_flush(struct dbvt *tree);
 /* id is an integer identifier from the outside, return index of added value */
-u32 	dbvt_insert(struct dbvt *tree, const u32 id, const struct AABB *box);
+u32 			dbvt_insert(struct dbvt *tree, const u32 id, const struct AABB *box);
 /* remove leaf corresponding to index from tree */
-void 	dbvt_remove(struct dbvt *tree, const u32 index);
+void 			dbvt_remove(struct dbvt *tree, const u32 index);
 /* Return overlapping ids ptr, set to NULL if no overlap. if overlap, count is set */
-struct dbvt_overlap *dbvt_push_overlap_pairs(struct arena *mem, u32 *count, struct dbvt *tree);
+struct dbvt_overlap *	dbvt_push_overlap_pairs(struct arena *mem, u32 *count, struct dbvt *tree);
 /* push	id:s of leaves hit by raycast. returns number of hits. -1 == out of memory */
-u32	dbvt_raycast(struct arena *mem, const struct dbvt *tree, const struct ray *ray);
+u32			dbvt_raycast(struct arena *mem, const struct dbvt *tree, const struct ray *ray);
 /* validate tree construction */
-void	dbvt_validate(struct dbvt *tree);
+void			dbvt_validate(struct dbvt *tree);
 /* push heirarchy node box lines into draw buffer */
 //void	dbvt_push_lines(struct drawbuffer *buf, struct dbvt *tree, const vec4 color);
 

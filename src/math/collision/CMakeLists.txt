@@ -5,7 +5,6 @@ add_library(collision STATIC
 	collision.c
 	dbvt.c
 	collision_debug.c
-	shape.c
 )
 
 target_link_libraries(collision PUBLIC

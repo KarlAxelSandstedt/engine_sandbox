@@ -608,9 +608,8 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 									ui_width(ui_size_perc(1.0f))
 									ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
 									{
-										shape->capsule.p1[0] = ui_field_f32_f(shape->capsule.p1[0], intv_inline(0.0125f, 100.0f), "%f###cap_pos0", shape->capsule.p1[0]);
-										shape->capsule.p1[1] = ui_field_f32_f(shape->capsule.p1[1], intv_inline(0.0125f, 100.0f), "%f###cap_pos1", shape->capsule.p1[1]);
-										shape->capsule.p1[2] = ui_field_f32_f(shape->capsule.p1[2], intv_inline(0.0125f, 100.0f), "%f###cap_pos2", shape->capsule.p1[2]);
+										shape->capsule.radius = ui_field_f32_f(shape->capsule.radius, intv_inline(0.0125f, 100.0f), "%f###cap_rad", shape->capsule.radius);
+										shape->capsule.half_height = ui_field_f32_f(shape->capsule.half_height, intv_inline(0.0125f, 100.0f), "%f###cap_height", shape->capsule.half_height);
 
 									}
 								}

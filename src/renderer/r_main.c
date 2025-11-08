@@ -277,11 +277,8 @@ void r_led_main(const struct led *led)
 {
 	KAS_TASK(__func__, T_RENDERER);
 
-	const u64 ns_tick = led->ns - g_r_core->ns_elapsed;
 	g_r_core->ns_elapsed = led->ns;
 	arena_flush(&g_r_core->frame);
-	const f32 delta = (f32) ns_tick / NSEC_PER_SEC;
-	
 	if (g_r_core->ns_tick)
 	{
 		const u64 frames_elapsed_since_last_draw = (g_r_core->ns_elapsed - (g_r_core->frames_elapsed * g_r_core->ns_tick)) / g_r_core->ns_tick;
