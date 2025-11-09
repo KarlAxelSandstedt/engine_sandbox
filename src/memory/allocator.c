@@ -436,85 +436,37 @@ struct ring ring_empty()
 #include <fcntl.h>
 #include "kas_string.h"
 
-struct ring ring_alloc(const u64 mem_hint)
+struct ring ring_alloc(const u64 mem_hint, const u32 growable)
 {
 	kas_assert(mem_hint);
-
-	const char shm_suffix[6] = "_Rbuf";
-	static u64 id = 0;
-	char shm_str[39]; /* posix IPC shared memory id */
-	shm_str[0] = '\\';
-	utf8 shm_id = utf8_u64_buffered((u8 *) shm_str + 1, sizeof(shm_str) - 1 - sizeof(shm_suffix), id++);	
-
-	memcpy(shm_str + 1 + shm_id.size, shm_suffix, sizeof(shm_suffix));
-
-	u8 *alias = NULL;
 	const u64 mod = mem_hint % g_arch_config->pagesize;
-	struct ring ring =
-	{
-		ring.mem_total = mem_hint + (!!mod) * (g_arch_config->pagesize - mod),
-		ring.mem_left = ring.mem_total,
-		ring.offset = 0,
-		ring.buf = MAP_FAILED,
-	};
 
-	/* (1) open shared fd with 0 mem */
-	i32 shm_fd = shm_open(shm_str, O_RDWR | O_CREAT | O_EXCL, S_IRUSR | S_IWUSR);
-	if (shm_fd != -1)
-	{
-		/* (2) we got the shared fd, so me way close the shared object again. All of this can apparently be
-		 * done using ordinary open(), but that has implications for how the OS handles things, so we go for
-		 * the "simpler and faster" way using IPC. */
-		shm_unlink(shm_str);
-
-		/* (3) allocate memory to shared fd */
-		if (ftruncate(shm_fd, ring.mem_total) != -1)
-		{
-			/* (4) map contiguous virtual memory to fd 2x times */
-			for (;;)
-			{
-				/* Get any virtual memory the kernel sees fit */
-				if ((alias = mmap(NULL, ring.mem_total, 
-								PROT_READ | PROT_WRITE,
-							       	MAP_SHARED,
-							       	shm_fd, 0)) == MAP_FAILED)
-				{
-					break;
-				}
-
-				/* try to allocate consecutive memory, if it fails, redo loop */
-				if ((ring.buf = mmap(alias - ring.mem_total, ring.mem_total,
-						       	PROT_READ | PROT_WRITE,
-						       	MAP_FIXED | MAP_SHARED,
-						       	shm_fd, 0)) != alias - ring.mem_total)
-				{
-					if (munmap(alias, ring.mem_total) == 0)
-					{
-						continue;
-					}
-				}
-
-				break;
-			}
-		}
-	}
+	struct ring ring = { 0 };
+	ring.mem_total = mem_hint + (!!mod) * (g_arch_config->pagesize - mod),
+	ring.mem_left = ring.mem_total;
+	ring.offset = 0;
+	ring.buf = mmap(NULL, ring.mem_total << 1, PROT_NONE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
 	if (ring.buf == MAP_FAILED)
 	{
-		log_string(T_SYSTEM, S_FATAL, "Failed to allocate ring allocator: %s", strerror(errno));
-		fatal_cleanup_and_exit(kas_thread_self_tid());
+		log_string(T_SYSTEM, S_ERROR, "Failed to allocate ring allocator: %s", strerror(errno));
+		return ring_empty();
+	}
+	void *p1 = mmap(ring.buf, ring.mem_total, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+	void *p2 = mmap(ring.buf + ring.mem_total, ring.mem_total, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+	if (p1 == MAP_FAILED || p2 == MAP_FAILED)
+	{
+		log_string(T_SYSTEM, S_ERROR, "Failed to allocate ring allocator: %s", strerror(errno));
+		return ring_empty();
 	}
 
-	/* (5) close fd, not needed anymore, we have the memory virtually mapped now */
-	close(shm_fd);
-
-	kas_assert_string(ring.buf <= alias && (u64) alias - (u64) ring.buf == ring.mem_total 
-			, "alias virtual memory should come directly after buffer memory");
+	madvise(ring.buf, ring.mem_total << 1, MADV_HUGEPAGE);
+	madvise(ring.buf, ring.mem_total << 1, MADV_WILLNEED);
 
 	return ring;
 }
 
-void ring_free(struct ring *ring)
+void ring_dealloc(struct ring *ring)
 {
 	if (munmap(ring->buf, 2*ring->mem_total) == -1)
 	{
@@ -527,7 +479,7 @@ void ring_free(struct ring *ring)
 
 #include <memoryapi.h>
 
-struct ring ring_alloc(const u64 mem_hint)
+struct ring ring_alloc(const u64 mem_hint, const u32 growable)
 {
 	kas_assert(mem_hint);
 
@@ -574,10 +526,10 @@ struct ring ring_alloc(const u64 mem_hint)
 
 	CloseHandle(map);
 
-	return (struct ring) { .mem_total = bufsize, .mem_left = bufsize, .offset = 0, .buf = buf };
+	return (struct ring) { .mem_total = bufsize, .mem_left = bufsize, .offset = 0, .buf = buf, .growable = growable };
 }
 
-void ring_free(struct ring *ring)
+void ring_dealloc(struct ring *ring)
 {
 	if (!UnmapViewOfFile(ring->buf))
 	{
@@ -616,8 +568,6 @@ struct kas_buffer ring_push_start(struct ring *ring, const u64 size)
 
 struct kas_buffer ring_push_end(struct ring *ring, const u64 size)
 {
-	kas_assert_string(size <= ring->mem_left, "ring allocator OOM, implement growable ones...");
-
 	struct kas_buffer buf = kas_buffer_empty;
 	if (size <= ring->mem_left)
 	{

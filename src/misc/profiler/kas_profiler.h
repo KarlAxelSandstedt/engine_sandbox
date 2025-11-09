@@ -209,8 +209,7 @@ struct cpu_frame_header
 /* heavy weight frame header */
 struct hw_frame_header
 {
-	struct arena			persistent;
-
+	u64				ui_cache_size;
 	struct hw_frame_header *	prev;		/* previous hw_frame in ring buffer, or NULL */
 	struct hw_frame_header *	next;  		/* next hw_frame in ring buffer, or NULL */
 	u64				ns_start;
@@ -246,6 +245,7 @@ struct kaspf_reader
 {
 	struct arena		persistent;
 	struct ring 		buf;		/* heavy weight frame data buffer */
+	struct ring 		ui_cache_buf;	/* heavy weight frame data buffer */
 	struct kaspf_task_info *task_info;	/* overview information of every unique task that has been profiled */
 	struct hw_frame_header *low;		/* points to the first processed frame in buf */
 	struct hw_frame_header *high;		/* points to the last processed frame in buf */
@@ -407,7 +407,7 @@ struct kas_frame
 {
 	tid				thread_id;
 	u64 				worker_id;	
-	const struct lw_profile *	completed;	/* master owned */
+	struct lw_profile *		completed;	/* master owned */
 	struct lw_profile *		build;		/* thread owned */
 	u32 *				build_stack;	/* thread build stack, used to index build for profiles in progress */
 	u32 				completed_count;	
@@ -495,8 +495,8 @@ void 	kas_profiler_new_frame(void);
 	const u32 next = tls_frame->build_count;							\
 	tls_frame->build_count += 1;									\
 													\
-	kas_assert_string(next < tls_frame->frame_len, "next < tls_frame->frame_len");			\
-	kas_assert_string(tls_frame->stack_count < tls_frame->stack_len, "tls_frame->stack_count < tls_frame->stack_len");	\
+	kas_assert_string(next < tls_frame->frame_len, "next < tls_frame->frame_len, increase profiler size");	\
+	kas_assert_string(tls_frame->stack_count < tls_frame->stack_len, "tls_frame->stack_count < tls_frame->stack_len, increase profiler size");	\
 													\
 	/* (2) reserve frame_entry and push index to stack */						\
 	const u32 parent = tls_frame->build_stack[tls_frame->stack_count-1];				\

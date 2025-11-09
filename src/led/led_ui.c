@@ -491,8 +491,9 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 				ui_parent(slot.index)
 				{
 					struct ui_node *node = slot.address;
-					if (node->inter & UI_INTER_HOVER)
+					if (node->inter & UI_INTER_FOCUS)
 					{	
+						//printf("focused\n");
 					//	ui_external_text(external_text)
 					//	ui_background_color(vec4_inline(0.8f, 0.8f, 0.8f, 1.0f))
 					//	ui_sprite_color(vec4_inline(0.1f, 0.1f, 0.1f, 1.0f))
@@ -501,6 +502,10 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 					//	ui_fixed_x(g_ui->inter.cursor_position[0])
 					//	ui_fixed_y(g_ui->inter.cursor_position[1])
 					//	ui_node_alloc_non_hashed(UI_DRAW_BACKGROUND | UI_DRAW_BORDER | UI_TEXT_EXTERNAL | UI_DRAW_TEXT | UI_SKIP_HOVER_SEARCH);
+					}
+					else
+					{
+						//printf("unfocused\n");
 					}
 				}
 			}

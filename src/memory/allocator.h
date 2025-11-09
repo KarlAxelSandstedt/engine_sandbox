@@ -158,9 +158,9 @@ struct ring 		ring_empty(void);
 /* Allocated virtual memory wrapped ring buffer using mem_hint as a minimum memsize.
  * The final size depends on the page size of the underlying system. Returns the
  * allocated ring allocator on SUCCESS, or an empty allocator on FAILURE.*/
-struct ring 		ring_alloc(const u64 mem_hint);	
+struct ring 		ring_alloc(const u64 mem_hint, const u32 growable);	
 /* free ring allocator resources */
-void 			ring_free(struct ring *ring);			
+void 			ring_dealloc(struct ring *ring);			
 /* flush ring memory and set offset to 0 */
 void			ring_flush(struct ring *ring);
 /* return allocaction[size], and do not advance the ring write offset on success; empty buffer on FAILURE. */

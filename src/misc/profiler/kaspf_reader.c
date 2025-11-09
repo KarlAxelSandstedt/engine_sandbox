@@ -33,7 +33,8 @@ struct kaspf_reader *g_kaspf_reader = &storage;
 void kaspf_reader_alloc(const u64 bufsize)
 {
 	g_kaspf_reader->persistent = arena_alloc_1MB();
-	g_kaspf_reader->buf = ring_alloc(bufsize);
+	g_kaspf_reader->buf = ring_alloc(bufsize, NOT_GROWABLE);
+	g_kaspf_reader->ui_cache_buf = ring_alloc(16*1024*1024, NOT_GROWABLE);
 	g_kaspf_reader->task_info = malloc(sizeof(struct kaspf_task_info) * KASPF_UNIQUE_TASK_COUNT_MAX);
 	memset(g_kaspf_reader->task_info, 0, sizeof(struct kaspf_task_info) * KASPF_UNIQUE_TASK_COUNT_MAX);
 	g_kaspf_reader->read_state = KASPF_READER_CLOSED;
@@ -58,10 +59,10 @@ void kaspf_reader_shutdown(void)
 	struct hw_frame_header *cur = g_kaspf_reader->low;
 	while (cur != &hw_h_stub)
 	{
-		arena_free_1MB(&cur->persistent);
 		cur = cur->next;
 	}
-	ring_free(&g_kaspf_reader->buf);
+	ring_dealloc(&g_kaspf_reader->buf);
+	ring_dealloc(&g_kaspf_reader->ui_cache_buf);
 	arena_free_1MB(&g_kaspf_reader->persistent);
 }
 
@@ -264,7 +265,8 @@ static void internal_discard_frame_range(struct kaspf_reader *reader, const u64 
 
 	struct hw_frame_header *cur;
 	const u64 frame_count = high-low+1;
-	u64 popsize = 0;
+	u64 task_popsize = 0;
+	u64 ui_cache_popsize = 0;
 
 	if (reader->frame_low == low)
 	{
@@ -272,15 +274,16 @@ static void internal_discard_frame_range(struct kaspf_reader *reader, const u64 
 		cur = reader->low;
 		for (u64 i = 0; i < frame_count; ++i)
 		{
-			popsize += cur->size;
+			task_popsize += cur->size;
+			ui_cache_popsize += cur->ui_cache_size;
 			kas_assert(cur->size);
-			arena_free_1MB(&cur->persistent);
 			cur = cur->next;
 		}
 		
 		reader->low = cur;
 		cur->prev = &hw_h_stub;
-		ring_pop_start(&reader->buf, popsize);
+		ring_pop_start(&reader->buf, task_popsize);
+		ring_pop_start(&reader->ui_cache_buf, ui_cache_popsize);
 		reader->frame_low = high+1;
 	}
 	else
@@ -289,15 +292,16 @@ static void internal_discard_frame_range(struct kaspf_reader *reader, const u64 
 		cur = reader->high;
 		for (u64 i = 0; i < frame_count; ++i)
 		{
-			popsize += cur->size;
+			task_popsize += cur->size;
+			ui_cache_popsize += cur->ui_cache_size;
 			kas_assert(cur->size);
-			arena_free_1MB(&cur->persistent);
 			cur = cur->prev;
 		}
 
 		reader->high = cur;
 		cur->next = &hw_h_stub;
-		ring_pop_end(&reader->buf, popsize);
+		ring_pop_end(&reader->buf, task_popsize);
+		ring_pop_end(&reader->ui_cache_buf, ui_cache_popsize);
 		reader->frame_high = low-1;
 	}
 
@@ -310,38 +314,6 @@ static void internal_discard_frame_range(struct kaspf_reader *reader, const u64 
 	}
 }
 
-//static void internal_set_worker_online_event(struct hw_profile_header *h, u64 *wo_cur, u64 *wo_single_begin, u64 *wo_single_end, const struct hw_frame_header *hw_h, const struct kas_schedule_switch *ss, const u32 is_prev)
-//{
-//	if (*wo_cur == 0 && *wo_single_begin)
-//	{
-//		h->wo[*wo_cur].ns_start = hw_h->ns_start;
-//		h->wo[*wo_cur].ns_end = ss->time;
-//		h->wo[*wo_cur].cpu = ss->cpu;
-//		*wo_cur += 1;
-//	}
-//	else if (*wo_cur == h->wo_count-1 && *wo_single_end)
-//	{
-//		h->wo[*wo_cur].ns_start = ss->time;
-//		h->wo[*wo_cur].ns_end = hw_h->ns_end;
-//		h->wo[*wo_cur].cpu = ss->cpu;
-//		*wo_cur += 1;
-//	}
-//	else
-//	{
-//		if (is_prev)
-//		{
-//			h->wo[*wo_cur].ns_end = ss->time;
-//			*wo_cur += 1;
-//		}
-//		else
-//		{
-//			h->wo[*wo_cur].ns_start = ss->time;
-//			h->wo[*wo_cur].cpu = ss->cpu;
-//		}
-//		
-//	}
-//}
-
 static void internal_process_worker_profiles(struct arena *frame_persistent, struct hw_profile_header *hw_h, struct lw_profile *lw_profiles, const u64 ns_frame, const u64 tsc_frame, const u32 worker, const u64 frame)
 {
 	//u64 wo_cur = 0;
@@ -351,8 +323,6 @@ static void internal_process_worker_profiles(struct arena *frame_persistent, str
 		struct lw_profile *lw_p = lw_profiles + i;
 		hw_p->ns_start = time_ns_from_tsc_truth_source(lw_p->tsc_start, ns_frame, tsc_frame);
 		hw_p->ns_end = time_ns_from_tsc_truth_source(lw_p->tsc_end, ns_frame, tsc_frame);
-		//hw_p->ns_start = time_ns_from_tsc(lw_p->tsc_start);
-		//hw_p->ns_end = time_ns_from_tsc(lw_p->tsc_end);
 		hw_p->ns_in_children = 0;
 		hw_p->task_id = lw_p->task_id;
 		hw_p->parent = lw_p->parent-1;	/* parent index, U32_MAX for no parent */
@@ -374,68 +344,11 @@ static void internal_process_worker_profiles(struct arena *frame_persistent, str
 		{
 			struct hw_profile *parent = hw_h->profiles + hw_p->parent;
 			hw_p->depth = parent->depth + 1;
-			//u32 wo_start = parent->online_first;
-			//u32 wo_end = parent->online_first; 
-			//u32 wo_p_cur = parent->online_first;
-			//const u32 wo_limit = parent->online_first + parent->online_count;
-			//while (wo_p_cur < wo_limit && hw_h->wo[wo_p_cur].ns_end < hw_p->ns_start)
-			//{
-			//	wo_p_cur += 1;	
-			//}
-			//wo_start = wo_p_cur;
-			//kas_assert(wo_p_cur < wo_limit);
-		        //kas_assert(hw_h->wo[wo_p_cur].ns_start <= hw_p->ns_start && hw_p->ns_start <= hw_h->wo[wo_p_cur].ns_end);
-
-			//while (wo_p_cur < wo_limit && hw_h->wo[wo_p_cur].ns_end < hw_p->ns_end)
-			//{
-			//	wo_p_cur += 1;	
-			//}
-			//wo_end = wo_p_cur;
-			//kas_assert(wo_p_cur < wo_limit);
-		        //kas_assert(hw_h->wo[wo_p_cur].ns_start <= hw_p->ns_end && hw_p->ns_end <= hw_h->wo[wo_p_cur].ns_end);
-
-			//hw_p->online_first = wo_start;
-			//hw_p->online_count = wo_end - wo_start + 1;
-
-			const u32 next_iter_parent = (i+1 < hw_h->profile_count) 
-				? lw_profiles[i+1].parent-1 
-				: U32_MAX;
-			struct hw_profile *cur = hw_p;
-			while (cur->parent != U32_MAX && next_iter_parent != cur->parent)
-			{
-				parent->ns_in_children += cur->ns_end - cur->ns_start;
-				parent->child_tasks += 1 + cur->child_tasks;
-				cur = parent;
-				parent = hw_h->profiles + parent->parent;
-			} 
 		}
 		else
 		{
 			hw_p->depth = 0;		
 		}
-		//else
-		//{
-		//	u32 wo_start = wo_cur;
-		//	u32 wo_end = wo_cur; 
-		//	while (wo_cur < hw_h->wo_count && hw_h->wo[wo_cur].ns_end < hw_p->ns_start)
-		//	{
-		//		wo_cur += 1;	
-		//	}
-		//	wo_start = wo_cur;
-		//	//kas_assert(wo_cur < hw_h->wo_count);
-		//        //kas_assert(hw_h->wo[wo_start].ns_start <= hw_p->ns_start && hw_p->ns_start <= hw_h->wo[wo_start].ns_end);
-
-		//	while (wo_cur < hw_h->wo_count && hw_h->wo[wo_cur].ns_end < hw_p->ns_end)
-		//	{
-		//		wo_cur += 1;	
-		//	}
-		//	wo_end = wo_cur;
-		//	//kas_assert(wo_cur < hw_h->wo_count);
-		//        //kas_assert(hw_h->wo[wo_end].ns_start <= hw_p->ns_end && hw_p->ns_end <= hw_h->wo[wo_end].ns_end);
-
-		//	hw_p->online_first = wo_start;
-		//	hw_p->online_count = wo_end - wo_start + 1;
-		//}
 	}
 }
 
@@ -444,18 +357,22 @@ static void internal_process_frames(struct arena *tmp, struct kas_buffer *buf, c
 	arena_push_record(tmp);
 	struct lw_profile **lw_ps = arena_push(tmp, g_profiler->worker_count * sizeof(struct lw_profile *));
 
+	struct arena tmp1 = arena_alloc_1MB();
+
+	const u32 push_end = (prev == &hw_h_stub);
+
 	struct hw_frame_header *hw;
 	for (u64 frame = low; frame <= high; ++frame)
 	{
 		hw = (struct hw_frame_header *) (buf->data + (buf->size - buf->mem_left));
 		hw->size = buf->mem_left;	/* push mem_left, substract mem_left when done */
+		hw->ui_cache_size = tmp1.mem_left;
 		buf->mem_left -= sizeof(struct hw_frame_header);
 		hw->ns_start = fh->ns_start;
 		hw->ns_end = fh->ns_end;
 		hw->tsc_start = fh->tsc_start;
 		hw->tsc_end = fh->tsc_end;
 		hw->prev = prev;
-		hw->persistent = arena_alloc_1MB();
 		prev->next = hw;
 		prev = hw;
 
@@ -481,7 +398,6 @@ static void internal_process_frames(struct arena *tmp, struct kas_buffer *buf, c
 			const u64 data_size = lw_h[j].activity_count * sizeof(struct worker_activity);
 			hw->hw_profile_h[j].activity_count = lw_h[j].activity_count;
 			hw->hw_profile_h[j].activity = (struct worker_activity *) (buf->data + (buf->size - buf->mem_left));
-			breakpoint(data_size);
 			memcpy(hw->hw_profile_h[j].activity, next_read_data, data_size);
 			next_read_data += data_size;
 			buf->mem_left -= data_size;
@@ -504,23 +420,59 @@ static void internal_process_frames(struct arena *tmp, struct kas_buffer *buf, c
 
 		for (u32 j = 0; j < g_profiler->worker_count; ++j)
 		{
-			internal_process_worker_profiles(&hw->persistent, hw->hw_profile_h + j, lw_ps[j], hw->ns_start, hw->tsc_start, j, frame);
+			internal_process_worker_profiles(&tmp1, hw->hw_profile_h + j, lw_ps[j], hw->ns_start, hw->tsc_start, j, frame);
 		}
 
 		
 		hw->size -= buf->mem_left;
+		hw->ui_cache_size -= tmp1.mem_left;
 
 		u64 l1, l2, l3;
 		kaspf_frame_table_indices(&l1, &l2, &l3, frame);
 		fh = kaspf_next_header(fh, l1, l2, l3);
 	}
+	kas_assert(buf->mem_left == 0);
 
+	prev->next = last;
+	last->prev = prev;
+
+	const u64 ui_cache_mem = tmp1.mem_size - tmp1.mem_left;
+	struct kas_buffer cache_buf = (push_end)
+		? ring_push_end(&g_kaspf_reader->ui_cache_buf, ui_cache_mem)
+		: ring_push_start(&g_kaspf_reader->ui_cache_buf, ui_cache_mem);
+
+	struct arena cache_arena = 
+	{
+		.stack_ptr = cache_buf.data,
+		.mem_size = cache_buf.size,
+		.mem_left = cache_buf.size,
+		.record = NULL,
+	};
+
+	/* Lazy; redo the ui cache work in a correct placed buffer */
+	buf->mem_left = buf->size;
+	for (u64 frame = low; frame <= high; ++frame)
+	{
+		hw = (struct hw_frame_header *) (buf->data + (buf->size - buf->mem_left));
+		buf->mem_left -= hw->size;
+
+		for (u32 j = 0; j < g_profiler->worker_count; ++j)
+		{
+			for (u64 i = 0; i < hw->hw_profile_h[j].profile_count; ++i)
+			{
+				struct hw_profile *hw_p = hw->hw_profile_h[j].profiles + i;
+				hw_p->id = utf8_format(&cache_arena, "t%u_%lu_%u", j, frame, i);
+			}
+		}
+
+		hw = hw->next;
+	}
+	kas_assert(cache_arena.mem_left == 0);
 	kas_assert(buf->mem_left == 0);
 
 	/* last frame to be processed pads the rest of the buffer */
 		
-	prev->next = last;
-	last->prev = prev;
+	arena_free_1MB(&tmp1);
 	arena_pop_record(tmp);
 }
 
@@ -541,7 +493,6 @@ void kaspf_reader_fixed(const u64 ns_start, const u64 ns_end)
 
 void kaspf_reader_process(struct arena *tmp)
 {
-
 	u64 ns_start = g_kaspf_reader->ns_start;
 	u64 ns_end = g_kaspf_reader->ns_end;
 	kas_assert(ns_start <= ns_end);
@@ -583,11 +534,11 @@ void kaspf_reader_process(struct arena *tmp)
 		struct hw_frame_header *cur = reader->low;
 		while (cur != &hw_h_stub)
 		{
-			arena_free_1MB(&cur->persistent);
 			cur = cur->next;
 		}
 			
 		ring_flush(&reader->buf);
+		ring_flush(&reader->ui_cache_buf);
 		/* get file map */
 		{
 			const u64 low_offset = new_mm_branch_low[1]->entries[new_li_low[2]].offset;
@@ -729,12 +680,13 @@ void kaspf_reader_process(struct arena *tmp)
 		? new_mm_branch_high[1]->ns_end
 		: new_mm_branch_high[1]->entries[h+1].ns_start;
 
-	//fprintf(stderr, "frames: [%lu, %lu]\tring buffer size: [%lu]\ttime interval (%.7f(s), %7f(s))\n",
-	//	reader->frame_low,
-	//	reader->frame_high,
-	//	reader->buf.mem_total - reader->buf.mem_left,
-	//	(f64) reader->interval_low[0] / NSEC_PER_SEC,
-	//	(f64) reader->interval_high[1] / NSEC_PER_SEC);
+	fprintf(stderr, "frames: [%lu, %lu]\ttask ring buffer mem left: [%lu]\tui cache buffer mem left: [%lu]\ttime interval (%.7f(s), %7f(s))\n",
+		reader->frame_low,
+		reader->frame_high,
+		reader->buf.mem_left,
+		reader->ui_cache_buf.mem_left,
+		(f64) reader->interval_low[0] / NSEC_PER_SEC,
+		(f64) reader->interval_high[1] / NSEC_PER_SEC);
 }
 
 #endif

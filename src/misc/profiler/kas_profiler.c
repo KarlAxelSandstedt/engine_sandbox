@@ -402,7 +402,7 @@ static void kaspf_write_completed_frame(struct kas_profiler *profiler)
 
 static void kas_profiler_init_io(struct arena *mem, struct kas_profiler *profiler, const char *path)
 {
-	kaspf_reader_alloc(16*1024*1024);
+	kaspf_reader_alloc(1024*1024*1024);
 	profiler->file = file_null();
 	if (file_try_create_at_cwd(mem, &profiler->file, path, FILE_TRUNCATE) != FS_SUCCESS)
 	{

@@ -61,7 +61,6 @@ int main(int argc, char *argv[])
 
 	struct arena mem_persistent = arena_alloc(16*1024*1024);
 	system_resources_init(&mem_persistent);
-	system_graphics_init();
 	cmd_alloc();
 	ui_init_global_state();
 	asset_database_init(&mem_persistent);
@@ -96,7 +95,6 @@ int main(int argc, char *argv[])
 	led_dealloc(editor);
 	asset_database_cleanup();
 	cmd_free();
-	system_graphics_destroy();
 	system_resources_cleanup();
 	arena_free(&mem_persistent);
 #endif

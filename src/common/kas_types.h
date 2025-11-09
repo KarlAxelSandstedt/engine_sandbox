@@ -152,7 +152,7 @@ struct kas_buffer
 	u64 	size; 
 	u64 	mem_left;
 };
-#define kas_buffer_empty	(struct kas_buffer) { .data = NULL, .size = 0, .mem_left = 0 }
+#define kas_buffer_empty	(struct kas_buffer) { .data = NULL, .size = 0, .mem_left = 0, }
 
 typedef struct
 {
