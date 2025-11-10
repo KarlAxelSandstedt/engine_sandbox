@@ -1410,7 +1410,7 @@ static u32 hull_capsule_contact(struct arena *garbage, struct contact_manifold *
 			{
 				for (u32 ei = 0; ei < h->e_count; ++ei)
 				{
-					struct segment edge_s = dcel_half_edge_segment(h, g1.rot, g1.pos, best_index);
+					struct segment edge_s = dcel_edge_segment(h, g1.rot, g1.pos, best_index);
 					
 					const f32 d = -f32_sqrt(segment_distance_sq(c1, c2, &edge_s, &cap_s));
 					if (max_signed_depth < d)
@@ -1429,7 +1429,7 @@ static u32 hull_capsule_contact(struct arena *garbage, struct contact_manifold *
 			if (edge_best)
 			{
 				cm->v_count = 1;
-				struct segment edge_s = dcel_half_edge_segment(h, g1.rot, g1.pos, best_index);
+				struct segment edge_s = dcel_edge_segment(h, g1.rot, g1.pos, best_index);
 				segment_distance_sq(c1, c2, &edge_s, &cap_s);
 				vec3_sub(cm->n, c1, c2);
 				vec3_mul_constant(cm->n, 1.0f / vec3_length(cm->n));
@@ -1968,8 +1968,8 @@ static u32 hull_contact_internal_ee_seperation(struct sat_edge_query *query, con
 			vec3_negative(n2_2);
 
 			/* No need to negate here, since e2 is orthogonal n2_1 and n2_2 either way */
-			dcel_half_edge_direction(e1, h1, e1_1);
-			dcel_half_edge_direction(e2, h2, e2_1);
+			dcel_edge_direction(e1, h1, e1_1);
+			dcel_edge_direction(e2, h2, e2_1);
 
 			/* 
 			 * test if A, -B edges intersect on gauss map, only if they do, 

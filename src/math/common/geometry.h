@@ -190,7 +190,7 @@ struct dcel_face
 	u32 count;	/* edge count */
 };
 
-struct dcel_half_edge
+struct dcel_edge
 {
 	u32 origin;	/* vertex index origin */
 	u32 twin; 	/* twin half edge */
@@ -206,7 +206,7 @@ struct dcel_half_edge
 struct dcel
 {
 	struct dcel_face *f;		/* f[i] = half-edge of face i */
-	struct dcel_half_edge *e;
+	struct dcel_edge *e;
 	vec3ptr	v;
 	u32 f_count;
 	u32 e_count;
@@ -219,6 +219,8 @@ struct dcel 	dcel_empty(void);
 struct dcel 	dcel_box_stub(void);
 /* return arena allocated dcel box with given half widths */
 struct dcel 	dcel_box(struct arena *mem, const vec3 hw);
+/* return arena allocated dcel convex hull of input points. On failure, an empty dcel is returned. */
+struct dcel dcel_convex_hull(struct arena *mem, const vec3ptr v, const u32 v_count, const f32 tol);
 /* Return support of dcel in given direction, and return supporting vertex index */
 u32		dcel_support(vec3 support, const vec3 dir, const struct dcel *hull, mat3 rot, const vec3 pos);
 
@@ -230,9 +232,9 @@ struct plane 	dcel_face_clip_plane(const struct dcel *h, mat3 rot, const vec3 po
 struct segment 	dcel_face_clip_segment(const struct dcel *h, mat3 rot, const vec3 pos, const u32 fi, const struct segment *s); /* clip segment against face fi's edge-planes (No projection onto face plane!) */
 u32 		dcel_face_projected_point_test(const struct dcel *h, mat3 rot, const vec3 pos, const u32 fi, const vec3 p); /* Project p onto face plane and test if it is on the face */
 
-void 		dcel_half_edge_normal(vec3 dir, const struct dcel *h, const u32 ei);
-void 		dcel_half_edge_direction(vec3 dir, const struct dcel *h, const u32 ei);
-struct segment 	dcel_half_edge_segment(const struct dcel *h, mat3 rot, const vec3 pos, const u32 ei);
+void 		dcel_edge_normal(vec3 dir, const struct dcel *h, const u32 ei);
+void 		dcel_edge_direction(vec3 dir, const struct dcel *h, const u32 ei);
+struct segment 	dcel_edge_segment(const struct dcel *h, mat3 rot, const vec3 pos, const u32 ei);
 
 /* TODO: merge with newer commented out dcel_assert_topology... */
 void 		dcel_assert_topology(struct dcel *dcel);

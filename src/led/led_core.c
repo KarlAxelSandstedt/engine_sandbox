@@ -722,6 +722,7 @@ void led_wall_smash_simulation_setup(struct led *led)
 	sys_win->cmd_queue->regs[1].f32 = 2.0f;
 	cmd_queue_submit(sys_win->cmd_queue, cmd_collision_sphere_add_id);
 
+	struct dcel dcel = dcel_convex_hull(&sys_win->mem_persistent, ramp_vertices, 6, F32_EPSILON * 100.0f);
 	//TODO
 	//const u32 ramp_handle = physics_pipeline_cs_alloc(&game->physics);
 	//struct collision_shape *ramp = physics_pipeline_cs_lookup(&game->physics, ramp_handle);

@@ -321,9 +321,9 @@ void r_mesh_set_hull(struct arena *mem, struct r_mesh *mesh, const struct dcel *
 	{
 		vec3 normal;
 		struct dcel_face *f = hull->f + fi;
-		struct dcel_half_edge *e0 = hull->e + f->first;
-		struct dcel_half_edge *e1 = hull->e + f->first + 1;
-		struct dcel_half_edge *e2 = hull->e + f->first + 2;
+		struct dcel_edge *e0 = hull->e + f->first;
+		struct dcel_edge *e1 = hull->e + f->first + 1;
+		struct dcel_edge *e2 = hull->e + f->first + 2;
 		tri_ccw_normal(normal, 
 				hull->v[e0->origin],
 				hull->v[e1->origin],

@@ -902,9 +902,9 @@ static void statics_internal_calculate_face_integrals(f32 integrals[10], const s
 
 	vec3ptr v = shape->hull.v;
 	struct dcel_face *f = shape->hull.f + fi;
-	struct dcel_half_edge *e0 = shape->hull.e + f->first;
-	struct dcel_half_edge *e1 = shape->hull.e + f->first + 1;
-	struct dcel_half_edge *e2 = shape->hull.e + f->first + 2;
+	struct dcel_edge *e0 = shape->hull.e + f->first;
+	struct dcel_edge *e1 = shape->hull.e + f->first + 1;
+	struct dcel_edge *e2 = shape->hull.e + f->first + 2;
 
 	vec3_sub(a, v[e1->origin], v[e0->origin]);
 	vec3_sub(b, v[e2->origin], v[e0->origin]);
