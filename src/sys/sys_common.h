@@ -23,7 +23,7 @@
 #include "kas_common.h"
 #include "kas_string.h"
 #include "kas_vector.h"
-#include "bit_vector.h"
+#include "list.h"
 
 /* MACROS, GLOBALS and SYSTEM-LEVEL STRUCTS */
 #if __OS__ == __LINUX__
@@ -205,6 +205,8 @@ enum system_event_type
 };
 
 struct system_event {
+	POOL_SLOT_STATE;
+	DLL_SLOT_STATE;
 	u64			native_handle;	/* window handle 			*/
 	u64			ns_timestamp;	/* external event time; NOT OUR CLOCK 	*/
 	enum system_event_type 	type;

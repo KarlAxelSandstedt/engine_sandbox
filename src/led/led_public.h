@@ -29,6 +29,7 @@
 #include "hash_map.h"
 #include "list.h"
 #include "cmd.h"
+#include "r_public.h"
 
 /*******************************************/
 /*                 led_init.c              */
@@ -119,8 +120,12 @@ struct led
 	struct led_project_menu project_menu;
 
 	struct led_profiler	profiler;
+
+	struct r_camera		cam;
+	vec3			cam_local_velocity;
 		
 	u64			ns;		/* current time in ns */
+	u64			ns_delta;
 	u32			running;
 
 	u64			ns_engine_running;

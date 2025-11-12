@@ -21,8 +21,10 @@
 #define __R_PUBLIC_H__
 
 #include "asset_public.h"
-#include "led_public.h"
 #include "array_list.h"
+#include "allocator.h"
+#include "string_database.h"
+#include "geometry.h"
 
 /********************************************************
  *			r_init.c			*
@@ -34,6 +36,8 @@ void 	r_init(struct arena *mem_persistent, const u64 ns_tick, const u64 frame_si
 /********************************************************
  *			r_main.c			*
  ********************************************************/
+
+struct led;
 
 /* rendering entrypoint (level editor) */
 void 	r_led_main(const struct led *led);

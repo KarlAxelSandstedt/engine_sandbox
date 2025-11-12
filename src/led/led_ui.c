@@ -18,6 +18,7 @@
 */
 
 #include "led_local.h"
+#include "sys_public.h"
 
 static void led_project_menu_ui(struct led *led, const struct ui_visual *visual)
 {
@@ -174,16 +175,19 @@ static void led_project_menu_ui(struct led *led, const struct ui_visual *visual)
 		}
 	}
 
+	system_window_event_handler(win);
 	ui_frame_end();
 }
 
 static void led_profiler_ui(struct led *led, const struct ui_visual *visual)
 {
+	struct led_profiler *prof = &led->profiler;
+	struct system_window *win = system_window_address(prof->window);
 	if (g_profiler->level < PROFILE_LEVEL_TASK)
 	{
+		system_window_event_handler(win);
 		return;
 	}
-	struct led_profiler *prof = &led->profiler;
 	system_window_set_global(prof->window);
 	cmd_queue_execute();
 
@@ -193,7 +197,6 @@ static void led_profiler_ui(struct led *led, const struct ui_visual *visual)
 		return;
 	}
 
-	struct system_window *win = system_window_address(prof->window);
 	ui_frame_begin(win->size, visual);
 
 	if (prof->timeline_config.fixed)
@@ -256,6 +259,7 @@ static void led_profiler_ui(struct led *led, const struct ui_visual *visual)
 		}
 	}
 
+	system_window_event_handler(win);
 	ui_frame_end();
 }
 
@@ -395,7 +399,57 @@ static void led_ui_test(struct led *led, const struct ui_visual *visual)
 		}
 	}
 
+	system_window_event_handler(win);
 	ui_frame_end();
+}
+
+static void led_input_handler(struct led *led, struct ui_node *viewport)
+{
+	vec4_set(viewport->border_color, 0.9f, 0.9f, 0.9f, 1.0f);
+	struct system_window *sys_win = system_window_address(led->window);
+	for (u32 i = sys_win->ui->event_list.first; i != DLL_NULL; )
+	{
+		struct system_event *event = pool_address(&sys_win->ui->event_pool, i);
+		const u32 next = DLL_NEXT(event);
+		u32 event_consumed = 1;
+		if (event->type == SYSTEM_KEY_PRESSED)
+		{
+			switch (event->scancode)
+			{
+				default:
+				{
+					event_consumed = 0;
+				} break;
+			}
+		}
+
+		if (event_consumed)
+		{
+			dll_remove(&sys_win->ui->event_list, sys_win->ui->event_pool.buf, i);
+			pool_remove(&sys_win->ui->event_pool, i);
+		}
+		i = next;
+	}
+
+	if (sys_win->ui->inter.key_pressed[KAS_W])
+	{
+	    	led->cam_local_velocity[2] += 9.0f; 
+	} 
+
+	if (sys_win->ui->inter.key_pressed[KAS_S])
+	{
+	    	led->cam_local_velocity[2] -= 9.0f; 
+	} 
+
+	if (sys_win->ui->inter.key_pressed[KAS_D])
+	{
+	    	led->cam_local_velocity[0] += 9.0f; 
+	} 
+	
+	if (sys_win->ui->inter.key_pressed[KAS_A])
+	{
+		led->cam_local_velocity[0] -= 9.0f; 
+	} 
 }
 
 static void led_ui(struct led *led, const struct ui_visual *visual)
@@ -493,21 +547,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 					struct ui_node *node = slot.address;
 					if (node->inter & UI_INTER_FOCUS)
 					{	
-
-
-						//printf("focused\n");
-					//	ui_external_text(external_text)
-					//	ui_background_color(vec4_inline(0.8f, 0.8f, 0.8f, 1.0f))
-					//	ui_sprite_color(vec4_inline(0.1f, 0.1f, 0.1f, 1.0f))
-					//	ui_height(ui_size_pixel(24.0f, 1.0f))
-					//	ui_width(ui_size_text(F32_INFINITY, 1.0f))
-					//	ui_fixed_x(g_ui->inter.cursor_position[0])
-					//	ui_fixed_y(g_ui->inter.cursor_position[1])
-					//	ui_node_alloc_non_hashed(UI_DRAW_BACKGROUND | UI_DRAW_BORDER | UI_TEXT_EXTERNAL | UI_DRAW_TEXT | UI_SKIP_HOVER_SEARCH);
-					}
-					else
-					{
-						//printf("unfocused\n");
+						led_input_handler(led, node);
 					}
 				}
 			}
@@ -914,6 +954,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 		}
 	}
 
+	system_window_event_handler(win);
 	ui_frame_end();
 
 	struct ui_node *node = ui_node_lookup(&led->viewport_id).address;
@@ -921,6 +962,20 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 	led->viewport_position[1] = node->pixel_position[1];
 	led->viewport_size[0] = node->pixel_size[0];
 	led->viewport_size[1] = node->pixel_size[1];
+
+	const f32 delta = (f32) led->ns_delta / NSEC_PER_SEC;
+	camera_update_axes(&led->cam);
+	led->cam.position[0] += (f32) delta * (led->cam_local_velocity[0] * led->cam.left[0] +  led->cam_local_velocity[2] * led->cam.forward[0]);
+	led->cam.position[1] += (f32) delta * (led->cam_local_velocity[1] + led->cam_local_velocity[2] * led->cam.forward[1]);
+	led->cam.position[2] += (f32) delta * (led->cam_local_velocity[0] * led->cam.left[2] +  led->cam_local_velocity[2] * led->cam.forward[2]);
+	led->cam.aspect_ratio =  (f32) led->viewport_size[0] / led->viewport_size[1];
+
+	vec3_set(led->cam_local_velocity, 0.0f, 0.0f, 0.0f);
+
+	if (win->tagged_for_destruction) 
+	{
+		led->running = 0;
+	}
 }
 
 void led_ui_main(struct led *led)

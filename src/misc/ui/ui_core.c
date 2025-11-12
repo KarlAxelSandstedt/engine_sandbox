@@ -128,6 +128,8 @@ struct ui *ui_alloc(void)
 	ui->bucket_pool = pool_alloc(NULL, 64, struct ui_draw_bucket, GROWABLE);
 	ui->bucket_list = dll_init(struct ui_draw_bucket);
 	ui->bucket_map = hash_map_alloc(NULL, 128, 128, GROWABLE);
+	ui->event_pool = pool_alloc(NULL, 32, struct system_event, GROWABLE);
+	ui->event_list = dll_init(struct system_event);
 	ui->frame = 0;
 	ui->root = HI_ROOT_STUB_INDEX;
 	ui->node_count_prev_frame = 0;
@@ -257,6 +259,7 @@ void ui_dealloc(struct ui *ui)
 	stack_u32_free(&ui->stack_floating_depth);
 	stack_u32_free(&ui->stack_fixed_depth);
 	hash_map_free(ui->node_map);
+	pool_dealloc(&ui->event_pool);
 	pool_dealloc(&ui->bucket_pool);
 	hash_map_free(ui->bucket_map);
 	hierarchy_index_free(ui->node_hierarchy);
@@ -1003,6 +1006,9 @@ static struct slot ui_text_selection_alloc(const struct ui_node *node, const vec
 
 void ui_frame_end(void)
 {	
+	dll_flush(&g_ui->event_list);
+	pool_flush(&g_ui->event_pool);
+
 	ui_node_pop();
 
 	ui_flags_pop();

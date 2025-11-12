@@ -176,6 +176,11 @@ struct system_window *system_window_address(const u32 index)
 	return hierarchy_index_address(g_window_hierarchy, index);
 }
 
+u32 system_window_index(const struct system_window *win)
+{
+	return array_list_index(g_window_hierarchy->list, win);
+}
+
 void system_window_set_current_gl_context(const u32 window)
 {
 	struct system_window *sys_win = system_window_address(window);

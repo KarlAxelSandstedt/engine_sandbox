@@ -163,29 +163,6 @@ void r_init(struct arena *mem_persistent, const u64 ns_tick, const u64 frame_siz
 	struct r_mesh *stub = string_database_address(g_r_core->mesh_database, STRING_DATABASE_STUB_INDEX);
 	r_mesh_set_stub_box(stub);
 
-	//const vec3 position = {-40.0f, 3.0f, -30.0f};
-	//const vec3 left = {0.0f, 0.0f, 1.0f};
-	//const vec3 up = {0.0f, 1.0f, 0.0f};
-	//const vec3 dir = {1.0f, 0.0f, 0.0f};
-	
-	const vec3 position = {15.0f, 1.0f, 50.0f};
-	//const vec3 position = {3.0f, 1.0f, -3.0f};
-	const vec3 left = {-1.0f, 0.0f, 0.0f};
-	const vec3 up = {0.0f, 1.0f, 0.0f};
-	const vec3 dir = {0.0f, 0.0f, -1.0f};
-	vec2 size = { 1280.0f, 720.0f };
-	r_camera_construct(&g_r_core->cam, 
-			position, 
-			left,
-			up,
-			dir,
-			0.0f,
-			0.0f,
-			0.0250f,
-			1024.0f,
-			(f32) size[0] / size[1],
-			2.0f * MM_PI_F / 3.0f );
-
 
 
 

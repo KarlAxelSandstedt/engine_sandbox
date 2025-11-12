@@ -527,6 +527,9 @@ struct ui
 	u32				bucket_cache;	/* for quick cmd check */
 	u32				bucket_count;
 
+	struct pool			event_pool;
+	struct dll			event_list;
+
 	/* node map for all u's  */
 	/* Shared allocator for all nodes  */
 	struct hierarchy_index *node_hierarchy;

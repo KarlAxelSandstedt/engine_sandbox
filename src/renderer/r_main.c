@@ -21,12 +21,13 @@
 #include "r_public.h"
 #include "asset_public.h"
 #include "transform.h"
+#include "led_public.h"
 
 static void r_led_draw(const struct led *led)
 {
 	KAS_TASK(__func__, T_RENDERER);
 
-	const u32 depth_exponent = 1 + f32_exponent_bits(g_r_core->cam.fz_far);
+	const u32 depth_exponent = 1 + f32_exponent_bits(led->cam.fz_far);
 	kas_assert(depth_exponent >= 23);
 
 	r_proxy3d_hierarchy_speculate(&g_r_core->frame, g_r_core->ns_elapsed);
@@ -39,7 +40,7 @@ static void r_led_draw(const struct led *led)
 		const u32 index = hierarchy_index_iterator_next_df(&it);
 		struct r_proxy3d *proxy = r_proxy3d_address(index);
 
-		const f32 dist = vec3_distance(proxy->spec_position, g_r_core->cam.position);
+		const f32 dist = vec3_distance(proxy->spec_position, led->cam.position);
 		const u32 unit_exponent = f32_exponent_bits(dist);
 		const u64 depth = (unit_exponent <= depth_exponent && unit_exponent > (depth_exponent - 23))
 			? (0x00800000 | f32_mantissa_bits(dist)) >> (depth_exponent - unit_exponent + 1)
@@ -60,12 +61,10 @@ static void r_led_draw(const struct led *led)
 	KAS_END;
 }
 
-
 static void internal_r_proxy3d_uniforms(const struct led *led, const u32 window)
 {
 	mat4 perspective, view;
-	struct r_camera *cam = &g_r_core->cam;
-	cam->aspect_ratio =  (f32) led->viewport_size[0] / led->viewport_size[1];
+	const struct r_camera *cam = &led->cam;
 	perspective_matrix(perspective, cam->aspect_ratio, cam->fov_x, cam->fz_near, cam->fz_far);
 	view_matrix(view, cam->position, cam->left, cam->up, cam->forward);
 	
@@ -236,42 +235,6 @@ static void r_scene_render(const struct led *led, const u32 window)
 	GL_STATE_ASSERT;
 	KAS_END;
 }
-
-//void r_main(struct system_window *sys_win, const struct game *game)
-//{
-//	KAS_TASK(__func__, T_RENDERER);
-//
-//	const u64 ns_tick = game->ns_process - g_r_core->ns_elapsed;
-//	g_r_core->ns_elapsed = game->ns_process;
-//	arena_flush(&g_r_core->frame);
-//
-//	/* CAMERA UPDATE  */
-//	vec3 cam_local_velocity = { 0.0f, 0.0f, 0.0f };
-//	if (bit_vec_get_bit(&g_input_state->key_pressed, KAS_A) || bit_vec_get_bit(&g_input_state->key_pressed, KAS_a))
-//	{
-//				cam_local_velocity[0] += 9.0f; 
-//	}
-//
-//	if (bit_vec_get_bit(&g_input_state->key_pressed, KAS_D) || bit_vec_get_bit(&g_input_state->key_pressed, KAS_d))
-//	{
-//				cam_local_velocity[0] += -9.0f; 
-//	}
-//
-//	if (bit_vec_get_bit(&g_input_state->key_pressed, KAS_W) || bit_vec_get_bit(&g_input_state->key_pressed, KAS_w))
-//	{
-//				cam_local_velocity[2] += 9.0f; 
-//	}
-//
-//	if (bit_vec_get_bit(&g_input_state->key_pressed, KAS_S) || bit_vec_get_bit(&g_input_state->key_pressed, KAS_s))
-//	{
-//				cam_local_velocity[2] += -9.0f; 
-//	}
-//
-//	const f32 delta = (f32) ns_tick / NSEC_PER_SEC;
-//	g_r_core->cam.position[0] += (f32) delta * (cam_local_velocity[0] * g_r_core->cam.left[0] +  cam_local_velocity[2] * g_r_core->cam.forward[0]);
-//	g_r_core->cam.position[1] += (f32) delta * (cam_local_velocity[1] + cam_local_velocity[2] * g_r_core->cam.forward[1]);
-//	g_r_core->cam.position[2] += (f32) delta * (cam_local_velocity[0] * g_r_core->cam.left[2] +  cam_local_velocity[2] * g_r_core->cam.forward[2]);
-//}
 
 void r_led_main(const struct led *led)
 {

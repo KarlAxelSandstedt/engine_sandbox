@@ -70,19 +70,6 @@ void led_project_menu_main(struct led *led)
 		menu->input_line_new_project = ui_text_input_empty();
 	}
 }
-static void led_project_main(struct led *led)
-{
-	struct system_window *win = system_window_address(led->window);
-	if (win->tagged_for_destruction) 
-	{
-		led->running = 0;
-	}
-
-	if (win->ui->inter.key_pressed[KAS_P] && system_user_is_admin())
-	{
-		led->profiler.visible = 1;
-	}
-}
 
 static void led_profiler_interaction(struct led *led)
 {
@@ -157,10 +144,9 @@ void led_main(struct led *led, const u64 ns_delta)
 {
 	KAS_TASK(__func__, T_LED);
 
+	led->ns_delta = ns_delta;
 	led->ns += ns_delta;
 	arena_flush(&led->frame);
-
-	led_project_main(led);
 
 	if (!led->project.initialized)
 	{

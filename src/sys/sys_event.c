@@ -22,6 +22,55 @@
 #include "sys_public.h"
 #include "sys_local.h"
 
+void system_window_event_handler(struct system_window *sys_win)
+{
+	struct system_event *event = NULL;
+	for (u32 i = sys_win->ui->event_list.first; i != DLL_NULL; i = DLL_NEXT(event))
+	{
+		event = pool_address(&sys_win->ui->event_pool, i);
+		switch (event->keycode)
+		{
+			case KAS_L:
+			{
+				(cursor_is_locked(sys_win->native))
+					? cursor_unlock(sys_win->native)
+					: cursor_lock(sys_win->native);
+			} break;
+
+			case KAS_F10: 
+			{
+				(cursor_is_visible(sys_win->native))
+				      ? cursor_hide(sys_win->native) 
+				      : cursor_show(sys_win->native);
+			} break;
+
+			case KAS_F11: 
+			{
+				(native_window_is_fullscreen(sys_win->native))
+				      ? native_window_windowed(sys_win->native) 
+				      : native_window_fullscreen(sys_win->native);
+			} break;
+
+			case KAS_F12:
+			{
+				(native_window_is_bordered(sys_win->native))
+				      ? native_window_borderless(sys_win->native) 
+				      : native_window_bordered(sys_win->native);
+			} break;
+
+			case KAS_C: 
+			{
+				system_window_tag_sub_hierarchy_for_destruction(system_window_index(sys_win));
+			} break;	
+
+			default:
+			{
+				fprintf(stderr, "Unhandled Press: %s\n", kas_keycode_to_string(event->keycode));
+			} break;
+		}
+	}
+}
+
 void system_process_events(void)
 {
 	const u32 key_modifiers = system_key_modifiers();
@@ -88,6 +137,7 @@ void system_process_events(void)
 
 			case SYSTEM_KEY_PRESSED:
 			{
+				//TODO remove 
 				sys_win->ui->inter.key_clicked[event.keycode] = 1;
 				sys_win->ui->inter.key_pressed[event.keycode] = 1;
 
@@ -187,46 +237,13 @@ void system_process_events(void)
 				}
 				else
 				{
-					switch (event.keycode)
-					{
-						case KAS_L:
-						{
-							(cursor_is_locked(sys_win->native))
-								? cursor_unlock(sys_win->native)
-								: cursor_lock(sys_win->native);
-						} break;
-
-						case KAS_F10: 
-						{
-							(cursor_is_visible(sys_win->native))
-							      ? cursor_hide(sys_win->native) 
-							      : cursor_show(sys_win->native);
-						} break;
-
-						case KAS_F11: 
-						{
-							(native_window_is_fullscreen(sys_win->native))
-							      ? native_window_windowed(sys_win->native) 
-							      : native_window_fullscreen(sys_win->native);
-						} break;
-
-						case KAS_F12:
-						{
-							(native_window_is_bordered(sys_win->native))
-							      ? native_window_borderless(sys_win->native) 
-							      : native_window_bordered(sys_win->native);
-						} break;
-
-						case KAS_ESCAPE: 
-						{
-							system_window_tag_sub_hierarchy_for_destruction(slot.index);
-						} break;	
-
-						default:
-						{
-							fprintf(stderr, "Unhandled Press: %s\n", kas_keycode_to_string(event.keycode));
-						} break;
-					}
+					struct slot slot = pool_add(&sys_win->ui->event_pool);
+					dll_append(&sys_win->ui->event_list, sys_win->ui->event_pool.buf, slot.index);
+					struct system_event *new = slot.address;
+					new->scancode = event.scancode;
+					new->keycode = event.keycode;
+					new->ns_timestamp = event.ns_timestamp;
+					new->type = event.type;
 				}
 			} break;
 
@@ -234,6 +251,19 @@ void system_process_events(void)
 			{
 				sys_win->ui->inter.key_released[event.keycode] = 1;
 				sys_win->ui->inter.key_pressed[event.keycode] = 0;
+				if (sys_win->ui->inter.text_edit_mode)
+				{
+				}
+				else
+				{
+					struct slot slot = pool_add(&sys_win->ui->event_pool);
+					dll_append(&sys_win->ui->event_list, sys_win->ui->event_pool.buf, slot.index);
+					struct system_event *new = slot.address;
+					new->scancode = event.scancode;
+					new->keycode = event.keycode;
+					new->ns_timestamp = event.ns_timestamp;
+					new->type = event.type;
+				}
 			} break;
 
 			case SYSTEM_CURSOR_POSITION:
