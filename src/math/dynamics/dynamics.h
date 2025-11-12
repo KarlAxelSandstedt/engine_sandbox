@@ -547,7 +547,6 @@ struct rigid_body_prefab
 
 	mat3 		inertia_tensor;		/* intertia tensor of body frame */
 	mat3 		inv_inertia_tensor;
-	vec3		center_of_mass;
 	f32 		mass;			/* total body mass */
 	f32		density;
 	f32 		restitution;
@@ -556,7 +555,7 @@ struct rigid_body_prefab
 	u32		dynamic;		/* dynamic body is true, static if false */
 };
 
-void 	prefab_statics_setup(struct rigid_body_prefab *prefab, const struct collision_shape *shape, const f32 density);
+void 	prefab_statics_setup(struct rigid_body_prefab *prefab, struct collision_shape *shape, const f32 density);
 
 #define UNITS_PER_METER		1.0f
 #define UNITS_PER_DECIMETER	0.1f

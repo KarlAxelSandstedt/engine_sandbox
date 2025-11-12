@@ -680,13 +680,13 @@ void kaspf_reader_process(struct arena *tmp)
 		? new_mm_branch_high[1]->ns_end
 		: new_mm_branch_high[1]->entries[h+1].ns_start;
 
-	fprintf(stderr, "frames: [%lu, %lu]\ttask ring buffer mem left: [%lu]\tui cache buffer mem left: [%lu]\ttime interval (%.7f(s), %7f(s))\n",
-		reader->frame_low,
-		reader->frame_high,
-		reader->buf.mem_left,
-		reader->ui_cache_buf.mem_left,
-		(f64) reader->interval_low[0] / NSEC_PER_SEC,
-		(f64) reader->interval_high[1] / NSEC_PER_SEC);
+	//fprintf(stderr, "frames: [%lu, %lu]\ttask ring buffer mem left: [%lu]\tui cache buffer mem left: [%lu]\ttime interval (%.7f(s), %7f(s))\n",
+	//	reader->frame_low,
+	//	reader->frame_high,
+	//	reader->buf.mem_left,
+	//	reader->ui_cache_buf.mem_left,
+	//	(f64) reader->interval_low[0] / NSEC_PER_SEC,
+	//	(f64) reader->interval_high[1] / NSEC_PER_SEC);
 }
 
 #endif

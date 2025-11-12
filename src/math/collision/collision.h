@@ -157,6 +157,7 @@ enum collision_shape_type
 struct collision_shape
 {
 	STRING_DATABASE_SLOT_STATE;
+	u32 			center_of_mass_localized; /* Has the shape translated its vertices into COM space? */
 	enum	collision_shape_type type;
 	union
 	{

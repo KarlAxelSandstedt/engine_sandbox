@@ -33,6 +33,7 @@ void cmd_led_node_set_proxy3d(void);
 
 void cmd_collision_shape_add(void);
 void cmd_collision_shape_remove(void);
+void cmd_collision_dcel_add(void);
 void cmd_collision_box_add(void);
 void cmd_collision_sphere_add(void);
 void cmd_collision_capsule_add(void);
@@ -64,6 +65,7 @@ u32 cmd_render_mesh_remove_id;
 u32 cmd_collision_shape_add_id;
 u32 cmd_collision_shape_remove_id;
 u32 cmd_collision_box_add_id;
+u32 cmd_collision_dcel_add_id;
 u32 cmd_collision_sphere_add_id;
 u32 cmd_collision_capsule_add_id;
 
@@ -89,6 +91,7 @@ void led_core_init_commands(void)
 
 	cmd_collision_shape_add_id = cmd_function_register(utf8_inline("collision_shape_add"), 1, &cmd_collision_shape_add).index;
 	cmd_collision_box_add_id = cmd_function_register(utf8_inline("collision_box_add"), 4, &cmd_collision_box_add).index;
+	cmd_collision_dcel_add_id = cmd_function_register(utf8_inline("collision_dcel_add"), 2, &cmd_collision_dcel_add).index;
 	cmd_collision_sphere_add_id = cmd_function_register(utf8_inline("collision_sphere_add"), 2, &cmd_collision_sphere_add).index;
 	cmd_collision_capsule_add_id = cmd_function_register(utf8_inline("collision_capsule_add"), 3, &cmd_collision_capsule_add).index;
 	cmd_collision_shape_remove_id = cmd_function_register(utf8_inline("collision_shape_remove"), 1, &cmd_collision_shape_remove).index;
@@ -164,6 +167,7 @@ void cmd_collision_box_add(void)
 			.id = g_queue->cmd_exec->arg[0].utf8,
 			.type = COLLISION_SHAPE_CONVEX_HULL,
 			.hull = dcel_box(&sys_win->mem_persistent, hw), 
+			.center_of_mass_localized = 0,
 		};
 
 		led_collision_shape_add(g_editor, &shape);
@@ -174,6 +178,28 @@ void cmd_collision_box_add(void)
 	}
 }
 
+void cmd_collision_dcel_add(void)
+{
+	struct dcel *dcel = g_queue->cmd_exec->arg[1].ptr;
+	if (dcel->v_count)
+	{
+		struct collision_shape shape =
+		{
+			.id = g_queue->cmd_exec->arg[0].utf8,
+			.type = COLLISION_SHAPE_CONVEX_HULL,
+			.hull = *dcel, 
+			.center_of_mass_localized = 0,
+		};
+
+		led_collision_shape_add(g_editor, &shape);
+	}
+	else
+	{
+		log_string(T_LED, S_WARNING, "Failed to allocate collision box: bad parameters");
+	}
+
+}
+
 void cmd_collision_sphere_add(void)
 {
 	struct collision_shape shape =
@@ -181,6 +207,7 @@ void cmd_collision_sphere_add(void)
 		.id = g_queue->cmd_exec->arg[0].utf8,
 		.type = COLLISION_SHAPE_SPHERE,
 		.sphere = { .radius = g_queue->cmd_exec->arg[1].f32 },
+		.center_of_mass_localized = 1,
 	};
 
 	if (shape.sphere.radius > 0.0f)
@@ -199,6 +226,7 @@ void cmd_collision_capsule_add(void)
 	{
 		.id = g_queue->cmd_exec->arg[0].utf8,
 		.type = COLLISION_SHAPE_CAPSULE,
+		.center_of_mass_localized = 1,
 		.capsule = 
 		{ 
 			.radius = g_queue->cmd_exec->arg[1].f32,
@@ -248,9 +276,20 @@ struct slot led_collision_shape_add(struct led *led, const struct collision_shap
 			new_shape->type = shape->type;
 			switch (shape->type)
 			{
-				case COLLISION_SHAPE_SPHERE: { new_shape->sphere = shape->sphere; } break;
-				case COLLISION_SHAPE_CAPSULE: { new_shape->capsule = shape->capsule; } break;
-				case COLLISION_SHAPE_CONVEX_HULL: { new_shape->hull = shape->hull; } break;
+				case COLLISION_SHAPE_SPHERE: 
+				{ 
+					new_shape->sphere = shape->sphere; 
+				} break;
+
+				case COLLISION_SHAPE_CAPSULE: 
+				{ 
+					new_shape->capsule = shape->capsule; 
+				} break;
+
+				case COLLISION_SHAPE_CONVEX_HULL: 
+				{ 
+					new_shape->hull = shape->hull; 
+				} break;
 			};
 		}
 	}
@@ -666,6 +705,7 @@ void led_wall_smash_simulation_setup(struct led *led)
 {
 	struct system_window *sys_win = system_window_address(g_editor->window);
 
+	const u32 dsphere_count = 60;
 	const u32 tower1_count = 2;
 	const u32 tower2_count = 4;
 	const u32 tower1_box_count = 40;
@@ -682,6 +722,7 @@ void led_wall_smash_simulation_setup(struct led *led)
 
 	const f32 alpha1 = 0.7f;
 	const f32 alpha2 = 0.5f;
+	const vec4 dsphere_color = { 244.0f/256.0f, 0.1f, 0.4f, alpha2 };
 	const vec4 tower1_color = { 154.0f/256.0f, 101.0f/256.0f, 182.0f/256.0f,alpha1 };
 	const vec4 tower2_color = { 54.0f/256.0f, 183.0f/256.0f, 122.0f/256.0f, alpha2 };
 	const vec4 pyramid_color = { 254.0f/256.0f, 181.0f/256.0f, 82.0f/256.0f,alpha2 };
@@ -706,6 +747,18 @@ void led_wall_smash_simulation_setup(struct led *led)
 		{ramp_width, 	0.0f, 		0.0f},
 	};
 
+#define SPHERE_V_COUNT 60	
+	vec3 dsphere_vertices[SPHERE_V_COUNT];
+	const f32 phi = MM_PI_F * (3.0f - f32_sqrt(5.0f));
+	for (u32 i = 0; i < SPHERE_V_COUNT; ++i)
+	{
+		const f32 y = 1.0 - i*2.0f/(SPHERE_V_COUNT-1);
+		vec3_set(dsphere_vertices[i]
+				, f32_cos(i*phi)*f32_sqrt(1 - y*y)
+				, y
+				, f32_sin(i*phi)*f32_sqrt(1 - y*y));
+	}
+
 	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_floor");
 	sys_win->cmd_queue->regs[1].f32 = 8.0f * ramp_width;
 	sys_win->cmd_queue->regs[2].f32 = 0.5f;
@@ -722,20 +775,28 @@ void led_wall_smash_simulation_setup(struct led *led)
 	sys_win->cmd_queue->regs[1].f32 = 2.0f;
 	cmd_queue_submit(sys_win->cmd_queue, cmd_collision_sphere_add_id);
 
-	struct dcel dcel = dcel_convex_hull(&sys_win->mem_persistent, ramp_vertices, 6, F32_EPSILON * 100.0f);
-	//TODO
-	//const u32 ramp_handle = physics_pipeline_cs_alloc(&game->physics);
-	//struct collision_shape *ramp = physics_pipeline_cs_lookup(&game->physics, ramp_handle);
-	//ramp->type = COLLISION_SHAPE_CONVEX_HULL;
-	//ramp->hull = collision_hull_construct(mem_persistent, 
-	//	&mem_tmp.arenas[0], 
-	//	&mem_tmp.arenas[1], 
-	//	&mem_tmp.arenas[2], 
-	//	&mem_tmp.arenas[3], 
-	//	&mem_tmp.arenas[4], 
-	//	ramp_vertices,
-	//       	v_count,
-	//       	0.001f);
+	//for (u32 i = 0; i < 100000; ++i)
+	//{
+	//	arena_push_record(&sys_win->mem_persistent);
+	//	fprintf(stderr, "%lu\n", sys_win->mem_persistent.mem_left);
+	//	struct dcel tmp = dcel_convex_hull(&sys_win->mem_persistent, ramp_vertices, 6, F32_EPSILON * 100.0f);
+	//	kas_assert(tmp.f_count == 5);
+	//	kas_assert(tmp.v_count == 6);
+	//	kas_assert(tmp.e_count == 4+4+4+3+3);
+	//	arena_pop_record(&sys_win->mem_persistent);
+	//}
+
+	struct dcel *c_ramp = arena_push(&sys_win->mem_persistent, sizeof(struct dcel));
+	*c_ramp = dcel_convex_hull(&sys_win->mem_persistent, ramp_vertices, 6, F32_EPSILON * 100.0f);
+	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_ramp");
+	sys_win->cmd_queue->regs[1].ptr = c_ramp;
+	cmd_queue_submit(sys_win->cmd_queue, cmd_collision_dcel_add_id);
+
+	struct dcel *c_dsphere = arena_push(&sys_win->mem_persistent, sizeof(struct dcel));
+	*c_dsphere = dcel_convex_hull(&sys_win->mem_persistent, dsphere_vertices, SPHERE_V_COUNT, F32_EPSILON * 100.0f);
+	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_dsphere");
+	sys_win->cmd_queue->regs[1].ptr = c_dsphere;
+	cmd_queue_submit(sys_win->cmd_queue, cmd_collision_dcel_add_id);
 
 	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rb_floor");
 	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_floor");
@@ -756,6 +817,14 @@ void led_wall_smash_simulation_setup(struct led *led)
 	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rb_sphere");
 	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_sphere");
 	sys_win->cmd_queue->regs[2].f32 = 100.0f;
+	sys_win->cmd_queue->regs[3].f32 = 0.0f;
+	sys_win->cmd_queue->regs[4].f32 = sphere_friction;
+	sys_win->cmd_queue->regs[5].u32 = 1;
+	cmd_queue_submit(sys_win->cmd_queue, cmd_rb_prefab_add_id);
+
+	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rb_dsphere");
+	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_dsphere");
+	sys_win->cmd_queue->regs[2].f32 = 1.0f;
 	sys_win->cmd_queue->regs[3].f32 = 0.0f;
 	sys_win->cmd_queue->regs[4].f32 = sphere_friction;
 	sys_win->cmd_queue->regs[5].u32 = 1;
@@ -793,11 +862,17 @@ void led_wall_smash_simulation_setup(struct led *led)
 	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_sphere");
 	cmd_queue_submit(sys_win->cmd_queue, cmd_render_mesh_add_id);
 
+	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rm_dsphere");
+	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_dsphere");
+	cmd_queue_submit(sys_win->cmd_queue, cmd_render_mesh_add_id);
+
+
 	vec3 sphere_translation = { -0.5, 0.5f + ramp_height, -ramp_length };
 	vec3 box_translation =  {-0.5f, 0.0f, -0.5f};
-	vec3 ramp_translation = {-ramp_width/2.0f, -ramp_width/2.0f, -ramp_width/2.0f};
+	vec3 ramp_translation = {0.0f , ramp_width, -ramp_length};
 	vec3 floor_translation = { 0.0f, -ramp_width/2.0f - 1.0f, ramp_length / 2.0f -ramp_width/2.0f};
 	vec3 box_base_translation = { 0.0f, floor_translation[1] + 1.0f, floor_translation[2] / 2.0f};
+	vec3 dsphere_base_translation = { 0.0f, floor_translation[1] + 1.0f, floor_translation[2] / 2.0f + 10.0f};
 
 	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "led_floor");
 	cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_add_id);
@@ -856,6 +931,36 @@ void led_wall_smash_simulation_setup(struct led *led)
 	sys_win->cmd_queue->regs[6].f32 = 1.0f;
 	cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_proxy3d_id);
 	
+	for (u32 i = 0; i < dsphere_count; ++i)
+	{	
+		vec3 translation;
+		vec3_copy(translation, dsphere_base_translation);
+		translation[0] += (10.0f - 8.0f * (f32) i / dsphere_count) * f32_cos(i * MM_PI_F*37.0f/197.0f);
+		translation[1] += 5.0f + (f32) i / 2.0f;
+		translation[2] += (10.0f - 8.0f * (f32) i / dsphere_count) * f32_sin(i * MM_PI_F*37.0f/197.0f);
+
+		utf8 id = utf8_format(sys_win->ui->mem_frame, "dsphere_%u", i);
+		sys_win->cmd_queue->regs[0].utf8 = id;
+		cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_add_id);
+		sys_win->cmd_queue->regs[0].utf8 = id;
+		sys_win->cmd_queue->regs[1].f32 = translation[0];
+		sys_win->cmd_queue->regs[2].f32 = translation[1];
+		sys_win->cmd_queue->regs[3].f32 = translation[2];
+		cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_position_id);
+		sys_win->cmd_queue->regs[0].utf8 = id;
+		sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rb_dsphere");
+		cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_rb_prefab_id);
+		sys_win->cmd_queue->regs[0].utf8 = id;
+		sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rm_dsphere");
+		sys_win->cmd_queue->regs[2].f32 = dsphere_color[0];
+		sys_win->cmd_queue->regs[3].f32 = dsphere_color[1];
+		sys_win->cmd_queue->regs[4].f32 = dsphere_color[2];
+		sys_win->cmd_queue->regs[5].f32 = dsphere_color[3];
+		sys_win->cmd_queue->regs[6].f32 = 1.0f;
+		cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_proxy3d_id);
+
+	}
+
 	for (u32 k = 0; k < pyramid_count; ++k)
 	{
 		for (u32 i = 0; i < pyramid_layers; ++i)

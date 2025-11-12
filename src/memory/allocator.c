@@ -686,7 +686,9 @@ struct slot pool_add(struct pool *pool)
 	{
 		if (pool->next_free != POOL_NULL)
 		{
-			UNPOISON_ADDRESS(pool->buf + pool->next_free*pool->slot_size, pool->slot_size);
+			UNPOISON_ADDRESS(pool->buf + pool->next_free*pool->slot_size, pool->slot_allocation_offset);
+			UNPOISON_ADDRESS(pool->buf + pool->next_free*pool->slot_size + pool->slot_allocation_offset + sizeof(u32), pool->slot_size - pool->slot_allocation_offset - sizeof(u32));
+
 			allocation.address = pool->buf + pool->next_free*pool->slot_size;
 			allocation.index = pool->next_free;
 
@@ -782,7 +784,9 @@ void pool_remove(struct pool *pool, const u32 index)
 	*slot_state = pool->next_free;
 	pool->next_free = index;
 	pool->count -= 1;
-	POISON_ADDRESS(pool->buf + index*pool->slot_size, pool->slot_size);
+
+	POISON_ADDRESS(pool->buf + index*pool->slot_size, pool->slot_allocation_offset);
+	POISON_ADDRESS(pool->buf + index*pool->slot_size + pool->slot_allocation_offset + sizeof(u32), pool->slot_size - pool->slot_allocation_offset - sizeof(u32));
 }
 
 void pool_remove_address(struct pool *pool, void *slot)

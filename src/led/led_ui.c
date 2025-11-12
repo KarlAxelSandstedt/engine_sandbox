@@ -493,6 +493,8 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 					struct ui_node *node = slot.address;
 					if (node->inter & UI_INTER_FOCUS)
 					{	
+
+
 						//printf("focused\n");
 					//	ui_external_text(external_text)
 					//	ui_background_color(vec4_inline(0.8f, 0.8f, 0.8f, 1.0f))
@@ -688,7 +690,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 						ui_pad();
 
 						struct rigid_body_prefab *prefab = string_database_address(&led->rb_prefab_db, prefab_selected);
-						const struct collision_shape *shape = string_database_address(&led->cs_db, prefab->shape);
+						struct collision_shape *shape = NULL;
 						ui_height(ui_size_pixel(24.0f, 1.0f))
 						ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW | UI_DRAW_BORDER, "%k##prefab_selected", &prefab->id);
 
@@ -763,7 +765,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 				
 								ui_pad_fill();
 
-								struct collision_shape *shape = string_database_address(&led->cs_db, prefab->shape);
+								shape = string_database_address(&led->cs_db, prefab->shape);
 								ui_width(ui_size_pixel(110.0f, 1.0f))
 								if (ui_dropdown_menu_f(&led->rb_prefab_mesh_menu, "%k###%p_sel", &shape->id, &led->rb_prefab_mesh_menu))
 								{
@@ -787,7 +789,6 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 								}
 							}
 						}
-
 
 						if (prefab->density != density_prev || prefab->shape != shape_prev)
 						{
@@ -882,9 +883,24 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 						{
 							ui_pad_pixel(6.0f);
 							
-							node->position[0] = ui_field_f32_f(node->position[0], intv_inline(-10.0f, 10.0f), "%f###field_x_%u", node->position[0], i);
-							node->position[1] = ui_field_f32_f(node->position[1], intv_inline(-10.0f, 10.0f), "%f###field_y_%u", node->position[1], i);
-							node->position[2] = ui_field_f32_f(node->position[2], intv_inline(-10.0f, 10.0f), "%f###field_z_%u", node->position[2], i);
+							vec3 p;
+							vec3_copy(p, node->position);
+							node->position[0] = ui_field_f32_f(node->position[0], intv_inline(-1000000.0f, 1000000.0f), "%f###field_x_%u", node->position[0], i);
+							node->position[1] = ui_field_f32_f(node->position[1], intv_inline(-1000000.0f, 1000000.0f), "%f###field_y_%u", node->position[1], i);
+							node->position[2] = ui_field_f32_f(node->position[2], intv_inline(-1000000.0f, 1000000.0f), "%f###field_z_%u", node->position[2], i);
+
+							if (p[0] != node->position[0] || p[1] != node->position[1] || p[2] != node->position[2])
+							{
+								vec3 zero = { 0 };
+								r_proxy3d_set_linear_speculation(node->position
+										, node->rotation
+										, zero 
+										, zero 
+										, led->ns
+										, node->proxy);
+				
+							}
+
 
 							ui_pad_pixel(6.0f);
 						}

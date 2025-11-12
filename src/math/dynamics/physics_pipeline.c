@@ -846,7 +846,7 @@ struct physics_event *physics_pipeline_event_push(struct physics_pipeline *pipel
 //TODO: REPLACE using table
 static u32 comb(const u32 o, const u32 u)
 {
-	assert(u <= o);
+	kas_assert(u <= o);
 
 	u32 v1 = 1;
 	u32 v2 = 1;
@@ -858,14 +858,14 @@ static u32 comb(const u32 o, const u32 u)
 		v2 *= (i+1);
 	}
 
-	assert(v1 % v2 == 0);
+	kas_assert(v1 % v2 == 0);
 
 	return v1 / v2;
 }
 
 static f32 statics_internal_line_integrals(const vec2 v0, const vec2 v1, const vec2 v2, const u32 p, const u32 q, const vec3 int_scalars)
 {
-       assert(p <= 4 && q <= 4);
+       kas_assert(p <= 4 && q <= 4);
        
        f32 sum = 0.0f;
        for (u32 i = 0; i <= p; ++i)
@@ -1025,7 +1025,7 @@ static void statics_internal_calculate_face_integrals(f32 integrals[10], const s
 	integrals[T_XY + y_i] += S_yya * n[y_i] / 2.0f;
 }
 
-void prefab_statics_setup(struct rigid_body_prefab *prefab, const struct collision_shape *shape, const f32 density)
+void prefab_statics_setup(struct rigid_body_prefab *prefab, struct collision_shape *shape, const f32 density)
 {
 	f32 I_xx = 0.0f;
 	f32 I_yy = 0.0f;
@@ -1037,8 +1037,31 @@ void prefab_statics_setup(struct rigid_body_prefab *prefab, const struct collisi
 
 	if (shape->type == COLLISION_SHAPE_CONVEX_HULL)
 	{
-		f32 integrals[10] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f }; 
+		//breakpoint(1);
+		if (!shape->center_of_mass_localized)
+		{
+			f32 integrals[10] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f }; 
+			for (u32 fi = 0; fi < shape->hull.f_count; ++fi)
+			{
+				statics_internal_calculate_face_integrals(integrals, shape, fi);
+			}
 
+			const f32 mass = integrals[VOL] * density;
+			/* center of mass */
+			vec3_set(com,
+				integrals[T_X] * density / mass,
+			       	integrals[T_Y] * density / mass,
+			       	integrals[T_Z] * density / mass
+			);
+
+			vec3_negative(com);
+			for (u32 i = 0; i < shape->hull.v_count; ++i)
+			{
+				vec3_translate(shape->hull.v[i], com);
+			}
+		}
+
+		f32 integrals[10] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f }; 
 		for (u32 fi = 0; fi < shape->hull.f_count; ++fi)
 		{
 			statics_internal_calculate_face_integrals(integrals, shape, fi);
@@ -1057,34 +1080,38 @@ void prefab_statics_setup(struct rigid_body_prefab *prefab, const struct collisi
 //      	                   integrals[T_ZX]);
 
 		prefab->mass = integrals[VOL] * density;
-		assert(prefab->mass >= 0.0f);
+		kas_assert(prefab->mass >= 0.0f);
 
-		/* center of mass */
-		vec3_set(com,
-			integrals[T_X] * density / prefab->mass,
-		       	integrals[T_Y] * density / prefab->mass,
-		       	integrals[T_Z] * density / prefab->mass
-		);
-
-		I_xx = density * (integrals[T_YY] + integrals[T_ZZ]) - prefab->mass * (com[1]*com[1] + com[2]*com[2]);
-		I_yy = density * (integrals[T_XX] + integrals[T_ZZ]) - prefab->mass * (com[0]*com[0] + com[2]*com[2]);
-		I_zz = density * (integrals[T_XX] + integrals[T_YY]) - prefab->mass * (com[0]*com[0] + com[1]*com[1]);
-		I_xy = density * integrals[T_XY] - prefab->mass * com[0] * com[1];
-		I_xz = density * integrals[T_ZX] - prefab->mass * com[0] * com[2];
-		I_yz = density * integrals[T_YZ] - prefab->mass * com[1] * com[2];
-	
-		/* set local frame coordinates */
-		vec3_copy(prefab->center_of_mass, com);
-		vec3_negative(com);
-
-		for (u32 i = 0; i < shape->hull.v_count; ++i)
-		{
-			vec3_translate(shape->hull.v[i], com);
-		}
-
+		I_xx = density * (integrals[T_YY] + integrals[T_ZZ]);
+		I_yy = density * (integrals[T_XX] + integrals[T_ZZ]);
+		I_zz = density * (integrals[T_XX] + integrals[T_YY]);
+		I_xy = density * integrals[T_XY];
+		I_xz = density * integrals[T_ZX];
+		I_yz = density * integrals[T_YZ];
 		mat3_set(prefab->inertia_tensor, I_xx, -I_xy, -I_xz,
 			       		 	 -I_xy,  I_yy, -I_yz,
 						 -I_xz, -I_yz, I_zz);
+
+
+
+		///* center of mass *//
+		//vec3_set(com,
+		//	integrals[T_X] * density / prefab->mass,
+		//       	integrals[T_Y] * density / prefab->mass,
+		//       	integrals[T_Z] * density / prefab->mass
+		//);
+
+		//I_xx = density * (integrals[T_YY] + integrals[T_ZZ]) - prefab->mass * (com[1]*com[1] + com[2]*com[2]);
+		//I_yy = density * (integrals[T_XX] + integrals[T_ZZ]) - prefab->mass * (com[0]*com[0] + com[2]*com[2]);
+		//I_zz = density * (integrals[T_XX] + integrals[T_YY]) - prefab->mass * (com[0]*com[0] + com[1]*com[1]);
+		//I_xy = density * integrals[T_XY] - prefab->mass * com[0] * com[1];
+		//I_xz = density * integrals[T_ZX] - prefab->mass * com[0] * com[2];
+		//I_yz = density * integrals[T_YZ] - prefab->mass * com[1] * com[2];
+	
+		/* set local frame coordinates */
+		//mat3_set(prefab->inertia_tensor, I_xx, -I_xy, -I_xz,
+		//	       		 	 -I_xy,  I_yy, -I_yz,
+		//				 -I_xz, -I_yz, I_zz);
 	}
 	else if (shape->type == COLLISION_SHAPE_SPHERE)
 	{
@@ -1131,5 +1158,6 @@ void prefab_statics_setup(struct rigid_body_prefab *prefab, const struct collisi
 						 -I_xz_up, -I_yz_up,  I_zz_up);
 	}
 
+	shape->center_of_mass_localized = 1;
 	mat3_inverse(prefab->inv_inertia_tensor, prefab->inertia_tensor);
 }
