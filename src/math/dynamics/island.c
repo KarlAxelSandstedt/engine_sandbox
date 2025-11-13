@@ -382,7 +382,7 @@ void is_db_merge_islands(struct physics_pipeline *pipeline, const u32 ci, const 
 		is_merge->body_count = 0;
 		array_list_remove_index(pipeline->is_db.islands, merge);
 		bit_vec_set_bit(&pipeline->is_db.island_usage, merge, 0);
-		PHYSICS_EVENT_ISLAND_MERGED_INTO(pipeline, expand);
+		PHYSICS_EVENT_ISLAND_EXPANDED(pipeline, expand);
 		PHYSICS_EVENT_ISLAND_REMOVED(pipeline, merge);
 	}
 }

@@ -86,13 +86,11 @@ u64 rng_u64_range(const u64 min, const u64 max)
 
 f32 rng_f32_normalized(void)
 {
-	kas_assert_string(0, "Read https://prng.di.unimi.it/ (A PRNG Shootout) for what they have to say about generating f32/f64\n");
 	return (f32) rng_u64() / U64_MAX;
 }
 
 f32 rng_f32_range(const f32 min, const f32 max)
 {
-	kas_assert_string(0, "Read https://prng.di.unimi.it/ (A PRNG Shootout) for what they have to say about generating f32/f64\n");
 	kas_assert(min <= max);
 	return rng_f32_normalized() * (max-min) + min;
 }

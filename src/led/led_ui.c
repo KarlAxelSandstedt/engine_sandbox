@@ -481,6 +481,8 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 
 		led->rb_prefab_list = ui_list_init(AXIS_2_Y, 200.0f, 24.0f, UI_SELECTION_UNIQUE);
 		led->rb_prefab_mesh_menu = ui_dropdown_menu_init(150.0f, vec2_inline(110.0f, 24.0f), UI_DROPDOWN_ABOVE);
+		
+		led->rb_color_mode_menu = ui_dropdown_menu_init(120.0f, vec2_inline(196.0f, 24.0f), UI_DROPDOWN_BELOW);
 	}
 
 	ui_text_align_x(ALIGN_LEFT)
@@ -576,7 +578,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 			}
 
 			u32 shape_selected = U32_MAX;
-			ui_height(ui_size_pixel(256.0f, 1.0f))
+			ui_height(ui_size_pixel(192.0f, 1.0f))
 			ui_child_layout_axis(AXIS_2_X)
 			ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BACKGROUND | UI_DRAW_BORDER).index)
 			ui_height(ui_size_perc(1.0f))
@@ -879,99 +881,120 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 		ui_flags(UI_DRAW_ROUNDED_CORNERS | UI_TEXT_ALLOW_OVERFLOW)
 		ui_width(ui_size_perc(1.0f))
 		{
-			struct led_node *node = NULL;
-			ui_height(ui_size_pixel(256.0f, 1.0f))
-			ui_list(&led->node_ui_list, "###%p", &led->node_ui_list)
-			for (u32 i = led->node_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(node))
+			if (ui_dropdown_menu_f(&led->rb_color_mode_menu, "%s###%p_color_mode", body_color_mode_str[led->physics.body_color_mode], &led->rb_color_mode_menu))
 			{
-				node = gpool_address(&led->node_pool, i);
-				ui_child_layout_axis(AXIS_2_X)
-				node->cache = ui_list_entry_alloc_cached(&led->node_ui_list, 
-						       	node->id,
-							node->cache);
+				ui_dropdown_menu_push(&led->rb_color_mode_menu);
 
-				if (node->cache.frame_node)
-				ui_parent(node->cache.index)
+				for (u32 i = 0; i < RB_COLOR_MODE_COUNT; ++i)
 				{
-					ui_pad(); 
-
-					ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, "%k##%u", &node->id, i);
-				}
-
-				struct ui_node *ui_node = node->cache.frame_node;
-				if (ui_node->inter & UI_INTER_SELECT)
-				{
-					if (!DLL2_IN_LIST(node))
+					struct ui_node *drop;
+					ui_flags(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW)
+					drop = ui_dropdown_menu_entry_f(&led->rb_color_mode_menu, "%s###%p_%u", 
+							body_color_mode_str[i], 
+							&led->rb_color_mode_menu, 
+							i).address;
+					if (drop->inter & UI_INTER_SELECT)
 					{
-						dll_append(&led->node_selected_list, led->node_pool.buf, i);
+						led->physics.pending_body_color_mode = i;
 					}
 				}
-				else
-				{
-					if (DLL2_IN_LIST(node))
-					{
-						dll_remove(&led->node_selected_list, led->node_pool.buf, i);
-					}
-				}
+
+				ui_dropdown_menu_pop(&led->rb_color_mode_menu);
 			}
+		
+			//struct led_node *node = NULL;
+			//ui_height(ui_size_pixel(256.0f, 1.0f))
+			//ui_list(&led->node_ui_list, "###%p", &led->node_ui_list)
+			//for (u32 i = led->node_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(node))
+			//{
+			//	node = gpool_address(&led->node_pool, i);
+			//	ui_child_layout_axis(AXIS_2_X)
+			//	node->cache = ui_list_entry_alloc_cached(&led->node_ui_list, 
+			//			       	node->id,
+			//				node->cache);
 
-			ui_list(&led->node_selected_ui_list, "###%p", &led->node_selected_ui_list)
-			for (u32 i = led->node_selected_list.first; i != DLL_NULL; i = DLL2_NEXT(node))
-			{
-				node = gpool_address(&led->node_pool, i);
-				ui_child_layout_axis(AXIS_2_Y)
-				ui_parent(ui_list_entry_alloc_f(&led->node_selected_ui_list, "###%p_%u", &led->node_selected_ui_list, i).index)
-				{
-					ui_height(ui_size_pixel(24.0f, 1.0f))
-					ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, "%k##sel_%u", &node->id, i);
-					ui_height(ui_size_pixel(3*24.0f + 12.0f, 1.0f))
-					ui_child_layout_axis(AXIS_2_X)
-					ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BORDER).index)
-					ui_child_layout_axis(AXIS_2_Y)
-					{
-						ui_text_align_y(ALIGN_TOP)	
-						ui_width(ui_size_pixel(128.0f, 0.0f))
-						ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
-						ui_height(ui_size_pixel(24.0f, 1.0f))
-						{
-							ui_pad_pixel(6.0f);
+			//	if (node->cache.frame_node)
+			//	ui_parent(node->cache.index)
+			//	{
+			//		ui_pad(); 
 
-							ui_height(ui_size_pixel(3*24.0f, 1.0f))
-							ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, "position##%u", i);
-							ui_pad_pixel(6.0f);
-						}
+			//		ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, "%k##%u", &node->id, i);
+			//	}
 
-						ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
-						ui_height(ui_size_pixel(24.0f, 1.0f))
-						{
-							ui_pad_pixel(6.0f);
-							
-							vec3 p;
-							vec3_copy(p, node->position);
-							node->position[0] = ui_field_f32_f(node->position[0], intv_inline(-1000000.0f, 1000000.0f), "%f###field_x_%u", node->position[0], i);
-							node->position[1] = ui_field_f32_f(node->position[1], intv_inline(-1000000.0f, 1000000.0f), "%f###field_y_%u", node->position[1], i);
-							node->position[2] = ui_field_f32_f(node->position[2], intv_inline(-1000000.0f, 1000000.0f), "%f###field_z_%u", node->position[2], i);
+			//	struct ui_node *ui_node = node->cache.frame_node;
+			//	if (ui_node->inter & UI_INTER_SELECT)
+			//	{
+			//		if (!DLL2_IN_LIST(node))
+			//		{
+			//			dll_append(&led->node_selected_list, led->node_pool.buf, i);
+			//		}
+			//	}
+			//	else
+			//	{
+			//		if (DLL2_IN_LIST(node))
+			//		{
+			//			dll_remove(&led->node_selected_list, led->node_pool.buf, i);
+			//		}
+			//	}
+			//}
 
-							if (p[0] != node->position[0] || p[1] != node->position[1] || p[2] != node->position[2])
-							{
-								vec3 zero = { 0 };
-								r_proxy3d_set_linear_speculation(node->position
-										, node->rotation
-										, zero 
-										, zero 
-										, led->ns
-										, node->proxy);
-				
-							}
+			//ui_list(&led->node_selected_ui_list, "###%p", &led->node_selected_ui_list)
+			//for (u32 i = led->node_selected_list.first; i != DLL_NULL; i = DLL2_NEXT(node))
+			//{
+			//	node = gpool_address(&led->node_pool, i);
+			//	ui_child_layout_axis(AXIS_2_Y)
+			//	ui_parent(ui_list_entry_alloc_f(&led->node_selected_ui_list, "###%p_%u", &led->node_selected_ui_list, i).index)
+			//	{
+			//		ui_height(ui_size_pixel(24.0f, 1.0f))
+			//		ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, "%k##sel_%u", &node->id, i);
+			//		ui_height(ui_size_pixel(3*24.0f + 12.0f, 1.0f))
+			//		ui_child_layout_axis(AXIS_2_X)
+			//		ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BORDER).index)
+			//		ui_child_layout_axis(AXIS_2_Y)
+			//		{
+			//			ui_text_align_y(ALIGN_TOP)	
+			//			ui_width(ui_size_pixel(128.0f, 0.0f))
+			//			ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
+			//			ui_height(ui_size_pixel(24.0f, 1.0f))
+			//			{
+			//				ui_pad_pixel(6.0f);
+
+			//				ui_height(ui_size_pixel(3*24.0f, 1.0f))
+			//				ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, "position##%u", i);
+			//				ui_pad_pixel(6.0f);
+			//			}
+
+			//			ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
+			//			ui_height(ui_size_pixel(24.0f, 1.0f))
+			//			{
+			//				ui_pad_pixel(6.0f);
+			//				
+			//				vec3 p;
+			//				vec3_copy(p, node->position);
+			//				node->position[0] = ui_field_f32_f(node->position[0], intv_inline(-1000000.0f, 1000000.0f), "%f###field_x_%u", node->position[0], i);
+			//				node->position[1] = ui_field_f32_f(node->position[1], intv_inline(-1000000.0f, 1000000.0f), "%f###field_y_%u", node->position[1], i);
+			//				node->position[2] = ui_field_f32_f(node->position[2], intv_inline(-1000000.0f, 1000000.0f), "%f###field_z_%u", node->position[2], i);
+
+			//				if (p[0] != node->position[0] || p[1] != node->position[1] || p[2] != node->position[2])
+			//				{
+			//					vec3 zero = { 0 };
+			//					r_proxy3d_set_linear_speculation(node->position
+			//							, node->rotation
+			//							, zero 
+			//							, zero 
+			//							, led->ns
+			//							, node->proxy);
+			//	
+			//				}
 
 
-							ui_pad_pixel(6.0f);
-						}
+			//				ui_pad_pixel(6.0f);
+			//			}
 
-						ui_pad_fill();
-					}
-				}
-			}
+			//			ui_pad_fill();
+			//		}
+			//	}
+			//}
 
 			ui_pad_fill();
 		}

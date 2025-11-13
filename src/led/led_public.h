@@ -100,6 +100,7 @@ struct led_node
 
 	vec3			position;
 	quat			rotation;
+	vec4			color;
 
 	u32			rb_prefab; 
 	u32 			proxy;	
@@ -150,6 +151,7 @@ struct led
 	struct string_database 	cs_db;	
 	struct ui_list 		cs_list;
 	struct ui_dropdown_menu cs_mesh_menu;
+	struct ui_dropdown_menu rb_color_mode_menu;
 
 	struct string_database	rb_prefab_db;
 	struct ui_list 		rb_prefab_list;

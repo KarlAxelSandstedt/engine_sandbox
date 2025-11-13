@@ -18,6 +18,7 @@
 */
 
 #include "led_local.h"
+#include "kas_random.h"
 
 void cmd_led_compile(void);
 void cmd_led_run(void);
@@ -698,6 +699,7 @@ void led_node_set_proxy3d(struct led *led, const utf8 id, const utf8 mesh, const
 		vec3_copy(config.position, node->position);
 		quat_copy(config.rotation, node->rotation);
 		node->proxy = r_proxy3d_alloc(&config);
+		vec4_copy(node->color, color);
 	}
 }
 
@@ -705,8 +707,9 @@ void led_wall_smash_simulation_setup(struct led *led)
 {
 	struct system_window *sys_win = system_window_address(g_editor->window);
 
-	const u32 dsphere_count = 60;
-	const u32 tower1_count = 2;
+	const u32 dsphere_v_count = 30;
+	const u32 dsphere_count = 10;
+	const u32 tower1_count = 1;
 	const u32 tower2_count = 4;
 	const u32 tower1_box_count = 40;
 	const u32 tower2_box_count = 10;
@@ -747,12 +750,11 @@ void led_wall_smash_simulation_setup(struct led *led)
 		{ramp_width, 	0.0f, 		0.0f},
 	};
 
-#define SPHERE_V_COUNT 60	
-	vec3 dsphere_vertices[SPHERE_V_COUNT];
+	vec3 dsphere_vertices[dsphere_v_count];
 	const f32 phi = MM_PI_F * (3.0f - f32_sqrt(5.0f));
-	for (u32 i = 0; i < SPHERE_V_COUNT; ++i)
+	for (u32 i = 0; i < dsphere_v_count; ++i)
 	{
-		const f32 y = 1.0 - i*2.0f/(SPHERE_V_COUNT-1);
+		const f32 y = 1.0 - i*2.0f/(dsphere_v_count-1);
 		vec3_set(dsphere_vertices[i]
 				, f32_cos(i*phi)*f32_sqrt(1 - y*y)
 				, y
@@ -793,7 +795,7 @@ void led_wall_smash_simulation_setup(struct led *led)
 	cmd_queue_submit(sys_win->cmd_queue, cmd_collision_dcel_add_id);
 
 	struct dcel *c_dsphere = arena_push(&sys_win->mem_persistent, sizeof(struct dcel));
-	*c_dsphere = dcel_convex_hull(&sys_win->mem_persistent, dsphere_vertices, SPHERE_V_COUNT, F32_EPSILON * 100.0f);
+	*c_dsphere = dcel_convex_hull(&sys_win->mem_persistent, dsphere_vertices, dsphere_v_count, F32_EPSILON * 100.0f);
 	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_dsphere");
 	sys_win->cmd_queue->regs[1].ptr = c_dsphere;
 	cmd_queue_submit(sys_win->cmd_queue, cmd_collision_dcel_add_id);
@@ -1148,6 +1150,23 @@ static void led_engine_init(struct led *led)
 	}
 }
 
+static void led_engine_color_bodies(struct led *led, const u32 island, const vec4 color)
+{
+	struct island *is = array_list_address(led->physics.is_db.islands, island);
+	struct is_index_entry *entry = NULL;
+	u32 k = is->body_first;
+	for (u32 i = 0; i < is->body_count; ++i)
+	{
+		entry = array_list_address(led->physics.is_db.island_body_lists, k);
+		k = entry->next;
+
+		const struct rigid_body *body = pool_address(&led->physics.body_pool, entry->index);
+		const struct led_node *node = pool_address(&led->node_pool, body->entity);
+		struct r_proxy3d *proxy = r_proxy3d_address(node->proxy);
+		vec4_copy(proxy->color, color);
+	}
+}
+
 static void led_engine_run(struct led *led, const u64 ns_tick)
 {
 	led->ns_engine_running += ns_tick;
@@ -1176,11 +1195,74 @@ static void led_engine_run(struct led *led, const u64 ns_tick)
 		//}
 	}
 
-	//if (physics_frames_to_run)
-	//{
-	//	R_PHYSICS_DEBUG_FRAME_CLEAR;
-	//	R_PHYSICS_DEBUG_FRAME_INIT(&game->physics);
-	//}
+	if (led->physics.pending_body_color_mode != led->physics.body_color_mode)
+	{
+		switch (led->physics.pending_body_color_mode)
+		{
+			case RB_COLOR_MODE_BODY: 
+			{ 
+				const struct rigid_body *body = NULL;
+				for (u32 i = led->physics.body_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(body))
+				{
+					body = pool_address(&led->physics.body_pool, i);
+					const struct led_node *node = pool_address(&led->node_pool, body->entity);
+					struct r_proxy3d *proxy = r_proxy3d_address(node->proxy);
+					vec4_copy(proxy->color, node->color);
+				}
+			} break;
+
+			case RB_COLOR_MODE_COLLISION: 
+			{ 
+				const struct rigid_body *body = NULL;
+				for (u32 i = led->physics.body_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(body))
+				{
+					body = pool_address(&led->physics.body_pool, i);
+					const struct led_node *node = pool_address(&led->node_pool, body->entity);
+					struct r_proxy3d *proxy = r_proxy3d_address(node->proxy);
+					if (RB_IS_DYNAMIC(body))
+					{
+						(body->first_contact_index == NLL_NULL)
+							? vec4_copy(proxy->color, node->color)
+							: vec4_copy(proxy->color, led->physics.collision_color);
+					}
+					else
+					{
+						vec4_copy(proxy->color, led->physics.static_color);
+					}
+				}
+			} break;
+
+			case RB_COLOR_MODE_SLEEP: 
+			{ 
+				const struct rigid_body *body = NULL;
+				for (u32 i = led->physics.body_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(body))
+				{
+					body = pool_address(&led->physics.body_pool, i);
+					const struct led_node *node = pool_address(&led->node_pool, body->entity);
+					struct r_proxy3d *proxy = r_proxy3d_address(node->proxy);
+					(RB_IS_AWAKE(body))
+						? vec4_copy(proxy->color, led->physics.awake_color)
+						: vec4_copy(proxy->color, led->physics.sleep_color);
+				}
+			} break;
+
+			case RB_COLOR_MODE_ISLAND: 
+			{ 
+				const struct rigid_body *body = NULL;
+				for (u32 i = led->physics.body_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(body))
+				{
+					body = pool_address(&led->physics.body_pool, i);
+					const struct led_node *node = pool_address(&led->node_pool, body->entity);
+					const struct island *is = array_list_address(led->physics.is_db.islands, body->island_index);
+					struct r_proxy3d *proxy = r_proxy3d_address(node->proxy);
+					(RB_IS_DYNAMIC(body))
+						? vec4_copy(proxy->color, is->color)
+						: vec4_copy(proxy->color, led->physics.static_color);
+				}
+			} break;
+		}
+	}
+	led->physics.body_color_mode = led->physics.pending_body_color_mode;
 
 	struct physics_event *event = NULL;
 	for (u32 i = led->physics.event_list.first; i != DLL_NULL; i = DLL_NEXT(event))
@@ -1188,150 +1270,125 @@ static void led_engine_run(struct led *led, const u64 ns_tick)
 		event = pool_address(&led->physics.event_pool, i);
 		switch (event->type)
 		{
-			//case PHYSICS_EVENT_CONTACT_NEW:
-			//{
-#ifdef KCS_DEBUG
-			//	if (g_collision_debug->draw_collision)
-			//	{
-			//		const struct contact *c = net_list_address(led->physics.c_db.contacts, led->physics.event[i].contact);
+			case PHYSICS_EVENT_CONTACT_NEW:
+			{
+				if (led->physics.body_color_mode == RB_COLOR_MODE_COLLISION)
+				{
+					const struct contact *c = nll_address(&led->physics.c_db.contact_net, event->contact);
+					const struct rigid_body *body1 = pool_address(&led->physics.body_pool, c->cm.i1);
+					const struct rigid_body *body2 = pool_address(&led->physics.body_pool, c->cm.i2);
+					const struct led_node *node1 = pool_address(&led->node_pool, body1->entity);
+					const struct led_node *node2 = pool_address(&led->node_pool, body2->entity);
+					if (RB_IS_DYNAMIC(body1))
+					{
+						struct r_proxy3d *proxy = r_proxy3d_address(node1->proxy);
+						vec4_copy(proxy->color, led->physics.collision_color);
+					}
+					if (RB_IS_DYNAMIC(body2))
+					{
+						struct r_proxy3d *proxy = r_proxy3d_address(node2->proxy);
+						vec4_copy(proxy->color, led->physics.collision_color);
+					}
+				}
+			} break;
 
-			//		const struct rigid_body *body1 = array_list_intrusive_address(led->physics.body_list, c->cm.i1);
-			//		const struct rigid_body *body2 = array_list_intrusive_address(led->physics.body_list, c->cm.i2);
-			//		const u32 unit1_index = game_rigid_body_r_unit_index(game, c->cm.i1);
-			//		const u32 unit2_index = game_rigid_body_r_unit_index(game, c->cm.i2);
-			//		struct r_unit *unit1 = r_unit_lookup(unit1_index);
-			//		struct r_unit *unit2 = r_unit_lookup(unit2_index);
-			//		kas_assert(unit1 && unit2 && body1->header.allocated && body2->header.allocated);
-			//		if (RB_IS_DYNAMIC(body1))
-			//		{
-			//			vec4_copy(unit1->color, g_collision_debug->collision_color);
-			//			//r_command_update_transparency(unit1_index, R_CMD_TRANSPARENCY_ADDITIVE);
-			//		}
-			//		if (RB_IS_DYNAMIC(body2))
-			//		{
-			//			vec4_copy(unit2->color, g_collision_debug->collision_color);
-			//			//r_command_update_transparency(unit2_index, R_CMD_TRANSPARENCY_ADDITIVE);
-			//		}
-			//	}
+			case PHYSICS_EVENT_CONTACT_REMOVED:
+			{
+				if (led->physics.body_color_mode == RB_COLOR_MODE_COLLISION)
+				{
+					const struct contact *c = nll_address(&led->physics.c_db.contact_net, event->contact);
+					const struct rigid_body *body1 = pool_address(&led->physics.body_pool, c->cm.i1);
+					const struct rigid_body *body2 = pool_address(&led->physics.body_pool, c->cm.i2);
+					const struct led_node *node1 = pool_address(&led->node_pool, body1->entity);
+					const struct led_node *node2 = pool_address(&led->node_pool, body2->entity);
+
+					struct r_proxy3d *proxy1 = r_proxy3d_address(node1->proxy);
+					struct r_proxy3d *proxy2 = r_proxy3d_address(node2->proxy);
+					if (RB_IS_DYNAMIC(body1))
+					{
+						if (body1->first_contact_index == NLL_NULL)
+						{
+							vec4_copy(proxy1->color, node1->color);
+						}
+					}
+					else
+					{
+						vec4_copy(proxy1->color, led->physics.static_color);
+					}
+		
+					if (RB_IS_DYNAMIC(body2))
+					{
+						if (body2->first_contact_index == NLL_NULL)
+						{
+							vec4_copy(proxy2->color, node2->color);
+						}
+					}
+					else
+					{
+						vec4_copy(proxy2->color, led->physics.static_color);
+					}
+				}
+			} break;
+
+#ifdef KAS_PHYSICS_DEBUG
+			case PHYSICS_EVENT_ISLAND_NEW:
+			{
+				struct island *is = array_list_address(led->physics.is_db.islands, event->island);
+				vec4_set(is->color, 
+						rng_f32_normalized(), 
+						rng_f32_normalized(), 
+						rng_f32_normalized(), 
+						0.7f);
+				if (led->physics.body_color_mode == RB_COLOR_MODE_ISLAND)
+				{
+					led_engine_color_bodies(led, event->island, is->color);
+				}
+				else if (led->physics.body_color_mode == RB_COLOR_MODE_SLEEP)
+				{
+					led_engine_color_bodies(led, event->island, led->physics.awake_color);
+				}
+			} break;
+
+			case PHYSICS_EVENT_ISLAND_EXPANDED:
+			{
+				if (led->physics.body_color_mode == RB_COLOR_MODE_ISLAND)
+				{
+					if (bit_vec_get_bit(&led->physics.is_db.island_usage, event->island))
+					{
+						const struct island *is = array_list_address(led->physics.is_db.islands, event->island);
+						led_engine_color_bodies(led, event->island, is->color);
+					}
+				}
+			} break;
 #endif
-			//} break;
 
-			//case PHYSICS_EVENT_CONTACT_REMOVED:
-			//{
-#ifdef KCS_DEBUG
-			//	if (g_collision_debug->draw_collision)
-			//	{
-			//		const struct rigid_body *body1 = array_list_intrusive_address(led->physics.body_list, led->physics.event[i].contact_bodies.body1);
-			//		const struct rigid_body *body2 = array_list_intrusive_address(led->physics.body_list, led->physics.event[i].contact_bodies.body2);
-			//		const u32 unit1_index = game_rigid_body_r_unit_index(game, led->physics.event[i].contact_bodies.body1);
-			//		const u32 unit2_index = game_rigid_body_r_unit_index(game, led->physics.event[i].contact_bodies.body2);
-			//		struct r_unit *unit1 = r_unit_lookup(unit1_index);
-			//		struct r_unit *unit2 = r_unit_lookup(unit2_index);
+			case PHYSICS_EVENT_ISLAND_REMOVED:
+			{
+			} break;
 
-			//		kas_assert(unit1 && unit2 && body1->header.allocated && body2->header.allocated);
-			//		if (RB_IS_DYNAMIC(body1))
-			//		{
-			//			if (body1->first_contact_index == NET_LIST_NODE_NULL_INDEX)
-			//			{
-			//				vec4_copy(unit1->color, body1->color);
-			//				//r_command_update_transparency(unit1_index, R_CMD_TRANSPARENCY_OPAQUE);
-			//			}
-			//		}
-			//		else
-			//		{
-			//			vec4_copy(unit1->color, g_collision_debug->island_static_color);
-			//		}
-			//		
-			//		if (RB_IS_DYNAMIC(body2))
-			//		{
-			//			if (body2->first_contact_index == NET_LIST_NODE_NULL_INDEX)
-			//			{
-			//				vec4_copy(unit2->color, body2->color);
-			//				//r_command_update_transparency(unit2_index, R_CMD_TRANSPARENCY_OPAQUE);
-			//			}
-			//		}
-			//		else
-			//		{
-			//			vec4_copy(unit2->color, g_collision_debug->island_static_color);
-			//		}
-			//	}
-#endif
-			//} break;
+			case PHYSICS_EVENT_ISLAND_AWAKE:
+			{
+				if (led->physics.body_color_mode == RB_COLOR_MODE_SLEEP)
+				{
+					led_engine_color_bodies(led, event->island, led->physics.awake_color);
+				}
+			} break;
 
-			//case PHYSICS_EVENT_ISLAND_NEW:
-			//{
-			//	const vec4 color = 
-			//	{
-			//		LCG_f32_normalized(&led->prng),
-			//		LCG_f32_normalized(&led->prng),
-			//		LCG_f32_normalized(&led->prng),
-			//		1.0f,	
-			//	};
-
-			//	if (g_collision_debug->draw_island)
-			//	{
-			//		if (bit_vec_get_bit(&led->physics.is_db.island_usage, led->physics.event[i].island))
-			//		{
-			//			game_push_color_to_island_and_bodies(game, led->physics.event[i].island, color);
-			//		}
-			//	}
-			//	else if (g_collision_debug->draw_sleeping)
-			//	{
-			//		const struct island *is = array_list_address(led->physics.is_db.islands, led->physics.event[i].island);
-			//		game_push_color_to_island_and_bodies(game, led->physics.event[i].island, g_collision_debug->island_awake_color);
-
-			//	}
-			//} break;
-
-			//case PHYSICS_EVENT_ISLAND_MERGED_INTO:
-			//{
-#ifdef KCS_DEBUG
-			//	if (g_collision_debug->draw_island)
-			//	{
-			//		if (bit_vec_get_bit(&led->physics.is_db.island_usage, led->physics.event[i].island))
-			//		{
-			//			const struct island *is = array_list_address(led->physics.is_db.islands, led->physics.event[i].island);
-
-			//			game_push_color_to_island_and_bodies(game, led->physics.event[i].island, is->color);
-			//		}
-			//	}
-#endif
-			//} break;
-
-			//case PHYSICS_EVENT_ISLAND_REMOVED:
-			//{
-
-			//} break;
-
-			//case PHYSICS_EVENT_ISLAND_AWAKE:
-			//{
-			//	if (g_collision_debug->draw_sleeping)
-			//	{
-			//		const struct island *is = array_list_address(led->physics.is_db.islands, led->physics.event[i].island);
-			//		game_push_color_to_island_and_bodies(game, led->physics.event[i].island, g_collision_debug->island_awake_color);
-			//	}
-			//} break;
-
-			//case PHYSICS_EVENT_ISLAND_ASLEEP:
-			//{
-			//	if (g_collision_debug->draw_sleeping)
-			//	{
-			//		const struct island *is = array_list_address(led->physics.is_db.islands, led->physics.event[i].island);
-			//		game_push_color_to_island_and_bodies(game, led->physics.event[i].island, g_collision_debug->island_sleeping_color);
-			//	}
-			//} break;
+			case PHYSICS_EVENT_ISLAND_ASLEEP:
+			{
+				if (led->physics.body_color_mode == RB_COLOR_MODE_SLEEP)
+				{
+					led_engine_color_bodies(led, event->island, led->physics.sleep_color);
+				}
+			} break;
 			
-			//case PHYSICS_EVENT_BODY_NEW:
-			//{
-			//	//TODO Generate new color 
-			//	// if draw bodies => push color
-			//	// if draw islands => push island color 
-			//} break;
+			case PHYSICS_EVENT_BODY_NEW:
+			{
+			} break;
 
-			//case PHYSICS_EVENT_BODY_REMOVED:
-			//{
-
-			//} break;
+			case PHYSICS_EVENT_BODY_REMOVED:
+			{
+			} break;
 
 			case PHYSICS_EVENT_BODY_ORIENTATION:
 			{

@@ -25,6 +25,15 @@
 #include "kas_profiler.h"
 #include "float32.h"
 
+const char *body_color_mode_str_buf[RB_COLOR_MODE_COUNT] = 
+{
+	"RB_COLOR_MODE_BODY",
+	"RB_COLOR_MODE_COLLISION",
+	"RB_COLOR_MODE_ISLAND",
+	"RB_COLOR_MODE_SLEEP",
+};
+
+const char **body_color_mode_str = body_color_mode_str_buf;
 
 struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 initial_size, const u64 ns_tick, const u64 frame_memory, struct string_database *shape_db, struct string_database *prefab_db)
 {
@@ -79,6 +88,13 @@ struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 init
 	pipeline.c_db = c_db_alloc(mem, initial_size);
 	pipeline.is_db = is_db_alloc(mem, initial_size);
 	pipeline.shape_db = shape_db;
+
+	pipeline.body_color_mode = RB_COLOR_MODE_BODY;
+	pipeline.pending_body_color_mode = RB_COLOR_MODE_ISLAND;
+	vec4_set(pipeline.collision_color, 1.0f, 0.1f, 0.1f, 0.5f);
+	vec4_set(pipeline.static_color, 0.6f, 0.6f, 0.6f, 1.0f);
+	vec4_set(pipeline.sleep_color, 113.0f/256.0f, 241.0f/256.0f, 157.0f/256.0f, 0.7f);
+	vec4_set(pipeline.awake_color, 255.0f/256.0f, 36.0f/256.0f, 48.0f/256.0f, 0.7f);
 
 	return pipeline;
 }
@@ -235,7 +251,7 @@ static void internal_update_dynamic_tree(struct physics_pipeline *pipeline)
 	struct rigid_body *b = NULL;
 	for (u32 i = pipeline->body_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(b))
 	{
-		struct rigid_body *b = pool_address(&pipeline->body_pool, i);
+		b = pool_address(&pipeline->body_pool, i);
 		if ((b->flags & flags) == flags)
 		{
 			const struct collision_shape *shape = string_database_address(pipeline->shape_db, b->shape_handle);
@@ -584,7 +600,7 @@ void physics_pipeline_enable_sleeping(struct physics_pipeline *pipeline)
 		struct rigid_body *body = NULL;
 		for (u32 i = pipeline->body_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(body))
 		{
-			struct rigid_body *body = pool_address(&pipeline->body_pool, i);
+			body = pool_address(&pipeline->body_pool, i);
 			if (body->flags & body_flags)
 			{
 				body->flags |= RB_AWAKE;
@@ -610,7 +626,7 @@ void physics_pipeline_disable_sleeping(struct physics_pipeline *pipeline)
 		struct rigid_body *body = NULL;
 		for (u32 i = pipeline->body_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(body))
 		{
-			struct rigid_body *body = pool_address(&pipeline->body_pool, i);
+			body = pool_address(&pipeline->body_pool, i);
 			if (body->flags & body_flags)
 			{
 				body->flags |= RB_AWAKE;
@@ -741,11 +757,11 @@ static void internal_remove_marked_bodies(struct physics_pipeline *pipeline)
 	struct rigid_body *b = NULL;
 	for (u32 i = pipeline->body_marked_list.first; i != DLL_NULL; i = DLL_NEXT(b))
 	{
-		struct rigid_body *b = pool_address(&pipeline->body_pool, i);
+		b = pool_address(&pipeline->body_pool, i);
 		physics_pipeline_rigid_body_dealloc(pipeline, i);
 	}
 
-	dll_flush(&pipeline->body_non_marked_list);
+	dll_flush(&pipeline->body_marked_list);
 }
 
 void internal_physics_pipeline_simulate_frame(struct physics_pipeline *pipeline, const f32 delta)
@@ -1037,7 +1053,6 @@ void prefab_statics_setup(struct rigid_body_prefab *prefab, struct collision_sha
 
 	if (shape->type == COLLISION_SHAPE_CONVEX_HULL)
 	{
-		//breakpoint(1);
 		if (!shape->center_of_mass_localized)
 		{
 			f32 integrals[10] = { 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f }; 

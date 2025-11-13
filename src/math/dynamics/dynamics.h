@@ -240,6 +240,10 @@ struct island
 
 	u32 body_count;
 	u32 contact_count;
+
+#ifdef KAS_PHYSICS_DEBUG
+	vec4 color;
+#endif
 };
 
 struct is_index_entry
@@ -261,7 +265,7 @@ struct island_database
 	u32 possible_splits_count;
 };
 
-#ifdef KAS_DEBUG
+#ifdef KAS_PHYSICS_DEBUG
 #define IS_DB_VALIDATE(pipeline)	is_db_validate((pipeline)
 #else
 #define IS_DB_VALIDATE(pipeline)	
@@ -501,7 +505,6 @@ struct rigid_body
 {
 	DLL_SLOT_STATE;
 	POOL_SLOT_STATE;
-
 	/* dynamic state */
 	struct AABB	local_box;		/* bounding AABB */
 
@@ -588,7 +591,7 @@ void 	prefab_statics_setup(struct rigid_body_prefab *prefab, struct collision_sh
 #define	PHYSICS_EVENT_ISLAND_ASLEEP(pipeline, island)		PHYSICS_EVENT_ISLAND(pipeline, PHYSICS_EVENT_ISLAND_ASLEEP, island)
 #define	PHYSICS_EVENT_ISLAND_AWAKE(pipeline, island)		PHYSICS_EVENT_ISLAND(pipeline, PHYSICS_EVENT_ISLAND_AWAKE, island)
 #define	PHYSICS_EVENT_ISLAND_NEW(pipeline, island)		PHYSICS_EVENT_ISLAND(pipeline, PHYSICS_EVENT_ISLAND_NEW, island)
-#define	PHYSICS_EVENT_ISLAND_MERGED_INTO(pipeline, island)	PHYSICS_EVENT_ISLAND(pipeline, PHYSICS_EVENT_ISLAND_MERGED_INTO, island)
+#define	PHYSICS_EVENT_ISLAND_EXPANDED(pipeline, island)		PHYSICS_EVENT_ISLAND(pipeline, PHYSICS_EVENT_ISLAND_EXPANDED, island)
 #define	PHYSICS_EVENT_ISLAND_REMOVED(pipeline, island)		PHYSICS_EVENT_ISLAND(pipeline, PHYSICS_EVENT_ISLAND_REMOVED, island)
 #define PHYSICS_EVENT_CONTACT_NEW(pipeline, contact_index)						\
 	{												\
@@ -611,7 +614,7 @@ void 	prefab_statics_setup(struct rigid_body_prefab *prefab, struct collision_sh
 #define	PHYSICS_EVENT_ISLAND_ASLEEP(pipeline, island)
 #define	PHYSICS_EVENT_ISLAND_AWAKE(pipeline, island) 
 #define	PHYSICS_EVENT_ISLAND_NEW(pipeline, island)   
-#define	PHYSICS_EVENT_ISLAND_MERGED_INTO(pipeline, island)   
+#define	PHYSICS_EVENT_ISLAND_EXPANDED(pipeline, island)   
 #define	PHYSICS_EVENT_ISLAND_REMOVED(pipeline, island)
 #define PHYSICS_EVENT_CONTACT_NEW(pipeline, contact)
 #define PHYSICS_EVENT_CONTACT_REMOVED(pipeline, body1, body2)
@@ -623,7 +626,7 @@ enum physics_event_type
 	PHYSICS_EVENT_CONTACT_NEW,
 	PHYSICS_EVENT_CONTACT_REMOVED,
 	PHYSICS_EVENT_ISLAND_NEW,
-	PHYSICS_EVENT_ISLAND_MERGED_INTO,
+	PHYSICS_EVENT_ISLAND_EXPANDED,
 	PHYSICS_EVENT_ISLAND_REMOVED,
 	PHYSICS_EVENT_ISLAND_AWAKE,
 	PHYSICS_EVENT_ISLAND_ASLEEP,
@@ -653,6 +656,16 @@ struct physics_event
 	};
 };
 
+enum rigid_body_color_mode
+{
+	RB_COLOR_MODE_BODY = 0,
+	RB_COLOR_MODE_COLLISION,
+	RB_COLOR_MODE_ISLAND,
+	RB_COLOR_MODE_SLEEP,
+	RB_COLOR_MODE_COUNT
+};
+
+extern const char **body_color_mode_str;
 /*
  * Physics Pipeline
  */
@@ -687,6 +700,14 @@ struct physics_pipeline
 	/* frame data */
 	u32	contact_new_count;
 	u32 *	contact_new;
+
+	/* debug */
+	enum rigid_body_color_mode	pending_body_color_mode;
+	enum rigid_body_color_mode	body_color_mode;
+	vec4				collision_color;
+	vec4				static_color;
+	vec4				sleep_color;
+	vec4				awake_color;
 };
 
 /**************** PHYISCS PIPELINE API ****************/
@@ -714,7 +735,7 @@ void 			physics_pipeline_enable_sleeping(struct physics_pipeline *pipeline);
 /* disable sleeping in pipeline */
 void 			physics_pipeline_disable_sleeping(struct physics_pipeline *pipeline);
 
-#ifdef KAS_DEBUG
+#ifdef KAS_PHYSICS_DEBUG
 #define PHYSICS_PIPELINE_VALIDATE(pipeline)	physics_pipeline_validate(pipeline)
 #else
 #define PHYSICS_PIPELINE_VALIDATE(pipeline)	
@@ -724,10 +745,5 @@ void 			physics_pipeline_disable_sleeping(struct physics_pipeline *pipeline);
 
 /* push physics event into pipeline memory and return pointer to allocated event */
 struct physics_event *	physics_pipeline_event_push(struct physics_pipeline *pipeline);
-
-//void	physics_pipeline_push_dbvt(struct drawbuffer *buf, struct physics_pipeline *pipeline, const vec4 color);
-//void	physics_pipeline_push_proxies(struct drawbuffer *buf, const struct physics_pipeline *pipeline, const vec4 color);
-
-
 
 #endif
