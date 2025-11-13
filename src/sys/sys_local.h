@@ -80,19 +80,24 @@ extern u32			(*native_window_is_fullscreen)(const struct native_window *native);
 /* return true if window is bordered  */ 
 extern u32			(*native_window_is_bordered)(const struct native_window *native);
 
-//TODO Implement 
-extern void 	(*native_cursor_show)(struct native_window *native);
-extern void 	(*native_cursor_hide)(struct native_window *native);
-extern void 	(*native_cursor_grab)(struct native_window *native);
-extern void 	(*native_cursor_ungrab)(struct native_window *native);
+/* show cursor  */
+extern void 			(*native_cursor_show)(struct native_window *native);
+/* hide cursor  */
+extern void 			(*native_cursor_hide)(struct native_window *native);
 /* return 1 if cursor is hidden, 0 otherwise */
-extern u32  	(*native_cursor_is_visible)(struct native_window *native);
+extern u32  			(*native_cursor_is_visible)(struct native_window *native);
 /* return 1 if cursor is locked, 0 otherwise */
-extern u32  	(*native_cursor_is_locked)(struct native_window *native);
+extern u32  			(*native_cursor_is_locked)(struct native_window *native);
 /* return 1 on success, 0 otherwise */
-extern u32 	(*native_cursor_lock)(struct native_window *native);
+extern u32 			(*native_cursor_lock)(struct native_window *native);
 /* return 1 on success, 0 otherwise */
-extern u32 	(*native_cursor_unlock)(struct native_window *native);
+extern u32 			(*native_cursor_unlock)(struct native_window *native);
+/* set rectangle within window that cursor is restricted to */
+extern void 			(*native_cursor_set_rect)(struct native_window *sys_win, const vec2 nat_position, const vec2 size);
+/* release any rectangle restriction */
+extern void 			(*native_cursor_unset_rect)(struct native_window *native);
+
+
 
 /************************************************************************/
 /* 				System Events 				*/

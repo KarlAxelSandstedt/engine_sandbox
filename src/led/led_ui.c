@@ -554,6 +554,12 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 					struct ui_node *node = slot.address;
 					if (node->inter & UI_INTER_FOCUS)
 					{	
+						const vec2 pos = 
+						{
+							node->pixel_position[0],
+							node->pixel_position[1] + node->pixel_size[1],
+						};
+						cursor_set_rect(win, pos, node->pixel_size);
 						led_input_handler(led, node);
 					}
 

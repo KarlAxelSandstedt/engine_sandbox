@@ -263,6 +263,7 @@ u32 cursor_lock(struct system_window *sys_win)
 
 u32 cursor_unlock(struct system_window *sys_win)
 {
+	cursor_unset_rect(sys_win);
 	return native_cursor_unlock(sys_win->native);
 }
 
@@ -279,4 +280,16 @@ void cursor_show(struct system_window *sys_win)
 void cursor_hide(struct system_window *sys_win)
 {
 	native_cursor_hide(sys_win->native);
+}
+
+void cursor_set_rect(struct system_window *sys_win, const vec2 sys_position, const vec2 size)
+{
+	vec2 nat_pos;
+	window_position_system_to_native(nat_pos, sys_win->native, sys_position);
+	native_cursor_set_rect(sys_win->native, nat_pos, size);
+}
+
+void cursor_unset_rect(struct system_window *sys_win)
+{
+	native_cursor_unset_rect(sys_win->native);
 }

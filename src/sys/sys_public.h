@@ -158,7 +158,12 @@ void			system_window_config_update(const u32 window);
 /* get system_window size */
 void			system_window_size(vec2u32 size, const u32 window);
 
-/* return 1 if cursor is locked, 0 otherwise */
+
+/* set rectangle within window that cursor is restricted to */
+void 			cursor_set_rect(struct system_window *sys_win, const vec2 sys_position, const vec2 size);
+/* release any rectangle restriction */
+void 			cursor_unset_rect(struct system_window *sys_win);
+/* lock cursor to rectangle */
 u32  			cursor_is_locked(struct system_window *sys_win);
 /* return 1 on success, 0 otherwise */
 u32 			cursor_lock(struct system_window *sys_win);
@@ -170,10 +175,6 @@ u32 			cursor_is_visible(struct system_window *sys_win);
 void 			cursor_show(struct system_window *sys_win);
 /* hide cursor  */
 void 			cursor_hide(struct system_window *sys_win);
-
-//TODO Implement 
-void 	cursor_grab(struct system_window *sys_win);
-void	cursor_ungrab(struct system_window *sys_win);
 
 /************************************************************************/
 /* 				System Inititation			*/

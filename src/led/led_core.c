@@ -872,7 +872,7 @@ void led_wall_smash_simulation_setup(struct led *led)
 	vec3 ramp_translation = {0.0f , ramp_width, -ramp_length};
 	vec3 floor_translation = { 0.0f, -ramp_width/2.0f - 1.0f, ramp_length / 2.0f -ramp_width/2.0f};
 	vec3 box_base_translation = { 0.0f, floor_translation[1] + 1.0f, floor_translation[2] / 2.0f};
-	vec3 dsphere_base_translation = { 0.0f, floor_translation[1] + 1.0f, floor_translation[2] / 2.0f + 10.0f};
+	vec3 dsphere_base_translation = { 0.0f, floor_translation[1] + 1.0f, floor_translation[2] / 2.0f + 20.0f};
 
 	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "led_floor");
 	cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_add_id);

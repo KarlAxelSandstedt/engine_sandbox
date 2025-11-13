@@ -123,6 +123,7 @@ struct ui *ui_alloc(void)
 	kas_static_assert(sizeof(struct ui_size) == 16, "Expected size");
 
 	struct ui *ui = malloc(sizeof(struct ui));
+	memset(ui, 0, sizeof(struct ui));
 	ui->node_hierarchy = hierarchy_index_alloc(NULL, INITIAL_UNIT_COUNT, sizeof(struct ui_node), GROWABLE);
 	ui->node_map = hash_map_alloc(NULL, U16_MAX, U16_MAX, GROWABLE);
 	ui->bucket_pool = pool_alloc(NULL, 64, struct ui_draw_bucket, GROWABLE);

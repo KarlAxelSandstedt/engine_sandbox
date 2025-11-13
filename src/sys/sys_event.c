@@ -272,7 +272,6 @@ void system_process_events(void)
 				window_position_native_to_system(sys_win->ui->inter.cursor_position, sys_win->native, event.native_cursor_window_position);
 				vec2_set(cursor_delta, event.native_cursor_window_delta[0], -event.native_cursor_window_delta[1]);
 				vec2_translate(sys_win->ui->inter.cursor_delta, cursor_delta);
-				vec2_print("awd", sys_win->ui->inter.cursor_delta);
 			} break;
 
 			case SYSTEM_WINDOW_CLOSE:

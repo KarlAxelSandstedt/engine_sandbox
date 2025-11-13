@@ -44,12 +44,12 @@ u32 			(*native_window_is_bordered)(const struct native_window *native);
 
 void			(*native_cursor_show)(struct native_window *native);
 void			(*native_cursor_hide)(struct native_window *native);
-void			(*native_cursor_grab)(struct native_window *native);
-void			(*native_cursor_ungrab)(struct native_window *native);
 u32 			(*native_cursor_is_locked)(struct native_window *native);
 u32 			(*native_cursor_is_visible)(struct native_window *native);
 u32 			(*native_cursor_lock)(struct native_window *native);
 u32 			(*native_cursor_unlock)(struct native_window *native);
+void 			(*native_cursor_set_rect)(struct native_window *native, const vec2 nat_position, const vec2 size);
+void 			(*native_cursor_unset_rect)(struct native_window *native);
 
 void 			(*screen_position_native_to_system)(vec2 sys_pos, struct native_window *native, const vec2 nat_pos);
 void 			(*screen_position_system_to_native)(vec2 nat_pos, struct native_window *native, const vec2 sys_pos);
@@ -104,16 +104,6 @@ static void sdl3_wrapper_native_cursor_hide(struct native_window *native)
 	}
 }
 
-static void sdl3_wrapper_native_cursor_grab(struct native_window *native)
-{
-       fprintf(stderr, "implement %s\n", __func__);
-}
-
-static void sdl3_wrapper_native_cursor_ungrab(struct native_window *native)
-{
-       fprintf(stderr, "implement %s\n", __func__);
-}
-
 static u32 sdl3_wrapper_native_cursor_lock(struct native_window *native)
 {
 	u32 lock = 1;
@@ -136,6 +126,30 @@ static u32 sdl3_wrapper_native_cursor_unlock(struct native_window *native)
 	}
 	
 	return lock;
+}
+
+void sdl3_wrapper_cursor_set_rect(struct native_window *native, const vec2 nat_position, const vec2 size)
+{
+	const SDL_Rect rect = 
+	{ 
+		.x = nat_position[0], 
+		.y = nat_position[1], 
+		.w = size[0], 
+		.h = size[1] 
+	};
+
+	if (!SDL_SetWindowMouseRect(native->sdl_win, &rect))
+	{
+		log_string(T_SYSTEM, S_WARNING, SDL_GetError());
+	}
+}
+
+void sdl3_wrapper_cursor_unset_rect(struct native_window *native)
+{
+	if (!SDL_SetWindowMouseRect(native->sdl_win, NULL))
+	{
+		log_string(T_SYSTEM, S_WARNING, SDL_GetError());
+	}
 }
 
 static u32 sdl3_wrapper_native_cursor_is_visible(struct native_window *native)
@@ -233,9 +247,6 @@ void sdl3_wrapper_window_position_native_to_system(vec2 sys_pos, struct native_w
 
 	sys_pos[0] = nat_pos[0];
 	sys_pos[1] = h - 1.0f - nat_pos[1];
-
-	//sys_pos[0] = (sys_pos[0] < (u32) w) ? sys_pos[0] : (u32) w-1;
-	//sys_pos[1] = (sys_pos[1] < (u32) h) ? sys_pos[1] : (u32) h-1;
 }
 
 void sdl3_wrapper_window_position_system_to_native(vec2 nat_pos, struct native_window *native, const vec2 sys_pos)
@@ -249,9 +260,6 @@ void sdl3_wrapper_window_position_system_to_native(vec2 nat_pos, struct native_w
 
 	nat_pos[0] = sys_pos[0];
 	nat_pos[1] = h - 1.0f - sys_pos[1];
-
-	//nat_pos[0] = (nat_pos[0] < (u32) w) ? nat_pos[0] : (u32) w-1;
-	//nat_pos[1] = (nat_pos[1] < (u32) h) ? nat_pos[1] : (u32) h-1;
 }
 
 static void sdl3_destroy_gl_context(struct native_window *native)
@@ -441,12 +449,12 @@ void sdl3_wrapper_init(void)
 
 	native_cursor_show = &sdl3_wrapper_native_cursor_show;
 	native_cursor_hide = &sdl3_wrapper_native_cursor_hide;
-	native_cursor_grab = &sdl3_wrapper_native_cursor_grab;
-	native_cursor_ungrab = &sdl3_wrapper_native_cursor_ungrab;
 	native_cursor_is_visible = &sdl3_wrapper_native_cursor_is_visible;
 	native_cursor_is_locked = &sdl3_wrapper_native_cursor_is_locked;
 	native_cursor_lock = &sdl3_wrapper_native_cursor_lock;
 	native_cursor_unlock = &sdl3_wrapper_native_cursor_unlock;
+ 	native_cursor_set_rect = &sdl3_wrapper_cursor_set_rect;
+ 	native_cursor_unset_rect = &sdl3_wrapper_cursor_unset_rect;
 
 	screen_position_native_to_system = &sdl3_wrapper_screen_position_native_to_system;
 	screen_position_system_to_native = &sdl3_wrapper_screen_position_system_to_native;

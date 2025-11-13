@@ -63,7 +63,7 @@ struct led *led_alloc(void)
 	//const vec3 up = {0.0f, 1.0f, 0.0f};
 	//const vec3 dir = {1.0f, 0.0f, 0.0f};
 	
-	const vec3 position = {15.0f, 1.0f, 50.0f};
+	const vec3 position = {10.0f, 1.0f, 5.0f};
 	//const vec3 position = {3.0f, 1.0f, -3.0f};
 	const vec3 left = {1.0f, 0.0f, 0.0f};
 	const vec3 up = {0.0f, 1.0f, 0.0f};
