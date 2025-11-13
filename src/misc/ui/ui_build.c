@@ -24,7 +24,7 @@
 
 f32 ui_field_f32(const f32 value, const intv range, const utf8 formatted)
 {
-	struct slot slot = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS | UI_TEXT_EDIT | UI_TEXT_EDIT_INTER_BUF_ON_FOCUS | UI_TEXT_EDIT_COPY_ON_FOCUS | UI_DRAW_BORDER | UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, &formatted);
+	struct slot slot = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS_FLAGS | UI_TEXT_EDIT | UI_TEXT_EDIT_INTER_BUF_ON_FOCUS | UI_TEXT_EDIT_COPY_ON_FOCUS | UI_DRAW_BORDER | UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, &formatted);
 	struct ui_node *node = slot.address;
 
 	f32 ret = value;
@@ -47,7 +47,7 @@ f32 ui_field_f32(const f32 value, const intv range, const utf8 formatted)
 
 u64 ui_field_u64(const u64 value, const intvu64 range, const utf8 formatted)
 {
-	struct slot slot = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS | UI_TEXT_EDIT | UI_TEXT_EDIT_INTER_BUF_ON_FOCUS | UI_TEXT_EDIT_COPY_ON_FOCUS | UI_DRAW_BORDER | UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, &formatted);
+	struct slot slot = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS_FLAGS | UI_TEXT_EDIT | UI_TEXT_EDIT_INTER_BUF_ON_FOCUS | UI_TEXT_EDIT_COPY_ON_FOCUS | UI_DRAW_BORDER | UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, &formatted);
 	struct ui_node *node = slot.address;
 
 	u64 ret = value;
@@ -77,7 +77,7 @@ u64 ui_field_u64(const u64 value, const intvu64 range, const utf8 formatted)
 
 i64 ui_field_i64(const i64 value, const intvi64 range, const utf8 formatted)
 {
-	struct slot slot = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS | UI_TEXT_EDIT | UI_TEXT_EDIT_INTER_BUF_ON_FOCUS | UI_TEXT_EDIT_COPY_ON_FOCUS | UI_DRAW_BORDER | UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, &formatted);
+	struct slot slot = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS_FLAGS | UI_TEXT_EDIT | UI_TEXT_EDIT_INTER_BUF_ON_FOCUS | UI_TEXT_EDIT_COPY_ON_FOCUS | UI_DRAW_BORDER | UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, &formatted);
 	struct ui_node *node = slot.address;
 
 	i64 ret = value;
@@ -108,7 +108,7 @@ i64 ui_field_i64(const i64 value, const intvi64 range, const utf8 formatted)
 
 utf8 ui_field_utf8(const utf8 formatted)
 {
-	struct slot slot = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS | UI_TEXT_EDIT | UI_TEXT_EDIT_INTER_BUF_ON_FOCUS | UI_DRAW_BORDER | UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, &formatted);
+	struct slot slot = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS_FLAGS | UI_TEXT_EDIT | UI_TEXT_EDIT_INTER_BUF_ON_FOCUS | UI_DRAW_BORDER | UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, &formatted);
 	struct ui_node *node = slot.address;
 
 	utf8 ret = utf8_empty();
@@ -1097,7 +1097,7 @@ struct slot ui_text_input(struct ui_text_input *input, const utf32 unfocused_tex
 	struct slot slot;
 	ui_external_text(external_text)
 	ui_external_text_input(input)
-	slot = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS | UI_TEXT_EDIT | UI_TEXT_EXTERNAL | UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, &id);
+	slot = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS_FLAGS | UI_TEXT_EDIT | UI_TEXT_EXTERNAL | UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, &id);
 
 	struct ui_node *node = slot.address;
 	if (node->inter & UI_INTER_FOCUS)

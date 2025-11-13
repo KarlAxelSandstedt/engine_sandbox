@@ -250,3 +250,33 @@ void system_window_text_input_mode_disable(void)
 		sys_win->text_input_mode = 1;
 	}
 }
+
+u32 cursor_is_locked(struct system_window *sys_win)
+{
+	return native_cursor_is_locked(sys_win->native);
+}
+
+u32 cursor_lock(struct system_window *sys_win)
+{
+	return native_cursor_lock(sys_win->native);
+}
+
+u32 cursor_unlock(struct system_window *sys_win)
+{
+	return native_cursor_unlock(sys_win->native);
+}
+
+u32 cursor_is_visible(struct system_window *sys_win)
+{
+	return native_cursor_is_visible(sys_win->native);
+}
+
+void cursor_show(struct system_window *sys_win)
+{
+	native_cursor_show(sys_win->native);
+}
+
+void cursor_hide(struct system_window *sys_win)
+{
+	native_cursor_hide(sys_win->native);
+}

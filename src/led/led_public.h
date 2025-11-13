@@ -122,7 +122,8 @@ struct led
 	struct led_profiler	profiler;
 
 	struct r_camera		cam;
-	vec3			cam_local_velocity;
+	f32			cam_left_velocity;
+	f32			cam_forward_velocity;
 		
 	u64			ns;		/* current time in ns */
 	u64			ns_delta;

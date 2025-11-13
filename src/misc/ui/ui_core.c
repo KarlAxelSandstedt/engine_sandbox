@@ -339,6 +339,7 @@ void ui_text_input_mode_enable(void)
 	if (node)
 	{
 		node->inter &= ~UI_INTER_FOCUS;
+		node->inter |= UI_INTER_FOCUS_OUT;
 		g_ui->inter.text_edit->focused = 0;
 	}
 	else
@@ -379,6 +380,7 @@ void ui_text_input_mode_disable(void)
 		if (node)
 		{
 			node->inter &= ~UI_INTER_FOCUS;
+			node->inter |= UI_INTER_FOCUS_OUT;
 		}
 
 		g_ui->inter.text_edit_mode = 0;
@@ -781,7 +783,8 @@ static u64 ui_node_set_interactions(const struct ui_node *node, const u64 inter_
 	u32 node_selected = !!(node->inter & UI_INTER_SELECT);
 	u32 node_hovered = !!(node->inter & UI_INTER_HOVER);
 	u32 node_dragged = (!!(node->inter & UI_INTER_DRAG))*!(g_ui->inter.button_released[MOUSE_BUTTON_LEFT]);
-	u32 node_focused = (!!(node->inter & UI_INTER_FOCUS))*!g_ui->inter.key_clicked[KAS_ESCAPE];
+	u32 node_focused_prev = !!(node->inter & UI_INTER_FOCUS);
+	u32 node_focused = (node_focused_prev)*!g_ui->inter.key_clicked[KAS_ESCAPE];
 
 	if (node_hovered)
 	{
@@ -792,12 +795,17 @@ static u64 ui_node_set_interactions(const struct ui_node *node, const u64 inter_
 		node_focused |= g_ui->inter.button_clicked[MOUSE_BUTTON_LEFT];
 	}
 
+	const u32 node_focused_out = node_focused_prev*(!node_focused);
+	const u32 node_focused_in = (!node_focused_prev)*(node_focused);
+
 	node_inter = (UI_INTER_DRAG * node_dragged)
 		     	  | (UI_INTER_HOVER * node_hovered)
 		     	  | (UI_INTER_SELECT * node_selected)
 		     	  | (UI_INTER_LEFT_CLICK * node_clicked)
 		     	  | (UI_INTER_SCROLL * node_scrolled)
-		     	  | (UI_INTER_FOCUS * node_focused);
+		     	  | (UI_INTER_FOCUS * node_focused)
+		     	  | (UI_INTER_FOCUS_IN * node_focused_in)
+		     	  | (UI_INTER_FOCUS_OUT * node_focused_out);
 
 	node_inter |= UI_INTER_ACTIVE * !!((inter_local_mask & node_inter & UI_INTER_ACTIVATION_FLAGS));
 
@@ -1404,7 +1412,6 @@ struct ui_node_cache ui_node_alloc_cached(const u64 flags, const utf8 id, const 
 	const u64 node_flags = flags | implied_flags | UI_DEBUG_FLAGS | inter_recursive_flags;
 	const u64 inter_recursive_mask = parent->inter_recursive_mask | inter_recursive_flags;
 	u64 inter = 0;
-	u64 inter_prev = 0;
 
 	const u32 depth = (g_ui->stack_fixed_depth.next)
 		? stack_u32_top(&g_ui->stack_fixed_depth)
@@ -1425,7 +1432,6 @@ struct ui_node_cache ui_node_alloc_cached(const u64 flags, const utf8 id, const 
 		slot.address = node;
 		slot.index = cache.index;
 		hierarchy_index_adopt_node_exclusive(g_ui->node_hierarchy, slot.index, stack_u32_top(&g_ui->stack_parent));
-		u64 inter_prev = node->inter;
 		inter = ui_node_set_interactions(node, node_flags, inter_recursive_mask);
 	}
 	
@@ -1478,7 +1484,7 @@ struct ui_node_cache ui_node_alloc_cached(const u64 flags, const utf8 id, const 
 		{
 			text_editing = 1;
 			node->flags |= UI_TEXT_ALLOW_OVERFLOW | UI_TEXT_LAYOUT_POSTPONED;
-			if ((inter_prev & UI_INTER_FOCUS) == 0)  
+			if (node->inter & UI_INTER_FOCUS_IN)  
 			{
 				if (node->flags & UI_TEXT_EDIT_INTER_BUF_ON_FOCUS)
 				{
@@ -1720,7 +1726,6 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 		}
 	}
 
-	u64 inter_prev = 0;
 	u64 inter = 0;
 	if (!slot.address)
 	{
@@ -1739,7 +1744,6 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 		kas_assert(node->last_frame_touched != g_ui->frame);
 		key = node->key;
 		hierarchy_index_adopt_node_exclusive(g_ui->node_hierarchy, slot.index, stack_u32_top(&g_ui->stack_parent));
-		inter_prev = node->inter;
 		inter = ui_node_set_interactions(node, node_flags, inter_recursive_mask);
 	}
 
@@ -1793,7 +1797,7 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 		{
 			text_editing = 1;
 			node->flags |= UI_TEXT_ALLOW_OVERFLOW | UI_TEXT_LAYOUT_POSTPONED;
-			if ((inter_prev & UI_INTER_FOCUS) == 0)  
+			if (node->inter & UI_INTER_FOCUS_IN)  
 			{
 				if (node->flags & UI_TEXT_EDIT_INTER_BUF_ON_FOCUS)
 				{

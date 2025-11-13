@@ -158,6 +158,22 @@ void			system_window_config_update(const u32 window);
 /* get system_window size */
 void			system_window_size(vec2u32 size, const u32 window);
 
+/* return 1 if cursor is locked, 0 otherwise */
+u32  			cursor_is_locked(struct system_window *sys_win);
+/* return 1 on success, 0 otherwise */
+u32 			cursor_lock(struct system_window *sys_win);
+/* return 1 on success, 0 otherwise */
+u32 			cursor_unlock(struct system_window *sys_win);
+/* return 1 on visible, 0 on hidden  */
+u32 			cursor_is_visible(struct system_window *sys_win);
+/* show cursor  */
+void 			cursor_show(struct system_window *sys_win);
+/* hide cursor  */
+void 			cursor_hide(struct system_window *sys_win);
+
+//TODO Implement 
+void 	cursor_grab(struct system_window *sys_win);
+void	cursor_ungrab(struct system_window *sys_win);
 
 /************************************************************************/
 /* 				System Inititation			*/

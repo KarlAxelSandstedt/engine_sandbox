@@ -648,6 +648,8 @@ void		ui_frame_end(void);				/* end ui frame 		*/
 									   refocusing, or reselecting the node does
 									   not remove the focus. Useful for clicking
 									   on input lines. Remove focus on ESCAPE */
+#define		UI_INTER_FOCUS_IN			((u64) 1 << 26)
+#define		UI_INTER_FOCUS_OUT			((u64) 1 << 27)
 
 #define		UI_INTER_FLAGS	(0				\
 			| UI_INTER_ACTIVE			\
@@ -658,6 +660,14 @@ void		ui_frame_end(void);				/* end ui frame 		*/
 			| UI_INTER_SCROLL			\
 			| UI_INTER_SELECT			\
 			| UI_INTER_FOCUS			\
+			| UI_INTER_FOCUS_IN			\
+			| UI_INTER_FOCUS_OUT			\
+		)
+
+#define		UI_INTER_FOCUS_FLAGS (0				\
+			| UI_INTER_FOCUS			\
+			| UI_INTER_FOCUS_IN			\
+			| UI_INTER_FOCUS_OUT			\
 		)
 
 #define		UI_INTER_ACTIVATION_FLAGS (0			\

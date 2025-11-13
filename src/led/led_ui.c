@@ -407,6 +407,7 @@ static void led_input_handler(struct led *led, struct ui_node *viewport)
 {
 	vec4_set(viewport->border_color, 0.9f, 0.9f, 0.9f, 1.0f);
 	struct system_window *sys_win = system_window_address(led->window);
+
 	for (u32 i = sys_win->ui->event_list.first; i != DLL_NULL; )
 	{
 		struct system_event *event = pool_address(&sys_win->ui->event_pool, i);
@@ -433,23 +434,29 @@ static void led_input_handler(struct led *led, struct ui_node *viewport)
 
 	if (sys_win->ui->inter.key_pressed[KAS_W])
 	{
-	    	led->cam_local_velocity[2] += 9.0f; 
+	    	led->cam_forward_velocity += 9.0f; 
 	} 
 
 	if (sys_win->ui->inter.key_pressed[KAS_S])
 	{
-	    	led->cam_local_velocity[2] -= 9.0f; 
+	    	led->cam_forward_velocity -= 9.0f; 
+	} 
+
+	if (sys_win->ui->inter.key_pressed[KAS_A])
+	{
+		led->cam_left_velocity += 9.0f; 
 	} 
 
 	if (sys_win->ui->inter.key_pressed[KAS_D])
 	{
-	    	led->cam_local_velocity[0] += 9.0f; 
+	    	led->cam_left_velocity -= 9.0f; 
 	} 
-	
-	if (sys_win->ui->inter.key_pressed[KAS_A])
-	{
-		led->cam_local_velocity[0] -= 9.0f; 
-	} 
+
+	r_camera_update_angles(&led->cam, -sys_win->ui->inter.cursor_delta[0] / 300.0f, -sys_win->ui->inter.cursor_delta[1] / 300.0f);
+	r_camera_update_axes(&led->cam);
+
+	sys_win->ui->inter.cursor_delta[0] = 0.0f;
+	sys_win->ui->inter.cursor_delta[1] = 0.0f;
 }
 
 static void led_ui(struct led *led, const struct ui_visual *visual)
@@ -548,6 +555,16 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 					if (node->inter & UI_INTER_FOCUS)
 					{	
 						led_input_handler(led, node);
+					}
+
+					if (node->inter & UI_INTER_FOCUS_IN)
+					{
+						cursor_lock(win);	
+					}
+
+					if (node->inter & UI_INTER_FOCUS_OUT)
+					{
+						cursor_unlock(win);	
 					}
 				}
 			}
@@ -964,13 +981,13 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 	led->viewport_size[1] = node->pixel_size[1];
 
 	const f32 delta = (f32) led->ns_delta / NSEC_PER_SEC;
-	camera_update_axes(&led->cam);
-	led->cam.position[0] += (f32) delta * (led->cam_local_velocity[0] * led->cam.left[0] +  led->cam_local_velocity[2] * led->cam.forward[0]);
-	led->cam.position[1] += (f32) delta * (led->cam_local_velocity[1] + led->cam_local_velocity[2] * led->cam.forward[1]);
-	led->cam.position[2] += (f32) delta * (led->cam_local_velocity[0] * led->cam.left[2] +  led->cam_local_velocity[2] * led->cam.forward[2]);
+	led->cam.position[0] += delta * (led->cam_left_velocity * led->cam.left[0] + led->cam_forward_velocity * led->cam.forward[0]);
+	led->cam.position[1] += delta * (led->cam_left_velocity * led->cam.left[1] + led->cam_forward_velocity * led->cam.forward[1]);
+	led->cam.position[2] += delta * (led->cam_left_velocity * led->cam.left[2] + led->cam_forward_velocity * led->cam.forward[2]);
 	led->cam.aspect_ratio =  (f32) led->viewport_size[0] / led->viewport_size[1];
 
-	vec3_set(led->cam_local_velocity, 0.0f, 0.0f, 0.0f);
+	led->cam_left_velocity = 0.0f;
+	led->cam_forward_velocity = 0.0f;
 
 	if (win->tagged_for_destruction) 
 	{

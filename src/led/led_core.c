@@ -544,7 +544,7 @@ static void led_remove_marked_structs(struct led *led)
 
 		if (DLL2_IN_LIST(node))
 		{
-			fprintf(stderr, "Was selected, removing from list - ");
+			//fprintf(stderr, "Was selected, removing from list - ");
 			utf8_debug_print(node->id);
 			dll_remove(&led->node_selected_list, led->node_pool.buf, i);
 		}

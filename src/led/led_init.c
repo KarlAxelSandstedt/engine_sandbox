@@ -65,9 +65,9 @@ struct led *led_alloc(void)
 	
 	const vec3 position = {15.0f, 1.0f, 50.0f};
 	//const vec3 position = {3.0f, 1.0f, -3.0f};
-	const vec3 left = {-1.0f, 0.0f, 0.0f};
+	const vec3 left = {1.0f, 0.0f, 0.0f};
 	const vec3 up = {0.0f, 1.0f, 0.0f};
-	const vec3 dir = {0.0f, 0.0f, -1.0f};
+	const vec3 dir = {0.0f, 0.0f, 1.0f};
 	vec2 size = { 1280.0f, 720.0f };
 	r_camera_construct(&g_editor->cam, 
 			position, 
@@ -81,10 +81,9 @@ struct led *led_alloc(void)
 			(f32) size[0] / size[1],
 			2.0f * MM_PI_F / 3.0f );
 
-	vec3_set(g_editor->cam_local_velocity, 0.0f, 0.0f, 0.0f);
+	g_editor->cam_left_velocity = 0.0f;
+	g_editor->cam_forward_velocity = 0.0f;
 	g_editor->ns_delta = 0.0f;
-
-
 
 #if defined(KAS_PROFILER)
 	g_editor->profiler.visible = 1;

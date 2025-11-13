@@ -32,16 +32,16 @@ void system_window_event_handler(struct system_window *sys_win)
 		{
 			case KAS_L:
 			{
-				(cursor_is_locked(sys_win->native))
-					? cursor_unlock(sys_win->native)
-					: cursor_lock(sys_win->native);
+				(cursor_is_locked(sys_win))
+					? cursor_unlock(sys_win)
+					: cursor_lock(sys_win);
 			} break;
 
 			case KAS_F10: 
 			{
-				(cursor_is_visible(sys_win->native))
-				      ? cursor_hide(sys_win->native) 
-				      : cursor_show(sys_win->native);
+				(cursor_is_visible(sys_win))
+				      ? cursor_hide(sys_win) 
+				      : cursor_show(sys_win);
 			} break;
 
 			case KAS_F11: 
@@ -268,11 +268,11 @@ void system_process_events(void)
 
 			case SYSTEM_CURSOR_POSITION:
 			{
-				vec2 cursor_position;
-				window_position_native_to_system(cursor_position, sys_win->native, event.native_cursor_window_position);
-				sys_win->ui->inter.cursor_delta[0] += cursor_position[0] - sys_win->ui->inter.cursor_position[0];
-				sys_win->ui->inter.cursor_delta[1] += cursor_position[1] - sys_win->ui->inter.cursor_position[1];
-				vec2_copy(sys_win->ui->inter.cursor_position, cursor_position);
+				vec2 cursor_delta;
+				window_position_native_to_system(sys_win->ui->inter.cursor_position, sys_win->native, event.native_cursor_window_position);
+				vec2_set(cursor_delta, event.native_cursor_window_delta[0], -event.native_cursor_window_delta[1]);
+				vec2_translate(sys_win->ui->inter.cursor_delta, cursor_delta);
+				vec2_print("awd", sys_win->ui->inter.cursor_delta);
 			} break;
 
 			case SYSTEM_WINDOW_CLOSE:

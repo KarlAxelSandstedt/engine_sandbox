@@ -42,14 +42,14 @@ void 			(*native_window_borderless)(struct native_window *native);
 u32 			(*native_window_is_fullscreen)(const struct native_window *native);
 u32 			(*native_window_is_bordered)(const struct native_window *native);
 
-void			(*cursor_show)(struct native_window *native);
-void			(*cursor_hide)(struct native_window *native);
-void			(*cursor_grab)(struct native_window *native);
-void			(*cursor_ungrab)(struct native_window *native);
-u32 			(*cursor_is_locked)(struct native_window *native);
-u32 			(*cursor_is_visible)(struct native_window *native);
-u32 			(*cursor_lock)(struct native_window *native);
-u32 			(*cursor_unlock)(struct native_window *native);
+void			(*native_cursor_show)(struct native_window *native);
+void			(*native_cursor_hide)(struct native_window *native);
+void			(*native_cursor_grab)(struct native_window *native);
+void			(*native_cursor_ungrab)(struct native_window *native);
+u32 			(*native_cursor_is_locked)(struct native_window *native);
+u32 			(*native_cursor_is_visible)(struct native_window *native);
+u32 			(*native_cursor_lock)(struct native_window *native);
+u32 			(*native_cursor_unlock)(struct native_window *native);
 
 void 			(*screen_position_native_to_system)(vec2 sys_pos, struct native_window *native, const vec2 nat_pos);
 void 			(*screen_position_system_to_native)(vec2 nat_pos, struct native_window *native, const vec2 sys_pos);
@@ -88,7 +88,7 @@ static u64 sdl3_wrapper_native_window_get_native_handle(const struct native_wind
 	return (u64) native->sdl_win;
 }
 
-static void sdl3_wrapper_cursor_show(struct native_window *native)
+static void sdl3_wrapper_native_cursor_show(struct native_window *native)
 {
 	if (!SDL_ShowCursor())
 	{
@@ -96,7 +96,7 @@ static void sdl3_wrapper_cursor_show(struct native_window *native)
 	}
 }
 
-static void sdl3_wrapper_cursor_hide(struct native_window *native)
+static void sdl3_wrapper_native_cursor_hide(struct native_window *native)
 {
 	if (!SDL_HideCursor())
 	{
@@ -104,17 +104,17 @@ static void sdl3_wrapper_cursor_hide(struct native_window *native)
 	}
 }
 
-static void sdl3_wrapper_cursor_grab(struct native_window *native)
+static void sdl3_wrapper_native_cursor_grab(struct native_window *native)
 {
        fprintf(stderr, "implement %s\n", __func__);
 }
 
-static void sdl3_wrapper_cursor_ungrab(struct native_window *native)
+static void sdl3_wrapper_native_cursor_ungrab(struct native_window *native)
 {
        fprintf(stderr, "implement %s\n", __func__);
 }
 
-static u32 sdl3_wrapper_cursor_lock(struct native_window *native)
+static u32 sdl3_wrapper_native_cursor_lock(struct native_window *native)
 {
 	u32 lock = 1;
 	if (!SDL_SetWindowRelativeMouseMode(native->sdl_win, 1))
@@ -126,7 +126,7 @@ static u32 sdl3_wrapper_cursor_lock(struct native_window *native)
 	return lock;
 }
 
-static u32 sdl3_wrapper_cursor_unlock(struct native_window *native)
+static u32 sdl3_wrapper_native_cursor_unlock(struct native_window *native)
 {
 	u32 lock = 0;
 	if (!SDL_SetWindowRelativeMouseMode(native->sdl_win, 0))
@@ -138,12 +138,12 @@ static u32 sdl3_wrapper_cursor_unlock(struct native_window *native)
 	return lock;
 }
 
-static u32 sdl3_wrapper_cursor_is_visible(struct native_window *native)
+static u32 sdl3_wrapper_native_cursor_is_visible(struct native_window *native)
 {
 	return (SDL_CursorVisible()) ? 1 : 0;
 }
 
-static u32 sdl3_wrapper_cursor_is_locked(struct native_window *native)
+static u32 sdl3_wrapper_native_cursor_is_locked(struct native_window *native)
 {
 	return SDL_GetWindowRelativeMouseMode(native->sdl_win);
 }
@@ -439,14 +439,14 @@ void sdl3_wrapper_init(void)
 	native_window_is_fullscreen = &sdl3_wrapper_native_window_is_fullscreen;
 	native_window_is_bordered = &sdl3_wrapper_native_window_is_bordered;
 
-	cursor_show = &sdl3_wrapper_cursor_show;
-	cursor_hide = &sdl3_wrapper_cursor_hide;
-	cursor_grab = &sdl3_wrapper_cursor_grab;
-	cursor_ungrab = &sdl3_wrapper_cursor_ungrab;
-	cursor_is_visible = &sdl3_wrapper_cursor_is_visible;
-	cursor_is_locked = &sdl3_wrapper_cursor_is_locked;
-	cursor_lock = &sdl3_wrapper_cursor_lock;
-	cursor_unlock = &sdl3_wrapper_cursor_unlock;
+	native_cursor_show = &sdl3_wrapper_native_cursor_show;
+	native_cursor_hide = &sdl3_wrapper_native_cursor_hide;
+	native_cursor_grab = &sdl3_wrapper_native_cursor_grab;
+	native_cursor_ungrab = &sdl3_wrapper_native_cursor_ungrab;
+	native_cursor_is_visible = &sdl3_wrapper_native_cursor_is_visible;
+	native_cursor_is_locked = &sdl3_wrapper_native_cursor_is_locked;
+	native_cursor_lock = &sdl3_wrapper_native_cursor_lock;
+	native_cursor_unlock = &sdl3_wrapper_native_cursor_unlock;
 
 	screen_position_native_to_system = &sdl3_wrapper_screen_position_native_to_system;
 	screen_position_system_to_native = &sdl3_wrapper_screen_position_system_to_native;

@@ -46,21 +46,6 @@ u32 		kas_arch_config_init(struct arena *mem);
 /* 				System Graphics 			*/
 /************************************************************************/
 
-//TODO Implement 
-extern void 	(*cursor_show)(struct native_window *native);
-extern void 	(*cursor_hide)(struct native_window *native);
-extern void 	(*cursor_grab)(struct native_window *native);
-extern void 	(*cursor_ungrab)(struct native_window *native);
-/* return 1 if cursor is hidden, 0 otherwise */
-extern u32  	(*cursor_is_visible)(struct native_window *native);
-/* return 1 if cursor is locked, 0 otherwise */
-extern u32  	(*cursor_is_locked)(struct native_window *native);
-/* return 1 on success, 0 otherwise */
-extern u32 	(*cursor_lock)(struct native_window *native);
-/* return 1 on success, 0 otherwise */
-extern u32 	(*cursor_unlock)(struct native_window *native);
-
-
 /*TODO: Transform native screen position into our system coordinate system */
 extern void 	(*screen_position_native_to_system)(vec2 sys_pos, struct native_window *native, const vec2 nat_pos);
 /*TODO: Transform system screen position into native screen position */
@@ -95,6 +80,19 @@ extern u32			(*native_window_is_fullscreen)(const struct native_window *native);
 /* return true if window is bordered  */ 
 extern u32			(*native_window_is_bordered)(const struct native_window *native);
 
+//TODO Implement 
+extern void 	(*native_cursor_show)(struct native_window *native);
+extern void 	(*native_cursor_hide)(struct native_window *native);
+extern void 	(*native_cursor_grab)(struct native_window *native);
+extern void 	(*native_cursor_ungrab)(struct native_window *native);
+/* return 1 if cursor is hidden, 0 otherwise */
+extern u32  	(*native_cursor_is_visible)(struct native_window *native);
+/* return 1 if cursor is locked, 0 otherwise */
+extern u32  	(*native_cursor_is_locked)(struct native_window *native);
+/* return 1 on success, 0 otherwise */
+extern u32 	(*native_cursor_lock)(struct native_window *native);
+/* return 1 on success, 0 otherwise */
+extern u32 	(*native_cursor_unlock)(struct native_window *native);
 
 /************************************************************************/
 /* 				System Events 				*/
