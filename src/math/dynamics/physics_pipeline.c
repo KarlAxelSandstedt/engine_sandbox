@@ -45,6 +45,7 @@ struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 init
 		.c_state = { 0 },
 		.ns_tick = ns_tick,
 		.ns_elapsed = 0,
+		.ns_start = 0,
 		.frame = arena_alloc(frame_memory),
 		.frames_completed = 0,
 	};
@@ -796,8 +797,8 @@ void physics_pipeline_tick(struct physics_pipeline *pipeline)
 	{
 		internal_physics_pipeline_clear_frame(pipeline);
 	}
-	const f32 delta = (f32) pipeline->ns_tick / NSEC_PER_SEC;
 	pipeline->frames_completed += 1;
+	const f32 delta = (f32) pipeline->ns_tick / NSEC_PER_SEC;
 	internal_physics_pipeline_simulate_frame(pipeline, delta);
 
 	KAS_END;

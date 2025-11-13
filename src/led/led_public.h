@@ -131,10 +131,13 @@ struct led
 	u32			running;
 
 	u64			ns_engine_running;
+	u64			ns_engine_paused;
 
+	u32			pending_engine_paused;
 	u32			pending_engine_running;
 	u32			pending_engine_initalized;
 
+	u32			engine_paused;
 	u32			engine_running;		
 	u32			engine_initalized;
 

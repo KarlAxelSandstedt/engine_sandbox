@@ -99,7 +99,7 @@ extern struct led *g_editor;
 /* initate global commands and identifers */
 void 		led_core_init_commands(void);
 /* run level editor systems */
-void 		led_core(struct led *led, const u64 ns_tick);
+void 		led_core(struct led *led);
 
 /* compile level editor map */
 void		led_compile(struct led *led);

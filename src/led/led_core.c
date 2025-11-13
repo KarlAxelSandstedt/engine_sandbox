@@ -1104,6 +1104,7 @@ void led_run(struct led *led)
 
 	led->pending_engine_initalized = 1;
 	led->pending_engine_running = 1;
+	led->pending_engine_paused = 0;
 
 	KAS_END;
 }
@@ -1112,6 +1113,7 @@ void led_pause(struct led *led)
 {
 	KAS_TASK(__func__, T_LED);
 
+	led->pending_engine_paused = 1;
 	led->pending_engine_running = 0;
 
 	KAS_END;
@@ -1123,13 +1125,27 @@ void led_stop(struct led *led)
 
 	led->pending_engine_initalized = 0;
 	led->pending_engine_running = 0;
+	led->pending_engine_paused = 0;
 
 	KAS_END;
 }
 
 static void led_engine_flush(struct led *led)
 {
-	//TODO flush and reset visuals to led_node 
+	struct led_node *node = NULL;
+	for (u32 i = led->node_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(node))
+	{
+		node = pool_address(&led->node_pool, i);
+		r_proxy3d_set_linear_speculation(node->position
+					, node->rotation
+					, (vec3) { 0 } 
+					, (vec3) { 0 } 
+					, led->ns
+					, node->proxy);
+		struct r_proxy3d *proxy = r_proxy3d_address(node->proxy);
+		vec4_copy(proxy->color, node->color);
+	}
+
 }
 
 static void led_engine_init(struct led *led)
@@ -1137,6 +1153,8 @@ static void led_engine_init(struct led *led)
 	//TODO move this into engine flush
 	physics_pipeline_flush(&led->physics);		
 	led->physics.ns_start = led->ns;
+	led->physics.ns_elapsed = -led->ns_delta;
+	led->ns_engine_paused = 0;
 
 	struct led_node *node = NULL;
 	for (u32 i = led->node_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(node))
@@ -1167,17 +1185,15 @@ static void led_engine_color_bodies(struct led *led, const u32 island, const vec
 	}
 }
 
-static void led_engine_run(struct led *led, const u64 ns_tick)
+static void led_engine_run(struct led *led)
 {
-	led->ns_engine_running += ns_tick;
-	led->physics.ns_elapsed += ns_tick;
+	led->physics.ns_elapsed += led->ns_delta;
 
 	//const u64 game_frames_to_run = (game->ns_elapsed - (game->frames_completed * game->ns_tick)) / game->ns_tick;
 	const u64 physics_frames_to_run = (led->physics.ns_elapsed - (led->physics.frames_completed * led->physics.ns_tick)) / led->physics.ns_tick;
 
 	//u64 ns_next_game_frame = game->frames_completed * game->ns_tick;
-	u64 ns_next_physics_frame = led->physics.frames_completed * led->physics.ns_tick;
-
+	u64 ns_next_physics_frame = (led->physics.frames_completed+1) * led->physics.ns_tick;
 
 	for (u64 i = 0; i < /* game_frames_to_run + */ physics_frames_to_run; ++i)
 	{
@@ -1410,7 +1426,7 @@ static void led_engine_run(struct led *led, const u64 ns_tick)
 	dll_flush(&led->physics.event_list);
 }
 
-void led_core(struct led *led, const u64 ns_delta)
+void led_core(struct led *led)
 {
 	KAS_TASK(__func__, T_LED);
 
@@ -1426,32 +1442,25 @@ void led_core(struct led *led, const u64 ns_delta)
 
 	if (led->engine_initalized && !led->pending_engine_initalized)
 	{
-		struct led_node *node = NULL;
-		for (u32 i = led->node_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(node))
-		{
-			node = pool_address(&led->node_pool, i);
-			r_proxy3d_set_linear_speculation(node->position
-						, node->rotation
-						, (vec3) { 0 } 
-						, (vec3) { 0 } 
-						, led->ns
-						, node->proxy);
-			struct r_proxy3d *proxy = r_proxy3d_address(node->proxy);
-			vec4_copy(proxy->color, node->color);
-		}
+		led_engine_flush(led);
 	}
 
 	if (!led->engine_initalized && led->pending_engine_initalized)
 	{
-		led->ns_engine_running = 0;
 		led_engine_init(led);
 	}
 	led->engine_initalized = led->pending_engine_initalized;
-
 	led->engine_running = led->pending_engine_running;
+	led->engine_paused = led->pending_engine_paused;
 	if (led->engine_running)
 	{
-		led_engine_run(led, ns_delta);
+		led->ns_engine_running += led->ns_delta;
+		led_engine_run(led);
+	}
+
+	if (led->engine_paused)
+	{
+		led->ns_engine_paused += led->ns_delta;
 	}
 
 	//TODO: led_draw();

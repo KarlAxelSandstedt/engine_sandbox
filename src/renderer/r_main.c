@@ -30,8 +30,8 @@ static void r_led_draw(const struct led *led)
 	const u32 depth_exponent = 1 + f32_exponent_bits(led->cam.fz_far);
 	kas_assert(depth_exponent >= 23);
 
-	r_proxy3d_hierarchy_speculate(&g_r_core->frame, g_r_core->ns_elapsed);
-	
+	r_proxy3d_hierarchy_speculate(&g_r_core->frame, led->ns - led->ns_engine_paused);
+
 	struct hierarchy_index_iterator it = hierarchy_index_iterator_init(&g_r_core->frame, g_r_core->proxy3d_hierarchy, PROXY3D_ROOT);
 	// skip root stub 
 	hierarchy_index_iterator_next_df(&it);
@@ -251,7 +251,11 @@ void r_led_main(const struct led *led)
 
 			g_r_core->frames_elapsed += frames_elapsed_since_last_draw;
 
-			r_proxy3d_hierarchy_speculate(&tmp, led->ns);
+			fprintf(stderr, "led ns: %lu\n", led->ns);
+			fprintf(stderr, "r   ns: %lu\n", g_r_core->ns_elapsed);
+			fprintf(stderr, "p   ns: %lu\n", led->physics.ns_start + led->physics.ns_elapsed);
+			fprintf(stderr, "p f ns: %lu\n", led->physics.frames_completed * led->physics.ns_tick);
+			fprintf(stderr, "spec:   %lu\n", led->ns - led->ns_engine_paused);
 
 			struct system_window *win = NULL;
 			struct hierarchy_index_iterator	it = hierarchy_index_iterator_init(&tmp, g_window_hierarchy, g_process_root_window);
