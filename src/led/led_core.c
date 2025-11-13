@@ -1424,6 +1424,23 @@ void led_core(struct led *led, const u64 ns_delta)
 	}
 	led_remove_marked_structs(led);
 
+	if (led->engine_initalized && !led->pending_engine_initalized)
+	{
+		struct led_node *node = NULL;
+		for (u32 i = led->node_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(node))
+		{
+			node = pool_address(&led->node_pool, i);
+			r_proxy3d_set_linear_speculation(node->position
+						, node->rotation
+						, (vec3) { 0 } 
+						, (vec3) { 0 } 
+						, led->ns
+						, node->proxy);
+			struct r_proxy3d *proxy = r_proxy3d_address(node->proxy);
+			vec4_copy(proxy->color, node->color);
+		}
+	}
+
 	if (!led->engine_initalized && led->pending_engine_initalized)
 	{
 		led->ns_engine_running = 0;
