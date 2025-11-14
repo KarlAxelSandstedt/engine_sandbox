@@ -344,6 +344,7 @@ void r_scene_generate_bucket_list(void)
 			b->material = R_CMD_MATERIAL_GET(cmd->key);
 			b->primitive = R_CMD_PRIMITIVE_GET(cmd->key);
 			b->instanced = R_CMD_INSTANCED_GET(cmd->key);
+			b->elements = R_CMD_ELEMENTS_GET(cmd->key);
 		}
 
 		switch (instance->type)
@@ -371,6 +372,15 @@ void r_scene_generate_bucket_list(void)
 						1,
 					       	0);
 				
+			} break;
+
+			case R_INSTANCE_MESH:
+			{
+				r_buffer_constructor_buffer_add_size(&buf_constructor,
+						instance->mesh->vertex_count * L_COLOR_STRIDE,
+						0,
+						0,
+						0);
 			} break;
 
 			default:
@@ -696,8 +706,22 @@ static void r_scene_bucket_generate_draw_data(struct r_bucket *b)
 					memcpy(shared_data + S_PROXY3D_TRANSLATION_BLEND_OFFSET + sizeof(vec3), &proxy->blend, sizeof(f32));
 					memcpy(shared_data + S_PROXY3D_ROTATION_OFFSET, proxy->spec_rotation, sizeof(quat));
 					memcpy(shared_data + S_PROXY3D_COLOR_OFFSET, proxy->color, sizeof(vec4));
-					//vec3_print("trans", shared_data + S_PROXY3D_TRANSLATION_OFFSET);
 					shared_data += S_PROXY3D_STRIDE;
+				}
+			} break;
+
+			case R_INSTANCE_MESH:
+			{
+				buf->shared_data = NULL;
+				buf->index_data = NULL;
+				buf->local_data = arena_push(g_scene->mem_frame, buf->local_size);
+				u8 *local_data = buf->local_data;
+				for (u32 i = buf->c_l; i <= buf->c_h; ++i)
+				{
+					r_cmd = g_scene->cmd_frame + i;
+					instance = array_list_intrusive_address(g_scene->instance_list, r_cmd->instance);
+					memcpy(local_data, instance->mesh->vertex_data, instance->mesh->vertex_count * L_COLOR_STRIDE);
+					local_data += instance->mesh->vertex_count * L_COLOR_STRIDE;
 				}
 			} break;
 
@@ -802,7 +826,7 @@ u64 r_material_construct(const u64 program, const u64 mesh, const u64 texture)
 	return (program << MATERIAL_PROGRAM_LOW_BIT) | (mesh << MATERIAL_MESH_LOW_BIT) | (texture << MATERIAL_TEXTURE_LOW_BIT);
 }
 
-u64 r_command_key(const u64 screen, const u64 depth, const u64 transparency, const u64 material, const u64 primitive, const u64 instanced)
+u64 r_command_key(const u64 screen, const u64 depth, const u64 transparency, const u64 material, const u64 primitive, const u64 instanced, const u64 elements)
 {
 	kas_assert(screen <= (((u64) 1 << R_CMD_SCREEN_LAYER_BITS) - (u64) 1));
 	kas_assert(depth <= (((u64) 1 << R_CMD_DEPTH_BITS) - (u64) 1));
@@ -810,13 +834,15 @@ u64 r_command_key(const u64 screen, const u64 depth, const u64 transparency, con
 	kas_assert(material <= (((u64) 1 << R_CMD_MATERIAL_BITS) - (u64) 1));
 	kas_assert(primitive <= (((u64) 1 << R_CMD_PRIMITIVE_BITS) - (u64) 1));
 	kas_assert(instanced <= (((u64) 1 << R_CMD_INSTANCED_BITS) - (u64) 1));
+	kas_assert(elements <= (((u64) 1 << R_CMD_ELEMENTS_BITS) - (u64) 1));
 
 	return ((u64) screen << R_CMD_SCREEN_LAYER_LOW_BIT)		
 	      	| ((u64) depth << R_CMD_DEPTH_LOW_BIT)			
 	       	| ((u64) transparency << R_CMD_TRANSPARENCY_LOW_BIT)	
 	       	| ((u64) material << R_CMD_MATERIAL_LOW_BIT)		
 		| ((u64) primitive << R_CMD_PRIMITIVE_LOW_BIT)
-		| ((u64) instanced << R_CMD_INSTANCED_LOW_BIT);
+		| ((u64) instanced << R_CMD_INSTANCED_LOW_BIT)
+		| ((u64) elements << R_CMD_ELEMENTS_LOW_BIT);
 }
 
 const char *screen_str_table[1 << R_CMD_SCREEN_LAYER_BITS] =
@@ -841,8 +867,14 @@ const char *primitive_str_table[1 << R_CMD_PRIMITIVE_BITS] =
 
 const char *instanced_str_table[1 << R_CMD_INSTANCED_BITS] =
 {
-	"INSTANCED",
 	"NON_INSTANCED",
+	"INSTANCED",
+};
+
+const char *elements_str_table[1 << R_CMD_ELEMENTS_BITS] =
+{
+	"ARRAYS",
+	"ELEMENTS",
 };
 
 void r_command_key_print(const u64 key)
@@ -851,6 +883,7 @@ void r_command_key_print(const u64 key)
 	const char *transparency_str = transparency_str_table[R_CMD_TRANSPARENCY_GET(key)];
 	const char *primitive_str = primitive_str_table[R_CMD_PRIMITIVE_GET(key)];
 	const char *instanced_str = instanced_str_table[R_CMD_INSTANCED_GET(key)];
+	const char *elements_str = elements_str_table[R_CMD_ELEMENTS_GET(key)];
 
 	fprintf(stderr, "render command key:\n");
 	fprintf(stderr, "\tscreen: %s\n", screen_str);
@@ -859,4 +892,5 @@ void r_command_key_print(const u64 key)
 	fprintf(stderr, "\tmaterial: %lu\n", R_CMD_MATERIAL_GET(key));
 	fprintf(stderr, "\tprimitive: %s\n", primitive_str);
 	fprintf(stderr, "\tinstanced: %s\n", instanced_str);
+	fprintf(stderr, "\tlayout: %s\n", elements_str);
 }

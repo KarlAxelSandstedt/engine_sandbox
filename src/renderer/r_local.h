@@ -32,6 +32,13 @@
 #include "list.h"
 #include "sys_gl.h"
 
+#define S_COLOR_STRIDE		0
+
+#define L_POSITION_OFFSET	0
+#define L_COLOR_OFFSET		(sizeof(vec3))
+
+#define L_COLOR_STRIDE		(sizeof(vec3) + sizeof(vec4))
+
 /********************************************************
  *			r_ui.c				*
  ********************************************************/
@@ -79,6 +86,8 @@ void 	r_compile_shader(u32 *prg, const char *v_filepath, const char *f_filepath)
 struct r_program
 {
 	u32	gl_program;				/* opengl program id */
+	u64	shared_stride;
+	u64	local_stride;
 	void	(* buffer_shared_layout_setter)(void);	/* opengl buffer shared (instanced) layout setter */
 	void	(* buffer_local_layout_setter)(void);	/* opengl buffer local layout setter */
 };

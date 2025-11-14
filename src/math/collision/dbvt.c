@@ -466,9 +466,9 @@ u32 dbvt_raycast(struct arena *mem, const struct dbvt *tree, const struct ray *r
 {
 	if (tree->proxy_count == 0) { return 0; }
 
-	u32 *hits = arena_push_packed(mem, tree->proxy_count * sizeof(i32));
+	u32 *hits = arena_push_packed(mem, tree->proxy_count * sizeof(u32));
 	struct arena record = *mem;
-	u32 *stack = arena_push_packed(mem, tree->proxy_count * sizeof(i32));
+	u32 *stack = arena_push_packed(mem, tree->proxy_count * sizeof(u32));
 
 	vec3 tmp;
 	u32 i = tree->root;
@@ -552,28 +552,3 @@ void dbvt_validate(struct dbvt *tree)
 
 	kas_assert(node_count == 2*tree->proxy_count - 1);
 }
-
-//void dbvt_push_lines(struct drawbuffer *buf, struct dbvt *tree, const vec4 color)
-//{
-//	i32 i = tree->root;
-//	i32 q = DBVT_NO_NODE;
-//
-//	while (i != DBVT_NO_NODE)
-//	{
-//		AABB_push_lines(buf, &tree->nodes[i].box, color);
-//		if (tree->nodes[i].left != DBVT_NO_NODE)
-//		{
-//			tree->cost_index[++q] = tree->nodes[i].right;
-//			kas_assert(q < COST_QUEUE_INITIAL_COUNT);
-//			i = tree->nodes[i].left;
-//		}
-//		else if (q != DBVT_NO_NODE)
-//		{
-//			i = tree->cost_index[q--];
-//		}
-//		else
-//		{
-//			i = DBVT_NO_NODE;
-//		}
-//	}
-//}

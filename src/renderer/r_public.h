@@ -131,7 +131,7 @@ struct r_command
 	u32	allocated;	/* boolean : is the command allocated 					*/
 };
 
-u64 	r_command_key(const u64 screen, const u64 depth, const u64 transparency, const u64 material, const u64 primitive, const u64 instanced);
+u64 	r_command_key(const u64 screen, const u64 depth, const u64 transparency, const u64 material, const u64 primitive, const u64 instanced, const u64 elements);
 void 	r_command_key_print(const u64 key);
 u64 	r_material_construct(const u64 program, const u64 mesh, const u64 texture);
 
@@ -139,17 +139,19 @@ u64 	r_material_construct(const u64 program, const u64 mesh, const u64 texture);
 #define	R_CMD_DEPTH_BITS		23
 #define	R_CMD_TRANSPARENCY_BITS		2
 #define	R_CMD_MATERIAL_BITS		30
+#define R_CMD_ELEMENTS_BITS		1
 #define	R_CMD_INSTANCED_BITS		1
 #define	R_CMD_PRIMITIVE_BITS		1
-#define R_CMD_UNUSED_BITS		(64 - R_CMD_SCREEN_LAYER_BITS - R_CMD_DEPTH_BITS - R_CMD_TRANSPARENCY_BITS - R_CMD_MATERIAL_BITS - R_CMD_PRIMITIVE_BITS - R_CMD_INSTANCED_BITS)
+#define R_CMD_UNUSED_BITS		(64 - R_CMD_SCREEN_LAYER_BITS - R_CMD_DEPTH_BITS - R_CMD_TRANSPARENCY_BITS - R_CMD_MATERIAL_BITS - R_CMD_PRIMITIVE_BITS - R_CMD_INSTANCED_BITS - R_CMD_ELEMENTS_BITS)
 
-#define R_CMD_SCREEN_LAYER_LOW_BIT	(R_CMD_DEPTH_BITS + R_CMD_TRANSPARENCY_BITS + R_CMD_MATERIAL_BITS + R_CMD_PRIMITIVE_BITS + R_CMD_INSTANCED_BITS)
-#define R_CMD_TRANSPARENCY_LOW_BIT	(R_CMD_DEPTH_BITS + R_CMD_MATERIAL_BITS + R_CMD_PRIMITIVE_BITS + R_CMD_INSTANCED_BITS)
-#define R_CMD_DEPTH_LOW_BIT		(R_CMD_MATERIAL_BITS + R_CMD_PRIMITIVE_BITS + R_CMD_INSTANCED_BITS)
-#define R_CMD_MATERIAL_LOW_BIT		(R_CMD_PRIMITIVE_BITS + R_CMD_INSTANCED_BITS)
-#define R_CMD_PRIMITIVE_LOW_BIT		(R_CMD_INSTANCED_BITS)
-#define R_CMD_INSTANCED_LOW_BIT		(0)
-#define R_CMD_UNUSED_LOW_BIT		(R_CMD_SCREEN_LAYER_BITS + R_CMD_DEPTH_BITS + R_CMD_TRANSPARENCY_BITS + R_CMD_MATERIAL_BITS + R_CMD_PRIMITIVE_BITS + R_CMD_INSTANCED_BITS)
+#define R_CMD_SCREEN_LAYER_LOW_BIT	(R_CMD_DEPTH_BITS + R_CMD_TRANSPARENCY_BITS + R_CMD_MATERIAL_BITS + R_CMD_PRIMITIVE_BITS + R_CMD_INSTANCED_BITS + R_CMD_ELEMENTS_BITS)
+#define R_CMD_TRANSPARENCY_LOW_BIT	(R_CMD_DEPTH_BITS + R_CMD_MATERIAL_BITS + R_CMD_PRIMITIVE_BITS + R_CMD_INSTANCED_BITS + R_CMD_ELEMENTS_BITS)
+#define R_CMD_DEPTH_LOW_BIT		(R_CMD_MATERIAL_BITS + R_CMD_PRIMITIVE_BITS + R_CMD_INSTANCED_BITS + R_CMD_ELEMENTS_BITS)
+#define R_CMD_MATERIAL_LOW_BIT		(R_CMD_PRIMITIVE_BITS + R_CMD_INSTANCED_BITS + R_CMD_ELEMENTS_BITS)
+#define R_CMD_PRIMITIVE_LOW_BIT		(R_CMD_INSTANCED_BITS + R_CMD_ELEMENTS_BITS)
+#define R_CMD_INSTANCED_LOW_BIT		(R_CMD_ELEMENTS_BITS)
+#define R_CMD_ELEMENTS_LOW_BIT		(0)
+#define R_CMD_UNUSED_LOW_BIT		(R_CMD_SCREEN_LAYER_BITS + R_CMD_DEPTH_BITS + R_CMD_TRANSPARENCY_BITS + R_CMD_MATERIAL_BITS + R_CMD_PRIMITIVE_BITS + R_CMD_INSTANCED_BITS + R_CMD_ELEMENTS_BITS)
 
 #define R_CMD_SCREEN_LAYER_MASK		((((u64) 1 << R_CMD_SCREEN_LAYER_BITS) - (u64) 1) << R_CMD_SCREEN_LAYER_LOW_BIT)
 #define R_CMD_DEPTH_MASK		((((u64) 1 << R_CMD_DEPTH_BITS) - (u64) 1) << R_CMD_DEPTH_LOW_BIT)
@@ -157,6 +159,7 @@ u64 	r_material_construct(const u64 program, const u64 mesh, const u64 texture);
 #define R_CMD_MATERIAL_MASK		((((u64) 1 << R_CMD_MATERIAL_BITS) - (u64) 1) << R_CMD_MATERIAL_LOW_BIT)
 #define R_CMD_PRIMITIVE_MASK		((((u64) 1 << R_CMD_PRIMITIVE_BITS) - (u64) 1) << R_CMD_PRIMITIVE_LOW_BIT)
 #define R_CMD_INSTANCED_MASK		((((u64) 1 << R_CMD_INSTANCED_BITS) - (u64) 1) << R_CMD_INSTANCED_LOW_BIT)
+#define R_CMD_ELEMENTS_MASK		((((u64) 1 << R_CMD_ELEMENTS_BITS) - (u64) 1) << R_CMD_ELEMENTS_LOW_BIT)
 #define R_CMD_UNUSED_MASK		((((u64) 1 << R_CMD_UNUSED_BITS) - (u64) 1) << R_CMD_UNUSED_LOW_BIT)
 
 #define R_CMD_SCREEN_LAYER_GET(val64)	((val64 & R_CMD_SCREEN_LAYER_MASK) >> R_CMD_SCREEN_LAYER_LOW_BIT)
@@ -165,6 +168,7 @@ u64 	r_material_construct(const u64 program, const u64 mesh, const u64 texture);
 #define R_CMD_MATERIAL_GET(val64)	((val64 & R_CMD_MATERIAL_MASK) >> R_CMD_MATERIAL_LOW_BIT)
 #define R_CMD_PRIMITIVE_GET(val64)	((val64 & R_CMD_PRIMITIVE_MASK) >> R_CMD_PRIMITIVE_LOW_BIT)
 #define R_CMD_INSTANCED_GET(val64)	((val64 & R_CMD_INSTANCED_MASK) >> R_CMD_INSTANCED_LOW_BIT)
+#define R_CMD_ELEMENTS_GET(val64)	((val64 & R_CMD_ELEMENTS_MASK) >> R_CMD_ELEMENTS_LOW_BIT)
 #define R_CMD_UNUSED_GET(val64)		((val64 & R_CMD_UNUSED_MASK) >> R_CMD_UNUSED_LOW_BIT)
 
 #define R_CMD_SCREEN_LAYER_GAME		((u64) 1)	/* The game itself */
@@ -178,6 +182,9 @@ u64 	r_material_construct(const u64 program, const u64 mesh, const u64 texture);
 
 #define R_CMD_INSTANCED			((u64) 1)
 #define R_CMD_NON_INSTANCED		((u64) 0)
+
+#define R_CMD_ELEMENTS			((u64) 1)
+#define R_CMD_ARRAYS			((u64) 0)
 
 #define R_CMD_PRIMITIVE_LINE		((u64) 1)
 #define R_CMD_PRIMITIVE_TRIANGLE	((u64) 0)
@@ -287,6 +294,7 @@ enum r_instance_type
 {
 	R_INSTANCE_PROXY3D,	/* instance of a proxy3d	*/
 	R_INSTANCE_UI, 		/* instance of a ui bucket	*/
+	R_INSTANCE_MESH,	/* instance of a mesh		*/
 	R_INSTANCE_COUNT
 };
 
@@ -300,17 +308,16 @@ struct r_instance
 	enum r_instance_type	type;			/* draw type of unit 				*/
 	union
 	{
-		u32		unit;	
+		u32		       unit;	
 		struct ui_draw_bucket *ui_bucket;
+		struct r_mesh	      *mesh;
 	};
 };
 
 struct r_instance *	r_instance_add(const u32 unit, const u64 cmd);
-struct r_instance *	r_instance_add_non_cached(const u64 cmd); /* add non cached instance with no unit. These
-								     simplifies stuff for when we want to draw 
-								     instances of things that only last one 
-								     frame. (We want to be lazy and not clean
-								     anything up) */
+struct r_instance *	r_instance_add_non_cached(const u64 cmd); /* add non cached instance with no unit. This
+								     gives us an immediate mode option that can
+								     simplify what we want. */
 
 /********************** Render Buffer  *************************/
 
@@ -370,6 +377,7 @@ struct r_bucket
 	u32	c_l;			/* index of first r_command in bucket 	*/
 	u32	c_h;			/* index of last r_command in bucket  	*/
 
+	u32	elements;
 	u32	instanced;
 	u32	primitive;
 	u32	transparency;

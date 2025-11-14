@@ -708,6 +708,15 @@ struct physics_pipeline
 	vec4				static_color;
 	vec4				sleep_color;
 	vec4				awake_color;
+
+	vec4				bounding_box_color;
+	vec4				dbvt_color;
+	vec4				manifold_color;
+
+	u32				draw_bounding_box;
+	u32				draw_dbvt;
+	u32				draw_manifold;
+	u32				draw_lines;
 };
 
 /**************** PHYISCS PIPELINE API ****************/

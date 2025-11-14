@@ -282,7 +282,5 @@ struct dbvt_overlap *	dbvt_push_overlap_pairs(struct arena *mem, u32 *count, str
 u32			dbvt_raycast(struct arena *mem, const struct dbvt *tree, const struct ray *ray);
 /* validate tree construction */
 void			dbvt_validate(struct dbvt *tree);
-/* push heirarchy node box lines into draw buffer */
-//void	dbvt_push_lines(struct drawbuffer *buf, struct dbvt *tree, const vec4 color);
 
 #endif

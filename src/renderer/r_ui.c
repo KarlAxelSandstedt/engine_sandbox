@@ -41,7 +41,8 @@ void r_ui_draw(struct ui *ui)
 					R_CMD_TRANSPARENCY_ADDITIVE,
 					r_material_construct(PROGRAM_UI, MESH_NONE, UI_CMD_TEXTURE_GET(b->cmd)),
 					R_CMD_PRIMITIVE_TRIANGLE,
-					R_CMD_INSTANCED));
+					R_CMD_INSTANCED,
+					R_CMD_ELEMENTS));
 		instance->type = R_INSTANCE_UI;
 		instance->ui_bucket = b;
 

@@ -1132,6 +1132,7 @@ void led_stop(struct led *led)
 
 static void led_engine_flush(struct led *led)
 {
+	physics_pipeline_flush(&led->physics);
 	struct led_node *node = NULL;
 	for (u32 i = led->node_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(node))
 	{
@@ -1145,7 +1146,6 @@ static void led_engine_flush(struct led *led)
 		struct r_proxy3d *proxy = r_proxy3d_address(node->proxy);
 		vec4_copy(proxy->color, node->color);
 	}
-
 }
 
 static void led_engine_init(struct led *led)

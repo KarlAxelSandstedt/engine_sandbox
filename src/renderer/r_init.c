@@ -121,14 +121,20 @@ void r_init(struct arena *mem_persistent, const u64 ns_tick, const u64 frame_siz
 	g_r_core->ns_tick = ns_tick;	
 
 	r_compile_shader(&g_r_core->program[PROGRAM_UI].gl_program, vertex_ui, fragment_ui);
+	g_r_core->program[PROGRAM_UI].shared_stride = S_UI_STRIDE;
+	g_r_core->program[PROGRAM_UI].local_stride = L_UI_STRIDE;
 	g_r_core->program[PROGRAM_UI].buffer_shared_layout_setter = r_ui_buffer_shared_layout_setter;
 	g_r_core->program[PROGRAM_UI].buffer_local_layout_setter = r_ui_buffer_local_layout_setter;
 
 	r_compile_shader(&g_r_core->program[PROGRAM_PROXY3D].gl_program, vertex_proxy3d, fragment_proxy3d);
+	g_r_core->program[PROGRAM_PROXY3D].shared_stride = S_PROXY3D_STRIDE;
+	g_r_core->program[PROGRAM_PROXY3D].local_stride = L_PROXY3D_STRIDE;
 	g_r_core->program[PROGRAM_PROXY3D].buffer_shared_layout_setter = r_proxy3d_buffer_shared_layout_setter;
 	g_r_core->program[PROGRAM_PROXY3D].buffer_local_layout_setter = r_proxy3d_buffer_local_layout_setter;
 
 	r_compile_shader(&g_r_core->program[PROGRAM_COLOR].gl_program, vertex_color, fragment_color);
+	g_r_core->program[PROGRAM_COLOR].shared_stride = S_COLOR_STRIDE;
+	g_r_core->program[PROGRAM_COLOR].local_stride = L_COLOR_STRIDE;
 	g_r_core->program[PROGRAM_COLOR].buffer_shared_layout_setter = NULL;
 	g_r_core->program[PROGRAM_COLOR].buffer_local_layout_setter = r_color_buffer_layout_setter;
 

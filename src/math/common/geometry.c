@@ -532,6 +532,57 @@ u32 AABB_raycast(vec3 intersection, const struct AABB *aabb, const struct ray *r
 	return 0;
 }
 
+u64 AABB_push_lines_buffered(u8 *buf, const u64 bufsize, const struct AABB *box, const vec4 color)
+{
+	const u64 bytes_written = 3*8*(sizeof(vec3)+sizeof(vec4));
+	if (bufsize < bytes_written)
+	{
+		return 0;
+	}
+
+	vec3 end;
+	vec3_sub(end, box->center, box->hw);
+
+	f32 *v = (f32*) buf;
+	vec3_set(v+7*0, end[0], 		   end[1], 		     end[2]);
+	vec3_set(v+7*1, end[0] + 2.0f*box->hw[0], end[1], 		     end[2]);
+	vec3_set(v+7*2, end[0], 		   end[1], 		     end[2]);
+	vec3_set(v+7*3, end[0], 		   end[1] + 2.0f*box->hw[1], end[2]);
+	vec3_set(v+7*4, end[0], 		   end[1], 		     end[2]);
+	vec3_set(v+7*5, end[0], 		   end[1], 	             end[2] + 2.0f*box->hw[2]);
+
+	vec3_set(v+7*6, end[0] + 2.0f*box->hw[0], end[1], 		     end[2]);
+	vec3_set(v+7*7, end[0] + 2.0f*box->hw[0], end[1] + 2.0f*box->hw[1], end[2]);
+	vec3_set(v+7*8, end[0] + 2.0f*box->hw[0], end[1], 		     end[2]);
+	vec3_set(v+7*9, end[0] + 2.0f*box->hw[0], end[1]                  , end[2] + 2.0f*box->hw[2]);
+
+	vec3_set(v+7*10, end[0], 		   end[1] + 2.0f*box->hw[1], end[2]);
+	vec3_set(v+7*11, end[0], 		   end[1] + 2.0f*box->hw[1], end[2] + 2.0f*box->hw[2]);
+	vec3_set(v+7*12, end[0], 		   end[1] + 2.0f*box->hw[1], end[2]);
+	vec3_set(v+7*13, end[0] + 2.0f*box->hw[0], end[1] + 2.0f*box->hw[1], end[2]);
+
+	vec3_set(v+7*14, end[0], 		   end[1], 	             end[2] + 2.0f*box->hw[2]);
+	vec3_set(v+7*15, end[0], 		   end[1] + 2.0f*box->hw[1], end[2] + 2.0f*box->hw[2]);
+	vec3_set(v+7*16, end[0], 		   end[1], 	             end[2] + 2.0f*box->hw[2]);
+	vec3_set(v+7*17, end[0] + 2.0f*box->hw[0], end[1], 	             end[2] + 2.0f*box->hw[2]);
+
+	vec3_set(v+7*18, end[0] + 2.0f*box->hw[0], end[1] + 2.0f*box->hw[1], end[2]);
+	vec3_set(v+7*19, end[0] + 2.0f*box->hw[0], end[1] + 2.0f*box->hw[1], end[2] + 2.0f*box->hw[2]);
+
+	vec3_set(v+7*20, end[0], 		   end[1] + 2.0f*box->hw[1], end[2] + 2.0f*box->hw[2]);
+	vec3_set(v+7*21, end[0] + 2.0f*box->hw[0], end[1] + 2.0f*box->hw[1], end[2] + 2.0f*box->hw[2]);
+
+	vec3_set(v+7*22, end[0] + 2.0f*box->hw[0], end[1], 	             end[2] + 2.0f*box->hw[2]);
+	vec3_set(v+7*23, end[0] + 2.0f*box->hw[0], end[1] + 2.0f*box->hw[1], end[2] + 2.0f*box->hw[2]);
+
+	for (u32 i = 0; i < 24; ++i)
+	{
+		vec4_copy(v + 7*i + 3, color);
+	}
+
+	return bytes_written;
+}
+
 u32 vertex_support(vec3 support, const vec3 dir, const vec3ptr v, const u32 v_count)
 {
 	u32 best = U32_MAX;
@@ -1636,9 +1687,6 @@ struct dcel dcel_convex_hull(struct arena *mem, const vec3ptr v, const u32 v_cou
 	/* iteratetively solve and add conflicts until no vertices left */
 	for (u32 i = 4; i < v_count; ++i)
 	{
-		arena_push_record(mem);
-		dcel_ddcel(mem, &ddcel);	
-		arena_pop_record(mem);
 		convex_hull_iteration(&ddcel, i, tol);
 		ddcel_assert_topology(&ddcel);
 	}

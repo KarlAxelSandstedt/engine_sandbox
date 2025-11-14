@@ -32,6 +32,7 @@ static void r_cmd_static_assert(void)
 			+ R_CMD_MATERIAL_BITS
 			+ R_CMD_PRIMITIVE_BITS
 			+ R_CMD_INSTANCED_BITS
+			+ R_CMD_ELEMENTS_BITS
 			+ R_CMD_UNUSED_BITS == 64, "r_cmd definitions should span whole 64 bits");
 
 	//TODO Show no overlap between masks
@@ -40,16 +41,21 @@ static void r_cmd_static_assert(void)
 	kas_static_assert((R_CMD_SCREEN_LAYER_MASK & R_CMD_MATERIAL_MASK) == 0, "R_CMD_*_MASK values should not overlap");
 	kas_static_assert((R_CMD_SCREEN_LAYER_MASK & R_CMD_PRIMITIVE_MASK) == 0, "R_CMD_*_MASK values should not overlap");
 	kas_static_assert((R_CMD_SCREEN_LAYER_MASK & R_CMD_INSTANCED_MASK) == 0, "R_CMD_*_MASK values should not overlap");
+	kas_static_assert((R_CMD_SCREEN_LAYER_MASK & R_CMD_ELEMENTS_MASK) == 0, "R_CMD_*_MASK values should not overlap");
 	kas_static_assert((R_CMD_DEPTH_MASK & R_CMD_TRANSPARENCY_MASK) == 0, "R_CMD_*_MASK values should not overlap");
 	kas_static_assert((R_CMD_DEPTH_MASK & R_CMD_MATERIAL_MASK) == 0, "R_CMD_*_MASK values should not overlap");
 	kas_static_assert((R_CMD_DEPTH_MASK & R_CMD_PRIMITIVE_MASK) == 0, "R_CMD_*_MASK values should not overlap");
 	kas_static_assert((R_CMD_DEPTH_MASK & R_CMD_INSTANCED_MASK) == 0, "R_CMD_*_MASK values should not overlap");
+	kas_static_assert((R_CMD_DEPTH_MASK & R_CMD_ELEMENTS_MASK) == 0, "R_CMD_*_MASK values should not overlap");
 	kas_static_assert((R_CMD_TRANSPARENCY_MASK & R_CMD_MATERIAL_MASK) == 0, "R_CMD_*_MASK values should not overlap");
 	kas_static_assert((R_CMD_TRANSPARENCY_MASK & R_CMD_PRIMITIVE_MASK) == 0, "R_CMD_*_MASK values should not overlap");
 	kas_static_assert((R_CMD_TRANSPARENCY_MASK & R_CMD_INSTANCED_MASK) == 0, "R_CMD_*_MASK values should not overlap");
+	kas_static_assert((R_CMD_TRANSPARENCY_MASK & R_CMD_ELEMENTS_MASK) == 0, "R_CMD_*_MASK values should not overlap");
 	kas_static_assert((R_CMD_MATERIAL_MASK & R_CMD_PRIMITIVE_MASK) == 0, "R_CMD_*_MASK values should not overlap");
 	kas_static_assert((R_CMD_MATERIAL_MASK & R_CMD_INSTANCED_MASK) == 0, "R_CMD_*_MASK values should not overlap");
+	kas_static_assert((R_CMD_MATERIAL_MASK & R_CMD_ELEMENTS_MASK) == 0, "R_CMD_*_MASK values should not overlap");
 	kas_static_assert((R_CMD_PRIMITIVE_MASK & R_CMD_INSTANCED_MASK) == 0, "R_CMD_*_MASK values should not overlap");
+	kas_static_assert((R_CMD_PRIMITIVE_MASK & R_CMD_ELEMENTS_MASK) == 0, "R_CMD_*_MASK values should not overlap");
 
 	kas_static_assert(R_CMD_SCREEN_LAYER_MASK
 			+ R_CMD_DEPTH_MASK
@@ -57,6 +63,7 @@ static void r_cmd_static_assert(void)
 			+ R_CMD_MATERIAL_MASK
 			+ R_CMD_PRIMITIVE_MASK
 			+ R_CMD_INSTANCED_MASK
+			+ R_CMD_ELEMENTS_MASK
 			+ R_CMD_UNUSED_MASK == U64_MAX, "sum of r_cmd masks should be U64");
 }
 

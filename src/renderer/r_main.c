@@ -23,6 +23,103 @@
 #include "transform.h"
 #include "led_public.h"
 
+static struct r_mesh *bounding_boxes_mesh(struct arena *mem, const struct physics_pipeline *pipeline, const vec4 color)
+{
+	arena_push_record(mem);
+	const u32 vertex_count = 3*8*pipeline->body_pool.count;
+	struct r_mesh *mesh = NULL;
+ 	struct r_mesh *tmp = arena_push(mem, sizeof(struct r_mesh));
+	u8 *vertex_data = arena_push(mem, vertex_count * L_COLOR_STRIDE);
+	if (!tmp || !vertex_data) 
+	{ 
+		arena_pop_record(mem);
+		goto end;
+	}
+	arena_remove_record(mem);
+
+	mesh = tmp;
+	mesh->index_count = 0;
+	mesh->index_max_used = 0;
+	mesh->index_data = NULL;
+	mesh->vertex_count = vertex_count; 
+	mesh->vertex_data = vertex_data;
+
+	u64 mem_left = mesh->vertex_count * L_COLOR_STRIDE;
+	struct rigid_body *body = NULL;
+	for (u32 i = pipeline->body_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(body))
+	{
+		body = pool_address(&pipeline->body_pool, i);
+		struct AABB bbox = body->local_box;
+		vec3_translate(bbox.center, body->position);
+		const u64 bytes_written = AABB_push_lines_buffered(vertex_data, mem_left, &bbox, color);
+		vertex_data += bytes_written;
+		mem_left -= bytes_written;
+	}
+	kas_assert(mem_left == 0);
+end:
+	return mesh;
+}
+
+static struct r_mesh *dbvt_mesh(struct arena *mem, const struct dbvt *tree, const vec4 color)
+{
+	arena_push_record(mem);
+	const u32 vertex_count = 3*8*tree->node_pool.count;
+ 	struct r_mesh *mesh = NULL;
+	struct r_mesh *tmp = arena_push(mem, sizeof(struct r_mesh));
+	u8 *vertex_data = arena_push(mem, vertex_count * L_COLOR_STRIDE);
+	if (!tmp || !vertex_data) 
+	{ 
+		goto end;
+	}
+	arena_remove_record(mem);
+
+	mesh = tmp;
+	mesh->index_count = 0;
+	mesh->index_max_used = 0;
+	mesh->index_data = NULL;
+	mesh->vertex_count = vertex_count; 
+	mesh->vertex_data = vertex_data;
+
+	arena_push_record(mem);
+	struct allocation_array arr = arena_push_aligned_all(mem, sizeof(u32), 4); 
+	u32 *stack = arr.addr;
+
+	u32 i = tree->root;
+	u32 q = DBVT_NO_NODE;
+
+	u64 mem_left = mesh->vertex_count * L_COLOR_STRIDE;
+
+	const struct dbvt_node *nodes = (struct dbvt_node *) tree->node_pool.buf;
+	while (i != DBVT_NO_NODE)
+	{
+		const u64 bytes_written = AABB_push_lines_buffered(vertex_data, mem_left, &nodes[i].box, color);
+		vertex_data += bytes_written;
+		mem_left -= bytes_written;
+
+		if (nodes[i].left != DBVT_NO_NODE)
+		{
+			if (q+1 == arr.len)
+			{
+				goto end;	
+			}
+			stack[++q] = nodes[i].right;
+			i = nodes[i].left;
+		}
+		else if (q != DBVT_NO_NODE)
+		{
+			i = stack[q--];
+		}
+		else
+		{
+			i = DBVT_NO_NODE;
+		}
+	}
+	kas_assert(mem_left == 0);
+end:
+	arena_pop_record(mem);
+	return mesh;
+}
+
 static void r_led_draw(const struct led *led)
 {
 	KAS_TASK(__func__, T_RENDERER);
@@ -52,11 +149,39 @@ static void r_led_draw(const struct led *led)
 
 		const u64 material = r_material_construct(PROGRAM_PROXY3D, proxy->mesh, TEXTURE_NONE);
 
-		const u64 command = r_command_key(R_CMD_SCREEN_LAYER_GAME, depth, transparency, material, R_CMD_PRIMITIVE_TRIANGLE, R_CMD_INSTANCED);
+		const u64 command = r_command_key(R_CMD_SCREEN_LAYER_GAME, depth, transparency, material, R_CMD_PRIMITIVE_TRIANGLE, R_CMD_INSTANCED, R_CMD_ELEMENTS);
 		r_instance_add(index, command);
 
 	}
 	hierarchy_index_iterator_release(&it);
+
+	if (led->physics.draw_dbvt)
+	{
+		const u64 material = r_material_construct(PROGRAM_COLOR, MESH_NONE, TEXTURE_NONE);
+		const u64 depth = 0x7fffff;
+		const u64 cmd = r_command_key(R_CMD_SCREEN_LAYER_GAME, depth, R_CMD_TRANSPARENCY_ADDITIVE, material, R_CMD_PRIMITIVE_LINE, R_CMD_NON_INSTANCED, R_CMD_ARRAYS);
+		struct r_mesh *mesh = dbvt_mesh(&g_r_core->frame, &led->physics.dynamic_tree, led->physics.dbvt_color);
+		if (mesh)
+		{
+			struct r_instance *instance = r_instance_add_non_cached(cmd);
+			instance->type = R_INSTANCE_MESH;
+			instance->mesh = mesh;
+		}
+	}
+
+	if (led->physics.draw_bounding_box)
+	{
+		const u64 material = r_material_construct(PROGRAM_COLOR, MESH_NONE, TEXTURE_NONE);
+		const u64 depth = 0x7fffff;
+		const u64 cmd = r_command_key(R_CMD_SCREEN_LAYER_GAME, depth, R_CMD_TRANSPARENCY_ADDITIVE, material, R_CMD_PRIMITIVE_LINE, R_CMD_NON_INSTANCED, R_CMD_ARRAYS);
+		struct r_mesh *mesh = bounding_boxes_mesh(&g_r_core->frame, &led->physics, led->physics.bounding_box_color);
+		if (mesh)
+		{
+			struct r_instance *instance = r_instance_add_non_cached(cmd);
+			instance->type = R_INSTANCE_MESH;
+			instance->mesh = mesh;
+		}
+	}
 
 	KAS_END;
 }
@@ -76,6 +201,14 @@ static void internal_r_proxy3d_uniforms(const struct led *led, const u32 window)
 	light_position_addr = kas_glGetUniformLocation(g_r_core->program[PROGRAM_PROXY3D].gl_program, "light_position");
 	kas_glUniform1f(aspect_ratio_addr, (f32) cam->aspect_ratio);
 	kas_glUniform3f(light_position_addr, cam->position[0], cam->position[1], cam->position[2]);
+	kas_glUniformMatrix4fv(perspective_addr, 1, GL_FALSE, (f32 *) perspective);
+	kas_glUniformMatrix4fv(view_addr, 1, GL_FALSE, (f32 *) view);
+	
+	kas_glUseProgram(g_r_core->program[PROGRAM_COLOR].gl_program);
+	aspect_ratio_addr = kas_glGetUniformLocation(g_r_core->program[PROGRAM_COLOR].gl_program, "aspect_ratio");
+	view_addr = kas_glGetUniformLocation(g_r_core->program[PROGRAM_COLOR].gl_program, "view");
+	perspective_addr = kas_glGetUniformLocation(g_r_core->program[PROGRAM_COLOR].gl_program, "perspective");
+	kas_glUniform1f(aspect_ratio_addr, (f32) cam->aspect_ratio);
 	kas_glUniformMatrix4fv(perspective_addr, 1, GL_FALSE, (f32 *) perspective);
 	kas_glUniformMatrix4fv(view_addr, 1, GL_FALSE, (f32 *) view);
 }
@@ -164,6 +297,7 @@ static void r_scene_render(const struct led *led, const u32 window)
 				kas_glViewport(0, 0, (i32) sys_win->size[0], (i32) sys_win->size[1]); 
 			} break;
 
+			case PROGRAM_COLOR:
 			case PROGRAM_PROXY3D:
 			{
 				kas_glViewport(led->viewport_position[0]
@@ -188,40 +322,52 @@ static void r_scene_render(const struct led *led, const u32 window)
 		for (u32 i = 0; i < b->buffer_count; ++i)
 		{	
 			struct r_buffer *buf = b->buffer_array[i];
-			kas_glGenBuffers(1, &buf->ebo);
-			kas_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buf->ebo);
-			kas_glBufferData(GL_ELEMENT_ARRAY_BUFFER, buf->index_count * sizeof(u32), buf->index_data, GL_STATIC_DRAW);
 			kas_glGenBuffers(1, &buf->local_vbo);
 			kas_glBindBuffer(GL_ARRAY_BUFFER, buf->local_vbo);
 			kas_glBufferData(GL_ARRAY_BUFFER, buf->local_size, buf->local_data, GL_STATIC_DRAW);
 			g_r_core->program[program].buffer_local_layout_setter();
 
-			if (!b->instanced)
+			if (!b->elements)
 			{
-				//fprintf(stderr, "\t\tDrawing Regular: buf[%u], vbuf[%lu], index_count: %u\n", 
-				//		i,
-				//		buf->local_size,
-				//		buf->index_count);
+					kas_assert(!b->instanced);
+					fprintf(stderr, "\t\tDrawing Array: buf[%u], vbuf[%lu]\n", 
+							i,
+							buf->local_size);
 
-				kas_glDrawElements(mode, buf->index_count, GL_UNSIGNED_INT, 0);
+					kas_glDrawArrays(mode, 0, buf->local_size / g_r_core->program[program].local_stride);
 			}
 			else
 			{
-				//fprintf(stderr, "\t\tDrawing Instanced: buf[%u], sbuf[%lu], vbuf[%lu], index_count: %u, instace_count: %u\n", 
-				//		i,
-				//		buf->shared_size,
-				//		buf->local_size,
-				//		buf->index_count,
-				//		buf->instance_count);
+				kas_glGenBuffers(1, &buf->ebo);
+				kas_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buf->ebo);
+				kas_glBufferData(GL_ELEMENT_ARRAY_BUFFER, buf->index_count * sizeof(u32), buf->index_data, GL_STATIC_DRAW);
+				if (!b->instanced)
+				{
+					//fprintf(stderr, "\t\tDrawing Regular: buf[%u], vbuf[%lu], index_count: %u\n", 
+					//		i,
+					//		buf->local_size,
+					//		buf->index_count);
 
-				kas_glGenBuffers(1, &buf->shared_vbo);
-				kas_glBindBuffer(GL_ARRAY_BUFFER, buf->shared_vbo);
-				kas_glBufferData(GL_ARRAY_BUFFER, buf->shared_size, buf->shared_data, GL_STATIC_DRAW);
-				g_r_core->program[program].buffer_shared_layout_setter();
+					kas_glDrawElements(mode, buf->index_count, GL_UNSIGNED_INT, 0);
+				}
+				else
+				{
+					//fprintf(stderr, "\t\tDrawing Instanced: buf[%u], sbuf[%lu], vbuf[%lu], index_count: %u, instace_count: %u\n", 
+					//		i,
+					//		buf->shared_size,
+					//		buf->local_size,
+					//		buf->index_count,
+					//		buf->instance_count);
 
-				kas_glDrawElementsInstanced(mode, buf->index_count, GL_UNSIGNED_INT, 0, buf->instance_count);
-				kas_glDeleteBuffers(1, &buf->shared_vbo);
-			}	
+					kas_glGenBuffers(1, &buf->shared_vbo);
+					kas_glBindBuffer(GL_ARRAY_BUFFER, buf->shared_vbo);
+					kas_glBufferData(GL_ARRAY_BUFFER, buf->shared_size, buf->shared_data, GL_STATIC_DRAW);
+					g_r_core->program[program].buffer_shared_layout_setter();
+
+					kas_glDrawElementsInstanced(mode, buf->index_count, GL_UNSIGNED_INT, 0, buf->instance_count);
+					kas_glDeleteBuffers(1, &buf->shared_vbo);
+				}	
+			}
 
 			kas_glDeleteBuffers(1, &buf->local_vbo);
 			kas_glDeleteBuffers(1, &buf->ebo);

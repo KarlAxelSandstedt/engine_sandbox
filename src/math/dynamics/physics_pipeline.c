@@ -93,9 +93,17 @@ struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 init
 	pipeline.body_color_mode = RB_COLOR_MODE_BODY;
 	pipeline.pending_body_color_mode = RB_COLOR_MODE_ISLAND;
 	vec4_set(pipeline.collision_color, 1.0f, 0.1f, 0.1f, 0.5f);
-	vec4_set(pipeline.static_color, 0.6f, 0.6f, 0.6f, 1.0f);
+	vec4_set(pipeline.static_color, 0.6f, 0.6f, 0.6f, 0.5f);
 	vec4_set(pipeline.sleep_color, 113.0f/256.0f, 241.0f/256.0f, 157.0f/256.0f, 0.7f);
 	vec4_set(pipeline.awake_color, 255.0f/256.0f, 36.0f/256.0f, 48.0f/256.0f, 0.7f);
+	vec4_set(pipeline.manifold_color, 0.6f, 0.6f, 0.9f, 1.0f);
+	vec4_set(pipeline.dbvt_color, 0.8f, 0.1f, 0.0f, 0.6f);
+	vec4_set(pipeline.bounding_box_color, 0.8f, 0.1f, 0.6f, 1.0f);
+
+	pipeline.draw_bounding_box = 0;
+	pipeline.draw_dbvt = 0;
+	pipeline.draw_manifold = 0;
+	pipeline.draw_lines = 0;
 
 	return pipeline;
 }
