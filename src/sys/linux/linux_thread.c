@@ -29,6 +29,7 @@
 #include "sys_public.h"
 
 kas_thread_local struct kas_thread *self = NULL;
+u32	a_index_counter = 1;
 
 static void *kas_thread_clone_start(void *void_thr)
 {
@@ -37,6 +38,7 @@ static void *kas_thread_clone_start(void *void_thr)
 	thr->ppid = getppid();
 	thr->gtid = getpid();
 	thr->tid = gettid();
+	thr->index = atomic_fetch_add_rlx_32(&a_index_counter, 1);
 	thr->start(thr);
 
 	return NULL;
@@ -48,6 +50,7 @@ void kas_thread_master_init(struct arena *mem)
 	self->ppid = getppid();
 	self->gtid = getpid();
 	self->tid = gettid();
+	self->index = 0;
 }
 
 void kas_thread_clone(struct arena *mem, void (*start)(kas_thread *), void *args, const u64 stack_size)
@@ -160,4 +163,14 @@ tid kas_thread_tid(const kas_thread *thr)
 tid kas_thread_self_tid(void)
 {
 	return self->tid;
+}
+
+u32 kas_thread_index(const kas_thread *thr)
+{
+	return thr->index;
+}
+
+u32 kas_thread_self_index(void)
+{
+	return self->index;
 }

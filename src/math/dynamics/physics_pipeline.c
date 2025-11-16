@@ -37,12 +37,10 @@ const char **body_color_mode_str = body_color_mode_str_buf;
 
 struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 initial_size, const u64 ns_tick, const u64 frame_memory, struct string_database *shape_db, struct string_database *prefab_db)
 {
-	COLLISION_DEBUG_INIT(mem, initial_size, 10000);
 
 	struct physics_pipeline pipeline =
 	{
 		.gravity = { 0.0f, -GRAVITY_CONSTANT_DEFAULT, 0.0f },
-		.c_state = { 0 },
 		.ns_tick = ns_tick,
 		.ns_elapsed = 0,
 		.ns_start = 0,
@@ -81,8 +79,8 @@ struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 init
 	pipeline.event_pool = pool_alloc(NULL, 256, struct physics_event, GROWABLE);
 	pipeline.event_list = dll_init(struct physics_event);
 
-	pipeline.c_state.margin_on = 1;
-	pipeline.c_state.margin = COLLISION_MARGIN_DEFAULT;
+	pipeline.margin_on = 1;
+	pipeline.margin = COLLISION_MARGIN_DEFAULT;
 
 	pipeline.dynamic_tree = dbvt_alloc(2*initial_size);
 
@@ -119,8 +117,11 @@ void physics_pipeline_free(struct physics_pipeline *pipeline)
 
 static void internal_physics_pipeline_clear_frame(struct physics_pipeline *pipeline)
 {
-	COLLISION_DEBUG_CLEAR();
-	collision_state_clear_frame(&pipeline->c_state);
+	pipeline->proxy_overlap_count = 0;
+	pipeline->proxy_overlap = NULL;
+	pipeline->cm_count = 0;
+	pipeline->cm = NULL;
+
 	is_db_clear_frame(&pipeline->is_db);
 	c_db_clear_frame(&pipeline->c_db);
 	arena_flush(&pipeline->frame);
@@ -129,7 +130,6 @@ static void internal_physics_pipeline_clear_frame(struct physics_pipeline *pipel
 
 void physics_pipeline_flush(struct physics_pipeline *pipeline)
 {
-	collision_state_clear_frame(&pipeline->c_state);
 	dbvt_flush(&pipeline->dynamic_tree);
 	c_db_flush(&pipeline->c_db);
 	is_db_flush(&pipeline->is_db);
@@ -285,7 +285,7 @@ static void internal_update_dynamic_tree(struct physics_pipeline *pipeline)
 static void internal_push_proxy_overlaps(struct arena *mem_frame, struct physics_pipeline *pipeline)
 {
 	KAS_TASK(__func__, T_PHYSICS);
-	pipeline->c_state.proxy_overlap = dbvt_push_overlap_pairs(mem_frame, &pipeline->c_state.overlap_count, &pipeline->dynamic_tree);
+	pipeline->proxy_overlap = dbvt_push_overlap_pairs(mem_frame, &pipeline->proxy_overlap_count, &pipeline->dynamic_tree);
 	KAS_END;
 }
 
@@ -309,7 +309,7 @@ static void thread_push_contacts(void *task_addr)
 	out->cm_count = 0;
 	out->cm = arena_push(&worker->mem_frame, range->count * sizeof(struct contact_manifold));
 
-	const f32 margin = (pipeline->c_state.margin_on) ? pipeline->c_state.margin : 0.0f;
+	const f32 margin = (pipeline->margin_on) ? pipeline->margin : 0.0f;
 	const struct rigid_body *b1, *b2;
 
 	for (u64 i = 0; i < range->count; ++i)
@@ -345,16 +345,16 @@ static void internal_parallel_push_contacts(struct arena *mem_frame, struct phys
 			mem_frame, 
 			&thread_push_contacts, 
 			g_task_ctx->worker_count, 
-			pipeline->c_state.proxy_overlap, 
-			pipeline->c_state.overlap_count, 
+			pipeline->proxy_overlap, 
+			pipeline->proxy_overlap_count, 
 			sizeof(struct dbvt_overlap), 
 			pipeline);
 
 	KAS_TASK(__func__, T_PHYSICS);
-	pipeline->c_state.cm = (struct contact_manifold *) arena_push(mem_frame, pipeline->c_state.overlap_count * sizeof(struct contact_manifold));
+	pipeline->cm = (struct contact_manifold *) arena_push(mem_frame, pipeline->proxy_overlap_count * sizeof(struct contact_manifold));
 	arena_push_record(mem_frame);
 
-	pipeline->c_state.cm_count = 0;
+	pipeline->cm_count = 0;
 	if (bundle)
 	{	
 		task_main_master_run_available_jobs();
@@ -363,15 +363,15 @@ static void internal_parallel_push_contacts(struct arena *mem_frame, struct phys
 		for (u32 i = 0; i < bundle->task_count; ++i)
 		{
 			struct tpc_output *out = (struct tpc_output *) atomic_load_acq_64(&bundle->tasks[i].output);
-			memcpy(pipeline->c_state.cm + pipeline->c_state.cm_count, out->cm, out->cm_count * sizeof(struct contact_manifold));
-			pipeline->c_state.cm_count += out->cm_count;
+			memcpy(pipeline->cm + pipeline->cm_count, out->cm, out->cm_count * sizeof(struct contact_manifold));
+			pipeline->cm_count += out->cm_count;
 		}
 	
 		task_bundle_release(bundle);
 	}
 	
 	arena_pop_record(mem_frame);
-	arena_pop_packed(mem_frame, (pipeline->c_state.overlap_count - pipeline->c_state.cm_count) * sizeof(struct contact_manifold));
+	arena_pop_packed(mem_frame, (pipeline->proxy_overlap_count - pipeline->cm_count) * sizeof(struct contact_manifold));
 
 	pipeline->c_db.contacts_frame_usage = bit_vec_alloc(mem_frame, pipeline->c_db.contacts_persistent_usage.bit_count, 0, 0);
 	kas_assert(pipeline->c_db.contacts_frame_usage.block_count == pipeline->c_db.contacts_persistent_usage.block_count);

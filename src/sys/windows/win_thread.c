@@ -151,3 +151,12 @@ tid kas_thread_self_tid(void)
 	return self->tid;
 }
 
+u32 kas_thread_index(const kas_thread *thr)
+{
+	return thr->index;
+}
+
+u32 kas_thread_self_index(void)
+{
+	return self->index;
+}

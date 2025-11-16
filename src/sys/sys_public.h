@@ -387,6 +387,10 @@ void 	kas_thread_release(kas_thread *thr);
 tid	kas_thread_tid(const kas_thread *thr);
 /* return tid of caller */
 tid 	kas_thread_self_tid(void);
+/* return index of thread (each created thread increments the global index counter) */
+u32	kas_thread_index(const kas_thread *thr);
+/* return index of caller */ 
+u32	kas_thread_self_index(void);
 
 /* Initiate the semaphore with a given value; NOTE: initiating an already initiated semphore is UB */
 void 	semaphore_init(semaphore *sem, const u32 val); 
@@ -415,7 +419,6 @@ struct worker
 {
 	//TODO Cacheline alignment 
 	struct arena	mem_frame;		/* Cleared at start of every frame */	
-	u64 		usr_id;			/* worker id / index into g_task_ctx->worker[] */
 	kas_thread *	thr;
 	u32 		a_mem_frame_clear;	/* atomic sync-point: if set, on next task run flush mem_frame. */
 };

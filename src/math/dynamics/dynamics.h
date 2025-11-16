@@ -689,17 +689,23 @@ struct physics_pipeline
 	struct dll		event_list;
 
 	struct dbvt 		dynamic_tree;
-	struct collision_state 	c_state;
 
 	struct contact_database	c_db;
 	struct island_database 	is_db;
 
 	//TODO temporary, move somewhere else.
-	vec3 gravity;	/* gravity constant */
+	vec3 			gravity;	/* gravity constant */
+
+	u32			margin_on;
+	f32			margin;
 
 	/* frame data */
-	u32	contact_new_count;
-	u32 *	contact_new;
+	u32			contact_new_count;
+	u32			proxy_overlap_count;
+	u32			cm_count;
+	u32 *			contact_new;
+	struct dbvt_overlap *	proxy_overlap;
+	struct contact_manifold *cm;
 
 	/* debug */
 	enum rigid_body_color_mode	pending_body_color_mode;

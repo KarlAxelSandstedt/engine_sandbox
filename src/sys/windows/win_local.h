@@ -25,7 +25,7 @@
 #include "sys_public.h"
 #include "log.h"
 
-/******************** linux_thread.c ********************/
+/******************** win_thread.c ********************/
 
 struct kas_thread
 {
@@ -34,6 +34,7 @@ struct kas_thread
 	void 		*ret;			/* adress to returned value, if any */
 	u64		ret_size;		/* size of returned value */
 	u64		stack_size;		/* size of stack (not counting protected page at bottom) */
+	u32		index;			/* thread index, used for accessing thread data in arrays  */
 	DWORD		tid;			/* native thread id (pid_t on linux) */
 	HANDLE		native;			/* native thread handle */
 };

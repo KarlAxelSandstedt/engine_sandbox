@@ -574,13 +574,13 @@ void kas_profiler_try_set_task_id(volatile u32 *a_static_task_id, volatile u32 *
 	}
 }
 
-void kas_profiler_acquire_thread_local_frame(const u64 worker_id, const tid thread_id)
+void kas_profiler_acquire_thread_local_frame(const u32 index, const tid thread_id)
 {
 	struct kas_profiler *kas = (struct kas_profiler *) atomic_load_acq_64(&g_profiler);
 	const u32 i = atomic_fetch_add_rlx_32(&kas->tls_i, 1);
 	kas_assert(i < kas->worker_count);
 	tls_frame = kas->worker_frame + i;	
-	tls_frame->worker_id = worker_id;
+	tls_frame->thread_index = index;
 	tls_frame->thread_id = thread_id;
 }
 

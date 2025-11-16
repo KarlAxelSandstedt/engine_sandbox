@@ -1665,7 +1665,7 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 
 			vec3_interpolate(tmp1, ref_v[(j+1) % ref_face->count], ref_v[j], 0.5f);
 			vec3_add(tmp2, tmp1, n);
-			COLLISION_DEBUG_ADD_SEGMENT(segment_construct(tmp1, tmp2));
+			COLLISION_DEBUG_ADD_SEGMENT(segment_construct(tmp1, tmp2), vec4_inline(0.7f, 0.4, 0.2f, 1.0f));
 
 			const f32 bc_c = plane_segment_clip_parameter(&clip_plane, &inc_edge);
 			const f32 dot = vec3_dot(inc_edge.dir, clip_plane.normal);
@@ -1763,7 +1763,7 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 
 	for (u32 i = 0; i < cp_count; ++i)
 	{
-		COLLISION_DEBUG_ADD_SEGMENT(segment_construct(cp[i], cp[(i+1) % cp_count]));
+		COLLISION_DEBUG_ADD_SEGMENT(segment_construct(cp[i], cp[(i+1) % cp_count]), vec4_inline(0.7f, 0.4, 0.2f, 1.0f));
 	}
 
 	u32 is_colliding = 1;
@@ -2105,7 +2105,7 @@ static u32 hull_contact(struct arena *tmp, struct contact_manifold *cm, const st
 		segment_distance_sq(c1, c2, &e_query.s1, &e_query.s2);
 		//COLLISION_DEBUG_ADD_SEGMENT(e_query.s1);
 		//COLLISION_DEBUG_ADD_SEGMENT(e_query.s2);
-		COLLISION_DEBUG_ADD_SEGMENT(segment_construct(c1,c2));
+		COLLISION_DEBUG_ADD_SEGMENT(segment_construct(c1,c2), vec4_inline(0.7f, 0.4, 0.2f, 1.0f));
 
 		cm->v_count = 1;
 		cm->depth[0] = -e_query.depth;
@@ -2256,15 +2256,4 @@ u32 body_raycast(vec3 intersection, const struct physics_pipeline *pipeline, con
 	vec3_copy(intersection, ray->origin);
 	vec3_translate_scaled(intersection, ray->dir, t);
 	return 1;
-}
-
-/********************************** COLLISION STATE **********************************/
-
-void collision_state_clear_frame(struct collision_state *c_state)
-{
-	c_state->proxy_overlap = NULL;
-	c_state->overlap_count = 0;
-
-	c_state->cm = NULL;
-	c_state->cm_count = 0;
 }

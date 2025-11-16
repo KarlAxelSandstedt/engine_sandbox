@@ -29,6 +29,27 @@
 #include "float32.h"
 #include "queue.h"
 
+#define COLLISION_DEFAULT_MARGIN	(100.0f * F32_EPSILON)
+#define COLLISION_POINT_DIST_SQ		(10000.0f * F32_EPSILON)
+
+/********************************** COLLISION DEBUG **********************************/
+
+struct collision_debug
+{
+	//TODO visual stacks 
+	u32	tmp;
+};
+
+#ifdef KAS_PHYSICS_DEBUG
+
+#define COLLISION_DEBUG_ADD_SEGMENT(segment, color)
+
+#else
+
+#define COLLISION_DEBUG_ADD_SEGMENT(segment, color)
+
+#endif
+
 /********************************** COLLISION SHAPES **********************************/
 
 enum collision_shape_type

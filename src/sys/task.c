@@ -80,7 +80,7 @@ void task_main(kas_thread *thr)
 	while (atomic_load_acq_32(&a_startup_complete) == 0);
 
 	w->thr = thr;
-	kas_profiler_acquire_thread_local_frame(w->usr_id, kas_thread_tid(w->thr));
+	kas_profiler_acquire_thread_local_frame(kas_thread_self_index(), kas_thread_self_tid());
 	atomic_fetch_add_seq_cst_32(&a_startup_complete, 1);
 	log_string(T_SYSTEM, S_NOTE, "task_worker setup finalized");
 
@@ -143,7 +143,6 @@ void task_context_init(struct arena *mem_persistent, const u32 thread_count)
 	for (u32 i = 0; i < thread_count; ++i)
 	{
 		worker_init(g_task_ctx->workers + i);
-		g_task_ctx->workers[i].usr_id = i;
 	}
 
 	/* NOTE: worker 0: reserved for main thread */

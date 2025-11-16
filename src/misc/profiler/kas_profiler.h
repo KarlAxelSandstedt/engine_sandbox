@@ -406,7 +406,7 @@ struct lw_profile
 struct kas_frame
 {
 	tid				thread_id;
-	u64 				worker_id;	
+	u32 				thread_index;	
 	struct lw_profile *		completed;	/* master owned */
 	struct lw_profile *		build;		/* thread owned */
 	u32 *				build_stack;	/* thread build stack, used to index build for profiles in progress */
@@ -527,6 +527,6 @@ void 	kas_profiler_new_frame(void);
 }						
 
 void kas_profiler_try_set_task_id(volatile u32 *a_static_task_id, volatile u32 *a_static_setting, const char *label, const enum system_id system_id);
-void kas_profiler_acquire_thread_local_frame(const u64 worker_id, const tid thread_id);
+void kas_profiler_acquire_thread_local_frame(const u32 index, const tid thread_id);
 
 #endif

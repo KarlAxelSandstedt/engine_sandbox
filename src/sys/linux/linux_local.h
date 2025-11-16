@@ -58,6 +58,7 @@ struct kas_thread
 	pid_t		ppid;			/* native parent tid */
 	pid_t		gtid;			/* native group tid */
 	tid		tid;			/* native thread id (pid_t on linux) */
+	u32		index;			/* thread index, used for accessing thread data in arrays  */
 	pthread_t	pthread;		/* thread internal */
 };
 
