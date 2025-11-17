@@ -23,6 +23,218 @@
 #include "transform.h"
 #include "led_public.h"
 
+static struct r_mesh *debug_contact_manifold_segments_mesh(struct arena *mem, const struct physics_pipeline *pipeline)
+{
+	const struct contact_manifold *cm = pipeline->cm;
+	const u32 cm_count = pipeline->cm_count;
+
+	arena_push_record(mem);
+
+	const u32 vertex_count = 2*pipeline->cm_count;
+	struct r_mesh *mesh = NULL;
+ 	struct r_mesh *tmp = arena_push(mem, sizeof(struct r_mesh));
+	u8 *vertex_data = arena_push(mem, vertex_count*L_COLOR_STRIDE);
+	if (!tmp || !vertex_data) 
+	{ 
+		arena_pop_record(mem);
+		goto end;
+	}
+	arena_remove_record(mem);
+
+	mesh = tmp;
+	mesh->index_count = 0;
+	mesh->index_max_used = 0;
+	mesh->index_data = NULL;
+	mesh->vertex_count = vertex_count; 
+	mesh->vertex_data = vertex_data;
+
+	vec3 v[4];
+	for (u32 i = 0; i < cm_count; ++i)
+	{
+		vec3 n0, n1;
+		switch (cm[i].v_count)
+		{
+			case 1:
+			{
+				vec3_copy(n0, cm[i].v[0]);
+				vec3_add(n1, n0, cm[i].n);
+			} break;
+
+			case 2:
+			{
+				vec3_interpolate(n0, cm[i].v[0], cm[i].v[1], 0.5f);
+				vec3_add(n1, n0, cm[i].n);
+			} break;
+
+			case 3:
+			{
+				vec3_scale(n0, cm[i].v[0], 1.0f/3.0f);
+				vec3_translate_scaled(n0, cm[i].v[1], 1.0f/3.0f);
+				vec3_translate_scaled(n0, cm[i].v[2], 1.0f/3.0f);
+				vec3_add(n1, n0, cm[i].n);
+			} break;
+
+			case 4:
+			{
+				vec3_scale(n0, cm[i].v[0], 1.0f/4.0f);
+				vec3_translate_scaled(n0, cm[i].v[1], 1.0f/4.0f);
+				vec3_translate_scaled(n0, cm[i].v[2], 1.0f/4.0f);
+				vec3_translate_scaled(n0, cm[i].v[3], 1.0f/4.0f);
+				vec3_add(n1, n0, cm[i].n);
+			} break;
+
+			default:
+			{
+				continue;
+			} break;
+		}
+
+		vec3_copy((f32 *) vertex_data +  0, n0);
+		vec4_copy((f32 *) vertex_data +  3, pipeline->manifold_color);
+		vec3_copy((f32 *) vertex_data +  7, n1);
+		vec4_copy((f32 *) vertex_data + 10, pipeline->manifold_color);
+		vertex_data += 2*(sizeof(vec3) + sizeof(vec4));
+	}
+end:
+	return mesh;
+
+}
+
+static struct r_mesh *debug_contact_manifold_triangles_mesh(struct arena *mem, const struct physics_pipeline *pipeline)
+{
+	const struct contact_manifold *cm = pipeline->cm;
+	const u32 cm_count = pipeline->cm_count;
+
+	arena_push_record(mem);
+
+	u32 vertex_count = 6*pipeline->cm_count;
+
+	struct r_mesh *mesh = NULL;
+ 	struct r_mesh *tmp = arena_push(mem, sizeof(struct r_mesh));
+	u8 *vertex_data = arena_push(mem, vertex_count*L_COLOR_STRIDE);
+	if (!tmp || !vertex_data) 
+	{ 
+		arena_pop_record(mem);
+		goto end;
+	}
+	arena_remove_record(mem);
+
+	mesh = tmp;
+	mesh->index_count = 0;
+	mesh->index_max_used = 0;
+	mesh->index_data = NULL;
+	mesh->vertex_count = 0; 
+	mesh->vertex_data = vertex_data;
+
+	vec3 v[4];
+	u32 cm_triangles = 0;
+	u32 cm_planes = 0;
+	for (u32 i = 0; i < cm_count; ++i)
+	{
+		switch (cm[i].v_count)
+		{
+			case 3:
+			{
+				vec3_copy(v[0], cm[i].v[0]);
+				vec3_copy(v[1], cm[i].v[1]);
+				vec3_copy(v[2], cm[i].v[2]);
+				vec3_translate_scaled(v[0], cm[i].n, 0.005f);
+				vec3_translate_scaled(v[1], cm[i].n, 0.005f);
+				vec3_translate_scaled(v[2], cm[i].n, 0.005f);
+
+				vec3_copy((f32 *) vertex_data +  0, v[0]);
+				vec4_copy((f32 *) vertex_data +  3, pipeline->manifold_color);
+				vec3_copy((f32 *) vertex_data +  7, v[1]);
+				vec4_copy((f32 *) vertex_data + 10, pipeline->manifold_color);
+				vec3_copy((f32 *) vertex_data + 14, v[2]);
+				vec4_copy((f32 *) vertex_data + 17, pipeline->manifold_color);
+				vertex_data += 3*(sizeof(vec3) + sizeof(vec4));
+				mesh->vertex_count += 3; 
+			} break;
+
+			case 4:
+			{
+				vec3_copy(v[0], cm[i].v[0]);
+				vec3_copy(v[1], cm[i].v[1]);
+				vec3_copy(v[2], cm[i].v[2]);
+				vec3_copy(v[3], cm[i].v[3]);
+				vec3_translate_scaled(v[0], cm[i].n, 0.005f);
+				vec3_translate_scaled(v[1], cm[i].n, 0.005f);
+				vec3_translate_scaled(v[2], cm[i].n, 0.005f);
+				vec3_translate_scaled(v[3], cm[i].n, 0.005f);
+
+				vec3_copy((f32 *) vertex_data +  0, v[0]);
+				vec4_copy((f32 *) vertex_data +  3, pipeline->manifold_color);
+				vec3_copy((f32 *) vertex_data +  7, v[1]);
+				vec4_copy((f32 *) vertex_data + 10, pipeline->manifold_color);
+				vec3_copy((f32 *) vertex_data + 14, v[2]);
+				vec4_copy((f32 *) vertex_data + 17, pipeline->manifold_color);
+				vec3_copy((f32 *) vertex_data + 21, v[0]);
+				vec4_copy((f32 *) vertex_data + 24, pipeline->manifold_color);
+				vec3_copy((f32 *) vertex_data + 28, v[2]);
+				vec4_copy((f32 *) vertex_data + 31, pipeline->manifold_color);
+				vec3_copy((f32 *) vertex_data + 35, v[3]);
+				vec4_copy((f32 *) vertex_data + 38, pipeline->manifold_color);
+				vertex_data += 6*(sizeof(vec3) + sizeof(vec4));
+				mesh->vertex_count += 6; 
+			} break;
+
+			default:
+			{
+				continue;
+			} break;
+		}
+	}
+end:
+	return mesh;
+}
+
+static struct r_mesh *debug_lines_mesh(struct arena *mem, const struct physics_pipeline *pipeline)
+{
+	arena_push_record(mem);
+
+	u32 vertex_count = 0;
+	for (u32 i = 0; i < pipeline->debug_count; ++i)
+	{
+		vertex_count += 2*pipeline->debug[i].stack_segment.next;
+	}
+
+	struct r_mesh *mesh = NULL;
+ 	struct r_mesh *tmp = arena_push(mem, sizeof(struct r_mesh));
+	u8 *vertex_data = arena_push(mem, vertex_count*L_COLOR_STRIDE);
+	if (!tmp || !vertex_data) 
+	{ 
+		arena_pop_record(mem);
+		goto end;
+	}
+	arena_remove_record(mem);
+
+	mesh = tmp;
+	mesh->index_count = 0;
+	mesh->index_max_used = 0;
+	mesh->index_data = NULL;
+	mesh->vertex_count = vertex_count; 
+	mesh->vertex_data = vertex_data;
+
+	u64 mem_left = mesh->vertex_count * L_COLOR_STRIDE;
+
+	for (u32 i = 0; i < pipeline->debug_count; ++i)
+	{
+		for (u32 j = 0; j < pipeline->debug[i].stack_segment.next; ++j)
+		{
+			vec3_copy((f32 *) vertex_data +  0, pipeline->debug[i].stack_segment.arr[j].segment.p0);
+			vec4_copy((f32 *) vertex_data +  3, pipeline->debug[i].stack_segment.arr[j].color);
+			vec3_copy((f32 *) vertex_data +  7, pipeline->debug[i].stack_segment.arr[j].segment.p1);
+			vec4_copy((f32 *) vertex_data + 10, pipeline->debug[i].stack_segment.arr[j].color);
+			vertex_data += 2*(sizeof(vec3) + sizeof(vec4));
+			mem_left -= 2*(sizeof(vec3) + sizeof(vec4));
+		}
+	}
+	kas_assert(mem_left == 0);
+end:
+	return mesh;
+}
+
 static struct r_mesh *bounding_boxes_mesh(struct arena *mem, const struct physics_pipeline *pipeline, const vec4 color)
 {
 	arena_push_record(mem);
@@ -181,6 +393,46 @@ static void r_led_draw(const struct led *led)
 			instance->type = R_INSTANCE_MESH;
 			instance->mesh = mesh;
 		}
+	}
+
+	if (led->physics.draw_lines)
+	{
+		const u64 material = r_material_construct(PROGRAM_COLOR, MESH_NONE, TEXTURE_NONE);
+		const u64 depth = 0x7fffff;
+		const u64 cmd = r_command_key(R_CMD_SCREEN_LAYER_GAME, depth, R_CMD_TRANSPARENCY_ADDITIVE, material, R_CMD_PRIMITIVE_LINE, R_CMD_NON_INSTANCED, R_CMD_ARRAYS);
+		struct r_mesh *mesh = debug_lines_mesh(&g_r_core->frame, &led->physics);
+		if (mesh)
+		{
+			struct r_instance *instance = r_instance_add_non_cached(cmd);
+			instance->type = R_INSTANCE_MESH;
+			instance->mesh = mesh;
+		}
+	}
+
+	if (led->physics.draw_manifold)
+	{
+
+		const u64 material = r_material_construct(PROGRAM_COLOR, MESH_NONE, TEXTURE_NONE);
+		const u64 depth = 0x7fffff;
+
+		const u64 cmd1 = r_command_key(R_CMD_SCREEN_LAYER_GAME, depth, R_CMD_TRANSPARENCY_ADDITIVE, material, R_CMD_PRIMITIVE_TRIANGLE, R_CMD_NON_INSTANCED, R_CMD_ARRAYS);
+		struct r_mesh *mesh = debug_contact_manifold_triangles_mesh(&g_r_core->frame, &led->physics);
+		if (mesh)
+		{
+			struct r_instance *instance = r_instance_add_non_cached(cmd1);
+			instance->type = R_INSTANCE_MESH;
+			instance->mesh = mesh;
+		}
+
+		const u64 cmd2 = r_command_key(R_CMD_SCREEN_LAYER_GAME, depth, R_CMD_TRANSPARENCY_ADDITIVE, material, R_CMD_PRIMITIVE_LINE, R_CMD_NON_INSTANCED, R_CMD_ARRAYS);
+		mesh = debug_contact_manifold_segments_mesh(&g_r_core->frame, &led->physics);
+		if (mesh)
+		{
+			struct r_instance *instance = r_instance_add_non_cached(cmd2);
+			instance->type = R_INSTANCE_MESH;
+			instance->mesh = mesh;
+		}
+
 	}
 
 	KAS_END;

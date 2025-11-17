@@ -35,9 +35,23 @@ const char *body_color_mode_str_buf[RB_COLOR_MODE_COUNT] =
 
 const char **body_color_mode_str = body_color_mode_str_buf;
 
+kas_thread_local struct collision_debug *tl_debug;
+
+u32 g_a_thread_counter = 0;
+
+static void thread_set_collision_debug(void *task_addr)
+{
+	struct task *task = task_addr;
+	struct worker *worker = task->executor;
+	const struct physics_pipeline *pipeline = task->input;
+	tl_debug = pipeline->debug + kas_thread_self_index();
+
+	atomic_fetch_add_rel_32(&g_a_thread_counter, 1);
+	while (atomic_load_acq_32(&g_a_thread_counter) != pipeline->debug_count);
+}
+
 struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 initial_size, const u64 ns_tick, const u64 frame_memory, struct string_database *shape_db, struct string_database *prefab_db)
 {
-
 	struct physics_pipeline pipeline =
 	{
 		.gravity = { 0.0f, -GRAVITY_CONSTANT_DEFAULT, 0.0f },
@@ -89,7 +103,7 @@ struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 init
 	pipeline.shape_db = shape_db;
 
 	pipeline.body_color_mode = RB_COLOR_MODE_BODY;
-	pipeline.pending_body_color_mode = RB_COLOR_MODE_ISLAND;
+	pipeline.pending_body_color_mode = RB_COLOR_MODE_COLLISION;
 	vec4_set(pipeline.collision_color, 1.0f, 0.1f, 0.1f, 0.5f);
 	vec4_set(pipeline.static_color, 0.6f, 0.6f, 0.6f, 0.5f);
 	vec4_set(pipeline.sleep_color, 113.0f/256.0f, 241.0f/256.0f, 157.0f/256.0f, 0.7f);
@@ -100,14 +114,41 @@ struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 init
 
 	pipeline.draw_bounding_box = 0;
 	pipeline.draw_dbvt = 0;
-	pipeline.draw_manifold = 0;
+	pipeline.draw_manifold = 1;
 	pipeline.draw_lines = 0;
+
+	pipeline.debug_count = 0;
+	pipeline.debug = NULL;
+#ifdef KAS_PHYSICS_DEBUG
+	struct task_stream *stream = task_stream_init(&pipeline.frame);
+
+	pipeline.debug_count = g_arch_config->logical_core_count;
+	pipeline.debug = malloc(g_arch_config->logical_core_count * sizeof(struct collision_debug));
+	for (u32 i = 0; i < pipeline.debug_count; ++i)
+	{
+		pipeline.debug[i].stack_segment = stack_visual_segment_alloc(NULL, 1024, GROWABLE);
+		task_stream_dispatch(&pipeline.frame, stream, thread_set_collision_debug, &pipeline);
+	}
+
+	task_main_master_run_available_jobs();
+
+	/* spin wait until last job completes */
+	task_stream_spin_wait(stream);
+	/* release any task resources */
+	task_stream_cleanup(stream);		
+#endif
 
 	return pipeline;
 }
 
 void physics_pipeline_free(struct physics_pipeline *pipeline)
 {
+#ifdef KAS_PHYSICS_DEBUG
+	for (u32 i = 0; i < pipeline->debug_count; ++i)
+	{
+		stack_visual_segment_free(&pipeline->debug[i].stack_segment);
+	}
+#endif
 	dbvt_free(&pipeline->dynamic_tree);
 	c_db_free(&pipeline->c_db);
 	is_db_free(&pipeline->is_db);
@@ -117,6 +158,12 @@ void physics_pipeline_free(struct physics_pipeline *pipeline)
 
 static void internal_physics_pipeline_clear_frame(struct physics_pipeline *pipeline)
 {
+#ifdef KAS_PHYSICS_DEBUG
+	for (u32 i = 0; i < pipeline->debug_count; ++i)
+	{
+		stack_visual_segment_flush(&pipeline->debug[i].stack_segment);
+	}
+#endif
 	pipeline->proxy_overlap_count = 0;
 	pipeline->proxy_overlap = NULL;
 	pipeline->cm_count = 0;
@@ -130,6 +177,12 @@ static void internal_physics_pipeline_clear_frame(struct physics_pipeline *pipel
 
 void physics_pipeline_flush(struct physics_pipeline *pipeline)
 {
+#ifdef KAS_PHYSICS_DEBUG
+	for (u32 i = 0; i < pipeline->debug_count; ++i)
+	{
+		stack_visual_segment_flush(&pipeline->debug[i].stack_segment);
+	}
+#endif
 	dbvt_flush(&pipeline->dynamic_tree);
 	c_db_flush(&pipeline->c_db);
 	is_db_flush(&pipeline->is_db);

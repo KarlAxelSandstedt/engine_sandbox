@@ -22,6 +22,20 @@
 #include "collision.h"
 #include "dynamics.h"
 
+DEFINE_STACK(visual_segment);
+
+kas_thread_local struct collision_debug *debug;
+
+struct visual_segment visual_segment_construct(const struct segment segment, const vec4 color)
+{
+	struct visual_segment visual =
+	{
+		.segment = segment,
+	};
+	vec4_copy(visual.color, color);
+	return visual;
+}
+
 /********************************** Contact Manifold helpers **********************************/
 
 void contact_manifold_debug_print(FILE *file, const struct contact_manifold *cm)
@@ -1445,7 +1459,6 @@ static u32 hull_capsule_contact(struct arena *garbage, struct contact_manifold *
 
 				//COLLISION_DEBUG_ADD_SEGMENT(cap_s);
 				//COLLISION_DEBUG_ADD_SEGMENT(s);
-			
 
 				if (cap_p0_inside == 1 && cap_p1_inside == 0)
 				{
@@ -1665,7 +1678,7 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 
 			vec3_interpolate(tmp1, ref_v[(j+1) % ref_face->count], ref_v[j], 0.5f);
 			vec3_add(tmp2, tmp1, n);
-			COLLISION_DEBUG_ADD_SEGMENT(segment_construct(tmp1, tmp2), vec4_inline(0.7f, 0.4, 0.2f, 1.0f));
+			COLLISION_DEBUG_ADD_SEGMENT(segment_construct(tmp1, tmp2), vec4_inline(0.8f, 0.6, 0.1f, 1.0f));
 
 			const f32 bc_c = plane_segment_clip_parameter(&clip_plane, &inc_edge);
 			const f32 dot = vec3_dot(inc_edge.dir, clip_plane.normal);
@@ -1722,7 +1735,6 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 	}
 	else
 	{
-		//fprintf(stderr, "%u segments outside\n", segments_outside);
 		for (u32 i = 0; i < inc_face->count; ++i)
 		{
 			if (max_t[i] != F32_INFINITY)
@@ -1763,7 +1775,7 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 
 	for (u32 i = 0; i < cp_count; ++i)
 	{
-		COLLISION_DEBUG_ADD_SEGMENT(segment_construct(cp[i], cp[(i+1) % cp_count]), vec4_inline(0.7f, 0.4, 0.2f, 1.0f));
+		COLLISION_DEBUG_ADD_SEGMENT(segment_construct(cp[i], cp[(i+1) % cp_count]), vec4_inline(0.8f, 0.6, 0.1f, 1.0f));
 	}
 
 	u32 is_colliding = 1;
@@ -1793,6 +1805,7 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 
 		case 3:
 		{
+			breakpoint(dcel1->v_count > 8 || dcel2->v_count > 8);
 			cm->v_count = 3;
 			vec3_sub(tmp1, cp[1], cp[0]);	
 			vec3_sub(tmp2, cp[2], cp[0]);	
@@ -1820,6 +1833,7 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 		default:
 		{
 			/* (1) First point is deepest point */
+			breakpoint(dcel1->v_count > 8 || dcel2->v_count > 8);
 			cm->v_count = 4;
 			vec3_copy(cm->v[0], cp[deepest_point]);
 			cm->depth[0] = depth[deepest_point];
@@ -2105,7 +2119,7 @@ static u32 hull_contact(struct arena *tmp, struct contact_manifold *cm, const st
 		segment_distance_sq(c1, c2, &e_query.s1, &e_query.s2);
 		//COLLISION_DEBUG_ADD_SEGMENT(e_query.s1);
 		//COLLISION_DEBUG_ADD_SEGMENT(e_query.s2);
-		COLLISION_DEBUG_ADD_SEGMENT(segment_construct(c1,c2), vec4_inline(0.7f, 0.4, 0.2f, 1.0f));
+		COLLISION_DEBUG_ADD_SEGMENT(segment_construct(c1,c2), vec4_inline(0.8f, 0.6, 0.1f, 1.0f));
 
 		cm->v_count = 1;
 		cm->depth[0] = -e_query.depth;

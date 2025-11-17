@@ -34,15 +34,28 @@
 
 /********************************** COLLISION DEBUG **********************************/
 
+typedef struct visual_segment
+{
+	struct segment	segment;
+	vec4		color;
+} visual_segment;
+DECLARE_STACK(visual_segment);
+
+struct visual_segment	visual_segment_construct(const struct segment segment, const vec4 color);
+
 struct collision_debug
 {
-	//TODO visual stacks 
-	u32	tmp;
+	stack_visual_segment	stack_segment;
+
+	u8			pad[64];
 };
+
+extern kas_thread_local struct collision_debug *tl_debug;
 
 #ifdef KAS_PHYSICS_DEBUG
 
-#define COLLISION_DEBUG_ADD_SEGMENT(segment, color)
+#define COLLISION_DEBUG_ADD_SEGMENT(segment, color)							\
+	stack_visual_segment_push(&tl_debug->stack_segment,  visual_segment_construct(segment, color))
 
 #else
 

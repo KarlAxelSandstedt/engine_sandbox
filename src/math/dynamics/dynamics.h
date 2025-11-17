@@ -671,7 +671,7 @@ extern const char **body_color_mode_str;
  */
 struct physics_pipeline 
 {
-	struct arena 	frame;				/* frame memory */
+	struct arena 		frame;			/* frame memory */
 
 	u64			ns_start;		/* external ns at start of physics pipeline */
 	u64			ns_elapsed;		/* actual ns elasped in pipeline (= 0 at start) */
@@ -692,6 +692,9 @@ struct physics_pipeline
 
 	struct contact_database	c_db;
 	struct island_database 	is_db;
+
+	struct collision_debug *debug;
+	u32			debug_count;
 
 	//TODO temporary, move somewhere else.
 	vec3 			gravity;	/* gravity constant */
