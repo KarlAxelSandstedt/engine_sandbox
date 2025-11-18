@@ -257,5 +257,7 @@ void 	vertex_centroid(vec3 centroid, const vec3ptr vs, const u32 n);
 
 /* get normal of ccw triangle */
 void 	tri_ccw_normal(vec3 normal, const vec3 p0, const vec3 p1, const vec3 p2);
+/* get direction of ccw triangle */
+void 	tri_ccw_direction(vec3 dir, const vec3 p0, const vec3 p1, const vec3 p2);
 
 #endif

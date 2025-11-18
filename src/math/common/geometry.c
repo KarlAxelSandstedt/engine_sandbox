@@ -621,6 +621,14 @@ void tri_ccw_normal(vec3 normal, const vec3 p0, const vec3 p1, const vec3 p2)
 	vec3_normalize(normal, C);
 }
 
+void tri_ccw_direction(vec3 dir, const vec3 p0, const vec3 p1, const vec3 p2)
+{
+	vec3 A, B;
+	vec3_sub(A, p1, p0);
+	vec3_sub(B, p2, p0);
+	vec3_cross(dir, A, B);
+}
+
 vec3 box_stub_vertex[8] =
 {
 	{  0.5f,  0.5f,  0.5f }, 
@@ -727,7 +735,6 @@ void dcel_face_direction(vec3 dir, const struct dcel *h, const u32 fi)
 	vec3_sub(a, h->v[e1->origin], h->v[e0->origin]);
 	vec3_sub(b, h->v[e2->origin], h->v[e0->origin]);
 	vec3_cross(dir, a, b);
-	assert(vec3_length(dir) >= 100.0f*F32_EPSILON);
 }
 
 void dcel_face_normal(vec3 normal, const struct dcel *h, const u32 fi)
@@ -831,7 +838,6 @@ void dcel_edge_direction(vec3 dir, const struct dcel *h, const u32 ei)
 	const u32 next = f->first + ((ei - f->first + 1) % f->count);
 	struct dcel_edge *e1 = h->e + next;
 	vec3_sub(dir, h->v[e1->origin], h->v[e0->origin]);
-	assert(vec3_length(dir) >= 100.0f*F32_EPSILON);
 }
 
 void dcel_edge_normal(vec3 dir, const struct dcel *h, const u32 ei)

@@ -1590,7 +1590,7 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 	vec3 n_ref, n_inc, tmp1, tmp2, n;
 
 	/* (1) setup reference_face */
-	const struct dcel *ref_dcel, *indcel;
+	const struct dcel *ref_dcel, *inc_dcel;
 	struct dcel_face *ref_face, *inc_face;
 	u32 ref_i, inc_i;
 
@@ -1598,10 +1598,10 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 	{
 		ref_i = 0;
 		inc_i = 1;
-		vec3_copy(cm->n, query[0].normal);
-		cm->depth[0] = -query[0].depth;
+		vec3_copy(cm->n, query[0].normal);	//TODO why here?
+		cm->depth[0] = -query[0].depth;		//TODO why here?
 		ref_dcel = dcel1;
-		indcel = dcel2;
+		inc_dcel = dcel2;
 		query[ref_i].v = v1_world;
 		query[inc_i].v = v2_world;
 	}
@@ -1609,10 +1609,10 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 	{
 		ref_i = 1;
 		inc_i = 0;
-		vec3_scale(cm->n, query[1].normal, -1.0f);
-		cm->depth[0] = -query[1].depth;
+		vec3_scale(cm->n, query[1].normal, -1.0f);	//TODO why here?
+		cm->depth[0] = -query[1].depth;			//TODO why here?
 		ref_dcel = dcel2;
-		indcel = dcel1;
+		inc_dcel = dcel1;
 		query[ref_i].v = v2_world;
 		query[inc_i].v = v1_world;
 	}
@@ -1624,10 +1624,14 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 	/* (2) determine incident_face */
 	u32 inc_fi = 0;
 	f32 min_dot = 1.0f;
-	for (u32 fi = 0; fi < indcel->f_count; ++fi)
+	for (u32 fi = 0; fi < inc_dcel->f_count; ++fi)
 	{
-		vec3_sub(tmp1, query[inc_i].v[indcel->e[indcel->f[fi].first + 1].origin], query[inc_i].v[indcel->e[indcel->f[fi].first].origin]);
-		vec3_sub(tmp2, query[inc_i].v[indcel->e[indcel->f[fi].first + 2].origin], query[inc_i].v[indcel->e[indcel->f[fi].first].origin]);
+		const u32 i0  = inc_dcel->e[inc_dcel->f[fi].first + 0].origin;
+		const u32 i1  = inc_dcel->e[inc_dcel->f[fi].first + 1].origin;
+		const u32 i2  = inc_dcel->e[inc_dcel->f[fi].first + 2].origin;
+
+		vec3_sub(tmp1, query[inc_i].v[i1], query[inc_i].v[i0]);
+		vec3_sub(tmp2, query[inc_i].v[i2], query[inc_i].v[i0]);
 		vec3_cross(n, tmp1, tmp2);
 		vec3_mul_constant(n, 1.0f / vec3_length(n));
 
@@ -1637,9 +1641,8 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 			min_dot = dot;
 			inc_fi = fi;
 		}
-
 	}
-	inc_face = indcel->f + inc_fi;
+	inc_face = inc_dcel->f + inc_fi;
 
 	/* (3) Setup world polygons */
 	vec3ptr ref_v = arena_push(mem_tmp, ref_face->count * sizeof(vec3));
@@ -1653,7 +1656,7 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 
 	for (u32 i = 0; i < inc_face->count; ++i)
 	{
-		const u32 vi = indcel->e[inc_face->first + i].origin;
+		const u32 vi = inc_dcel->e[inc_face->first + i].origin;
 		vec3_copy(inc_v[i], query[inc_i].v[vi]);
 	}
 
@@ -1676,9 +1679,9 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 			vec3_mul_constant(n, 1.0f / vec3_length(n));
 			struct plane clip_plane = plane_construct(n, ref_v[j]);
 
-			vec3_interpolate(tmp1, ref_v[(j+1) % ref_face->count], ref_v[j], 0.5f);
-			vec3_add(tmp2, tmp1, n);
-			COLLISION_DEBUG_ADD_SEGMENT(segment_construct(tmp1, tmp2), vec4_inline(0.8f, 0.6, 0.1f, 1.0f));
+			//vec3_interpolate(tmp1, ref_v[(j+1) % ref_face->count], ref_v[j], 0.5f);
+			//vec3_add(tmp2, tmp1, n);
+			//COLLISION_DEBUG_ADD_SEGMENT(segment_construct(tmp1, tmp2), vec4_inline(0.8f, 0.6, 0.1f, 1.0f));
 
 			const f32 bc_c = plane_segment_clip_parameter(&clip_plane, &inc_edge);
 			const f32 dot = vec3_dot(inc_edge.dir, clip_plane.normal);
@@ -1705,7 +1708,7 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 		}
 	}
 
-	f32 max_depth = -FLT_MAX;
+	f32 max_depth = -F32_INFINITY;
 	u32 deepest_point = 0;
 	u32 cp_count = 0;
 	/* insident face cosumes whole of reference face */
@@ -1735,6 +1738,7 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 	}
 	else
 	{
+		//fprintf(stderr, "Segments outside: %u\n", segments_outside);
 		for (u32 i = 0; i < inc_face->count; ++i)
 		{
 			if (max_t[i] != F32_INFINITY)
@@ -1805,7 +1809,6 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 
 		case 3:
 		{
-			breakpoint(dcel1->v_count > 8 || dcel2->v_count > 8);
 			cm->v_count = 3;
 			vec3_sub(tmp1, cp[1], cp[0]);	
 			vec3_sub(tmp2, cp[2], cp[0]);	
@@ -1833,16 +1836,20 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 		default:
 		{
 			/* (1) First point is deepest point */
-			breakpoint(dcel1->v_count > 8 || dcel2->v_count > 8);
 			cm->v_count = 4;
 			vec3_copy(cm->v[0], cp[deepest_point]);
 			cm->depth[0] = depth[deepest_point];
 
 			/* (2) Third point is point furthest away from deepest point */
 			f32 max_dist = 0.0f;
-			u32 max_i = 0;
+			u32 max_i = (deepest_point + 2) % cp_count;
 			for (u32 i = 0; i < cp_count; ++i)
 			{
+				if (i == (deepest_point + 1) % cp_count || (i+1) % cp_count == deepest_point)
+				{
+					continue;
+				}
+
 				const f32 dist = vec3_distance_squared(cp[deepest_point], cp[i]);
 				if (max_dist < dist)
 				{
@@ -1856,41 +1863,61 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 			/* (3, 4) Second point and forth is point that gives largest (in magnitude) 
 			 * areas with the previous points on each side of the previous segment 
 			 */
-			u32 max_neg_i = 0;
-			u32 max_pos_i = 0;
+			u32 max_pos_i = (deepest_point + 1) % cp_count;
+			u32 max_neg_i = (max_i + 1) % cp_count;
 			f32 max_neg = 0.0f;
 			f32 max_pos = 0.0f;
 
-			for (u32 i = 0; i < cp_count; ++i)
+			for (u32 i = (deepest_point + 1) % cp_count; i != max_i; i = (i+1) % cp_count)
 			{
 				vec3_sub(tmp1, cm->v[0], cp[i]);
 				vec3_sub(tmp2, cm->v[2], cp[i]);
 				vec3_cross(n, tmp1, tmp2);
 				const f32 d = vec3_length_squared(n);
-
-				/* candidate for cm->v[3] */
-				if (vec3_dot(n, cm->n) >= 0.0f)
+				if (max_pos < d)
 				{
-					if (max_pos < d)
-					{
-						max_pos = d;
-						max_pos_i = i;
-					}
-				}
-				else 
-				{
-					if (max_neg < d)
-					{
-						max_neg = d;
-						max_neg_i = i;
-					}
+					max_pos = d;
+					max_pos_i = i;
 				}
 			}
 
-			vec3_copy(cm->v[1], cp[max_neg_i]);
-			vec3_copy(cm->v[3], cp[max_pos_i]);
-			cm->depth[1] = depth[max_neg_i];
-			cm->depth[3] = depth[max_pos_i];
+			for (u32 i = (max_i + 1) % cp_count; i != deepest_point; i = (i+1) % cp_count)
+			{
+				vec3_sub(tmp1, cm->v[0], cp[i]);
+				vec3_sub(tmp2, cm->v[2], cp[i]);
+				vec3_cross(n, tmp1, tmp2);
+				const f32 d = vec3_length_squared(n);
+				if (max_neg < d)
+				{
+					max_neg = d;
+					max_neg_i = i;
+				}
+			}
+
+			kas_assert(deepest_point != max_i);
+			kas_assert(deepest_point != max_pos_i);
+			kas_assert(deepest_point != max_neg_i);
+			kas_assert(max_i != max_pos_i);
+			kas_assert(max_i != max_neg_i);
+			kas_assert(max_pos_i != max_neg_i);
+	
+			vec3 dir;
+			tri_ccw_direction(dir, cm->v[0], cp[max_pos_i], cm->v[2]);
+			if (vec3_dot(dir, cm->n) < 0.0f)
+			{
+				vec3_copy(cm->v[1], cp[max_pos_i]);
+				vec3_copy(cm->v[3], cp[max_neg_i]);
+				cm->depth[1] = depth[max_pos_i];
+				cm->depth[3] = depth[max_neg_i];
+			}
+			else
+			{
+				vec3_copy(cm->v[1], cp[max_neg_i]);
+				vec3_copy(cm->v[3], cp[max_pos_i]);
+				cm->depth[1] = depth[max_neg_i];
+				cm->depth[3] = depth[max_pos_i];
+			}
+
 		} break;
 	}
 
@@ -1901,11 +1928,10 @@ static u32 hull_contact_internal_fv_seperation(struct sat_face_query *query, con
 {
 	for (u32 fi = 0; fi < h1->f_count; ++fi)
 	{
-		const u32 f_v0 = h1->e[h1->f[fi].first    ].origin;
+		const u32 f_v0 = h1->e[h1->f[fi].first + 0].origin;
 		const u32 f_v1 = h1->e[h1->f[fi].first + 1].origin;
 		const u32 f_v2 = h1->e[h1->f[fi].first + 2].origin;
 		const struct plane sep_plane = plane_construct_from_ccw_triangle(v1_world[f_v0], v1_world[f_v1], v1_world[f_v2]);
-
 		f32 min_dist = FLT_MAX;
 		for (u32 i = 0; i < h2->v_count; ++i)
 		{
@@ -1942,7 +1968,7 @@ static u32 internal_ee_is_minkowski_face(const vec3 n1_1, const vec3 n1_2, const
 	 * Thus, given the fact that the two first tests passes, which tells us that the two arcs 
 	 * cross each others planes, the hemisphere test finally tells us if the arcs cross each other.
 	 *
-	 * If n2_1 lies in the positive half-space defined by arc1_n, and we know that n2_2 lies in the
+	 * If n2_1 lies in the positive half-space defined by arc_n1, and we know that n2_2 lies in the
 	 * negative half-space, then the two arcs cross each other iff n2_1->n2_2 CCW relative to n1_2.
 	 * This holds since from the first two check and n2_1->n2_2 CCW relative to n1_2, it must hold
 	 * that arc_n2*n1_1 < 0.0f. If the arc is CW to n1_2, arc_n2*n1_1 > 0.0f.
@@ -1950,11 +1976,12 @@ static u32 internal_ee_is_minkowski_face(const vec3 n1_1, const vec3 n1_2, const
 	 * Similarly, if n2_1 lies in the negative half-space, then the two arcs cross each other iff 
 	 * n2_1->n2_2 CW relative to n1_2 <=> arc_n2*n1_1 > 0.0f.
 	 *
-	 * It follows that intersection <=> (arc_n1*n2_1 > 0 && arc_n2*n1_1 < 0) || 
-	 * 				    (arc_n1*n2_1 < 0 && arc_n2*n1_1 > 0)
-	 *				<=>  arc_n1*n2_1 * arc_n2*n1_1) < 0
+	 * It follows that intersection <=> (arc_n1*n2_1 > 0 && arc_n2*n1_2 > 0) || 
+	 * 				    (arc_n1*n2_1 < 0 && arc_n2*n1_2 < 0)
+	 *				<=>  arc_n1*n2_1 * arc_n2*n1_2) > 0
+	 *				<=>  n2_1d * n1_2d > 0
 	 */
-	return (n1_1d*n1_2d < 0.0f && n2_1d*n2_2d < 0.0f && n1_1d*n2_1d < 0.0f) ? 1 : 0;
+	return (n1_1d*n1_2d < 0.0f && n2_1d*n2_2d < 0.0f && n1_2d*n2_1d > 0.0f) ? 1 : 0;
 }
 
 /*
@@ -1966,35 +1993,42 @@ static u32 hull_contact_internal_ee_seperation(struct sat_edge_query *query, con
 	vec3 n1_1, n1_2, n2_1, n2_2, e1, e2;
 	for (u32 e1_1 = 0; e1_1 < h1->e_count; ++e1_1)
 	{
+		u32 e1_2 = h1->e[e1_1].twin;
+		if (e1_2 < e1_1) { continue; }
+
 		for (u32 e2_1 = 0; e2_1 < h2->e_count; ++e2_1) 
 		{
-			u32 e1_2 = h1->e[e1_1].twin;
 			u32 e2_2 = h2->e[e2_1].twin;
-			const struct dcel_face *f1 = h1->f + h1->e[e1_1].face_ccw;
-			const struct dcel_face *f2 = h2->f + h2->e[e2_1].face_ccw;
-			dcel_face_direction(n1_1, h1, h1->e[e1_1].face_ccw);
-			dcel_face_direction(n1_2, h1, h1->e[e1_2].face_ccw);
-			dcel_face_direction(n2_1, h2, h2->e[e2_1].face_ccw);
-			dcel_face_direction(n2_2, h2, h2->e[e2_2].face_ccw);
+			if (e2_2 < e2_1) { continue; }
 
-			/* we are working with minkowski difference A - B, so gauss map of B is (-B) */
+			const u32 f1_1 = h1->e[e1_1].face_ccw;
+			const u32 f1_2 = h1->e[e1_2].face_ccw;
+			const u32 f2_1 = h2->e[e2_1].face_ccw;
+			const u32 f2_2 = h2->e[e2_2].face_ccw;
+			tri_ccw_direction(n1_1, v1_world[h1->e[h1->f[f1_1].first + 0].origin],  v1_world[h1->e[h1->f[f1_1].first + 1].origin], v1_world[h1->e[h1->f[f1_1].first + 2].origin]);
+			tri_ccw_direction(n1_2, v1_world[h1->e[h1->f[f1_2].first + 0].origin],  v1_world[h1->e[h1->f[f1_2].first + 1].origin], v1_world[h1->e[h1->f[f1_2].first + 2].origin]);
+			tri_ccw_direction(n2_1, v2_world[h2->e[h2->f[f2_1].first + 0].origin],  v2_world[h2->e[h2->f[f2_1].first + 1].origin], v2_world[h2->e[h2->f[f2_1].first + 2].origin]);
+			tri_ccw_direction(n2_2, v2_world[h2->e[h2->f[f2_2].first + 0].origin],  v2_world[h2->e[h2->f[f2_2].first + 1].origin], v2_world[h2->e[h2->f[f2_2].first + 2].origin]);
+			//dcel_face_direction(n1_1, h1, h1->e[e1_1].face_ccw);
+			//dcel_face_direction(n1_2, h1, h1->e[e1_2].face_ccw);
+			//dcel_face_direction(n2_1, h2, h2->e[e2_1].face_ccw);
+			//dcel_face_direction(n2_2, h2, h2->e[e2_2].face_ccw);
+
+			///* we are working with minkowski difference A - B, so gauss map of B is (-B). n2_1, n2_2 cross product stays the same. */
 			vec3_negative(n2_1);	
 			vec3_negative(n2_2);
 
-			/* No need to negate here, since e2 is orthogonal n2_1 and n2_2 either way */
-			dcel_edge_direction(e1, h1, e1_1);
-			dcel_edge_direction(e2, h2, e2_1);
+			//dcel_edge_direction(e1, h1, e1_1);
+			//dcel_edge_direction(e2, h2, e2_1);
+			const struct segment s1 = segment_construct(v1_world[h1->e[e1_1].origin], v1_world[h1->e[e1_2].origin]);
+			const struct segment s2 = segment_construct(v2_world[h2->e[e2_1].origin], v2_world[h2->e[e2_2].origin]);
 
 			/* 
 			 * test if A, -B edges intersect on gauss map, only if they do, 
 			 * they are a candidate for collision
 			 */
-			if (internal_ee_is_minkowski_face(n1_1, n1_2, n2_1, n2_2, e1, e2))
+			if (internal_ee_is_minkowski_face(n1_1, n1_2, n2_1, n2_2, s1.dir, s2.dir))
 			{
-				e1_2 = f1->first + ((e1_1 - f1->first + 1) % f1->count);
-				e2_2 = f2->first + ((e2_1 - f2->first + 1) % f2->count);
-				const struct segment s1 = segment_construct(v1_world[h1->e[e1_1].origin], v1_world[h1->e[e1_2].origin]);
-				const struct segment s2 = segment_construct(v2_world[h2->e[e2_1].origin], v2_world[h2->e[e2_2].origin]);
 				const f32 d1d1 = vec3_dot(s1.dir, s1.dir);
 				const f32 d2d2 = vec3_dot(s2.dir, s2.dir);
 				const f32 d1d2 = vec3_dot(s1.dir, s2.dir);
@@ -2002,7 +2036,7 @@ static u32 hull_contact_internal_ee_seperation(struct sat_edge_query *query, con
 
 				vec3_cross(e1, s1.dir, s2.dir);
 				vec3_mul_constant(e1, 1.0f / vec3_length(e1));
-				vec3_sub(e2, v1_world[h1->e[e1_2].origin], h1_world_center);
+				vec3_sub(e2, s1.p0, h1_world_center);
 				/* plane normal points from A -> B */
 				if (vec3_dot(e1, e2) < 0.0f)
 				{
@@ -2010,12 +2044,11 @@ static u32 hull_contact_internal_ee_seperation(struct sat_edge_query *query, con
 				}
 				
 				/* check segmente-segment distance interval signed plane distance, > 0.0f => we have found a seperating axis */
-				vec3_sub(e2, v2_world[h2->e[e2_2].origin], v1_world[h1->e[e1_2].origin]);
+				vec3_sub(e2, s2.p0, s1.p0);
 				const f32 dist = vec3_dot(e1, e2);
 
 				if (dist > 0.0f) 
 				{
-					//COLLISION_DEBUG_ADD_PLANE(sep_plane, v1_world[h1->e[e1_1].origin], 0.5f, 0.0f, 0.7f, 0.9f, 0.7f);
 					return 1;
 				}
 			
@@ -2071,14 +2104,11 @@ static u32 hull_contact(struct arena *tmp, struct contact_manifold *cm, const st
 	vec3ptr v1_world = arena_push(tmp, h1->v_count * sizeof(vec3));
 	vec3ptr v2_world = arena_push(tmp, h2->v_count * sizeof(vec3));
 
-	vec3 h1_world_center = VEC3_ZERO;
 	for (u32 i = 0; i < h1->v_count; ++i)
 	{
 		mat3_vec_mul(v1_world[i], rot1, h1->v[i]);
 		vec3_translate(v1_world[i], b1->position);
-		vec3_translate(h1_world_center, v1_world[i]);
 	}
-	vec3_mul_constant(h1_world_center, 1.0f/h1->v_count);
 
 	for (u32 i = 0; i < h2->v_count; ++i)
 	{
@@ -2101,25 +2131,26 @@ static u32 hull_contact(struct arena *tmp, struct contact_manifold *cm, const st
 		goto sat_cleanup;
 	}
 
-	if (hull_contact_internal_ee_seperation(&e_query, h1, v1_world, h2, v2_world, h1_world_center))
+	if (hull_contact_internal_ee_seperation(&e_query, h1, v1_world, h2, v2_world, b1->position))
 	{
 		is_colliding = 0;
 		goto sat_cleanup;
 	}
 
-	//fprintf(stderr, "%f\n%f\n%f\n", f_query[0].depth, f_query[1].depth, e_query.depth);
-	if ((1.0f - 100.0f * F32_EPSILON) * f_query[0].depth >= e_query.depth || (1.0f - 100.0f * F32_EPSILON) * f_query[1].depth >= e_query.depth)
+	//if ((1.0f - 100.0f * F32_EPSILON) * f_query[0].depth >= e_query.depth || (1.0f - 100.0f * F32_EPSILON) * f_query[1].depth >= e_query.depth)
+	if (0.99f*f_query[0].depth >= e_query.depth || 0.99f*f_query[1].depth >= e_query.depth)
 	{
 		is_colliding = hull_contact_internal_face_contact(tmp, cm, f_query, b1, h1, v1_world, b2, h2, v2_world);
 	}
 	/* edge_contact */
 	else
 	{
+		fprintf(stderr, "%f, %f, %f\n", f_query[0].depth, f_query[1].depth, e_query.depth);
 		vec3 c1, c2;
 		segment_distance_sq(c1, c2, &e_query.s1, &e_query.s2);
-		//COLLISION_DEBUG_ADD_SEGMENT(e_query.s1);
-		//COLLISION_DEBUG_ADD_SEGMENT(e_query.s2);
-		COLLISION_DEBUG_ADD_SEGMENT(segment_construct(c1,c2), vec4_inline(0.8f, 0.6, 0.1f, 1.0f));
+		COLLISION_DEBUG_ADD_SEGMENT(segment_construct(c1,c2), vec4_inline(0.0f, 0.8, 0.8f, 1.0f));
+		COLLISION_DEBUG_ADD_SEGMENT(e_query.s1, vec4_inline(0.0f, 1.0, 0.1f, 1.0f));
+		COLLISION_DEBUG_ADD_SEGMENT(e_query.s2, vec4_inline(0.0f, 0.1, 1.0f, 1.0f));
 
 		cm->v_count = 1;
 		cm->depth[0] = -e_query.depth;

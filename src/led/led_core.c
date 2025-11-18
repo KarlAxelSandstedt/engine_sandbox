@@ -708,7 +708,7 @@ void led_wall_smash_simulation_setup(struct led *led)
 	struct system_window *sys_win = system_window_address(g_editor->window);
 
 	const u32 dsphere_v_count = 30;
-	const u32 dsphere_count = 10;
+	const u32 dsphere_count = 1;
 	const u32 tower1_count = 1;
 	const u32 tower2_count = 4;
 	const u32 tower1_box_count = 40;
@@ -874,7 +874,7 @@ void led_wall_smash_simulation_setup(struct led *led)
 	vec3 ramp_translation = {0.0f , ramp_width, -ramp_length};
 	vec3 floor_translation = { 0.0f, -ramp_width/2.0f - 1.0f, ramp_length / 2.0f -ramp_width/2.0f};
 	vec3 box_base_translation = { 0.0f, floor_translation[1] + 1.0f, floor_translation[2] / 2.0f};
-	vec3 dsphere_base_translation = { 0.0f, floor_translation[1] + 1.0f, floor_translation[2] / 2.0f + 20.0f};
+	vec3 dsphere_base_translation = { -15.0f, floor_translation[1] + 1.0f, floor_translation[2] / 2.0f + 20.0f};
 
 	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "led_floor");
 	cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_add_id);
@@ -1312,9 +1312,8 @@ static void led_engine_run(struct led *led)
 			{
 				if (led->physics.body_color_mode == RB_COLOR_MODE_COLLISION)
 				{
-					const struct contact *c = nll_address(&led->physics.c_db.contact_net, event->contact);
-					const struct rigid_body *body1 = pool_address(&led->physics.body_pool, c->cm.i1);
-					const struct rigid_body *body2 = pool_address(&led->physics.body_pool, c->cm.i2);
+					const struct rigid_body *body1 = pool_address(&led->physics.body_pool, event->contact_bodies.body1);
+					const struct rigid_body *body2 = pool_address(&led->physics.body_pool, event->contact_bodies.body2);
 					const struct led_node *node1 = pool_address(&led->node_pool, body1->entity);
 					const struct led_node *node2 = pool_address(&led->node_pool, body2->entity);
 
