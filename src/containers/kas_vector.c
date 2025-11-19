@@ -26,6 +26,7 @@ DEFINE_STACK(f32);
 DEFINE_STACK(ptr);
 DEFINE_STACK(intv);
 
+DEFINE_STACK_VEC(vec3);
 DEFINE_STACK_VEC(vec4);
 
 static const struct vector empty = { 0 };

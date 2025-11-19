@@ -1645,8 +1645,12 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 	inc_face = inc_dcel->f + inc_fi;
 
 	/* (3) Setup world polygons */
+	stack_vec3 clip_stack[2];
+	clip_stack[0] = stack_vec3_alloc(mem_tmp, 2*inc_face->count + ref_face->count, NOT_GROWABLE);
+	clip_stack[1] = stack_vec3_alloc(mem_tmp, 2*inc_face->count + ref_face->count, NOT_GROWABLE);
+	u32 cur = 0;
 	vec3ptr ref_v = arena_push(mem_tmp, ref_face->count * sizeof(vec3));
-	vec3ptr inc_v = arena_push(mem_tmp, inc_face->count * sizeof(vec3));
+	vec3ptr cp = arena_push(mem_tmp, (2*inc_face->count + ref_face->count) * sizeof(vec3));
 
 	for (u32 i = 0; i < ref_face->count; ++i)
 	{
@@ -1657,123 +1661,68 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 	for (u32 i = 0; i < inc_face->count; ++i)
 	{
 		const u32 vi = inc_dcel->e[inc_face->first + i].origin;
-		vec3_copy(inc_v[i], query[inc_i].v[vi]);
+		stack_vec3_push(clip_stack + cur, query[inc_i].v[vi]);
 	}
 
 	/* (4) clip incident_face to reference_face */
-	vec3ptr cp = arena_push(mem_tmp, inc_face->count * 2 * sizeof(vec3));
-	f32 *depth = arena_push(mem_tmp, inc_face->count * 2 * sizeof(f32));
-	f32 *min_t = arena_push(mem_tmp, inc_face->count * sizeof(f32));
-	f32 *max_t = arena_push(mem_tmp, inc_face->count * sizeof(f32));
-	u32 segments_outside = 0;
+	f32 *depth = arena_push(mem_tmp, (inc_face->count * 2 + ref_face->count) * sizeof(f32));
 
-	for (u32 i = 0; i < inc_face->count; ++i)
+	/*
+	 * Sutherland-Hodgman 3D polygon clipping
+	 */
+	for (u32 j = 0; j < ref_face->count; ++j)
 	{
-		struct segment inc_edge = segment_construct(inc_v[i], inc_v[(i+1) % inc_face->count]);
-		min_t[i] = 0.0f;
-		max_t[i] = 1.0f;
-		for (u32 j = 0; j < ref_face->count; ++j)
+		const u32 prev = cur;
+		cur = 1 - cur;
+		stack_vec3_flush(clip_stack + cur);
+
+		vec3_sub(tmp1, ref_v[(j+1) % ref_face->count], ref_v[j]);
+		vec3_cross(n, tmp1, n_ref);
+		vec3_mul_constant(n, 1.0f / vec3_length(n));
+		struct plane clip_plane = plane_construct(n, ref_v[j]);
+
+		for (u32 i = 0; i < clip_stack[prev].next; ++i)
 		{
-			vec3_sub(tmp1, ref_v[(j+1) % ref_face->count], ref_v[j]);
-			vec3_cross(n, tmp1, n_ref);
-			vec3_mul_constant(n, 1.0f / vec3_length(n));
-			struct plane clip_plane = plane_construct(n, ref_v[j]);
+			const struct segment clip_edge = segment_construct(clip_stack[prev].arr[i], clip_stack[prev].arr[(i+1) % clip_stack[prev].next]);
+			const f32 t = plane_segment_clip_parameter(&clip_plane, &clip_edge);
 
-			//vec3_interpolate(tmp1, ref_v[(j+1) % ref_face->count], ref_v[j], 0.5f);
-			//vec3_add(tmp2, tmp1, n);
-			//COLLISION_DEBUG_ADD_SEGMENT(segment_construct(tmp1, tmp2), vec4_inline(0.8f, 0.6, 0.1f, 1.0f));
+			vec3 inter;
+			vec3_interpolate(inter, clip_edge.p1, clip_edge.p0, t);
 
-			const f32 bc_c = plane_segment_clip_parameter(&clip_plane, &inc_edge);
-			const f32 dot = vec3_dot(inc_edge.dir, clip_plane.normal);
-			if (min_t[i] <= bc_c && bc_c <= max_t[i])
+			if (plane_point_is_behind(&clip_plane, clip_edge.p0))
 			{
-				if (dot >= 0.0f)
+				stack_vec3_push(clip_stack + cur, clip_edge.p0);
+				if (0.0f < t && t < 1.0f)
 				{
-					max_t[i] = bc_c;
-				}
-				else
-				{
-					min_t[i] = bc_c;
+					stack_vec3_push(clip_stack + cur, inter);
 				}
 			}
-			/* segment is fully infront of a plane */
-			else if ((f32_abs(bc_c) == F32_INFINITY && plane_point_is_infront(&clip_plane, inc_edge.p0)) 
-					|| (bc_c > 1.0f && dot < 0.0f) 
-					|| (bc_c < 0.0f && dot > 0.0f))
+			else if (plane_point_is_behind(&clip_plane, clip_edge.p1))
 			{
-				max_t[i] = F32_INFINITY;
-				segments_outside += 1;
-				break;
+				stack_vec3_push(clip_stack + cur, inter);
 			}
 		}
 	}
+
 
 	f32 max_depth = -F32_INFINITY;
 	u32 deepest_point = 0;
 	u32 cp_count = 0;
-	/* insident face cosumes whole of reference face */
-	if (segments_outside == inc_face->count)
+	
+	for (u32 i = 0; i < clip_stack[cur].next; ++i)
 	{
-		//fprintf(stderr, "All segments outside\n");
-		(ref_i == 0)
-			? vec3_copy(cm->n, n_inc)
-			: vec3_negative_to(cm->n, n_inc);
-			
-		for (u32 i = 0; i < ref_face->count; ++i)
+		vec3_copy(cp[cp_count], clip_stack[cur].arr[i]);
+		vec3_sub(tmp1, cp[cp_count], ref_v[0]);
+		depth[cp_count] = -vec3_dot(tmp1, n_ref);
+		if (depth[cp_count] >= 0.0f)
 		{
-			vec3_sub(tmp1, ref_v[i], inc_v[0]);
-			depth[cp_count] = -vec3_dot(tmp1, n_inc);
-			if (depth[cp_count] >= 0.0f)
+			vec3_translate_scaled(cp[cp_count], n_ref, depth[cp_count]);
+			if (max_depth < depth[cp_count])
 			{
-				vec3_scale(cp[cp_count], n_inc, depth[cp_count]);
-				vec3_translate(cp[cp_count], ref_v[i]);
-				if (max_depth < depth[cp_count])
-				{
-					max_depth = depth[cp_count];
-					deepest_point = cp_count;
-				}
-				cp_count += 1;
+				max_depth = depth[cp_count];
+				deepest_point = cp_count;
 			}
-		}
-	}
-	else
-	{
-		//fprintf(stderr, "Segments outside: %u\n", segments_outside);
-		for (u32 i = 0; i < inc_face->count; ++i)
-		{
-			if (max_t[i] != F32_INFINITY)
-			{
-				vec3_interpolate(cp[cp_count], inc_v[(i+1) % inc_face->count], inc_v[i], min_t[i]);
-				vec3_sub(tmp1, cp[cp_count], ref_v[0]);
-				depth[cp_count] = -vec3_dot(tmp1, n_ref);
-				if (depth[cp_count] >= 0.0f)
-				{
-					vec3_translate_scaled(cp[cp_count], n_ref, depth[cp_count]);
-					if (max_depth < depth[cp_count])
-					{
-						max_depth = depth[cp_count];
-						deepest_point = cp_count;
-					}
-					cp_count += 1;
-				}
-
-				if (max_t[i] != 1.0f)
-				{
-					vec3_interpolate(cp[cp_count], inc_v[(i+1) % inc_face->count], inc_v[i], max_t[i]);
-					vec3_sub(tmp1, cp[cp_count], ref_v[0]);
-					depth[cp_count] = -vec3_dot(tmp1, n_ref);
-					if (depth[cp_count] >= 0.0f)
-					{
-						vec3_translate_scaled(cp[cp_count], n_ref, depth[cp_count]);
-						if (max_depth < depth[cp_count])
-						{
-							max_depth = depth[cp_count];
-							deepest_point = cp_count;
-						}
-						cp_count += 1;
-					}
-				}
-			}
+			cp_count += 1;
 		}
 	}
 
@@ -1905,17 +1854,17 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 			tri_ccw_direction(dir, cm->v[0], cp[max_pos_i], cm->v[2]);
 			if (vec3_dot(dir, cm->n) < 0.0f)
 			{
-				vec3_copy(cm->v[1], cp[max_pos_i]);
-				vec3_copy(cm->v[3], cp[max_neg_i]);
-				cm->depth[1] = depth[max_pos_i];
-				cm->depth[3] = depth[max_neg_i];
+				vec3_copy(cm->v[3], cp[max_pos_i]);
+				vec3_copy(cm->v[1], cp[max_neg_i]);
+				cm->depth[3] = depth[max_pos_i];
+				cm->depth[1] = depth[max_neg_i];
 			}
 			else
 			{
-				vec3_copy(cm->v[1], cp[max_neg_i]);
-				vec3_copy(cm->v[3], cp[max_pos_i]);
-				cm->depth[1] = depth[max_neg_i];
-				cm->depth[3] = depth[max_pos_i];
+				vec3_copy(cm->v[3], cp[max_neg_i]);
+				vec3_copy(cm->v[1], cp[max_pos_i]);
+				cm->depth[3] = depth[max_neg_i];
+				cm->depth[1] = depth[max_pos_i];
 			}
 
 		} break;
