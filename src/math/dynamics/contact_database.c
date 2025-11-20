@@ -53,8 +53,10 @@ struct contact_database c_db_alloc(struct arena *mem_persistent, const u32 size)
 	struct contact_database c_db = { 0 };
 	kas_assert(is_power_of_two(size));
 
+	c_db.sat_cache_map = hash_map_alloc(NULL, size, size, GROWABLE);
+	c_db.sat_cache_pool = pool_alloc(NULL, size, struct sat_cache, GROWABLE);
 	c_db.contact_net = nll_alloc(NULL, size, struct contact, c_db_index_in_previous_contact_node, c_db_index_in_next_contact_node, GROWABLE);
-	c_db.contact_map = hash_map_alloc(NULL, size, size, HASH_GROWABLE);
+	c_db.contact_map = hash_map_alloc(NULL, size, size, GROWABLE);
 	c_db.contacts_persistent_usage = bit_vec_alloc(NULL, size, 0, 1);
 
 	return c_db;
@@ -62,6 +64,8 @@ struct contact_database c_db_alloc(struct arena *mem_persistent, const u32 size)
 
 void c_db_free(struct contact_database *c_db)
 {
+	pool_dealloc(&c_db->sat_cache_pool);
+	hash_map_free(c_db->sat_cache_map);
 	nll_dealloc(&c_db->contact_net);
 	hash_map_free(c_db->contact_map);
 	bit_vec_free(&c_db->contacts_persistent_usage);
@@ -70,6 +74,8 @@ void c_db_free(struct contact_database *c_db)
 void c_db_flush(struct contact_database *c_db)
 {
 	c_db_clear_frame(c_db);
+	pool_flush(&c_db->sat_cache_pool);
+	hash_map_flush(c_db->sat_cache_map);
 	nll_flush(&c_db->contact_net);
 	hash_map_flush(c_db->contact_map);
 	bit_vec_clear(&c_db->contacts_persistent_usage, 0);
@@ -183,6 +189,22 @@ void c_db_clear_frame(struct contact_database *c_db)
 	c_db->contacts_frame_usage.bits = NULL;
 	c_db->contacts_frame_usage.bit_count = 0;
 	c_db->contacts_frame_usage.block_count = 0;
+
+	for (u32 i = c_db->sat_cache_list.first; i != DLL_NULL; )
+	{
+		struct sat_cache *cache = pool_address(&c_db->sat_cache_pool, i);
+		i = DLL_NEXT(cache);
+		if (cache->touched)
+		{
+			cache->touched = 1;
+		}
+		else
+		{
+			dll_remove(&c_db->sat_cache_list, c_db->sat_cache_pool.buf, i);
+			pool_remove(&c_db->sat_cache_pool, i);
+			hash_map_remove(c_db->sat_cache_map, (u32) cache->key, i);
+		}
+	}
 }
 
 struct contact *c_db_add_contact(struct physics_pipeline *pipeline, const struct contact_manifold *cm, const u32 i1, const u32 i2)

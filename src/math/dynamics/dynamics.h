@@ -54,6 +54,18 @@ struct contact
 	u32 			cached_count;			/* number of vertices in cache */
 };
 
+struct sat_cache
+{
+	POOL_SLOT_STATE;
+	u32	touched;
+	DLL_SLOT_STATE;
+
+	vec3	separation_axis;
+	f32	separation;
+
+	u64	key;
+};
+
 /*
 contact_database
 ================
@@ -81,7 +93,14 @@ struct contact_database
 	 * i.e. the smaller index owns slot 0 and the larger index owns slot 1.
 	 */
 	struct nll	contact_net;
-	struct hash_map *contact_map;		/* growable */
+	struct hash_map *contact_map;		
+
+	/*
+	 * frame-cached separation axes 
+	 */
+	struct hash_map *sat_cache_map;		
+	struct dll	sat_cache_list;
+	struct pool	sat_cache_pool;
 
 	/* PERSISTENT DATA, GROWABLE, keeps track of which slots in contacts are currently being used. */
 	struct bit_vec 	contacts_persistent_usage; /* At end of frame, is set to contacts_frame_usage + any 
