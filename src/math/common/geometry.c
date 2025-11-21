@@ -586,7 +586,7 @@ u64 AABB_push_lines_buffered(u8 *buf, const u64 bufsize, const struct AABB *box,
 u32 vertex_support(vec3 support, const vec3 dir, const vec3ptr v, const u32 v_count)
 {
 	u32 best = U32_MAX;
-	f32 max_dist = F32_INFINITY;
+	f32 max_dist = -F32_INFINITY;
 	for (u32 i = 0; i < v_count; ++i)
 	{
 		const f32 dist = vec3_dot(dir, v[i]);

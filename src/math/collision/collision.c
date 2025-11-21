@@ -1063,7 +1063,7 @@ static u32 hull_test(const struct physics_pipeline *pipeline, const struct rigid
 
 /********************************** CONTACT MANIFOLD METHODS **********************************/
 
-static u32 sphere_contact(struct arena *garbage, struct contact_manifold *cm, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+static u32 sphere_contact(struct arena *garbage, struct collision_result *result, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
 	kas_assert(b1->shape_type == COLLISION_SHAPE_SPHERE);
 	kas_assert(b2->shape_type == COLLISION_SHAPE_SPHERE);
@@ -1071,38 +1071,40 @@ static u32 sphere_contact(struct arena *garbage, struct contact_manifold *cm, co
 	const struct collision_shape *shape1 = string_database_address(pipeline->shape_db, b1->shape_handle);
 	const struct collision_shape *shape2 = string_database_address(pipeline->shape_db, b2->shape_handle);
 
+	result->type = COLLISION_NONE;
 	u32 contact_generated = 0;
 
 	const f32 r_sum = shape1->sphere.radius + shape2->sphere.radius + 2.0f * margin;
 	const f32 dist_sq = vec3_distance_squared(b1->position, b2->position);
 	if (dist_sq <= r_sum*r_sum)
 	{
+		result->type = COLLISION_CONTACT;
 		contact_generated = 1;
-		cm->v_count = 1;
+		result->manifold.v_count = 1;
 		if (dist_sq <= COLLISION_POINT_DIST_SQ)
 		{
 			//TODO(Degenerate): spheres have same center => normal returned should depend on the context.
-			vec3_set(cm->n, 0.0f, 1.0f, 0.0f);
+			vec3_set(result->manifold.n, 0.0f, 1.0f, 0.0f);
 		}
 		else
 		{
-			vec3_sub(cm->n, b2->position, b1->position);
-			vec3_mul_constant(cm->n, 1.0f/vec3_length(cm->n));
+			vec3_sub(result->manifold.n, b2->position, b1->position);
+			vec3_mul_constant(result->manifold.n, 1.0f/vec3_length(result->manifold.n));
 		}
 
 		vec3 c1, c2;
 		vec3_copy(c1, b1->position);
 		vec3_copy(c2, b2->position);
-		vec3_translate_scaled(c1, cm->n, shape1->sphere.radius + margin);
-		vec3_translate_scaled(c2, cm->n, -(shape2->sphere.radius + margin));
-		cm->depth[0] = vec3_dot(c1, cm->n) - vec3_dot(c2, cm->n);
-		vec3_interpolate(cm->v[0], c1, c2, 0.5f);
+		vec3_translate_scaled(c1, result->manifold.n, shape1->sphere.radius + margin);
+		vec3_translate_scaled(c2, result->manifold.n, -(shape2->sphere.radius + margin));
+		result->manifold.depth[0] = vec3_dot(c1, result->manifold.n) - vec3_dot(c2, result->manifold.n);
+		vec3_interpolate(result->manifold.v[0], c1, c2, 0.5f);
 	}
 
 	return contact_generated;
 }
 
-static u32 capsule_sphere_contact(struct arena *garbage, struct contact_manifold *cm, const struct physics_pipeline *pipeline,  const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+static u32 capsule_sphere_contact(struct arena *garbage, struct collision_result *result, const struct physics_pipeline *pipeline,  const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
 	kas_assert(b1->shape_type == COLLISION_SHAPE_CAPSULE);
 	kas_assert(b2->shape_type == COLLISION_SHAPE_SPHERE);
@@ -1110,6 +1112,7 @@ static u32 capsule_sphere_contact(struct arena *garbage, struct contact_manifold
 	const struct collision_shape *shape1 = string_database_address(pipeline->shape_db, b1->shape_handle);
 	const struct collision_shape *shape2 = string_database_address(pipeline->shape_db, b2->shape_handle);
 
+	result->type = COLLISION_NONE;
 	u32 contact_generated = 0;
 
 	const struct capsule *cap = &shape1->capsule;
@@ -1129,50 +1132,51 @@ static u32 capsule_sphere_contact(struct arena *garbage, struct contact_manifold
 
 	if (dist_sq <= r_sum*r_sum)
 	{
+		result->type = COLLISION_CONTACT;
 		contact_generated = 1;
-		cm->v_count = 1;
+		result->manifold.v_count = 1;
 		if (dist_sq <= COLLISION_POINT_DIST_SQ)
 		{
 			//TODO Degerate case: normal should be context dependent
-			vec3_copy(cm->v[0], b1->position);
+			vec3_copy(result->manifold.v[0], b1->position);
 			if (s.dir[0]*s.dir[0] < s.dir[1]*s.dir[1])
 			{
-				if (s.dir[0]*s.dir[0] < s.dir[2]*s.dir[2]) { vec3_set(cm->v[2], 1.0f, 0.0f, 0.0f); }
-				else { vec3_set(cm->v[2], 0.0f, 0.0f, 1.0f); }
+				if (s.dir[0]*s.dir[0] < s.dir[2]*s.dir[2]) { vec3_set(result->manifold.v[2], 1.0f, 0.0f, 0.0f); }
+				else { vec3_set(result->manifold.v[2], 0.0f, 0.0f, 1.0f); }
 			}
 			else
 			{
-				if (s.dir[1]*s.dir[1] < s.dir[2]*s.dir[2]) { vec3_set(cm->v[0], 0.0f, 1.0f, 0.0f); }
-				else { vec3_set(cm->v[2], 0.0f, 0.0f, 1.0f); }
+				if (s.dir[1]*s.dir[1] < s.dir[2]*s.dir[2]) { vec3_set(result->manifold.v[0], 0.0f, 1.0f, 0.0f); }
+				else { vec3_set(result->manifold.v[2], 0.0f, 0.0f, 1.0f); }
 			}
 				
-			vec3_set(cm->v[2], 1.0f, 0.0f, 0.0f);
-			vec3_cross(diff, cm->v[2], s.dir);
-			vec3_normalize(cm->n, diff);
-			cm->depth[0] = r_sum;
+			vec3_set(result->manifold.v[2], 1.0f, 0.0f, 0.0f);
+			vec3_cross(diff, result->manifold.v[2], s.dir);
+			vec3_normalize(result->manifold.n, diff);
+			result->manifold.depth[0] = r_sum;
 		}
 		else
 		{
 			vec3_sub(diff, c2, c1);
-			vec3_normalize(cm->n, diff);
-			vec3_translate_scaled(c1, cm->n, cap->radius + margin);
-			vec3_translate_scaled(c2, cm->n, -(shape2->sphere.radius + margin));
-			cm->depth[0] = vec3_dot(c1, cm->n) - vec3_dot(c2, cm->n);
-			vec3_interpolate(cm->v[0], c1, c2, 0.5f);
-			vec3_translate(cm->v[0], b1->position);
-		}
-			
+			vec3_normalize(result->manifold.n, diff);
+			vec3_translate_scaled(c1, result->manifold.n, cap->radius + margin);
+			vec3_translate_scaled(c2, result->manifold.n, -(shape2->sphere.radius + margin));
+			result->manifold.depth[0] = vec3_dot(c1, result->manifold.n) - vec3_dot(c2, result->manifold.n);
+			vec3_interpolate(result->manifold.v[0], c1, c2, 0.5f);
+			vec3_translate(result->manifold.v[0], b1->position);
+		}	
 	}
 
 	return contact_generated;
 }
 
-static u32 capsule_contact(struct arena *garbage, struct contact_manifold *cm, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+static u32 capsule_contact(struct arena *garbage, struct collision_result *result, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
 	kas_assert(b1->shape_type == COLLISION_SHAPE_CAPSULE);
 	kas_assert(b2->shape_type == COLLISION_SHAPE_CAPSULE);
 
 	u32 contact_generated = 0;
+	result->type = COLLISION_NONE;
 
 	const struct capsule *cap1 = &((struct collision_shape *) string_database_address(pipeline->shape_db, b1->shape_handle))->capsule;
 	const struct capsule *cap2 = &((struct collision_shape *) string_database_address(pipeline->shape_db, b2->shape_handle))->capsule;
@@ -1202,6 +1206,7 @@ static u32 capsule_contact(struct arena *garbage, struct contact_manifold *cm, c
 	const f32 dist_sq = segment_distance_sq(c1, c2, &s1, &s2);
 	if (dist_sq <= r_sum*r_sum)
 	{
+		result->type = COLLISION_CONTACT;
 		contact_generated = 1;
 		vec3 cross;
 		vec3_cross(cross, s1.dir, s2.dir);
@@ -1209,41 +1214,41 @@ static u32 capsule_contact(struct arena *garbage, struct contact_manifold *cm, c
 		if (dist_sq <= COLLISION_POINT_DIST_SQ)
 		{
 			/* Degenerate Case 1: Parallel capsules,*/
-			cm->depth[0] = r_sum;
-			vec3_copy(cm->v[0], b1->position);
+			result->manifold.depth[0] = r_sum;
+			vec3_copy(result->manifold.v[0], b1->position);
 			if (cross_dist_sq <= COLLISION_POINT_DIST_SQ)
 			{
-				cm->v_count = 1;
+				result->manifold.v_count = 1;
 
 				//TODO Normal should be context dependent
 				if (s1.dir[0]*s1.dir[0] < s1.dir[1]*s1.dir[1])
 				{
-					if (s1.dir[0]*s1.dir[0] < s1.dir[2]*s1.dir[2]) { vec3_set(cm->n, 1.0f, 0.0f, 0.0f); }
-					else { vec3_set(cm->n, 0.0f, 0.0f, 1.0f); }
+					if (s1.dir[0]*s1.dir[0] < s1.dir[2]*s1.dir[2]) { vec3_set(result->manifold.n, 1.0f, 0.0f, 0.0f); }
+					else { vec3_set(result->manifold.n, 0.0f, 0.0f, 1.0f); }
 				}
 				else
 				{
-					if (s1.dir[1]*s1.dir[1] < s1.dir[2]*s1.dir[2]) { vec3_set(cm->n, 0.0f, 1.0f, 0.0f); }
-					else { vec3_set(cm->n, 0.0f, 0.0f, 1.0f); }
+					if (s1.dir[1]*s1.dir[1] < s1.dir[2]*s1.dir[2]) { vec3_set(result->manifold.n, 0.0f, 1.0f, 0.0f); }
+					else { vec3_set(result->manifold.n, 0.0f, 0.0f, 1.0f); }
 				}
-				vec3_cross(p0, s1.dir, cm->n);
-				vec3_normalize(cm->n, p0);
+				vec3_cross(p0, s1.dir, result->manifold.n);
+				vec3_normalize(result->manifold.n, p0);
 			}
 			/* Degenerate Case 2: Non-Parallel capsules, */
 			else
 			{
-				cm->v_count = 1;
-				vec3_normalize(cm->n, cross);
+				result->manifold.v_count = 1;
+				vec3_normalize(result->manifold.n, cross);
 			}
 		}
 		else
 		{
-			vec3_sub(cm->n, c2, c1);
-			vec3_mul_constant(cm->n, 1.0f / vec3_length(cm->n));
-			vec3_translate_scaled(c1, cm->n, cap1->radius + margin);
-			vec3_translate_scaled(c2, cm->n, -(cap2->radius + margin));
-			const f32 d = vec3_dot(c1, cm->n) - vec3_dot(c2, cm->n);
-			cm->depth[0] = d;
+			vec3_sub(result->manifold.n, c2, c1);
+			vec3_mul_constant(result->manifold.n, 1.0f / vec3_length(result->manifold.n));
+			vec3_translate_scaled(c1, result->manifold.n, cap1->radius + margin);
+			vec3_translate_scaled(c2, result->manifold.n, -(cap2->radius + margin));
+			const f32 d = vec3_dot(c1, result->manifold.n) - vec3_dot(c2, result->manifold.n);
+			result->manifold.depth[0] = d;
 			if (cross_dist_sq <= COLLISION_POINT_DIST_SQ)
 			{
 				const f32 t1 = segment_point_closest_bc_parameter(&s1, s2.p0);
@@ -1251,22 +1256,22 @@ static u32 capsule_contact(struct arena *garbage, struct contact_manifold *cm, c
 
 				if (t1 != t2)
 				{
-					cm->v_count = 2;
-					cm->depth[1] = d;
-					segment_bc(cm->v[0], &s1, t1);
-					segment_bc(cm->v[1], &s1, t2);
+					result->manifold.v_count = 2;
+					result->manifold.depth[1] = d;
+					segment_bc(result->manifold.v[0], &s1, t1);
+					segment_bc(result->manifold.v[1], &s1, t2);
 				}
 				/* end-point contact point */
 				else
 				{
-					cm->v_count = 1;
-					vec3_interpolate(cm->v[0], c1, c2, 0.5f);
+					result->manifold.v_count = 1;
+					vec3_interpolate(result->manifold.v[0], c1, c2, 0.5f);
 				}
 			}
 			else
 			{
-				cm->v_count = 1;
-				vec3_interpolate(cm->v[0], c1, c2, 0.5f);
+				result->manifold.v_count = 1;
+				vec3_interpolate(result->manifold.v[0], c1, c2, 0.5f);
 			}
 		}
 	}
@@ -1274,7 +1279,7 @@ static u32 capsule_contact(struct arena *garbage, struct contact_manifold *cm, c
 	return contact_generated;
 }
 
-static u32 hull_sphere_contact(struct arena *garbage, struct contact_manifold *cm, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+static u32 hull_sphere_contact(struct arena *garbage, struct collision_result *result, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
 	kas_assert (b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
 	kas_assert (b2->shape_type == COLLISION_SHAPE_SPHERE);
@@ -1282,6 +1287,7 @@ static u32 hull_sphere_contact(struct arena *garbage, struct contact_manifold *c
 	const struct collision_shape *shape1 = string_database_address(pipeline->shape_db, b1->shape_handle);
 	const struct collision_shape *shape2 = string_database_address(pipeline->shape_db, b2->shape_handle);
 
+	result->type = COLLISION_NONE;
 	u32 contact_generated = 0;
 
 	struct gjk_input g1 = { .v = shape1->hull.v, .v_count = shape1->hull.v_count, };
@@ -1300,8 +1306,9 @@ static u32 hull_sphere_contact(struct arena *garbage, struct contact_manifold *c
 	/* Deep Penetration */
 	if (dist_sq <= margin*margin)
 	{
+		result->type = COLLISION_CONTACT;
 		contact_generated = 1;
-		cm->v_count = 1;
+		result->manifold.v_count = 1;
 
 		vec3 n;	
 		const struct dcel *h = &shape1->hull;
@@ -1319,42 +1326,43 @@ static u32 hull_sphere_contact(struct arena *garbage, struct contact_manifold *c
 			if (depth < min_depth)
 			{
 				vec3_copy(best_p, p);
-				vec3_copy(cm->n, n);
+				vec3_copy(result->manifold.n, n);
 				min_depth = depth;
 			}
 		}
 
 		vec3_sub(diff, best_p, b2->position);
-		cm->depth[0] = vec3_dot(cm->n, diff) + shape2->sphere.radius + 2.0f * margin;
+		result->manifold.depth[0] = vec3_dot(result->manifold.n, diff) + shape2->sphere.radius + 2.0f * margin;
 
-		vec3_copy(cm->v[0], b2->position);
-		vec3_translate_scaled(cm->v[0], cm->n, margin + min_depth);
+		vec3_copy(result->manifold.v[0], b2->position);
+		vec3_translate_scaled(result->manifold.v[0], result->manifold.n, margin + min_depth);
 	}
 	/* Shallow Penetration */
 	else if (dist_sq <= r_sum*r_sum)
 	{
+		result->type = COLLISION_CONTACT;
 		contact_generated = 1;
-		cm->v_count = 1;
+		result->manifold.v_count = 1;
 
-		vec3_sub(cm->n, c2, c1);
-		vec3_mul_constant(cm->n, 1.0f / vec3_length(cm->n));
+		vec3_sub(result->manifold.n, c2, c1);
+		vec3_mul_constant(result->manifold.n, 1.0f / vec3_length(result->manifold.n));
 
-		vec3_translate_scaled(c1, cm->n, margin);
-		vec3_translate_scaled(c2, cm->n, -(shape2->sphere.radius + margin));
-		cm->depth[0] = vec3_dot(c1, cm->n) - vec3_dot(c2, cm->n);
+		vec3_translate_scaled(c1, result->manifold.n, margin);
+		vec3_translate_scaled(c2, result->manifold.n, -(shape2->sphere.radius + margin));
+		result->manifold.depth[0] = vec3_dot(c1, result->manifold.n) - vec3_dot(c2, result->manifold.n);
 
-		vec3_interpolate(cm->v[0], c1, c2, 0.5f);
-
+		vec3_interpolate(result->manifold.v[0], c1, c2, 0.5f);
 	}
 
 	return contact_generated;
 }
 
-static u32 hull_capsule_contact(struct arena *garbage, struct contact_manifold *cm, const struct physics_pipeline *pipeline,  const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+static u32 hull_capsule_contact(struct arena *garbage, struct collision_result *result, const struct physics_pipeline *pipeline,  const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
 	kas_assert(b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
 	kas_assert(b2->shape_type == COLLISION_SHAPE_CAPSULE);
 
+	result->type = COLLISION_NONE;
 	u32 contact_generated = 0;
 
 	const struct collision_shape *shape1 = string_database_address(pipeline->shape_db, b1->shape_handle);
@@ -1379,6 +1387,7 @@ static u32 hull_capsule_contact(struct arena *garbage, struct contact_manifold *
 	const f32 r_sum = shape2->capsule.radius + 2.0f * margin;
 	if (dist_sq <= r_sum*r_sum)
 	{
+		result->type = COLLISION_CONTACT;
 		contact_generated = 1;
 
 		vec3 p1, p2, tmp;
@@ -1438,22 +1447,22 @@ static u32 hull_capsule_contact(struct arena *garbage, struct contact_manifold *
 			}
 
 			//TODO Is this correct?
-			cm->depth[0] = f32_max(-max_d0, 0.0f);
-			cm->depth[1] = f32_max(-max_d1, 0.0f);
+			result->manifold.depth[0] = f32_max(-max_d0, 0.0f);
+			result->manifold.depth[1] = f32_max(-max_d1, 0.0f);
 			if (edge_best)
 			{
-				cm->v_count = 1;
+				result->manifold.v_count = 1;
 				struct segment edge_s = dcel_edge_segment(h, g1.rot, g1.pos, best_index);
 				segment_distance_sq(c1, c2, &edge_s, &cap_s);
-				vec3_sub(cm->n, c1, c2);
-				vec3_mul_constant(cm->n, 1.0f / vec3_length(cm->n));
-				vec3_copy(cm->v[0], c1);
+				vec3_sub(result->manifold.n, c1, c2);
+				vec3_mul_constant(result->manifold.n, 1.0f / vec3_length(result->manifold.n));
+				vec3_copy(result->manifold.v[0], c1);
 			}
 			else
 			{
-				cm->v_count = 2;
+				result->manifold.v_count = 2;
 				dcel_face_normal(c1, h, best_index);
-				mat3_vec_mul(cm->n, g1.rot, c1);
+				mat3_vec_mul(result->manifold.n, g1.rot, c1);
 				struct segment s = dcel_face_clip_segment(h, g1.rot, g1.pos, best_index, &cap_s);
 				const struct plane pl = dcel_face_plane(h, g1.rot, g1.pos, best_index);
 
@@ -1462,22 +1471,22 @@ static u32 hull_capsule_contact(struct arena *garbage, struct contact_manifold *
 
 				if (cap_p0_inside == 1 && cap_p1_inside == 0)
 				{
-					vec3_copy(cm->v[0], s.p0);
-					plane_segment_clip(cm->v[1], &pl, &s);
+					vec3_copy(result->manifold.v[0], s.p0);
+					plane_segment_clip(result->manifold.v[1], &pl, &s);
 				}
 				else if (cap_p0_inside == 0 && cap_p1_inside == 1)
 				{
-					plane_segment_clip(cm->v[0], &pl, &s);
-					vec3_copy(cm->v[1], s.p1);
+					plane_segment_clip(result->manifold.v[0], &pl, &s);
+					vec3_copy(result->manifold.v[1], s.p1);
 				}
 				else
 				{
-					vec3_copy(cm->v[0], s.p0);
-					vec3_copy(cm->v[1], s.p1);
+					vec3_copy(result->manifold.v[0], s.p0);
+					vec3_copy(result->manifold.v[1], s.p1);
 				}
 				
-				vec3_translate_scaled(cm->v[0], cm->n, -plane_point_signed_distance(&pl, cm->v[0]));
-				vec3_translate_scaled(cm->v[1], cm->n, -plane_point_signed_distance(&pl, cm->v[1]));
+				vec3_translate_scaled(result->manifold.v[0], result->manifold.n, -plane_point_signed_distance(&pl, result->manifold.v[0]));
+				vec3_translate_scaled(result->manifold.v[1], result->manifold.n, -plane_point_signed_distance(&pl, result->manifold.v[1]));
 			}
 		}
 		/* Shallow Penetration */
@@ -1486,8 +1495,8 @@ static u32 hull_capsule_contact(struct arena *garbage, struct contact_manifold *
 			//COLLISION_DEBUG_ADD_SEGMENT(segment_construct(cap_s.p0, cap_s.p1));
 			//COLLISION_DEBUG_ADD_SEGMENT(segment_construct(c1, c2));
 
-			vec3_sub(cm->n, c2, c1);
-			vec3_mul_constant(cm->n, 1.0f / vec3_length(cm->n));
+			vec3_sub(result->manifold.n, c2, c1);
+			vec3_mul_constant(result->manifold.n, 1.0f / vec3_length(result->manifold.n));
 
 			const struct dcel *h = &shape1->hull;
 
@@ -1541,27 +1550,27 @@ static u32 hull_capsule_contact(struct arena *garbage, struct contact_manifold *
 
 			if (parallel)
 			{
-				cm->v_count = 2;
-				dcel_face_normal(cm->n, h, fi);
-				vec3_translate_scaled(c1, cm->n, margin);
-				vec3_translate_scaled(c2, cm->n, -(shape2->capsule.radius + margin));
-				cm->depth[0] = vec3_dot(cm->n, c1) - vec3_dot(cm->n, c2);
-				cm->depth[1] = cm->depth[0];
+				result->manifold.v_count = 2;
+				dcel_face_normal(result->manifold.n, h, fi);
+				vec3_translate_scaled(c1, result->manifold.n, margin);
+				vec3_translate_scaled(c2, result->manifold.n, -(shape2->capsule.radius + margin));
+				result->manifold.depth[0] = vec3_dot(result->manifold.n, c1) - vec3_dot(result->manifold.n, c2);
+				result->manifold.depth[1] = result->manifold.depth[0];
 				struct segment s = dcel_face_clip_segment(h, g1.rot, g1.pos, fi, &cap_s);
-				vec3_copy(cm->v[0], s.p0);
-				vec3_copy(cm->v[1], s.p1);
-				vec3_translate_scaled(cm->v[0], cm->n, -(shape2->capsule.radius + 2.0f*margin -cm->depth[0]));
-				vec3_translate_scaled(cm->v[1], cm->n, -(shape2->capsule.radius + 2.0f*margin -cm->depth[1]));
+				vec3_copy(result->manifold.v[0], s.p0);
+				vec3_copy(result->manifold.v[1], s.p1);
+				vec3_translate_scaled(result->manifold.v[0], result->manifold.n, -(shape2->capsule.radius + 2.0f*margin -result->manifold.depth[0]));
+				vec3_translate_scaled(result->manifold.v[1], result->manifold.n, -(shape2->capsule.radius + 2.0f*margin -result->manifold.depth[1]));
 			}
 			else
 			{
-				cm->v_count = 1;
-				vec3_sub(cm->n, c2, c1);
-				vec3_mul_constant(cm->n, 1.0f / vec3_length(cm->n));
-				vec3_translate_scaled(c1, cm->n, margin);
-				vec3_translate_scaled(c2, cm->n, -(shape2->capsule.radius + margin));
-				cm->depth[0] = vec3_dot(cm->n, c1) - vec3_dot(cm->n, c2);
-				vec3_copy(cm->v[0], c1);
+				result->manifold.v_count = 1;
+				vec3_sub(result->manifold.n, c2, c1);
+				vec3_mul_constant(result->manifold.n, 1.0f / vec3_length(result->manifold.n));
+				vec3_translate_scaled(c1, result->manifold.n, margin);
+				vec3_translate_scaled(c2, result->manifold.n, -(shape2->capsule.radius + margin));
+				result->manifold.depth[0] = vec3_dot(result->manifold.n, c1) - vec3_dot(result->manifold.n, c2);
+				vec3_copy(result->manifold.v[0], c1);
 			}
 		}
 	}
@@ -1891,7 +1900,13 @@ static u32 hull_contact_internal_fv_seperation(struct sat_face_query *query, con
 			}
 		}
 
-		if (min_dist > 0.0f) { return 1; }
+		if (min_dist > 0.0f) 
+		{ 
+			query->fi = fi;
+			query->depth = min_dist;
+			vec3_copy(query->normal, sep_plane.normal);
+			return 1; 
+		}
 
 		if (query->depth < min_dist)
 		{
@@ -1998,6 +2013,10 @@ static u32 hull_contact_internal_ee_seperation(struct sat_edge_query *query, con
 
 				if (dist > 0.0f) 
 				{
+					query->depth = dist;
+					vec3_copy(query->normal, e1);
+					query->s1 = s1;
+					query->s2 = s2;
 					return 1;
 				}
 			
@@ -2020,7 +2039,7 @@ static u32 hull_contact_internal_ee_seperation(struct sat_edge_query *query, con
  * 	(Game Physics Pearls, Chapter 4)
  *	(GDC 2013 Dirk Gregorius, https://www.gdcvault.com/play/1017646/Physics-for-Game-Programmers-The)
  */
-static u32 hull_contact(struct arena *tmp, struct contact_manifold *cm, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+static u32 hull_contact(struct arena *tmp, struct collision_result *result, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
 	kas_assert(b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
 	kas_assert(b2->shape_type == COLLISION_SHAPE_CONVEX_HULL);
@@ -2065,46 +2084,92 @@ static u32 hull_contact(struct arena *tmp, struct contact_manifold *cm, const st
 		vec3_translate(v2_world[i], b2->position);
 	}
 
-	struct sat_face_query f_query[2] = { { .depth = -FLT_MAX }, { .depth = -FLT_MAX } };
-	struct sat_edge_query e_query = { .depth = -FLT_MAX };
+	u32 calculate = 1;
+	const u32 bi1 = pool_index(&pipeline->body_pool, b1);
+	const u32 bi2 = pool_index(&pipeline->body_pool, b2);
+	struct sat_cache *sat_cache = NULL;
+	struct contact *contact = NULL;
 
-	if (hull_contact_internal_fv_seperation(&f_query[0], h1, v1_world, h2, v2_world))
+	if ((contact = c_db_lookup_contact(&pipeline->c_db, bi1, bi2)) != NULL)
 	{
-		is_colliding = 0;
-		goto sat_cleanup;
+	}
+	else if ((sat_cache = sat_cache_lookup(&pipeline->c_db, bi1, bi2)) != NULL)
+	{
+		vec3 support1, support2, tmp;
+		vec3_negative_to(tmp, sat_cache->separation_axis);
+
+		vertex_support(support1, sat_cache->separation_axis, v1_world, h1->v_count);
+		vertex_support(support2, tmp, v2_world, h2->v_count);
+
+		const f32 dot1 = vec3_dot(support1, sat_cache->separation_axis);
+		const f32 dot2 = vec3_dot(support2, sat_cache->separation_axis);
+		const f32 separation = dot2 - dot1;
+		if (separation > 0.0f)
+		{
+			calculate = 0;
+			is_colliding = 0;
+			result->type = COLLISION_NONE;
+			result->sat_cache.separation = separation;
+			result->sat_cache.touched = 1;
+		}
 	}
 
-	if (hull_contact_internal_fv_seperation(&f_query[1], h2, v2_world, h1, v1_world))
+	if (calculate)
 	{
-		is_colliding = 0;
-		goto sat_cleanup;
-	}
+		struct sat_face_query f_query[2] = { { .depth = -FLT_MAX }, { .depth = -FLT_MAX } };
+		struct sat_edge_query e_query = { .depth = -FLT_MAX };
 
-	if (hull_contact_internal_ee_seperation(&e_query, h1, v1_world, h2, v2_world, b1->position))
-	{
-		is_colliding = 0;
-		goto sat_cleanup;
-	}
+		if (hull_contact_internal_fv_seperation(&f_query[0], h1, v1_world, h2, v2_world))
+		{
+			result->type = COLLISION_SAT_CACHE;
+			vec3_copy(result->sat_cache.separation_axis, f_query[0].normal);
+			result->sat_cache.separation = f_query[0].depth;
+			result->sat_cache.key = key_gen_u32_u32(bi1, bi2);
+			is_colliding = 0;
+			goto sat_cleanup;
+		}
 
-	//if ((1.0f - 100.0f * F32_EPSILON) * f_query[0].depth >= e_query.depth || (1.0f - 100.0f * F32_EPSILON) * f_query[1].depth >= e_query.depth)
-	if (0.99f*f_query[0].depth >= e_query.depth || 0.99f*f_query[1].depth >= e_query.depth)
-	{
-		is_colliding = hull_contact_internal_face_contact(tmp, cm, f_query, b1, h1, v1_world, b2, h2, v2_world);
-	}
-	/* edge_contact */
-	else
-	{
-		fprintf(stderr, "%f, %f, %f\n", f_query[0].depth, f_query[1].depth, e_query.depth);
-		vec3 c1, c2;
-		segment_distance_sq(c1, c2, &e_query.s1, &e_query.s2);
-		COLLISION_DEBUG_ADD_SEGMENT(segment_construct(c1,c2), vec4_inline(0.0f, 0.8, 0.8f, 1.0f));
-		COLLISION_DEBUG_ADD_SEGMENT(e_query.s1, vec4_inline(0.0f, 1.0, 0.1f, 1.0f));
-		COLLISION_DEBUG_ADD_SEGMENT(e_query.s2, vec4_inline(0.0f, 0.1, 1.0f, 1.0f));
+		if (hull_contact_internal_fv_seperation(&f_query[1], h2, v2_world, h1, v1_world))
+		{
+			result->type = COLLISION_SAT_CACHE;
+			vec3_negative_to(result->sat_cache.separation_axis, f_query[1].normal);
+			result->sat_cache.separation = f_query[1].depth;
+			result->sat_cache.key = key_gen_u32_u32(bi1, bi2);
+			is_colliding = 0;
+			goto sat_cleanup;
+		}
 
-		cm->v_count = 1;
-		cm->depth[0] = -e_query.depth;
-		vec3_interpolate(cm->v[0], c1, c2, 0.5f);
-		vec3_copy(cm->n, e_query.normal);
+		if (hull_contact_internal_ee_seperation(&e_query, h1, v1_world, h2, v2_world, b1->position))
+		{
+			result->type = COLLISION_SAT_CACHE;
+			vec3_copy(result->sat_cache.separation_axis, e_query.normal);
+			result->sat_cache.separation = e_query.depth;
+			result->sat_cache.key = key_gen_u32_u32(bi1, bi2);
+			is_colliding = 0;
+			goto sat_cleanup;
+		}
+
+		result->type = COLLISION_CONTACT;
+		//if ((1.0f - 100.0f * F32_EPSILON) * f_query[0].depth >= e_query.depth || (1.0f - 100.0f * F32_EPSILON) * f_query[1].depth >= e_query.depth)
+		if (0.99f*f_query[0].depth >= e_query.depth || 0.99f*f_query[1].depth >= e_query.depth)
+		{
+			is_colliding = hull_contact_internal_face_contact(tmp, &result->manifold, f_query, b1, h1, v1_world, b2, h2, v2_world);
+		}
+		/* edge_contact */
+		else
+		{
+			//fprintf(stderr, "%f, %f, %f\n", f_query[0].depth, f_query[1].depth, e_query.depth);
+			vec3 c1, c2;
+			segment_distance_sq(c1, c2, &e_query.s1, &e_query.s2);
+			COLLISION_DEBUG_ADD_SEGMENT(segment_construct(c1,c2), vec4_inline(0.0f, 0.8, 0.8f, 1.0f));
+			COLLISION_DEBUG_ADD_SEGMENT(e_query.s1, vec4_inline(0.0f, 1.0, 0.1f, 1.0f));
+			COLLISION_DEBUG_ADD_SEGMENT(e_query.s2, vec4_inline(0.0f, 0.1, 1.0f, 1.0f));
+
+			result->manifold.v_count = 1;
+			result->manifold.depth[0] = -e_query.depth;
+			vec3_interpolate(result->manifold.v[0], c1, c2, 0.5f);
+			vec3_copy(result->manifold.n, e_query.normal);
+		}
 	}
 
 sat_cleanup:
@@ -2195,7 +2260,7 @@ f32 (*distance_methods[COLLISION_SHAPE_COUNT][COLLISION_SHAPE_COUNT])(vec3 c1, v
 	{ 0, 				0, 			0,		0, },
 };
 
-u32 (*contact_methods[COLLISION_SHAPE_COUNT][COLLISION_SHAPE_COUNT])(struct arena *, struct contact_manifold *, const struct physics_pipeline *, const struct rigid_body *, const struct rigid_body *, const f32) =
+u32 (*contact_methods[COLLISION_SHAPE_COUNT][COLLISION_SHAPE_COUNT])(struct arena *, struct collision_result *, const struct physics_pipeline *, const struct rigid_body *, const struct rigid_body *, const f32) =
 {
 	{ sphere_contact,	 	0, 			0,		0, },
 	{ capsule_sphere_contact, 	capsule_contact,	0, 		0, },
@@ -2227,14 +2292,14 @@ f32 body_body_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline
 		: distance_methods[b2->shape_type][b1->shape_type](c2, c1, pipeline, b2, b1, margin);
 }
 
-u32 body_body_contact_manifold(struct arena *tmp, struct contact_manifold *cm, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+u32 body_body_contact_manifold(struct arena *tmp, struct collision_result *result, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
 	kas_assert(margin >= 0.0f);
 
 	/* TODO: Cannot do as above, we must make sure that CM is in correct A->B order,  maybe push this issue up? */
 	return (b1->shape_type >= b2->shape_type)  
-		? contact_methods[b1->shape_type][b2->shape_type](tmp, cm, pipeline, b1, b2, margin)
-		: contact_methods[b2->shape_type][b1->shape_type](tmp, cm, pipeline, b2, b1, margin);
+		? contact_methods[b1->shape_type][b2->shape_type](tmp, result, pipeline, b1, b2, margin)
+		: contact_methods[b2->shape_type][b1->shape_type](tmp, result, pipeline, b2, b1, margin);
 }
 
 f32 body_raycast_parameter(const struct physics_pipeline *pipeline, const struct rigid_body *b, const struct ray *ray)

@@ -344,8 +344,8 @@ static void internal_push_proxy_overlaps(struct arena *mem_frame, struct physics
 
 struct tpc_output
 {
-	struct contact_manifold *cm;
-	u32 cm_count;
+	struct collision_result *result;
+	u32 result_count;
 };
 
 static void thread_push_contacts(void *task_addr)
@@ -359,8 +359,8 @@ static void thread_push_contacts(void *task_addr)
 	const struct dbvt_overlap *proxy_overlap = range->base;
 
 	struct tpc_output *out = arena_push(&worker->mem_frame, sizeof(struct tpc_output));
-	out->cm_count = 0;
-	out->cm = arena_push(&worker->mem_frame, range->count * sizeof(struct contact_manifold));
+	out->result_count = 0;
+	out->result = arena_push(&worker->mem_frame, range->count * sizeof(struct collision_result));
 
 	const f32 margin = (pipeline->margin_on) ? pipeline->margin : 0.0f;
 	const struct rigid_body *b1, *b2;
@@ -370,26 +370,31 @@ static void thread_push_contacts(void *task_addr)
 		b1 = pool_address(&pipeline->body_pool, proxy_overlap[i].id1);
 		b2 = pool_address(&pipeline->body_pool, proxy_overlap[i].id2);
 
-		if (body_body_contact_manifold(&worker->mem_frame, out->cm + out->cm_count, pipeline, b1, b2, margin))
+
+		if (body_body_contact_manifold(&worker->mem_frame, out->result + out->result_count, pipeline, b1, b2, margin))
 		{
-			out->cm[out->cm_count].i1 = proxy_overlap[i].id1;
-			out->cm[out->cm_count].i2 = proxy_overlap[i].id2;
+			out->result[out->result_count].manifold.i1 = proxy_overlap[i].id1;
+			out->result[out->result_count].manifold.i2 = proxy_overlap[i].id2;
 
 			vec3 tmp;
 			vec3_sub(tmp, b2->position, b1->position);
-			if (vec3_dot(tmp, out->cm[out->cm_count].n) < 0)
+			if (vec3_dot(tmp, out->result[out->result_count].manifold.n) < 0)
 			{
-				vec3_mul_constant(out->cm[out->cm_count].n, -1.0f);
+				vec3_mul_constant(out->result[out->result_count].manifold.n, -1.0f);
 			}
 
-			out->cm_count += 1;
+			out->result_count += 1;
 		}	
+		else if (out->result[out->result_count].type == COLLISION_SAT_CACHE)
+		{
+			out->result_count += 1;
+		}
 	}
 
-	arena_pop_packed(&worker->mem_frame, (range->count - out->cm_count) * sizeof(struct contact_manifold));
+	arena_pop_packed(&worker->mem_frame, (range->count - out->result_count) * sizeof(struct contact_manifold));
 
-	KAS_END;
 	task->output = out;
+	KAS_END;
 }
 
 static void internal_parallel_push_contacts(struct arena *mem_frame, struct physics_pipeline *pipeline)
@@ -416,8 +421,17 @@ static void internal_parallel_push_contacts(struct arena *mem_frame, struct phys
 		for (u32 i = 0; i < bundle->task_count; ++i)
 		{
 			struct tpc_output *out = (struct tpc_output *) atomic_load_acq_64(&bundle->tasks[i].output);
-			memcpy(pipeline->cm + pipeline->cm_count, out->cm, out->cm_count * sizeof(struct contact_manifold));
-			pipeline->cm_count += out->cm_count;
+			for (u32 j = 0; j < out->result_count; ++j)
+			{
+				if (out->result[j].type == COLLISION_SAT_CACHE)
+				{
+					sat_cache_add(&pipeline->c_db, &out->result[j].sat_cache);
+				}
+				else
+				{
+					pipeline->cm[pipeline->cm_count++] = out->result[j].manifold;
+				}
+			}
 		}
 	
 		task_bundle_release(bundle);
@@ -432,28 +446,44 @@ static void internal_parallel_push_contacts(struct arena *mem_frame, struct phys
 
 	pipeline->contact_new_count = 0;
 	pipeline->contact_new = (u32 *) mem_frame->stack_ptr;
-	if (bundle)
+	//fprintf(stderr, "A: {");
+	for (u32 i = 0; i < pipeline->cm_count; ++i)
 	{
-		//fprintf(stderr, "A: {");
-		for (u32 i = 0; i < bundle->task_count; ++i)
+		const struct contact *c = c_db_add_contact(pipeline, pipeline->cm + i, pipeline->cm[i].i1, pipeline->cm[i].i2);
+		/* add to new links if needed */
+		const u32 index = (u32) nll_index(&pipeline->c_db.contact_net, c);
+		if (index >= pipeline->c_db.contacts_persistent_usage.bit_count
+			 || bit_vec_get_bit(&pipeline->c_db.contacts_persistent_usage, index) == 0)
 		{
-			struct tpc_output *out = (struct tpc_output *) atomic_load_acq_64(&bundle->tasks[i].output);
-			for (u32 j = 0; j < out->cm_count; ++j)
-			{
-				const struct contact *c = c_db_add_contact(pipeline, out->cm + j, out->cm[j].i1, out->cm[j].i2);
-				/* add to new links if needed */
-				const u32 index = (u32) nll_index(&pipeline->c_db.contact_net, c);
-				if (index >= pipeline->c_db.contacts_persistent_usage.bit_count
-					 || bit_vec_get_bit(&pipeline->c_db.contacts_persistent_usage, index) == 0)
-				{
-						pipeline->contact_new_count += 1;
-						arena_push_packed_memcpy(mem_frame, &index, sizeof(index));
-				}
-				//fprintf(stderr, " %u", index);
-			}	
+				pipeline->contact_new_count += 1;
+				arena_push_packed_memcpy(mem_frame, &index, sizeof(index));
 		}
-		//fprintf(stderr, " } ");
+		//fprintf(stderr, " %u", index);
 	}
+	//fprintf(stderr, " } ");
+
+	//if (bundle)
+	//{
+	//	//fprintf(stderr, "A: {");
+	//	for (u32 i = 0; i < bundle->task_count; ++i)
+	//	{
+	//		struct tpc_output *out = (struct tpc_output *) atomic_load_acq_64(&bundle->tasks[i].output);
+	//		for (u32 j = 0; j < out->cm_count; ++j)
+	//		{
+	//			const struct contact *c = c_db_add_contact(pipeline, out->cm + j, out->cm[j].i1, out->cm[j].i2);
+	//			/* add to new links if needed */
+	//			const u32 index = (u32) nll_index(&pipeline->c_db.contact_net, c);
+	//			if (index >= pipeline->c_db.contacts_persistent_usage.bit_count
+	//				 || bit_vec_get_bit(&pipeline->c_db.contacts_persistent_usage, index) == 0)
+	//			{
+	//					pipeline->contact_new_count += 1;
+	//					arena_push_packed_memcpy(mem_frame, &index, sizeof(index));
+	//			}
+	//			//fprintf(stderr, " %u", index);
+	//		}	
+	//	}
+	//	//fprintf(stderr, " } ");
+	//}
 	KAS_END;
 }
 

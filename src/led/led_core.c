@@ -708,8 +708,8 @@ void led_wall_smash_simulation_setup(struct led *led)
 	struct system_window *sys_win = system_window_address(g_editor->window);
 
 	const u32 dsphere_v_count = 30;
-	const u32 dsphere_count = 1;
-	const u32 tower1_count = 1;
+	const u32 dsphere_count = 20;
+	const u32 tower1_count = 2;
 	const u32 tower2_count = 4;
 	const u32 tower1_box_count = 40;
 	const u32 tower2_box_count = 10;
@@ -1256,9 +1256,17 @@ static void led_engine_run(struct led *led)
 					body = pool_address(&led->physics.body_pool, i);
 					const struct led_node *node = pool_address(&led->node_pool, body->entity);
 					struct r_proxy3d *proxy = r_proxy3d_address(node->proxy);
-					(RB_IS_AWAKE(body))
-						? vec4_copy(proxy->color, led->physics.awake_color)
-						: vec4_copy(proxy->color, led->physics.sleep_color);
+
+					if (!RB_IS_DYNAMIC(body))
+					{						
+						vec4_copy(proxy->color, led->physics.static_color);
+					}
+					else
+					{
+						(RB_IS_AWAKE(body))
+							? vec4_copy(proxy->color, led->physics.awake_color)
+							: vec4_copy(proxy->color, led->physics.sleep_color);
+					}
 				}
 			} break;
 

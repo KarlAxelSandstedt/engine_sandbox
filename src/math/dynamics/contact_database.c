@@ -18,6 +18,7 @@
 */
 
 #include "sys_public.h"
+#include "kas_profiler.h"
 #include "dynamics.h"
 
 u32 c_db_index_in_previous_contact_node(struct nll *net, void **prev_node, const void *cur_node, const u32 cur_index)
@@ -53,6 +54,7 @@ struct contact_database c_db_alloc(struct arena *mem_persistent, const u32 size)
 	struct contact_database c_db = { 0 };
 	kas_assert(is_power_of_two(size));
 
+	c_db.sat_cache_list = dll_init(struct sat_cache);
 	c_db.sat_cache_map = hash_map_alloc(NULL, size, size, GROWABLE);
 	c_db.sat_cache_pool = pool_alloc(NULL, size, struct sat_cache, GROWABLE);
 	c_db.contact_net = nll_alloc(NULL, size, struct contact, c_db_index_in_previous_contact_node, c_db_index_in_next_contact_node, GROWABLE);
@@ -73,6 +75,7 @@ void c_db_free(struct contact_database *c_db)
 
 void c_db_flush(struct contact_database *c_db)
 {
+	dll_flush(&c_db->sat_cache_list);
 	c_db_clear_frame(c_db);
 	pool_flush(&c_db->sat_cache_pool);
 	hash_map_flush(c_db->sat_cache_map);
@@ -190,20 +193,22 @@ void c_db_clear_frame(struct contact_database *c_db)
 	c_db->contacts_frame_usage.bit_count = 0;
 	c_db->contacts_frame_usage.block_count = 0;
 
+	fprintf(stderr, "count: %u\n", c_db->sat_cache_pool.count);
 	for (u32 i = c_db->sat_cache_list.first; i != DLL_NULL; )
 	{
 		struct sat_cache *cache = pool_address(&c_db->sat_cache_pool, i);
-		i = DLL_NEXT(cache);
+		const u32 next = DLL_NEXT(cache);
 		if (cache->touched)
 		{
-			cache->touched = 1;
+			cache->touched = 0;
 		}
 		else
 		{
 			dll_remove(&c_db->sat_cache_list, c_db->sat_cache_pool.buf, i);
-			pool_remove(&c_db->sat_cache_pool, i);
 			hash_map_remove(c_db->sat_cache_map, (u32) cache->key, i);
+			pool_remove(&c_db->sat_cache_pool, i);
 		}
+		i = next;
 	}
 }
 
@@ -417,6 +422,53 @@ u32 c_db_lookup_contact_index(const struct contact_database *c_db, const u32 i1,
 		if (c->key == key)
 		{
 			ret = (u32) i;
+			break;
+		}
+	}
+
+	return ret;
+}
+
+void sat_cache_add(struct contact_database *c_db, const struct sat_cache *sat_cache)
+{
+	const u32 b0 = CONTACT_KEY_TO_BODY_0(sat_cache->key);
+	const u32 b1 = CONTACT_KEY_TO_BODY_1(sat_cache->key);
+	struct sat_cache *sat = sat_cache_lookup(c_db, b0, b1);
+	if (!sat)
+	{
+		struct slot slot = pool_add(&c_db->sat_cache_pool);
+		dll_append(&c_db->sat_cache_list, c_db->sat_cache_pool.buf, slot.index);
+		sat = slot.address;
+		sat->key = sat_cache->key;
+		hash_map_add(c_db->sat_cache_map, (u32) sat_cache->key, slot.index);
+	}
+	sat->touched = 1;
+	vec3_copy(sat->separation_axis, sat_cache->separation_axis);
+	sat->separation = sat_cache->separation;
+}
+
+struct sat_cache *sat_cache_lookup(const struct contact_database *c_db, const u32 b1, const u32 b2)
+{
+	u32 i1, i2;
+	if (b1 < b2)
+	{
+		i1 = b1;
+		i2 = b2;
+	}
+	else
+	{
+		i1 = b2;
+		i2 = b1;
+	}
+
+	const u64 key = key_gen_u32_u32(i1, i2);
+	struct sat_cache *ret = NULL;
+	for (u32 i = hash_map_first(c_db->sat_cache_map, (u32) key); i != HASH_NULL; i = hash_map_next(c_db->sat_cache_map, i))
+	{
+		struct sat_cache *sat = pool_address(&c_db->sat_cache_pool, i);
+		if (sat->key == key)
+		{
+			ret = sat;
 			break;
 		}
 	}

@@ -87,6 +87,14 @@ struct collision_shape
 	};
 };
 
+enum collision_result_type
+{
+	COLLISION_NONE,
+	COLLISION_SAT_CACHE,
+	COLLISION_CONTACT,
+	COLLISION_COUNT
+};
+
 struct contact_manifold
 {
 	vec3 	v[4];
@@ -95,6 +103,28 @@ struct contact_manifold
 	u32 	v_count;
 	u32 	i1;
 	u32 	i2;
+};
+
+struct sat_cache
+{
+	POOL_SLOT_STATE;
+	u32	touched;
+	DLL_SLOT_STATE;
+
+	vec3	separation_axis;
+	f32	separation;
+
+	u64	key;
+};
+
+struct collision_result
+{
+	enum collision_result_type	type;
+	union
+	{
+		struct sat_cache	sat_cache;
+		struct contact_manifold manifold;
+	};
 };
 
 void 	contact_manifold_debug_print(FILE *file, const struct contact_manifold *cm);
@@ -108,8 +138,8 @@ struct rigid_body;
 u32	body_body_test(const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin);
 /* return closest points c1 and c2 on bodies b1 and b2 (with no margin), respectively, given no intersection */
 f32 	body_body_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin);
-/* returns contact manifold pointing from b1 to b2, given that the bodies are colliding  */
-u32 	body_body_contact_manifold(struct arena *tmp, struct contact_manifold *cm, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin);
+/* returns contact manifold or sat cache pointing from b1 to b2, given that the bodies are colliding  */
+u32 	body_body_contact_manifold(struct arena *tmp, struct collision_result *result, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin);
 /* Return t such that ray.origin + t*ray.dir == closest point on rigid body */
 f32 	body_raycast_parameter(const struct physics_pipeline *pipeline, const struct rigid_body *b, const struct ray *ray);
 /* Return 1 if ray hit body, 0 otherwise. If hit, we return the closest intersection point */

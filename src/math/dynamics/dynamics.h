@@ -54,18 +54,6 @@ struct contact
 	u32 			cached_count;			/* number of vertices in cache */
 };
 
-struct sat_cache
-{
-	POOL_SLOT_STATE;
-	u32	touched;
-	DLL_SLOT_STATE;
-
-	vec3	separation_axis;
-	f32	separation;
-
-	u64	key;
-};
-
 /*
 contact_database
 ================
@@ -98,9 +86,9 @@ struct contact_database
 	/*
 	 * frame-cached separation axes 
 	 */
-	struct hash_map *sat_cache_map;		
-	struct dll	sat_cache_list;
 	struct pool	sat_cache_pool;
+	struct dll	sat_cache_list;
+	struct hash_map *sat_cache_map;		
 
 	/* PERSISTENT DATA, GROWABLE, keeps track of which slots in contacts are currently being used. */
 	struct bit_vec 	contacts_persistent_usage; /* At end of frame, is set to contacts_frame_usage + any 
@@ -132,6 +120,11 @@ u32 *			c_db_remove_static_contacts_and_store_affected_islands(struct arena *mem
 struct contact *	c_db_lookup_contact(const struct contact_database *c_db, const u32 b1, const u32 b2);
 u32 			c_db_lookup_contact_index(const struct contact_database *c_db, const u32 i1, const u32 i2);
 void 			c_db_update_persistent_contacts_usage(struct contact_database *c_db);
+
+/* add sat_cache to pipeline; if it already exists, reset the cache. */
+void 			sat_cache_add(struct contact_database *c_db, const struct sat_cache *sat_cache);
+/* lookup sat_cache to pipeline; if it does't exist, return NULL. */
+struct sat_cache *	sat_cache_lookup(const struct contact_database *c_db, const u32 b1, const u32 b2);
 
 /*
 =================================================================================================================
