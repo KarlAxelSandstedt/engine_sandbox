@@ -21,6 +21,7 @@
 #include "float32.h"
 #include "collision.h"
 #include "dynamics.h"
+#include "kas_profiler.h"
 
 DEFINE_STACK(visual_segment);
 
@@ -1590,11 +1591,13 @@ struct sat_edge_query
 {
 	struct segment s1;
 	struct segment s2;
+	u32	e1;
+	u32	e2;
 	vec3 normal;
 	f32 depth;
 };
 
-static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct contact_manifold *cm, struct sat_face_query query[2], const struct rigid_body *b1, const struct dcel *dcel1, constvec3ptr v1_world, const struct rigid_body *b2, const struct dcel *dcel2, constvec3ptr v2_world)
+static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct contact_manifold *cm, struct sat_face_query query[2], const struct dcel *dcel1, constvec3ptr v1_world, const struct dcel *dcel2, constvec3ptr v2_world)
 {
 	vec3 n_ref, n_inc, tmp1, tmp2, n;
 
@@ -1712,7 +1715,6 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 			}
 		}
 	}
-
 
 	f32 max_depth = -F32_INFINITY;
 	u32 deepest_point = 0;
@@ -2017,6 +2019,8 @@ static u32 hull_contact_internal_ee_seperation(struct sat_edge_query *query, con
 					vec3_copy(query->normal, e1);
 					query->s1 = s1;
 					query->s2 = s2;
+					query->e1 = e1_1;
+					query->e2 = e2_1;
 					return 1;
 				}
 			
@@ -2026,6 +2030,8 @@ static u32 hull_contact_internal_ee_seperation(struct sat_edge_query *query, con
 					vec3_copy(query->normal, e1);
 					query->s1 = s1;
 					query->s2 = s2;
+					query->e1 = e1_1;
+					query->e2 = e2_1;
 				}
 			}
 		}
@@ -2088,29 +2094,36 @@ static u32 hull_contact(struct arena *tmp, struct collision_result *result, cons
 	const u32 bi1 = pool_index(&pipeline->body_pool, b1);
 	const u32 bi2 = pool_index(&pipeline->body_pool, b2);
 	struct sat_cache *sat_cache = NULL;
-	struct contact *contact = NULL;
 
-	if ((contact = c_db_lookup_contact(&pipeline->c_db, bi1, bi2)) != NULL)
+	if ((sat_cache = sat_cache_lookup(&pipeline->c_db, bi1, bi2)) != NULL)
 	{
-	}
-	else if ((sat_cache = sat_cache_lookup(&pipeline->c_db, bi1, bi2)) != NULL)
-	{
-		vec3 support1, support2, tmp;
-		vec3_negative_to(tmp, sat_cache->separation_axis);
-
-		vertex_support(support1, sat_cache->separation_axis, v1_world, h1->v_count);
-		vertex_support(support2, tmp, v2_world, h2->v_count);
-
-		const f32 dot1 = vec3_dot(support1, sat_cache->separation_axis);
-		const f32 dot2 = vec3_dot(support2, sat_cache->separation_axis);
-		const f32 separation = dot2 - dot1;
-		if (separation > 0.0f)
+		if (sat_cache->type == SAT_CACHE_SEPARATION)
 		{
-			calculate = 0;
-			is_colliding = 0;
-			result->type = COLLISION_NONE;
-			result->sat_cache.separation = separation;
-			result->sat_cache.touched = 1;
+			vec3 support1, support2, tmp;
+			vec3_negative_to(tmp, sat_cache->separation_axis);
+
+			vertex_support(support1, sat_cache->separation_axis, v1_world, h1->v_count);
+			vertex_support(support2, tmp, v2_world, h2->v_count);
+
+			const f32 dot1 = vec3_dot(support1, sat_cache->separation_axis);
+			const f32 dot2 = vec3_dot(support2, sat_cache->separation_axis);
+			const f32 separation = dot2 - dot1;
+			if (separation > 0.0f)
+			{
+				calculate = 0;
+				is_colliding = 0;
+				result->type = COLLISION_NONE;
+				result->sat_cache.separation = separation;
+				result->sat_cache.touched = 1;
+			}
+		}
+		else if (sat_cache->type == SAT_CACHE_CONTACT_EE)
+		{
+
+		}
+		else (sat_cache->type == SAT_CACHE_CONTACT_FV)
+		{
+
 		}
 	}
 
@@ -2119,41 +2132,73 @@ static u32 hull_contact(struct arena *tmp, struct collision_result *result, cons
 		struct sat_face_query f_query[2] = { { .depth = -FLT_MAX }, { .depth = -FLT_MAX } };
 		struct sat_edge_query e_query = { .depth = -FLT_MAX };
 
+		KAS_TASK("FV1", T_PHYSICS);
 		if (hull_contact_internal_fv_seperation(&f_query[0], h1, v1_world, h2, v2_world))
 		{
 			result->type = COLLISION_SAT_CACHE;
 			vec3_copy(result->sat_cache.separation_axis, f_query[0].normal);
 			result->sat_cache.separation = f_query[0].depth;
 			result->sat_cache.key = key_gen_u32_u32(bi1, bi2);
+			result->sat_cache.body = 0;
+			result->sat_cache.face = f_query[0].fi;
+			result->sat_cache.type = SAT_CACHE_SEPARATION;
 			is_colliding = 0;
+		KAS_END;
 			goto sat_cleanup;
 		}
+		KAS_END;
 
+		KAS_TASK("FV2", T_PHYSICS);
 		if (hull_contact_internal_fv_seperation(&f_query[1], h2, v2_world, h1, v1_world))
 		{
 			result->type = COLLISION_SAT_CACHE;
 			vec3_negative_to(result->sat_cache.separation_axis, f_query[1].normal);
 			result->sat_cache.separation = f_query[1].depth;
 			result->sat_cache.key = key_gen_u32_u32(bi1, bi2);
+			result->sat_cache.body = 1;
+			result->sat_cache.face = f_query[1].fi;
+			result->sat_cache.type = SAT_CACHE_SEPARATION;
 			is_colliding = 0;
+		KAS_END;
 			goto sat_cleanup;
 		}
+		KAS_END;
 
+		KAS_TASK("EE", T_PHYSICS);
 		if (hull_contact_internal_ee_seperation(&e_query, h1, v1_world, h2, v2_world, b1->position))
 		{
 			result->type = COLLISION_SAT_CACHE;
 			vec3_copy(result->sat_cache.separation_axis, e_query.normal);
 			result->sat_cache.separation = e_query.depth;
 			result->sat_cache.key = key_gen_u32_u32(bi1, bi2);
+			result->sat_cache.edge0 = e_query.e1;
+			result->sat_cache.edge1 = e_query.e2;
+			result->sat_cache.type = SAT_CACHE_SEPARATION;
 			is_colliding = 0;
+		KAS_END;
 			goto sat_cleanup;
 		}
+		KAS_END;
 
 		result->type = COLLISION_CONTACT;
 		//if ((1.0f - 100.0f * F32_EPSILON) * f_query[0].depth >= e_query.depth || (1.0f - 100.0f * F32_EPSILON) * f_query[1].depth >= e_query.depth)
 		if (0.99f*f_query[0].depth >= e_query.depth || 0.99f*f_query[1].depth >= e_query.depth)
 		{
-			is_colliding = hull_contact_internal_face_contact(tmp, &result->manifold, f_query, b1, h1, v1_world, b2, h2, v2_world);
+			KAS_TASK("Contact Generation", T_PHYSICS);
+			if (f_query[0].depth > f_query[1].depth)
+			{
+				result->sat_cache.body = 0;
+				result->sat_cache.face = f_query[0].fi;
+				is_colliding = hull_contact_internal_face_contact(tmp, &result->manifold, f_query, h1, v1_world, h2, v2_world);
+			}
+			else
+			{
+				result->sat_cache.body = 1;
+				result->sat_cache.face = f_query[1].fi;
+				is_colliding = hull_contact_internal_face_contact(tmp, &result->manifold, f_query, h1, v1_world, h2, v2_world);
+			}
+			result->sat_cache.type = SAT_CACHE_CONTACT_FV;
+			KAS_END;
 		}
 		/* edge_contact */
 		else
@@ -2169,6 +2214,10 @@ static u32 hull_contact(struct arena *tmp, struct collision_result *result, cons
 			result->manifold.depth[0] = -e_query.depth;
 			vec3_interpolate(result->manifold.v[0], c1, c2, 0.5f);
 			vec3_copy(result->manifold.n, e_query.normal);
+
+			result->sat_cache.edge0 = e_query.e1;
+			result->sat_cache.edge1 = e_query.e2;
+			result->sat_cache.type = SAT_CACHE_CONTACT_EE;
 		}
 	}
 

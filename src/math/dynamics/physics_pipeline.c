@@ -370,7 +370,6 @@ static void thread_push_contacts(void *task_addr)
 		b1 = pool_address(&pipeline->body_pool, proxy_overlap[i].id1);
 		b2 = pool_address(&pipeline->body_pool, proxy_overlap[i].id2);
 
-
 		if (body_body_contact_manifold(&worker->mem_frame, out->result + out->result_count, pipeline, b1, b2, margin))
 		{
 			out->result[out->result_count].manifold.i1 = proxy_overlap[i].id1;
@@ -391,7 +390,7 @@ static void thread_push_contacts(void *task_addr)
 		}
 	}
 
-	arena_pop_packed(&worker->mem_frame, (range->count - out->result_count) * sizeof(struct contact_manifold));
+	arena_pop_packed(&worker->mem_frame, (range->count - out->result_count) * sizeof(struct collision_result));
 
 	task->output = out;
 	KAS_END;
@@ -429,6 +428,7 @@ static void internal_parallel_push_contacts(struct arena *mem_frame, struct phys
 				}
 				else
 				{
+					sat_cache_add(&pipeline->c_db, &out->result[j].sat_cache);
 					pipeline->cm[pipeline->cm_count++] = out->result[j].manifold;
 				}
 			}

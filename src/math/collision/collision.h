@@ -89,9 +89,9 @@ struct collision_shape
 
 enum collision_result_type
 {
-	COLLISION_NONE,
-	COLLISION_SAT_CACHE,
-	COLLISION_CONTACT,
+	COLLISION_NONE,		/* No collision, no sat cache stored */
+	COLLISION_SAT_CACHE,	/* No collision, sat cache stored    */
+	COLLISION_CONTACT,	/* Collision, sat cache stored       */
 	COLLISION_COUNT
 };
 
@@ -105,14 +105,41 @@ struct contact_manifold
 	u32 	i2;
 };
 
+enum sat_cache_type
+{
+	SAT_CACHE_SEPARATION,
+	SAT_CACHE_CONTACT_FV,
+	SAT_CACHE_CONTACT_EE,
+	SAT_CACHE_COUNT,
+};
+
 struct sat_cache
 {
 	POOL_SLOT_STATE;
 	u32	touched;
 	DLL_SLOT_STATE;
 
-	vec3	separation_axis;
-	f32	separation;
+	enum sat_cache_type	type;
+	union
+	{
+		struct
+		{
+			u32	body;	/* body (0,1) containing face */
+			u32	face;	/* reference face 	      */
+		};
+
+		struct
+		{
+			u32	edge0;	/* body0 edge, body0 < body1 */
+			u32	edge1;	/* body1 edge                */
+		};
+
+		struct
+		{
+			vec3	separation_axis;
+			f32	separation;
+		};
+	};
 
 	u64	key;
 };
@@ -120,11 +147,8 @@ struct sat_cache
 struct collision_result
 {
 	enum collision_result_type	type;
-	union
-	{
-		struct sat_cache	sat_cache;
-		struct contact_manifold manifold;
-	};
+	struct sat_cache		sat_cache;
+	struct contact_manifold 	manifold;
 };
 
 void 	contact_manifold_debug_print(FILE *file, const struct contact_manifold *cm);
