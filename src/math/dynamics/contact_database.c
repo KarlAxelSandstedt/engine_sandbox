@@ -193,7 +193,7 @@ void c_db_clear_frame(struct contact_database *c_db)
 	c_db->contacts_frame_usage.bit_count = 0;
 	c_db->contacts_frame_usage.block_count = 0;
 
-	fprintf(stderr, "count: %u\n", c_db->sat_cache_pool.count);
+	//fprintf(stderr, "count: %u\n", c_db->sat_cache_pool.count);
 	for (u32 i = c_db->sat_cache_list.first; i != DLL_NULL; )
 	{
 		struct sat_cache *cache = pool_address(&c_db->sat_cache_pool, i);
@@ -433,18 +433,17 @@ void sat_cache_add(struct contact_database *c_db, const struct sat_cache *sat_ca
 {
 	const u32 b0 = CONTACT_KEY_TO_BODY_0(sat_cache->key);
 	const u32 b1 = CONTACT_KEY_TO_BODY_1(sat_cache->key);
-	struct sat_cache *sat = sat_cache_lookup(c_db, b0, b1);
-	if (!sat)
-	{
-		struct slot slot = pool_add(&c_db->sat_cache_pool);
-		dll_append(&c_db->sat_cache_list, c_db->sat_cache_pool.buf, slot.index);
-		sat = slot.address;
-		sat->key = sat_cache->key;
-		hash_map_add(c_db->sat_cache_map, (u32) sat_cache->key, slot.index);
-	}
+	kas_assert(sat_cache_lookup(c_db, b0, b1) == NULL);
+
+	//breakpoint(b0 == 62 && b1 == 66);
+	struct slot slot = pool_add(&c_db->sat_cache_pool);
+	struct sat_cache *sat = slot.address;
+	const u32 slot_allocation_state = sat->slot_allocation_state;
+	*sat = *sat_cache;
+	sat->slot_allocation_state = slot_allocation_state;
+	dll_append(&c_db->sat_cache_list, c_db->sat_cache_pool.buf, slot.index);
+	hash_map_add(c_db->sat_cache_map, (u32) sat_cache->key, slot.index);
 	sat->touched = 1;
-	vec3_copy(sat->separation_axis, sat_cache->separation_axis);
-	sat->separation = sat_cache->separation;
 }
 
 struct sat_cache *sat_cache_lookup(const struct contact_database *c_db, const u32 b1, const u32 b2)

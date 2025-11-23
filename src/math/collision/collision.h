@@ -130,8 +130,8 @@ struct sat_cache
 
 		struct
 		{
-			u32	edge0;	/* body0 edge, body0 < body1 */
-			u32	edge1;	/* body1 edge                */
+			u32	edge1;	/* body0 edge, body0 < body1 */
+			u32	edge2;	/* body1 edge                */
 		};
 
 		struct

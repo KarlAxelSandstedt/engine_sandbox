@@ -379,6 +379,7 @@ static void thread_push_contacts(void *task_addr)
 			vec3_sub(tmp, b2->position, b1->position);
 			if (vec3_dot(tmp, out->result[out->result_count].manifold.n) < 0)
 			{
+				//TODO if we flip here, we must flip on sat as well?...
 				vec3_mul_constant(out->result[out->result_count].manifold.n, -1.0f);
 			}
 
@@ -425,10 +426,13 @@ static void internal_parallel_push_contacts(struct arena *mem_frame, struct phys
 				if (out->result[j].type == COLLISION_SAT_CACHE)
 				{
 					sat_cache_add(&pipeline->c_db, &out->result[j].sat_cache);
+					if (out->result[j].sat_cache.type != SAT_CACHE_SEPARATION)
+					{
+						pipeline->cm[pipeline->cm_count++] = out->result[j].manifold;
+					}
 				}
 				else
 				{
-					sat_cache_add(&pipeline->c_db, &out->result[j].sat_cache);
 					pipeline->cm[pipeline->cm_count++] = out->result[j].manifold;
 				}
 			}
