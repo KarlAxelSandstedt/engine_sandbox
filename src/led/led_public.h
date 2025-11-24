@@ -128,6 +128,7 @@ struct led
 		
 	u64			ns;		/* current time in ns */
 	u64			ns_delta;
+	f32			ns_delta_modifier;
 	u32			running;
 
 	u64			ns_engine_running;

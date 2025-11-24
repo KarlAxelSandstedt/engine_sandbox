@@ -122,6 +122,8 @@ enum kas_keycode
 	KAS_LEFT,
 	KAS_RIGHT,
 	KAS_DELETE,
+	KAS_PLUS,
+	KAS_MINUS,
 	KAS_HOME,
 	KAS_END,
 	KAS_0,

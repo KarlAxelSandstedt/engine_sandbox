@@ -417,6 +417,21 @@ static void led_input_handler(struct led *led, struct ui_node *viewport)
 		{
 			switch (event->scancode)
 			{
+				case KAS_MINUS:
+				{
+					led->ns_delta_modifier *= 0.8f;
+				} break;
+
+				case KAS_PLUS:
+				{
+					led->ns_delta_modifier *= 1.25f;
+				} break;
+
+				case KAS_R:
+				{
+					led->ns_delta_modifier *= 1.0f;
+				} break;
+
 				default:
 				{
 					event_consumed = 0;
@@ -866,7 +881,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 				}
 
 				ui_child_layout_axis(AXIS_2_Y)
-				ui_width(ui_size_pixel(196.0f, 1.0f))
+				ui_width(ui_size_pixel(230.0f, 1.0f))
 				ui_parent(ui_node_alloc_non_hashed(UI_DRAW_BACKGROUND).index)
 				ui_flags(UI_DRAW_ROUNDED_CORNERS | UI_TEXT_ALLOW_OVERFLOW)
 				{

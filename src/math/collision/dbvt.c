@@ -360,8 +360,16 @@ u32 dbvt_internal_push_subtree_overlap_pairs(struct arena *mem, const struct dbv
 			if (nodes[subA].left == DBVT_NO_NODE && nodes[subB].left == DBVT_NO_NODE)
 			{
 				overlap_count += 1;
-				overlap.id1 = nodes[subA].id;	
-				overlap.id2 = nodes[subB].id;	
+				if (nodes[subA].id < nodes[subB].id)
+				{
+					overlap.id1 = nodes[subA].id;	
+					overlap.id2 = nodes[subB].id;	
+				}
+				else
+				{
+					overlap.id1 = nodes[subB].id;	
+					overlap.id2 = nodes[subA].id;	
+				}
 				arena_push_packed_memcpy(mem, &overlap, sizeof(overlap));
 			}
 			else

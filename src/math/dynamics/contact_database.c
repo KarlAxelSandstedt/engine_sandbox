@@ -258,7 +258,7 @@ struct contact *c_db_add_contact(struct physics_pipeline *pipeline, const struct
 		{
 			bit_vec_set_bit(&pipeline->c_db.contacts_frame_usage, ci, 1);
 		}
-		PHYSICS_EVENT_CONTACT_NEW(pipeline, ci);
+		PHYSICS_EVENT_CONTACT_NEW(pipeline, b1, b2);
 
 		return c;
 	}
@@ -300,6 +300,15 @@ void c_db_remove_body_contacts(struct physics_pipeline *pipeline, const u32 body
 	while (ci != NLL_NULL)
 	{
 		struct contact *c = nll_address(&pipeline->c_db.contact_net, ci);
+		struct sat_cache *sat = sat_cache_lookup(&pipeline->c_db, CONTACT_KEY_TO_BODY_0(c->key), CONTACT_KEY_TO_BODY_1(c->key));
+		if (sat)
+		{
+			const u32 sat_index = pool_index(&pipeline->c_db.sat_cache_pool, sat);
+			dll_remove(&pipeline->c_db.sat_cache_list, pipeline->c_db.sat_cache_pool.buf, sat_index);
+			hash_map_remove(pipeline->c_db.sat_cache_map, (u32) c->key, sat_index);
+			pool_remove(&pipeline->c_db.sat_cache_pool, sat_index);
+		}
+
 		u32 next_i;
 		if (body_index == CONTACT_KEY_TO_BODY_0(c->key))
 		{
@@ -448,19 +457,8 @@ void sat_cache_add(struct contact_database *c_db, const struct sat_cache *sat_ca
 
 struct sat_cache *sat_cache_lookup(const struct contact_database *c_db, const u32 b1, const u32 b2)
 {
-	u32 i1, i2;
-	if (b1 < b2)
-	{
-		i1 = b1;
-		i2 = b2;
-	}
-	else
-	{
-		i1 = b2;
-		i2 = b1;
-	}
-
-	const u64 key = key_gen_u32_u32(i1, i2);
+	kas_assert(b1 < b2);
+	const u64 key = key_gen_u32_u32(b1, b2);
 	struct sat_cache *ret = NULL;
 	for (u32 i = hash_map_first(c_db->sat_cache_map, (u32) key); i != HASH_NULL; i = hash_map_next(c_db->sat_cache_map, i))
 	{

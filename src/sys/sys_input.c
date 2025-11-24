@@ -39,6 +39,8 @@ const char *kas_keycode_string_map[] =
 	"KAS_BACKSPACE",
 	"KAS_ESCAPE",
 	"KAS_ENTER",
+	"KAS_PLUS",
+	"KAS_MINUS",
 	"KAS_F1",
 	"KAS_F2",
 	"KAS_F3",

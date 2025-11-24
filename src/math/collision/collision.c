@@ -1855,7 +1855,7 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 	return is_colliding;
 }
 
-static u32 hull_contact_internal_fv_seperation(struct sat_face_query *query, const struct dcel *h1, constvec3ptr v1_world, const struct dcel *h2, constvec3ptr v2_world)
+static u32 hull_contact_internal_fv_separation(struct sat_face_query *query, const struct dcel *h1, constvec3ptr v1_world, const struct dcel *h2, constvec3ptr v2_world)
 {
 	for (u32 fi = 0; fi < h1->f_count; ++fi)
 	{
@@ -1985,7 +1985,7 @@ static void hull_contact_internal_ee_check(struct sat_edge_query *query, const s
  * For full algorithm: see GDC talk by Dirk Gregorius - 
  * 	Physics for Game Programmers: The Separating Axis Test between Convex Polyhedra
  */
-static u32 hull_contact_internal_ee_seperation(struct sat_edge_query *query, const struct dcel *h1, constvec3ptr v1_world, const struct dcel *h2, constvec3ptr v2_world, const vec3 h1_world_center)
+static u32 hull_contact_internal_ee_separation(struct sat_edge_query *query, const struct dcel *h1, constvec3ptr v1_world, const struct dcel *h2, constvec3ptr v2_world, const vec3 h1_world_center)
 {
 	for (u32 e1_1 = 0; e1_1 < h1->e_count; ++e1_1)
 	{
@@ -2043,7 +2043,7 @@ static u32 hull_contact(struct arena *tmp, struct collision_result *result, cons
 	 */
 
 	/*
-	 * n = seperation normal from A to B
+	 * n = separation normal from A to B
 	 * Plane PA = plane n*x - dA denotes the plane with normal n that just touches A, pointing towards B 
 	 * Plane PB = plane (-n)*x - dB denotes the plane with normal (-n) that just touches B, pointing towards A
 	 *
@@ -2081,9 +2081,13 @@ static u32 hull_contact(struct arena *tmp, struct collision_result *result, cons
 
 	u32 colliding = 1;
 	u32 calculate = 1;
+	struct sat_cache *sat_cache = NULL;
+
 	const u32 bi1 = pool_index(&pipeline->body_pool, b1);
 	const u32 bi2 = pool_index(&pipeline->body_pool, b2);
-	struct sat_cache *sat_cache = NULL;
+	kas_assert_string(bi1 < bi2, "Having these requirements spread all over the pipeline is bad, should\
+			standardize some place where we enforce this rule, if at all. Furthermore, we should\
+			consider better ways of creating body pair keys");
 
 	u32 cache_found = 1;	
 	if ((sat_cache = sat_cache_lookup(&pipeline->c_db, bi1, bi2)) == NULL)
@@ -2127,11 +2131,11 @@ static u32 hull_contact(struct arena *tmp, struct collision_result *result, cons
 		}
 		else 
 		{
-			kas_assert(sat_cache->type == SAT_CACHE_CONTACT_FV);
 			//TODO BUG to fix: when removing body's all contacts, ALSO remove any sat_cache; otherwise 
 			// it may be wrongfully alised the next frame by new indices.
 			//TODO Should we check that the manifold is still stable? if not, we throw it away.
 			vec3 ref_n, cm_n;
+
 			if (sat_cache->body == 0)
 			{
 				dcel_face_normal(cm_n, h1, sat_cache->face);
@@ -2152,7 +2156,7 @@ static u32 hull_contact(struct arena *tmp, struct collision_result *result, cons
 
 	if (calculate)
 	{
-		if (hull_contact_internal_fv_seperation(&f_query[0], h1, v1_world, h2, v2_world))
+		if (hull_contact_internal_fv_separation(&f_query[0], h1, v1_world, h2, v2_world))
 		{
 			vec3_copy(sat_cache->separation_axis, f_query[0].normal);
 			sat_cache->separation = f_query[0].depth;
@@ -2161,7 +2165,7 @@ static u32 hull_contact(struct arena *tmp, struct collision_result *result, cons
 			goto sat_cleanup;
 		}
 
-		if (hull_contact_internal_fv_seperation(&f_query[1], h2, v2_world, h1, v1_world))
+		if (hull_contact_internal_fv_separation(&f_query[1], h2, v2_world, h1, v1_world))
 		{
 			vec3_negative_to(sat_cache->separation_axis, f_query[1].normal);
 			sat_cache->separation = f_query[1].depth;
@@ -2170,7 +2174,7 @@ static u32 hull_contact(struct arena *tmp, struct collision_result *result, cons
 			goto sat_cleanup;
 		}
 
-		if (hull_contact_internal_ee_seperation(&e_query, h1, v1_world, h2, v2_world, b1->position))
+		if (hull_contact_internal_ee_separation(&e_query, h1, v1_world, h2, v2_world, b1->position))
 		{
 			vec3_copy(sat_cache->separation_axis, e_query.normal);
 			sat_cache->separation = e_query.depth;
@@ -2236,8 +2240,6 @@ sat_cleanup:
 			? COLLISION_CONTACT
 			: COLLISION_NONE;
 	}
-
-	kas_assert(sat_cache->type < SAT_CACHE_COUNT);
 	
 	arena_pop_record(tmp);
 	return colliding;
@@ -2363,9 +2365,18 @@ u32 body_body_contact_manifold(struct arena *tmp, struct collision_result *resul
 	kas_assert(margin >= 0.0f);
 
 	/* TODO: Cannot do as above, we must make sure that CM is in correct A->B order,  maybe push this issue up? */
-	return (b1->shape_type >= b2->shape_type)  
-		? contact_methods[b1->shape_type][b2->shape_type](tmp, result, pipeline, b1, b2, margin)
-		: contact_methods[b2->shape_type][b1->shape_type](tmp, result, pipeline, b2, b1, margin);
+	u32 collision;	
+	if (b1->shape_type >= b2->shape_type)  
+	{
+		collision = contact_methods[b1->shape_type][b2->shape_type](tmp, result, pipeline, b1, b2, margin);
+	}
+	else
+	{
+		collision = contact_methods[b2->shape_type][b1->shape_type](tmp, result, pipeline, b2, b1, margin);
+		vec3_mul_constant(result->manifold.n, -1.0f);
+	}
+
+	return collision;
 }
 
 f32 body_raycast_parameter(const struct physics_pipeline *pipeline, const struct rigid_body *b, const struct ray *ray)

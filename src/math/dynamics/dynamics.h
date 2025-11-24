@@ -605,11 +605,12 @@ void 	prefab_statics_setup(struct rigid_body_prefab *prefab, struct collision_sh
 #define	PHYSICS_EVENT_ISLAND_NEW(pipeline, island)		PHYSICS_EVENT_ISLAND(pipeline, PHYSICS_EVENT_ISLAND_NEW, island)
 #define	PHYSICS_EVENT_ISLAND_EXPANDED(pipeline, island)		PHYSICS_EVENT_ISLAND(pipeline, PHYSICS_EVENT_ISLAND_EXPANDED, island)
 #define	PHYSICS_EVENT_ISLAND_REMOVED(pipeline, island)		PHYSICS_EVENT_ISLAND(pipeline, PHYSICS_EVENT_ISLAND_REMOVED, island)
-#define PHYSICS_EVENT_CONTACT_NEW(pipeline, contact_index)						\
+#define PHYSICS_EVENT_CONTACT_NEW(pipeline, body1_index, body2_index)					\
 	{												\
 		struct physics_event *__physics_debug_event = physics_pipeline_event_push(pipeline);	\
 		__physics_debug_event->type = PHYSICS_EVENT_CONTACT_NEW;				\
-		__physics_debug_event->contact = contact_index;						\
+		__physics_debug_event->contact_bodies.body1 = body1_index;				\
+		__physics_debug_event->contact_bodies.body2 = body2_index;				\
 	}
 #define PHYSICS_EVENT_CONTACT_REMOVED(pipeline, body1_index, body2_index)				\
 	{												\
@@ -657,7 +658,6 @@ struct physics_event
 	enum physics_event_type type;
 	union
 	{
-		u32 contact;
 		u32 island;
 		u32 body;
 		struct 

@@ -275,6 +275,7 @@ struct slot led_collision_shape_add(struct led *led, const struct collision_shap
 			slot = string_database_add_and_alias(&led->cs_db, copy);
 			struct collision_shape *new_shape = slot.address;
 			new_shape->type = shape->type;
+			new_shape->center_of_mass_localized = shape->center_of_mass_localized;
 			switch (shape->type)
 			{
 				case COLLISION_SHAPE_SPHERE: 
@@ -708,12 +709,12 @@ void led_wall_smash_simulation_setup(struct led *led)
 	struct system_window *sys_win = system_window_address(g_editor->window);
 
 	const u32 dsphere_v_count = 30;
-	const u32 dsphere_count = 20;
+	const u32 dsphere_count = 40;
 	const u32 tower1_count = 2;
 	const u32 tower2_count = 4;
 	const u32 tower1_box_count = 40;
 	const u32 tower2_box_count = 10;
-	const u32 pyramid_layers = 10;
+	const u32 pyramid_layers = 15;
 	const u32 pyramid_count = 3;
 	const u32 bodies = tower1_box_count + tower2_box_count + 3 + pyramid_layers*(pyramid_layers+1) / 2;
 
@@ -776,17 +777,6 @@ void led_wall_smash_simulation_setup(struct led *led)
 	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_sphere");
 	sys_win->cmd_queue->regs[1].f32 = 2.0f;
 	cmd_queue_submit(sys_win->cmd_queue, cmd_collision_sphere_add_id);
-
-	//for (u32 i = 0; i < 100000; ++i)
-	//{
-	//	arena_push_record(&sys_win->mem_persistent);
-	//	fprintf(stderr, "%lu\n", sys_win->mem_persistent.mem_left);
-	//	struct dcel tmp = dcel_convex_hull(&sys_win->mem_persistent, ramp_vertices, 6, F32_EPSILON * 100.0f);
-	//	kas_assert(tmp.f_count == 5);
-	//	kas_assert(tmp.v_count == 6);
-	//	kas_assert(tmp.e_count == 4+4+4+3+3);
-	//	arena_pop_record(&sys_win->mem_persistent);
-	//}
 
 	struct dcel *c_ramp = arena_push(&sys_win->mem_persistent, sizeof(struct dcel));
 	*c_ramp = dcel_convex_hull(&sys_win->mem_persistent, ramp_vertices, 6, F32_EPSILON * 100.0f);
@@ -1298,9 +1288,8 @@ static void led_engine_run(struct led *led)
 			{
 				if (led->physics.body_color_mode == RB_COLOR_MODE_COLLISION)
 				{
-					const struct contact *c = nll_address(&led->physics.c_db.contact_net, event->contact);
-					const struct rigid_body *body1 = pool_address(&led->physics.body_pool, c->cm.i1);
-					const struct rigid_body *body2 = pool_address(&led->physics.body_pool, c->cm.i2);
+					const struct rigid_body *body1 = pool_address(&led->physics.body_pool, event->contact_bodies.body1);
+					const struct rigid_body *body2 = pool_address(&led->physics.body_pool, event->contact_bodies.body2);
 					const struct led_node *node1 = pool_address(&led->node_pool, body1->entity);
 					const struct led_node *node2 = pool_address(&led->node_pool, body2->entity);
 					if (RB_IS_DYNAMIC(body1))
@@ -1356,20 +1345,20 @@ static void led_engine_run(struct led *led)
 #ifdef KAS_PHYSICS_DEBUG
 			case PHYSICS_EVENT_ISLAND_NEW:
 			{
-				struct island *is = array_list_address(led->physics.is_db.islands, event->island);
-				vec4_set(is->color, 
-						rng_f32_normalized(), 
-						rng_f32_normalized(), 
-						rng_f32_normalized(), 
-						0.7f);
-				if (led->physics.body_color_mode == RB_COLOR_MODE_ISLAND)
-				{
-					led_engine_color_bodies(led, event->island, is->color);
-				}
-				else if (led->physics.body_color_mode == RB_COLOR_MODE_SLEEP)
-				{
-					led_engine_color_bodies(led, event->island, led->physics.awake_color);
-				}
+				//struct island *is = array_list_address(led->physics.is_db.islands, event->island);
+				//vec4_set(is->color, 
+				//		rng_f32_normalized(), 
+				//		rng_f32_normalized(), 
+				//		rng_f32_normalized(), 
+				//		0.7f);
+				//if (led->physics.body_color_mode == RB_COLOR_MODE_ISLAND)
+				//{
+				//	led_engine_color_bodies(led, event->island, is->color);
+				//}
+				//else if (led->physics.body_color_mode == RB_COLOR_MODE_SLEEP)
+				//{
+				//	led_engine_color_bodies(led, event->island, led->physics.awake_color);
+				//}
 			} break;
 
 			case PHYSICS_EVENT_ISLAND_EXPANDED:

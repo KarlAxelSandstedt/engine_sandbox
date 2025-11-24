@@ -83,7 +83,8 @@ struct led *led_alloc(void)
 
 	g_editor->cam_left_velocity = 0.0f;
 	g_editor->cam_forward_velocity = 0.0f;
-	g_editor->ns_delta = 0.0f;
+	g_editor->ns_delta = 0;
+	g_editor->ns_delta_modifier = 1.0f;
 
 #if defined(KAS_PROFILER)
 	g_editor->profiler.visible = 1;

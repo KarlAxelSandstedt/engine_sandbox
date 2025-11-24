@@ -74,8 +74,8 @@ struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 init
 		const f32 max_condition = 1000.0f;
 		const f32 linear_dampening = 0.1f;
 		const f32 angular_dampening = 0.1f;
-		const f32 linear_slop = 0.0005f;
-		const f32 restitution_threshold = 0.0005f;
+		const f32 linear_slop = 0.001f;
+		const f32 restitution_threshold = 0.001f;
 		const u32 sleep_enabled = 1;
 		const f32 sleep_time_threshold = 0.5f;
 		f32 sleep_linear_velocity_sq_limit = 0.001f*0.001f; 
@@ -375,13 +375,13 @@ static void thread_push_contacts(void *task_addr)
 			out->result[out->result_count].manifold.i1 = proxy_overlap[i].id1;
 			out->result[out->result_count].manifold.i2 = proxy_overlap[i].id2;
 
-			vec3 tmp;
-			vec3_sub(tmp, b2->position, b1->position);
-			if (vec3_dot(tmp, out->result[out->result_count].manifold.n) < 0)
-			{
-				//TODO if we flip here, we must flip on sat as well?...
-				vec3_mul_constant(out->result[out->result_count].manifold.n, -1.0f);
-			}
+			//vec3 tmp;
+			//vec3_sub(tmp, b2->position, b1->position);
+
+			//if (vec3_dot(tmp, out->result[out->result_count].manifold.n) < 0)
+			//{
+			//	vec3_mul_constant(out->result[out->result_count].manifold.n, -1.0f);
+			//}
 
 			out->result_count += 1;
 		}	
@@ -1158,6 +1158,7 @@ void prefab_statics_setup(struct rigid_body_prefab *prefab, struct collision_sha
 			}
 
 			const f32 mass = integrals[VOL] * density;
+			kas_assert(prefab->mass >= 0.0f);
 			/* center of mass */
 			vec3_set(com,
 				integrals[T_X] * density / mass,

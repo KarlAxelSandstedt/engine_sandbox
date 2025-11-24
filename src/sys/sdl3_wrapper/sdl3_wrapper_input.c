@@ -78,6 +78,8 @@ enum kas_keycode sdl3_wrapper_to_system_keycode(const SDL_Keycode sdl_key)
 	else if (sdl_key == SDLK_DOWN) { key = KAS_DOWN; }
 	else if (sdl_key == SDLK_LEFT) { key = KAS_LEFT; }
 	else if (sdl_key == SDLK_RIGHT) { key = KAS_RIGHT; }
+	else if (sdl_key == SDLK_PLUS) { key = KAS_PLUS; }
+	else if (sdl_key == SDLK_MINUS) { key = KAS_MINUS; }
 	else if (sdl_key == SDL_SCANCODE_END) { key = KAS_END; }
 
 	return key;
@@ -113,6 +115,8 @@ enum kas_keycode sdl3_wrapper_to_system_scancode(const SDL_Scancode sdl_key)
 	else if (sdl_key == SDL_SCANCODE_LEFT) { key = KAS_LEFT; }
 	else if (sdl_key == SDL_SCANCODE_RIGHT) { key = KAS_RIGHT; }
 	else if (sdl_key == SDL_SCANCODE_END) { key = KAS_END; }
+	else if (sdl_key == SDL_SCANCODE_KP_PLUS) { key = KAS_PLUS; }
+	else if (sdl_key == SDL_SCANCODE_KP_MINUS) { key = KAS_MINUS; }
 
 	return key;
 }
