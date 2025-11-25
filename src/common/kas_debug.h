@@ -28,9 +28,10 @@
 #include <stdio.h>
 #include <assert.h>
 
+#define KAS_PHYSICS_DEBUG	/* Physics debug events, physics debug rendering	*/
+
 #ifdef KAS_DEBUG
 
-#define KAS_PHYSICS_DEBUG	/* Physics debug events, physics debug rendering	*/
 #define KAS_ASSERT_DEBUG 	/* Asserts on 						*/
 
 #else

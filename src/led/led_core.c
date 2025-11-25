@@ -927,9 +927,9 @@ void led_wall_smash_simulation_setup(struct led *led)
 	{	
 		vec3 translation;
 		vec3_copy(translation, dsphere_base_translation);
-		translation[0] += (10.0f - 8.0f * (f32) i / dsphere_count) * f32_cos(i * MM_PI_F*37.0f/197.0f);
+		translation[0] += (10.0f - 38.0f * (f32) i / dsphere_count) * f32_cos(i * MM_PI_F*37.0f/197.0f);
 		translation[1] += 5.0f + (f32) i / 2.0f;
-		translation[2] += (10.0f - 8.0f * (f32) i / dsphere_count) * f32_sin(i * MM_PI_F*37.0f/197.0f);
+		translation[2] += (10.0f - 38.0f * (f32) i / dsphere_count) * f32_sin(i * MM_PI_F*37.0f/197.0f);
 
 		utf8 id = utf8_format(sys_win->ui->mem_frame, "dsphere_%u", i);
 		sys_win->cmd_queue->regs[0].utf8 = id;
@@ -1345,20 +1345,20 @@ static void led_engine_run(struct led *led)
 #ifdef KAS_PHYSICS_DEBUG
 			case PHYSICS_EVENT_ISLAND_NEW:
 			{
-				//struct island *is = array_list_address(led->physics.is_db.islands, event->island);
-				//vec4_set(is->color, 
-				//		rng_f32_normalized(), 
-				//		rng_f32_normalized(), 
-				//		rng_f32_normalized(), 
-				//		0.7f);
-				//if (led->physics.body_color_mode == RB_COLOR_MODE_ISLAND)
-				//{
-				//	led_engine_color_bodies(led, event->island, is->color);
-				//}
-				//else if (led->physics.body_color_mode == RB_COLOR_MODE_SLEEP)
-				//{
-				//	led_engine_color_bodies(led, event->island, led->physics.awake_color);
-				//}
+				struct island *is = array_list_address(led->physics.is_db.islands, event->island);
+				vec4_set(is->color, 
+						rng_f32_normalized(), 
+						rng_f32_normalized(), 
+						rng_f32_normalized(), 
+						0.7f);
+				if (led->physics.body_color_mode == RB_COLOR_MODE_ISLAND)
+				{
+					led_engine_color_bodies(led, event->island, is->color);
+				}
+				else if (led->physics.body_color_mode == RB_COLOR_MODE_SLEEP)
+				{
+					led_engine_color_bodies(led, event->island, led->physics.awake_color);
+				}
 			} break;
 
 			case PHYSICS_EVENT_ISLAND_EXPANDED:
