@@ -49,7 +49,6 @@
 	#undef KAS_PROFILER
 #elif defined(_WIN64)
 	#define __OS__ 	__WIN64__
-	#undef KAS_PROFILER
 #endif
 
 #define __GAPI__ __SDL3__

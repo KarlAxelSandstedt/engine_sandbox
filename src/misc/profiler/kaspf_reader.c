@@ -33,8 +33,8 @@ struct kaspf_reader *g_kaspf_reader = &storage;
 void kaspf_reader_alloc(const u64 bufsize)
 {
 	g_kaspf_reader->persistent = arena_alloc_1MB();
-	g_kaspf_reader->buf = ring_alloc(bufsize, NOT_GROWABLE);
-	g_kaspf_reader->ui_cache_buf = ring_alloc(16*1024*1024, NOT_GROWABLE);
+	g_kaspf_reader->buf = ring_alloc(bufsize);
+	g_kaspf_reader->ui_cache_buf = ring_alloc(16*1024*1024);
 	g_kaspf_reader->task_info = malloc(sizeof(struct kaspf_task_info) * KASPF_UNIQUE_TASK_COUNT_MAX);
 	memset(g_kaspf_reader->task_info, 0, sizeof(struct kaspf_task_info) * KASPF_UNIQUE_TASK_COUNT_MAX);
 	g_kaspf_reader->read_state = KASPF_READER_CLOSED;

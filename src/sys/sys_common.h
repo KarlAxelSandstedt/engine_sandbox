@@ -52,6 +52,7 @@ struct kas_arch_config
 
 	enum arch_type 	type;
 	u32		logical_core_count;
+	pid		pid;
 
 	u64		pagesize;	/* bytes */
 	u64		cacheline;	/* bytes */

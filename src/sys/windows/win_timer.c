@@ -46,12 +46,15 @@ struct rdtsc_timer
 	u64 rdtsc_freq;
 };
 
+u64 *g_tsc_skew = NULL;
 /*
  * coarse timer for general use
  */
 struct timer
 {
 	u64 ns_start;
+	u64 tsc_start;
+
 	f64 ns_resolution;	/* ns per tick */
 };
 
@@ -77,38 +80,55 @@ static u64 win_tsc_from_kt(const u64 kt_time)
 
 static u64 win_ns_from_tsc(const u64 tsc)
 {
-	kas_assert_string(0, "implement");
-	return 0;
+	const u64 ns = NSEC_PER_SEC * time_seconds_from_rdtsc(tsc);
+	return ns;
 }
 
 static u64 win_tsc_from_ns(const u64 ns)
 {
-	kas_assert_string(0, "implement");
-	return 0;
+	return ns * (f64) g_precision_timer.rdtsc_freq / NSEC_PER_SEC;
 }
 
 static u64 win_time_ns_from_tsc(const u64 tsc)
 {
-	kas_assert_string(0, "implement");
-	return 0;
+	kas_assert(tsc >= g_timer.tsc_start);
+	const u64 ns = ns_from_tsc(tsc - g_timer.tsc_start);
+	return ns;
 }
 
 static u64 win_time_tsc_from_ns(const u64 ns)
 {
-	kas_assert_string(0, "implement");
-	return 0;
+	kas_assert(ns >= g_timer.ns_start);
+	const u64 cyc = tsc_from_ns(ns - g_timer.ns_start);
+	return cyc;
 }
 
 static u64 win_time_ns_from_tsc_truth_source(const u64 tsc, const u64 ns_truth, const u64 cc_truth)
 {
-	kas_assert_string(0, "implement");
-	return 0;
+	if (tsc >= cc_truth)
+	{
+		const u64 ns = ns_from_tsc(tsc - cc_truth);
+		return ns_truth + ns;
+	}
+	else
+	{
+		const u64 ns = ns_from_tsc(cc_truth - tsc);
+		return ns_truth - ns;
+	}
 }
 
 static u64 win_time_tsc_from_ns_truth_source(const u64 ns, const u64 ns_truth, const u64 cc_truth)
 {
-	kas_assert_string(0, "implement");
-	return 0;
+	if (ns >= ns_truth)
+	{
+		const u64 cc = tsc_from_ns(ns - ns_truth);
+		return cc_truth + cc;
+	}
+	else
+	{
+		const u64 cc = tsc_from_ns(ns_truth - ns);
+		return cc_truth - cc;
+	}
 }
 
 static u64 win_time_ns(void)
@@ -153,9 +173,169 @@ static f64 win_time_seconds_from_rdtsc(const u64 ticks)
 	return (f64) ticks / g_precision_timer.rdtsc_freq;
 }
 
-static void tsc_estimate_skew(struct arena *persistent)
+struct ping_pong_data
 {
-	kas_assert_string(0, "implement tsc_estimate_skew");
+	u32	a_lock;
+	u32	a_iteration_test;
+	u32	logical_core_count;
+	u32	iterations;
+	u64 *	tsc_reference;
+	u64 *	tsc_iterator;
+};
+
+#define UNLOCKED_BY_REFERENCE 	1
+#define UNLOCKED_BY_ITERATOR	2
+DWORD WINAPI ping_pong_reference(void *data_void)
+{
+	struct ping_pong_data *data = data_void;
+
+	const HANDLE thread = GetCurrentThread();
+
+	GROUP_AFFINITY affinity = { 0 };
+	affinity.Group = 0;
+	affinity.Mask = 0;
+	
+	if (!SetThreadGroupAffinity(thread, &affinity, NULL))
+	{
+		log_string(T_SYSTEM, S_FATAL, "Failed to set thread affinity in tsc_estimate_skew, exiting.");	
+		fatal_cleanup_and_exit(0);
+	}
+
+	u32 c;
+	g_tsc_skew[0] = 0;
+	for (u32 core = 1; core < data->logical_core_count; ++core)
+	{
+		atomic_store_rel_32(&data->a_iteration_test, 1);
+
+		for (u32 i = 0; i < data->iterations; ++i)
+		{
+			while (atomic_load_acq_32(&data->a_lock) != UNLOCKED_BY_ITERATOR);
+			data->tsc_reference[i] = rdtscp(&c);
+			atomic_store_rel_32(&data->a_lock, UNLOCKED_BY_REFERENCE);
+		}
+		/* wait until last iteration of iterator is complete before calculating skew */
+		while (atomic_load_acq_32(&data->a_iteration_test) != 0);
+
+		b64 skew = { .i = I64_MAX, };
+		for (u32 i = 0; i < data->iterations; ++i)
+		{
+			const b64 it_skew = { .u = data->tsc_iterator[i] - data->tsc_reference[i] };
+			if (it_skew.i < skew.i)
+			{
+				skew = it_skew;
+			}
+		}
+
+		g_tsc_skew[core] = skew.u;
+	}
+
+	return 0;
+}
+
+DWORD WINAPI ping_pong_core_iterator(void *data_void)
+{
+	struct ping_pong_data *data = data_void;
+
+	const HANDLE thread = GetCurrentThread();
+
+	u32 c;
+	for (u32 core = 1; core < data->logical_core_count; ++core)
+	{
+		GROUP_AFFINITY affinity = { 0 };
+		affinity.Group = core / 64;
+		affinity.Mask = (u64) 1 << (core % 64);
+		
+		if (!SetThreadGroupAffinity(thread, &affinity, NULL))
+		{
+			log_string(T_SYSTEM, S_FATAL, "Failed to set thread affinity in tsc_estimate_skew, exiting.");	
+			fatal_cleanup_and_exit(0);
+		}
+
+		while (atomic_load_acq_32(&data->a_iteration_test) != 1);
+
+		atomic_store_rel_32(&data->a_lock, UNLOCKED_BY_ITERATOR);
+
+		for (u32 i = 0; i < data->iterations; ++i)
+		{
+			while (atomic_load_acq_32(&data->a_lock) != UNLOCKED_BY_REFERENCE);
+			data->tsc_iterator[i] = rdtscp(&c);
+			atomic_store_rel_32(&data->a_lock, UNLOCKED_BY_ITERATOR);
+		}
+
+		atomic_store_rel_32(&data->a_lock, 0);
+		atomic_store_rel_32(&data->a_iteration_test, 0);
+	}
+
+	return 0;
+}
+
+/*
+Ping-Pong calibration of core skew:
+
+Skew Core: (c)	   		      Reference Core: (0)
+      	    |	   		  		       |
+=================================================================== ITERATION N
+       	    |					       |
+     [ RELEASE LOCK ] -------------------------> [ GAIN LOCK ]
+       	    |					       |
+            |					       V
+            |                                         TSC() ----> t0_0
+       	    |					       |
+            V					       V
+      [ GAIN LOCK ] <-------------------------- [ RELEASE LOCK ]
+       	    |					       |
+            V					       |
+           TSC() --------------------------------------+--------> tc_1
+       	    |					       |
+=================================================================== ITERATION N+1
+      	    |					       |
+
+It follows that tc_1 = t0_0 + time_execution_instructions + extra + skew.
+By running many iterations, we hope that extra goes to 0; so we estimate
+the skew by min(tc_1 - t0_0).
+ */
+static void tsc_estimate_skew(struct arena *persistent)
+{	
+	SYSTEM_INFO info;
+	GetSystemInfo(&info);	
+
+	struct ping_pong_data data =
+	{
+		.logical_core_count = (u32) info.dwNumberOfProcessors,
+		.iterations = 100000,
+		.a_lock = 0,
+		.a_iteration_test = 0,
+	};
+
+	g_tsc_skew = arena_push_zero(persistent, data.logical_core_count*sizeof(u64));
+	arena_push_record(persistent);
+	data.tsc_reference = arena_push(persistent, data.iterations * sizeof(u64));
+	data.tsc_iterator = arena_push(persistent, data.iterations * sizeof(u64));
+
+  	LPSECURITY_ATTRIBUTES   lpThreadAttributes = NULL; 	/* default attributes */
+  	DWORD                   dwCreationFlags = 0;		/* default creation flags */
+	DWORD			dwStackSize = 0;
+	HANDLE ref = CreateThread(lpThreadAttributes, dwStackSize, ping_pong_reference, (void *) &data, dwCreationFlags, NULL);
+	HANDLE iter = CreateThread(lpThreadAttributes, dwStackSize, ping_pong_core_iterator, (void *) &data, dwCreationFlags, NULL);
+	if (!ref || !iter)
+	{
+		log_system_error(S_FATAL);
+		fatal_cleanup_and_exit(0);
+	}
+
+	u32 err = 0;
+	const u32 res1 = WaitForSingleObject(ref, INFINITE);
+	const u32 res2 = WaitForSingleObject(iter, INFINITE);
+	if (res1 != WAIT_OBJECT_0 || res2 != WAIT_OBJECT_0)
+	{
+		log_system_error(S_FATAL);
+		fatal_cleanup_and_exit(0);
+	}
+
+	CloseHandle(ref);
+	CloseHandle(iter);
+
+	arena_pop_record(persistent);
 }
 
 void time_init(struct arena *persistent)
@@ -171,6 +351,7 @@ void time_init(struct arena *persistent)
 
 	u64 freq = ret_val.QuadPart;
 	g_timer.ns_resolution = (f64) NSEC_PER_SEC / freq;
+	g_timer.tsc_start = g_precision_timer.tsc_start;
 
 	const u64 ms = 100;
 	const u64 goal = g_timer.ns_start + freq / (1000/ms);

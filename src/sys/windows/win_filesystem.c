@@ -169,7 +169,7 @@ enum fs_error win_file_try_create(struct arena *mem, struct file *file, const ch
 	if (err == FS_SUCCESS)
 	{
 		file->path = utf8_cstr(mem, filename);
-		file->type = FILE_DIRECTORY;
+		file->type = FILE_REGULAR;
 	}
 
 	return err;
@@ -471,6 +471,10 @@ void *win_file_memory_map(u64 *size, const struct file *file, const u32 prot, co
 
 void *win_file_memory_map_partial(const struct file *file, const u64 length, const u64 offset, const u32 prot, const u32 garbage)
 {
+	SYSTEM_INFO info;
+	GetSystemInfo(&info);
+	//kas_assert(info.dwAllocationGranularity == 4096);
+
 	void *map = NULL;
 	const DWORD map_prot = ((prot & (FILE_MAP_READ | FILE_MAP_WRITE)) == (FILE_MAP_READ | FILE_MAP_WRITE))
 		? PAGE_READWRITE
@@ -482,12 +486,18 @@ void *win_file_memory_map_partial(const struct file *file, const u64 length, con
 	}
 	else
 	{
-		DWORD offset_high = (u32) (offset >> 32);
-		DWORD offset_low = (u32) offset;
-		map = MapViewOfFileEx(handle, prot, offset_high, offset_low, length, NULL);
+		const DWORD offset_high = (u32) (offset >> 32);
+		const DWORD offset_low = (u32) offset;
+		const DWORD mod = offset_low % info.dwAllocationGranularity;
+		map = MapViewOfFileEx(handle, prot, offset_high, offset_low - mod, length + mod, NULL);
+
 		if (map == NULL)
 		{
 			log_system_error(S_ERROR);
+		}
+		else
+		{
+			map = ((u8 *) map) + mod;
 		}
 
 		if (CloseHandle(handle) == 0)
@@ -502,7 +512,11 @@ void *win_file_memory_map_partial(const struct file *file, const u64 length, con
 
 void win_file_memory_unmap(void *addr, const u64 garbage)
 {
-	if (UnmapViewOfFile(addr) == 0)
+	SYSTEM_INFO info;
+	GetSystemInfo(&info);
+	const u64 mod = (u64) addr % info.dwAllocationGranularity;
+
+	if (UnmapViewOfFile(((u8 *) addr) - mod) == 0)
 	{
 		log_system_error(S_ERROR);
 	}
@@ -510,12 +524,16 @@ void win_file_memory_unmap(void *addr, const u64 garbage)
 
 void win_file_memory_sync_unmap(void *addr, const u64 length)
 {
-	if (FlushViewOfFile(addr, length) == 0)
+	SYSTEM_INFO info;
+	GetSystemInfo(&info);
+	const u64 mod = (u64) addr % info.dwAllocationGranularity;
+
+	if (FlushViewOfFile(((u8 *) addr) - mod, length + mod) == 0)
 	{	
 		log_system_error(S_ERROR);
 	}
 
-	if (UnmapViewOfFile(addr) == 0)
+	if (UnmapViewOfFile(((u8 *) addr) - mod) == 0)
 	{
 		log_system_error(S_ERROR);
 	}

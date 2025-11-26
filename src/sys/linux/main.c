@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
 	g_xoshiro_256_init(seed);
 	thread_xoshiro_256_init_sequence();
 
-	struct arena mem_persistent = arena_alloc(16*1024*1024);
+	struct arena mem_persistent = arena_alloc(32*1024*1024);
 	system_resources_init(&mem_persistent);
 	cmd_alloc();
 	ui_init_global_state();

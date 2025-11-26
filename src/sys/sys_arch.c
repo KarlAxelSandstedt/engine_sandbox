@@ -382,6 +382,7 @@ u32 kas_arch_config_init(struct arena *mem)
 	config.logical_core_count = system_logical_core_count();
 	config.pagesize = system_pagesize(); 
 	config.cacheline = 64; //TODO
+	config.pid = system_pid();
 
 	u32 requirements_fullfilled = 1;
 #if __OS__ == __WEB__

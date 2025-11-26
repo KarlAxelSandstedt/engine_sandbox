@@ -58,7 +58,6 @@ struct array_list *array_list_alloc(struct arena *mem, const u32 length, const u
 
 	if (list && list->slot)
 	{
-		ALLOCATOR_DEBUG_INDEX_ALLOC(list, list->slot, length, slot_size, 0, 0);
 		list->length = length;
 		list->max_count = 0;
 		list->count = 0;
@@ -88,7 +87,6 @@ void array_list_free(struct array_list *list)
 {
 	if (list)
 	{
-		ALLOCATOR_DEBUG_INDEX_FREE(list);
 		free(list->slot);
 	}
 	free(list);
@@ -99,14 +97,12 @@ void array_list_flush(struct array_list *list)
 	list->max_count = 0;
 	list->count = 0;
 	list->free_index = U32_MAX;
-	ALLOCATOR_DEBUG_INDEX_FLUSH(list);
 }
 
 static void internal_array_list_realloc(struct array_list *list)
 {
 	list->length <<= 1;
 	list->slot = realloc(list->slot, list->length * list->slot_size);
-	ALLOCATOR_DEBUG_INDEX_ALIAS_AND_REPOISON(list, list->slot, list->length);
 }
 
 struct slot array_list_add(struct array_list *list)
@@ -117,14 +113,12 @@ struct slot array_list_add(struct array_list *list)
 	{
 		if (list->free_index != U32_MAX)
 		{
-			ALLOCATOR_DEBUG_INDEX_UNPOISON(list, list->free_index);
 			allocation.address = (u8 *) list->slot + list->free_index * list->slot_size;
 			allocation.index = list->free_index;
 			list->free_index = *((u32 *) allocation.address);
 		}
 		else
 		{
-			ALLOCATOR_DEBUG_INDEX_UNPOISON(list, list->max_count);
 			allocation.address = (u8 *) list->slot + list->slot_size * list->max_count;
 			allocation.index = list->max_count;
 			list->max_count += 1;
@@ -151,13 +145,11 @@ void *array_list_reserve(struct array_list *list)
 	{
 		if (list->free_index != U32_MAX)
 		{
-			ALLOCATOR_DEBUG_INDEX_UNPOISON(list, list->free_index);
 			addr = (u8 *) list->slot + list->free_index * list->slot_size;
 			list->free_index = *((u32 *) addr);
 		}
 		else
 		{
-			ALLOCATOR_DEBUG_INDEX_UNPOISON(list, list->max_count);
 			addr = (u8 *) list->slot + list->slot_size * list->max_count;
 			list->max_count += 1;
 		}	
@@ -182,12 +174,10 @@ u32 array_list_reserve_index(struct array_list *list)
 	{
 		if (list->free_index != U32_MAX)
 		{
-			ALLOCATOR_DEBUG_INDEX_UNPOISON(list, list->free_index);
 			list->free_index = *(u32 *)((u8 *) list->slot + index * list->slot_size);
 		}
 		else
 		{
-			ALLOCATOR_DEBUG_INDEX_UNPOISON(list, list->max_count);
 			index = list->max_count;
 			list->max_count += 1;
 		}	
@@ -196,7 +186,6 @@ u32 array_list_reserve_index(struct array_list *list)
 	else if (list->growable)
 	{
 		internal_array_list_realloc(list);
-		ALLOCATOR_DEBUG_INDEX_UNPOISON(list, list->max_count);
 		index = list->max_count;
 		list->max_count += 1;
 		list->count += 1;
@@ -215,7 +204,6 @@ void array_list_remove(struct array_list *list, void *addr)
 	list->free_index = (u32) (((u64) addr - (u64) list->slot) / list->slot_size);
 	*(u32 *) addr = free_i;
 	list->count -= 1;
-	ALLOCATOR_DEBUG_INDEX_POISON(list, ((u64) addr - (u64) list->slot) / list->slot_size);
 }
 
 void array_list_remove_index(struct array_list *list, const u32 index)
@@ -226,7 +214,6 @@ void array_list_remove_index(struct array_list *list, const u32 index)
 	*(u32 *)((u8 *) list->slot + index * list->slot_size) = list->free_index;
 	list->free_index = index;
 	list->count -= 1;
-	ALLOCATOR_DEBUG_INDEX_POISON(list, index);
 }
 
 void *array_list_address(struct array_list *list, const u32 index)
@@ -267,7 +254,6 @@ struct array_list_intrusive *array_list_intrusive_alloc(struct arena *mem, const
 
 	if (list && list->data)
 	{
-		ALLOCATOR_DEBUG_INDEX_ALLOC(list, list->data, length, data_size, sizeof(struct array_list_intrusive_node), 0);
 		list->length = length;
 		list->max_count = 0;
 		list->count = 0;
@@ -297,7 +283,6 @@ void array_list_intrusive_free(struct array_list_intrusive *list)
 {
 	if (list)
 	{	
-		ALLOCATOR_DEBUG_INDEX_FREE(list);
 		free(list->data);
 	}
 	free(list);
@@ -308,14 +293,12 @@ void array_list_intrusive_flush(struct array_list_intrusive *list)
 	list->max_count = 0;
 	list->count = 0;
 	list->free_index = U32_MAX;
-	ALLOCATOR_DEBUG_INDEX_FLUSH(list);
 }
 
 static void internal_array_list_intrusive_realloc(struct array_list_intrusive *list)
 {
 	list->length <<= 1;
 	list->data = realloc(list->data, list->length*list->data_size);
-	ALLOCATOR_DEBUG_INDEX_ALIAS_AND_REPOISON(list, list->data, list->length);
 }
 
 struct slot array_list_intrusive_add(struct array_list_intrusive *list)
@@ -326,7 +309,6 @@ struct slot array_list_intrusive_add(struct array_list_intrusive *list)
 	{
 		if (list->free_index != U32_MAX)
 		{
-			ALLOCATOR_DEBUG_INDEX_UNPOISON(list, list->free_index);
 			allocation.address =  (u8 *) list->data + list->free_index * list->data_size;
 			allocation.index = list->free_index;
 			kas_assert(((struct array_list_intrusive_node *) allocation.address)->allocated == 0);
@@ -334,7 +316,6 @@ struct slot array_list_intrusive_add(struct array_list_intrusive *list)
 		}
 		else
 		{
-			ALLOCATOR_DEBUG_INDEX_UNPOISON(list, list->max_count);
 			allocation.address = (u8 *) list->data + list->data_size * list->max_count;
 			allocation.index = list->max_count;
 			list->max_count += 1;
@@ -345,7 +326,6 @@ struct slot array_list_intrusive_add(struct array_list_intrusive *list)
 	else if (list->growable)
 	{
 		internal_array_list_intrusive_realloc(list);
-		ALLOCATOR_DEBUG_INDEX_UNPOISON(list, list->max_count);
 		allocation.address = (u8 *) list->data + list->data_size * list->max_count;
 		allocation.index = list->max_count;
 		((struct array_list_intrusive_node *)allocation.address)->allocated = 1;
@@ -364,14 +344,12 @@ void *array_list_intrusive_reserve(struct array_list_intrusive *list)
 	{
 		if (list->free_index != U32_MAX)
 		{
-			ALLOCATOR_DEBUG_INDEX_UNPOISON(list, list->free_index);
 			node = (struct array_list_intrusive_node *) ((u8 *) list->data + list->free_index * list->data_size);
 			kas_assert(node->allocated == 0);
 			list->free_index = node->next_free;
 		}
 		else
 		{
-			ALLOCATOR_DEBUG_INDEX_UNPOISON(list, list->max_count);
 			node = (struct array_list_intrusive_node *) ((u8 *) list->data + list->data_size * list->max_count);
 			list->max_count += 1;
 		}	
@@ -381,7 +359,6 @@ void *array_list_intrusive_reserve(struct array_list_intrusive *list)
 	else if (list->growable)
 	{
 		internal_array_list_intrusive_realloc(list);
-		ALLOCATOR_DEBUG_INDEX_UNPOISON(list, list->max_count);
 		node = (struct array_list_intrusive_node *) ((u8 *) list->data + list->data_size * list->max_count);
 		node->allocated = 1;
 		list->max_count += 1;
@@ -400,14 +377,12 @@ u32 array_list_intrusive_reserve_index(struct array_list_intrusive *list)
 	{
 		if (list->free_index != U32_MAX)
 		{
-			ALLOCATOR_DEBUG_INDEX_UNPOISON(list, list->free_index);
 			node = (struct array_list_intrusive_node *)((u8 *) list->data + index*list->data_size);
 			list->free_index = node->next_free;
 			kas_assert(node->allocated == 0);
 		}
 		else
 		{
-			ALLOCATOR_DEBUG_INDEX_UNPOISON(list, list->max_count);
 			index = list->max_count;
 			node = (struct array_list_intrusive_node *)((u8 *) list->data + index*list->data_size);
 			list->max_count += 1;
@@ -418,7 +393,6 @@ u32 array_list_intrusive_reserve_index(struct array_list_intrusive *list)
 	else if (list->growable)
 	{
 		internal_array_list_intrusive_realloc(list);
-		ALLOCATOR_DEBUG_INDEX_UNPOISON(list, list->max_count);
 		index = list->max_count;
 		node = (struct array_list_intrusive_node *)((u8 *) list->data + index*list->data_size);
 		node->allocated = 1;
@@ -439,7 +413,6 @@ void array_list_intrusive_remove(struct array_list_intrusive *list, void *addr)
 	node->next_free = list->free_index;
 	list->free_index = (u32) (((u64) addr - (u64) list->data) / list->data_size);
 	list->count -= 1;
-	ALLOCATOR_DEBUG_INDEX_POISON(list, ((u64) addr - (u64) list->data) / list->data_size);
 }
 
 void array_list_intrusive_remove_index(struct array_list_intrusive *list, const u32 index)
@@ -450,7 +423,6 @@ void array_list_intrusive_remove_index(struct array_list_intrusive *list, const 
 	node->next_free = list->free_index;
 	list->free_index = index;
 	list->count -= 1;
-	ALLOCATOR_DEBUG_INDEX_POISON(list, index);
 }
 
 void *array_list_intrusive_address(struct array_list_intrusive *list, const u32 index)

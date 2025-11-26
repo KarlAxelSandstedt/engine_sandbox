@@ -27,6 +27,7 @@ void 		(*kas_cpuid)(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, const u32 function);
 void 		(*kas_cpuid_ex)(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, const u32 function, const u32 subfunction);
 u32  		(*system_logical_core_count)(void);
 u64  		(*system_pagesize)(void);
+pid		(*system_pid)(void);
 
 static void linux_kas_cpuid(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, const u32 function)
 {
@@ -71,6 +72,11 @@ static u64 linux_pagesize(void)
 	return (u64) getpagesize();
 }
 
+pid linux_pid(void)
+{
+	return getpid();
+}
+
 void *virtual_memory_reserve(const u64 size)
 {
 	void *addr = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
@@ -96,4 +102,5 @@ void os_arch_init_func_ptrs(void)
 	kas_cpuid_ex = &linux_kas_cpuid_ex;
 	system_logical_core_count = &linux_logical_core_count;
 	system_pagesize = &linux_pagesize;
+	system_pid = &linux_pid;
 }

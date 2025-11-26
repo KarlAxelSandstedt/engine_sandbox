@@ -53,14 +53,11 @@ struct vector vector_alloc(struct arena *mem, const u64 blocksize, const u32 len
 		fatal_cleanup_and_exit(kas_thread_self_tid());
 	}
 
-	ALLOCATOR_DEBUG_INDEX_ALLOC(&v, v.data, v.length, v.blocksize, 0, 0);
-
 	return v;
 }
 
 void vector_dealloc(struct vector *v)
 {
-	ALLOCATOR_DEBUG_INDEX_FREE(v);
 	free(v->data);
 }
 
@@ -77,8 +74,6 @@ struct slot vector_push(struct vector *v)
 				log_string(T_SYSTEM, S_FATAL, "Failed to resize vector");
 				fatal_cleanup_and_exit(kas_thread_self_tid());
 			}
-
-			ALLOCATOR_DEBUG_INDEX_ALIAS_AND_REPOISON(v, v->data, v->length);
 		}
 		else
 		{
@@ -86,7 +81,6 @@ struct slot vector_push(struct vector *v)
 		}
 	}
 
-	ALLOCATOR_DEBUG_INDEX_UNPOISON(v, v->next);
 	struct slot slot = { .address = vector_address(v, v->next) };
 	slot.index = v->next;
 	v->next += 1;
@@ -97,7 +91,6 @@ void vector_pop(struct vector *v)
 {
 	kas_assert(v->next);
 	v->next -= 1;
-	ALLOCATOR_DEBUG_INDEX_POISON(v, v->next);
 }
 
 void *vector_address(const struct vector *v, const u32 index)
@@ -107,7 +100,6 @@ void *vector_address(const struct vector *v, const u32 index)
 
 void vector_flush(struct vector *v)
 {
-	ALLOCATOR_DEBUG_INDEX_FLUSH(v);
 	v->next = 0;
 }
 

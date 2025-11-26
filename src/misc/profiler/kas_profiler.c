@@ -32,7 +32,9 @@ kas_thread_local struct kas_frame *tls_frame = NULL;
 /* filled with 0xff all the way through, important default values for unused table entries */
 u8 buf_0xff[FRAME_TABLE_FULL_SIZE];
 
-const utf8 stub_process = utf8_inline("stub");
+static utf8 stub_process = { 0 };
+static utf8 process_state_strings[PROCESS_COUNT] = { 0 };
+
 
 void process_runtime_debug_print(const struct process_runtime *pr)
 {
@@ -116,8 +118,8 @@ static void kaspf_init_header(struct kas_profiler *profiler)
         h->clock_freq = profiler->clock_freq;		
         h->rdtsc_freq = profiler->rdtsc_freq;		
         h->bytes = sizeof(struct kaspf_header);
-	h->page_size = getpagesize();
-	h->pid = getpid();
+	h->page_size = g_arch_config->pagesize;
+	h->pid = g_arch_config->pid;
         h->mm_branch[0] = &table_stub;		
         h->mm_branch[1] = &table_stub;		
         h->mm_branch[2] = &frame_stub;		
@@ -143,16 +145,18 @@ static void kaspf_init_task_tables(struct kas_profiler *profiler)
 	profiler->header->mm_labels = file_memory_map_partial(&profiler->file,
 						KASPF_LABEL_TABLE_SIZE,
 						table_offset,
-						FS_PROT_READ | PROT_WRITE,
+						FS_PROT_READ | FS_PROT_WRITE,
 						FS_MAP_SHARED);
 
 	file_write_offset(&profiler->file, buf, KASPF_UNIQUE_TASK_COUNT_MAX, profiler->header->bytes);
+	
+	profiler->header->bytes += KASPF_UNIQUE_TASK_COUNT_MAX * sizeof(profiler->header->mm_task_systems[0]);
+	file_set_size(&profiler->file, profiler->header->bytes);
 	profiler->header->mm_task_systems = file_memory_map_partial(&profiler->file,
 						KASPF_UNIQUE_TASK_COUNT_MAX * sizeof(profiler->header->mm_task_systems[0]),
 						table_offset + KASPF_LABEL_TABLE_SIZE,
-						FS_PROT_READ | PROT_WRITE,
+						FS_PROT_READ | FS_PROT_WRITE,
 						FS_MAP_SHARED);
-	profiler->header->bytes += KASPF_UNIQUE_TASK_COUNT_MAX * sizeof(profiler->header->mm_task_systems[0]);
 
 	kas_assert(profiler->header->bytes % profiler->header->page_size == 0);	
 }
@@ -255,14 +259,17 @@ static void kaspf_alloc_headers_in_frame(struct kas_profiler *profiler, const u6
 	if (h->frame_count % L2_FRAME_COUNT == 0)
 	{
 		l2_table->ns_end = ns_time;
-		file_memory_unmap(h->mm_branch[0], FRAME_TABLE_FULL_SIZE);
+		if (h->frame_count != 0)
+		{
+			file_memory_unmap(h->mm_branch[0], FRAME_TABLE_FULL_SIZE);
+		}
 
 		h->l1_table.entries[l1_i].ns_start = ns_time;
 		h->l1_table.entries[l1_i].offset = internal_alloc_frame_table(profiler);
 		h->mm_branch[0] = file_memory_map_partial(&profiler->file, 
 				FRAME_TABLE_FULL_SIZE,
 				h->l1_table.entries[l1_i].offset,
-				FS_PROT_READ | PROT_WRITE,
+				FS_PROT_READ | FS_PROT_WRITE,
 				FS_MAP_SHARED);
 
 		l2_table = h->mm_branch[0];
@@ -272,14 +279,17 @@ static void kaspf_alloc_headers_in_frame(struct kas_profiler *profiler, const u6
 	if (h->frame_count % L3_FRAME_COUNT == 0)
 	{
 		l3_table->ns_end = ns_time;
-		file_memory_unmap(h->mm_branch[1], FRAME_TABLE_FULL_SIZE);
+		if (h->frame_count != 0)
+		{
+			file_memory_unmap(h->mm_branch[1], FRAME_TABLE_FULL_SIZE);
+		}
 
 		l2_table->entries[l2_i].ns_start = ns_time;
 		l2_table->entries[l2_i].offset = internal_alloc_frame_table(profiler);
 		h->mm_branch[1] = file_memory_map_partial(&profiler->file, 
 				FRAME_TABLE_FULL_SIZE,
 			       	l2_table->entries[l2_i].offset,
-				FS_PROT_READ | PROT_WRITE,
+				FS_PROT_READ | FS_PROT_WRITE,
 				FS_MAP_SHARED);
 
 		l3_table = h->mm_branch[1];
@@ -289,14 +299,17 @@ static void kaspf_alloc_headers_in_frame(struct kas_profiler *profiler, const u6
 
 	prev_frame->ns_end = ns_time;
 	prev_frame->tsc_end = tsc_time;
-	file_memory_unmap(h->mm_branch[2], sizeof(struct frame_header));
+	if (h->frame_count != 0)
+	{
+		file_memory_unmap(h->mm_branch[2], sizeof(struct frame_header));
+	}
 
 	l3_table->entries[l3_i].ns_start = ns_time;
 	l3_table->entries[l3_i].offset = internal_alloc_frame_header(profiler);
 	h->mm_branch[2] = file_memory_map_partial(&profiler->file, 
 				sizeof(struct frame_header),
 			       	l3_table->entries[l3_i].offset,
-				FS_PROT_READ | PROT_WRITE,
+				FS_PROT_READ | FS_PROT_WRITE,
 				FS_MAP_SHARED);
 
 	kas_assert(h->l1_table.entries[l1_i].offset % h->page_size == 0);
@@ -412,7 +425,7 @@ static void kas_profiler_init_io(struct arena *mem, struct kas_profiler *profile
 	u8 buf[sizeof(struct kaspf_header)] = { 0 };
 	file_write_offset(&profiler->file, buf, sizeof(struct kaspf_header), 0);
 
-	profiler->header = file_memory_map_partial(&profiler->file, sizeof(struct kaspf_header), 0, FS_PROT_READ | PROT_WRITE, FS_MAP_SHARED);
+	profiler->header = file_memory_map_partial(&profiler->file, sizeof(struct kaspf_header), 0, FS_PROT_READ | FS_PROT_WRITE, FS_MAP_SHARED);
 	if (profiler->header == NULL)
 	{
 		fatal_cleanup_and_exit(0);
@@ -446,6 +459,13 @@ static void kas_profiler_io_shutdown(struct kas_profiler *profiler)
 void kas_profiler_init(struct arena *mem, const u64 master_thread_id, const u32 worker_count, const u32 frame_len, const u32 stack_len, const u64 rdtsc_freq, const enum profile_level level)
 {
 	assert(worker_count >= 1);
+ 
+	stub_process = utf8_inline("stub");
+
+	process_state_strings[0] = utf8_inline("process running"),
+	process_state_strings[1] = utf8_inline("process sleeping"),
+	process_state_strings[2] = utf8_inline("process blocked"),
+	process_state_strings[3] = utf8_inline("process unhandled state"),
 
 	atomic_store_rel_32(&profiler.a_next_task_id, 0);
 	profiler.ns_frame = 0;
@@ -584,6 +604,34 @@ void kas_profiler_acquire_thread_local_frame(const u32 index, const tid thread_i
 	tls_frame->thread_id = thread_id;
 }
 
+utf8 utf8_alias_process_state_string(const enum process_state state)
+{
+	kas_assert(state <= PROCESS_COUNT);
+	return process_state_strings[state];
+}
+
+#if (__OS__ == __LINUX__)
+
+/* include/linux/sched.h */
+#define TASK_RUNNING			0x00000000
+#define TASK_INTERRUPTIBLE		0x00000001
+#define TASK_UNINTERRUPTIBLE		0x00000002
+#define TASK_STOPPED			0x00000004
+#define TASK_TRACED			0x00000008
+#define EXIT_DEAD			0x00000010
+#define EXIT_ZOMBIE			0x00000020
+#define EXIT_TRACE			(EXIT_ZOMBIE | EXIT_DEAD)
+#define TASK_PARKED			0x00000040
+#define TASK_DEAD			0x00000080
+#define TASK_WAKEKILL			0x00000100
+
+struct cpu_process
+{
+	u32 worker;	/* worker == WORKER_COUNT means not worker thread */
+	u32 cpu;
+	struct process_runtime pr;
+};
+
 u32 internal_is_process_schedule_waking(const struct kas_profiler *g_profiler, const struct kt_sched_waking *w)
 {
 	u32 is_process_event = 0;
@@ -617,41 +665,6 @@ u32 internal_is_process_schedule_switch(const struct kas_profiler *g_profiler, c
 	return is_process_event;
 }
 
-static const utf8 process_state_strings[PROCESS_COUNT] =
-{
-	utf8_inline("process running"),
-	utf8_inline("process sleeping"),
-	utf8_inline("process blocked"),
-	utf8_inline("process unhandled state"),
-};
-
-utf8 utf8_alias_process_state_string(const enum process_state state)
-{
-	kas_assert(state <= PROCESS_COUNT);
-	return process_state_strings[state];
-}
-
-#if (__OS__ == __LINUX__)
-
-/* include/linux/sched.h */
-#define TASK_RUNNING			0x00000000
-#define TASK_INTERRUPTIBLE		0x00000001
-#define TASK_UNINTERRUPTIBLE		0x00000002
-#define TASK_STOPPED			0x00000004
-#define TASK_TRACED			0x00000008
-#define EXIT_DEAD			0x00000010
-#define EXIT_ZOMBIE			0x00000020
-#define EXIT_TRACE			(EXIT_ZOMBIE | EXIT_DEAD)
-#define TASK_PARKED			0x00000040
-#define TASK_DEAD			0x00000080
-#define TASK_WAKEKILL			0x00000100
-
-struct cpu_process
-{
-	u32 worker;	/* worker == WORKER_COUNT means not worker thread */
-	u32 cpu;
-	struct process_runtime pr;
-};
 
 void kas_profiler_gather_kernel_profiles(void)
 {

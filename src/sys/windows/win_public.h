@@ -118,6 +118,7 @@ void 	filesystem_init_func_ptrs(void);
 
 /********************  win_thread.c	********************/
 
+typedef DWORD				pid;
 typedef DWORD				tid;
 typedef struct kas_thread		kas_thread;
 
@@ -278,5 +279,17 @@ __forceinline u64 u64_mul_return_overflow(u64 *dst, const u64 src1, const u64 sr
 /************************* win_arch.c *************************/
 
 void os_arch_init_func_ptrs(void);
+
+/******************** kernel_tracer.c  ********************/
+
+struct kernel_tracer
+{
+	u32 	buffer_count;
+};
+
+/* stub: returns NULL */
+struct kernel_tracer *	kernel_tracer_init(struct arena *mem);
+/* stub: does nothing */
+void 			kernel_tracer_shutdown(struct kernel_tracer *kt);
 
 #endif

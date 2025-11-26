@@ -708,7 +708,7 @@ void led_wall_smash_simulation_setup(struct led *led)
 {
 	struct system_window *sys_win = system_window_address(g_editor->window);
 
-	const u32 dsphere_v_count = 30;
+#define dsphere_v_count 	30
 	const u32 dsphere_count = 40;
 	const u32 tower1_count = 2;
 	const u32 tower2_count = 4;

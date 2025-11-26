@@ -127,6 +127,7 @@ void	filesystem_init_func_ptrs(void);
 
 /********************  linux_thread.c	********************/
 
+typedef pid_t			pid;
 typedef pid_t			tid;
 typedef struct kas_thread 	kas_thread;
 
@@ -242,7 +243,7 @@ typedef sem_t semaphore;
 #define ctz32(x)	((u32) __builtin_ctz(x))  	/* count trailing zeroes, NOTE: if x == 0, undefined! */
 #define ctz64(x)	((u32) __builtin_ctzl(x))	/* count trailing zeroes long, NOTE: if x == 0, undefined! */
 
-/******************** kernal_tracer.c (ftrace + perf_event interface) ********************/
+/******************** kernel_tracer.c (ftrace + perf_event interface) ********************/
 
 #include <unistd.h>
 

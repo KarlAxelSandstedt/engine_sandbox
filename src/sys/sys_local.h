@@ -38,6 +38,7 @@ extern void 	(*kas_cpuid_ex)(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, const u32 f
 extern u32  	(*system_logical_core_count)(void);
 /* return system pagesize */
 extern u64	(*system_pagesize)(void);
+extern pid	(*system_pid)(void);
 
 /* sets up g_arch_config. returns 1 on intrinsics requirements fullfilled, 0 otherwise. */
 u32 		kas_arch_config_init(struct arena *mem);

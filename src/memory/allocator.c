@@ -436,7 +436,7 @@ struct ring ring_empty()
 #include <fcntl.h>
 #include "kas_string.h"
 
-struct ring ring_alloc(const u64 mem_hint, const u32 growable)
+struct ring ring_alloc(const u64 mem_hint)
 {
 	kas_assert(mem_hint);
 	const u64 mod = mem_hint % g_arch_config->pagesize;
@@ -479,7 +479,7 @@ void ring_dealloc(struct ring *ring)
 
 #include <memoryapi.h>
 
-struct ring ring_alloc(const u64 mem_hint, const u32 growable)
+struct ring ring_alloc(const u64 mem_hint)
 {
 	kas_assert(mem_hint);
 
@@ -526,7 +526,7 @@ struct ring ring_alloc(const u64 mem_hint, const u32 growable)
 
 	CloseHandle(map);
 
-	return (struct ring) { .mem_total = bufsize, .mem_left = bufsize, .offset = 0, .buf = buf, .growable = growable };
+	return (struct ring) { .mem_total = bufsize, .mem_left = bufsize, .offset = 0, .buf = buf };
 }
 
 void ring_dealloc(struct ring *ring)
@@ -552,7 +552,7 @@ void ring_flush(struct ring *ring)
 
 struct kas_buffer ring_push_start(struct ring *ring, const u64 size)
 {
-	kas_assert_string(size <= ring->mem_left, "ring allocator OOM, implement growable ones...");
+	kas_assert_string(size <= ring->mem_left, "ring allocator OOM");
 
 	struct kas_buffer buf = kas_buffer_empty;
 	if (size <= ring->mem_left)

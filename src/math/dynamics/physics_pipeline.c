@@ -1158,7 +1158,7 @@ void prefab_statics_setup(struct rigid_body_prefab *prefab, struct collision_sha
 			}
 
 			const f32 mass = integrals[VOL] * density;
-			kas_assert(prefab->mass >= 0.0f);
+			kas_assert(mass >= 0.0f);
 			/* center of mass */
 			vec3_set(com,
 				integrals[T_X] * density / mass,

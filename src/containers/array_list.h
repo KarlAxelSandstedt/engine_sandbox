@@ -37,8 +37,6 @@ struct array_list
 	u8 *slot;
 	u32 free_index;
 	u32 growable;
-
-	ALLOCATOR_DEBUG_INDEX_STRUCT;
 };
 
 #define ARRAY_LIST_GROWABLE 1
@@ -89,8 +87,6 @@ struct array_list_intrusive
 	u32 count;	/* current count of occupied slots */
 	u32 free_index;
 	u32 growable;
-
-	ALLOCATOR_DEBUG_INDEX_STRUCT;
 };
 
 /* alloc array_list (on arena if non-NULL and non-growable), returns NULL on failure */
