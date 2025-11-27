@@ -45,7 +45,6 @@ static void thread_set_collision_debug(void *task_addr)
 	struct worker *worker = task->executor;
 	const struct physics_pipeline *pipeline = task->input;
 	tl_debug = pipeline->debug + kas_thread_self_index();
-	log(T_SYSTEM, S_NOTE, "tl_debug aquired: %u", kas_thread_self_index());
 
 	atomic_fetch_add_rel_32(&g_a_thread_counter, 1);
 	while (atomic_load_acq_32(&g_a_thread_counter) != pipeline->debug_count);
