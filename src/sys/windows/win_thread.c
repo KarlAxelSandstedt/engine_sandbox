@@ -21,12 +21,14 @@
 #include "sys_public.h"
 
 kas_thread_local struct kas_thread *self = NULL;
+u32	a_index_counter = 1;
 
 DWORD WINAPI kas_thread_clone_start(LPVOID void_thr)
 {
 	self = void_thr;
 	struct kas_thread *thr = void_thr;
 	thr->tid = GetCurrentThreadId();
+	thr->index = atomic_fetch_add_rlx_32(&a_index_counter, 1);
 	thr->start(thr);
 
 	return 0;
@@ -36,6 +38,7 @@ void kas_thread_master_init(struct arena *mem)
 {
 	self = arena_push(mem, sizeof(struct kas_thread));
 	self->tid = GetCurrentThreadId();
+	self->index = 0;
 }
 
 void kas_thread_clone(struct arena *mem, void (*start)(kas_thread *), void *args, const u64 stack_size)
