@@ -175,6 +175,8 @@ u64 internal_frame_size(struct arena *tmp, const struct frame_header *fh)
 	{
 		size += lw_h[i].profile_count*sizeof(struct hw_profile);
 		size += lw_h[i].activity_count*sizeof(struct worker_activity);
+		//log(T_SYSTEM, S_NOTE, "READ P(%lu, %u)", (u64) (&lw_h[i]) - (u64) fh, lw_h[i].profile_count);
+		//log(T_SYSTEM, S_NOTE, "READ A(%lu, %u)", (u64) (&lw_h[i]) - (u64) fh, lw_h[i].activity_count);
 	}
 
 	for (u32 i = 0; i < g_profiler->kernel_buffer_count; ++i)
@@ -189,7 +191,7 @@ static u64 hw_frames_size(struct arena *tmp, const struct frame_header *fh, cons
 {
 	u64 l1_i, l2_i, l3_i;
 
-	//fprintf(stderr, "low, high: %lu, %lu\n", low, high);
+	//fprintf(stderr, "low, high: %lu, %lu", low, high);
 	u64 size = 0;
 	for (u64 i = low; i <= high; ++i)
 	{
@@ -525,7 +527,7 @@ void kaspf_reader_process(struct arena *tmp)
 	const u64 new_frame_low = internal_get_branch_frame(faults_low, new_mm_branch_low, new_li_low, reader->mm_branch_low, reader->li_low, reader->interval_low, g_profiler->header, ns_start);
 	const u64 new_frame_high = internal_get_branch_frame(faults_high, new_mm_branch_high, new_li_high, reader->mm_branch_high, reader->li_high, reader->interval_high, g_profiler->header, ns_end);
 
-	struct kas_buffer buf, map;
+	struct kas_buffer map;
 	const struct frame_header *fh;
 
 	/* no work to be saved, re-process whole new span */
@@ -551,6 +553,7 @@ void kaspf_reader_process(struct arena *tmp)
 			high_offset += frame->size;
 			file_memory_unmap(frame, sizeof(struct frame_header));
 
+			//log(T_SYSTEM, S_NOTE, "FRAME READ: (%lu, %lu)", low_offset, high_offset - low_offset);
 			map.size = high_offset - low_offset;
 			map.data = file_memory_map_partial(&g_profiler->file, map.size, low_offset, FS_PROT_READ, FS_MAP_SHARED);
 			fh = (const struct frame_header *) map.data;
@@ -609,9 +612,11 @@ void kaspf_reader_process(struct arena *tmp)
 						FS_PROT_READ,
 						FS_MAP_SHARED);
 				//fprintf(stderr, "reading frame %lu at offset %lu\n", new_frame_high, high_offset);
+				low_offset = high_offset;
 				high_offset += frame->size;
 
 				file_memory_unmap(frame, sizeof(struct frame_header));
+				//log(T_SYSTEM, S_NOTE, "FRAME READ: (%lu, %lu)", low_offset, high_offset - low_offset);
 
 				map.size = high_offset - low_offset;
 				map.data = file_memory_map_partial(&g_profiler->file, map.size, low_offset, FS_PROT_READ, FS_MAP_SHARED);
@@ -632,25 +637,25 @@ void kaspf_reader_process(struct arena *tmp)
 		}
 	}
 
-	if (faults_low[0])
+	if (faults_low[0] && reader->mm_branch_low[0] != &table_stub)
 	{
 		file_memory_unmap(reader->mm_branch_low[0], FRAME_TABLE_FULL_SIZE);
 		reader->mm_branch_low[0] = new_mm_branch_low[0];
 	}
 
-	if (faults_low[1])
+	if (faults_low[1] && reader->mm_branch_low[1] != &table_stub)
 	{
 		file_memory_unmap(reader->mm_branch_low[1], FRAME_TABLE_FULL_SIZE);
 		reader->mm_branch_low[1] = new_mm_branch_low[1];
 	}
 
-	if (faults_high[0])
+	if (faults_high[0] && reader->mm_branch_high[0] != &table_stub)
 	{
 		file_memory_unmap(reader->mm_branch_high[0], FRAME_TABLE_FULL_SIZE);
 		reader->mm_branch_high[0] = new_mm_branch_high[0];
 	}
 
-	if (faults_high[1])
+	if (faults_high[1] && reader->mm_branch_high[1] != &table_stub)
 	{
 		file_memory_unmap(reader->mm_branch_high[1], FRAME_TABLE_FULL_SIZE);
 		reader->mm_branch_high[1] = new_mm_branch_high[1];

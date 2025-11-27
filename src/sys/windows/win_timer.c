@@ -55,7 +55,7 @@ struct timer
 	u64 ns_start;
 	u64 tsc_start;
 
-	f64 ns_resolution;	/* ns per tick */
+	u64 ns_resolution;	/* ns per tick */
 };
 
 struct rdtsc_timer g_precision_timer;
@@ -135,7 +135,7 @@ static u64 win_time_ns(void)
 {
 	LARGE_INTEGER ret_val;
 	QueryPerformanceCounter(&ret_val);
-	return (u64) (g_timer.ns_resolution * (ret_val.QuadPart - g_timer.ns_start));
+	return (u64) ret_val.QuadPart * g_timer.ns_resolution - g_timer.ns_start;
 }
 
 static u64 win_time_ns_start(void)
@@ -342,23 +342,23 @@ void time_init(struct arena *persistent)
 {
 	LARGE_INTEGER ret_val;
 	QueryPerformanceCounter(&ret_val);
-
-	g_timer.ns_start = ret_val.QuadPart;
-	QueryPerformanceFrequency(&ret_val);
 	u32 tmp;
 	/* instruction fence */
 	g_precision_timer.tsc_start = __rdtscp(&tmp);
-
+	g_timer.ns_start = ret_val.QuadPart;
+	QueryPerformanceFrequency(&ret_val);
 	u64 freq = ret_val.QuadPart;
-	g_timer.ns_resolution = (f64) NSEC_PER_SEC / freq;
+
+	g_timer.ns_resolution = NSEC_PER_SEC / freq;
+	g_timer.ns_start *= g_timer.ns_resolution;
 	g_timer.tsc_start = g_precision_timer.tsc_start;
 
 	const u64 ms = 100;
-	const u64 goal = g_timer.ns_start + freq / (1000/ms);
+	const u64 goal = g_timer.ns_start + NSEC_PER_SEC / (1000/ms);
 	for (;;)
 	{
 		QueryPerformanceCounter(&ret_val);
-		if (goal <= (u64) ret_val.QuadPart)
+		if (goal <= (u64) ret_val.QuadPart * g_timer.ns_resolution)
 		{
 			break;
 		}

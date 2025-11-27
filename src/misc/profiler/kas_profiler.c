@@ -29,12 +29,8 @@ struct kas_profiler *g_profiler = NULL;
 
 kas_thread_local struct kas_frame *tls_frame = NULL;
 
-/* filled with 0xff all the way through, important default values for unused table entries */
-u8 buf_0xff[FRAME_TABLE_FULL_SIZE];
-
 static utf8 stub_process = { 0 };
 static utf8 process_state_strings[PROCESS_COUNT] = { 0 };
-
 
 void process_runtime_debug_print(const struct process_runtime *pr)
 {
@@ -99,7 +95,6 @@ void static_assert_kaspf_header_format(void)
 {
 	kas_static_assert(sizeof(struct kaspf_header) == 8192, "header size should be a multiple of a pagesize");
 	kas_static_assert(FRAME_TABLE_FULL_SIZE == 4096, "header size should be a multiple of a pagesize");
-	kas_static_assert(FRAME_TABLE_FULL_SIZE == sizeof(buf_0xff), "frame table full size should be equal to size of buf_0xff");
 	kas_static_assert(KASPF_LABEL_TABLE_SIZE % 4096 == 0, "label table should be multiple of 4096");
 }
 
@@ -127,7 +122,6 @@ static void kaspf_init_header(struct kas_profiler *profiler)
 	h->l1_table.ns_end = U64_MAX;
 	h->task_count_max = KASPF_UNIQUE_TASK_COUNT_MAX;
 	memset(h->l1_table.entries, 0xff, FRAME_TABLE_SIZE);
-	memset(buf_0xff, 0xff, sizeof(buf_0xff));
 }
 
 static void kaspf_init_task_tables(struct kas_profiler *profiler)
@@ -135,28 +129,24 @@ static void kaspf_init_task_tables(struct kas_profiler *profiler)
 	kas_assert(profiler->header->bytes % profiler->header->page_size == 0);	
 
 	const u64 table_offset = profiler->header->bytes;
-	u8 buf[KASPF_UNIQUE_TASK_COUNT_MAX] = { 0 };
-	for (u32 i = 0; i < KASPF_LABEL_BUFSIZE; ++i)
-	{
-		file_write_offset(&profiler->file, buf, KASPF_UNIQUE_TASK_COUNT_MAX, profiler->header->bytes);
-		profiler->header->bytes += KASPF_UNIQUE_TASK_COUNT_MAX;
-	}
+	profiler->header->bytes += KASPF_LABEL_TABLE_SIZE;
+	profiler->header->bytes += KASPF_UNIQUE_TASK_COUNT_MAX * sizeof(profiler->header->mm_task_systems[0]);
 
+	file_set_size(&profiler->file, profiler->header->bytes);
+	
 	profiler->header->mm_labels = file_memory_map_partial(&profiler->file,
 						KASPF_LABEL_TABLE_SIZE,
 						table_offset,
 						FS_PROT_READ | FS_PROT_WRITE,
 						FS_MAP_SHARED);
+	memset(profiler->header->mm_labels, 0, KASPF_LABEL_TABLE_SIZE);
 
-	file_write_offset(&profiler->file, buf, KASPF_UNIQUE_TASK_COUNT_MAX, profiler->header->bytes);
-	
-	profiler->header->bytes += KASPF_UNIQUE_TASK_COUNT_MAX * sizeof(profiler->header->mm_task_systems[0]);
-	file_set_size(&profiler->file, profiler->header->bytes);
 	profiler->header->mm_task_systems = file_memory_map_partial(&profiler->file,
 						KASPF_UNIQUE_TASK_COUNT_MAX * sizeof(profiler->header->mm_task_systems[0]),
 						table_offset + KASPF_LABEL_TABLE_SIZE,
 						FS_PROT_READ | FS_PROT_WRITE,
 						FS_MAP_SHARED);
+	memset(profiler->header->mm_task_systems, 0, KASPF_UNIQUE_TASK_COUNT_MAX * sizeof(profiler->header->mm_task_systems[0]));
 
 	kas_assert(profiler->header->bytes % profiler->header->page_size == 0);	
 }
@@ -164,9 +154,10 @@ static void kaspf_init_task_tables(struct kas_profiler *profiler)
 static u64 internal_alloc_frame_header(struct kas_profiler *profiler)
 {
 	const u64 offset = profiler->header->bytes;
-	struct frame_header fh = { 0 };
-	file_write_offset(&profiler->file, (u8 *) &fh, sizeof(fh), offset);
-	profiler->header->bytes += sizeof(fh);
+	profiler->header->bytes += sizeof(struct frame_header);
+	void *map = file_memory_map_partial(&profiler->file, sizeof(struct frame_header), offset, FILE_MAP_READ | FILE_MAP_WRITE, FS_MAP_SHARED);
+	memset(map, 0, sizeof(struct frame_header));
+	file_memory_unmap(map, sizeof(struct frame_header));
 
 	return offset;
 }
@@ -174,8 +165,10 @@ static u64 internal_alloc_frame_header(struct kas_profiler *profiler)
 static u64 internal_alloc_frame_table(struct kas_profiler *profiler) 
 {
 	const u64 offset = profiler->header->bytes;
-	file_write_offset(&profiler->file, buf_0xff, sizeof(buf_0xff), offset);
-	profiler->header->bytes += sizeof(buf_0xff);
+	profiler->header->bytes += FRAME_TABLE_FULL_SIZE;
+	void *map = file_memory_map_partial(&profiler->file, FRAME_TABLE_FULL_SIZE, offset, FILE_MAP_READ | FILE_MAP_WRITE, FS_MAP_SHARED);
+	memset(map, 0xff, FRAME_TABLE_FULL_SIZE);
+	file_memory_unmap(map, sizeof(struct frame_header));
 
 	return offset;
 }
@@ -352,37 +345,61 @@ static void kaspf_write_completed_frame(struct kas_profiler *profiler)
 	struct kaspf_header *h = profiler->header;
 	if (!h->frame_count) { return; }
 
-	struct arena record = profiler->mem;
-
 	/* grab index of completed frame */
 	const u64 frame_offset = kaspf_frame_offset(profiler, h->frame_count-1);
-	//fprintf(stderr, "writing frame %lu at offset %lu\n", h->frame_count-1, frame_offset);
 	const u64 headers_offset = frame_offset + sizeof(struct frame_header);
 	const u64 lw_kt_headers_size = profiler->worker_count*sizeof(struct lw_header) + profiler->kernel_buffer_count*sizeof(struct kt_header);
+	u64 data_offset = headers_offset + lw_kt_headers_size;
 
-	u8 *headers = arena_push(&profiler->mem, lw_kt_headers_size);
-	struct lw_header *lw_headers = (struct lw_header *)(headers);
-	struct kt_header *kt_headers = (struct kt_header *)(headers + profiler->worker_count*sizeof(struct lw_header));
+	for (u32 i = 0; i < profiler->worker_count; ++i)
+	{
+		const struct kas_frame *f = profiler->worker_frame + i;
+		const u64 profile_count = f->completed_count-1;
+		data_offset += profile_count * sizeof(struct lw_profile);
+		const u64 data_size_worker_activity = profiler->frame_worker_activity_count[i] * sizeof(struct worker_activity);
+		data_offset += data_size_worker_activity;
+	}
 
+	for (u32 i = 0; i < profiler->kernel_buffer_count; ++i)
+	{
+		const u64 data_size = profiler->frame_pr_count[i] * sizeof(struct process_runtime);
+		data_offset += data_size;
+	}
+	const u64 frame_size = data_offset - frame_offset;
+	struct frame_header *frame = h->mm_branch[2];
+	frame->size = frame_size;
+	h->bytes += frame_size - sizeof(struct frame_header);	/* we have already taken frame header size into account when we allocated the frame's header */
+	h->bytes += (h->bytes % h->page_size) ? h->page_size - (h->bytes % h->page_size) : 0;
+
+	//fprintf(stderr, "writing frame %lu at offset %lu\n", h->frame_count-1, frame_offset);
 	//fprintf(stderr, "frame header: (%lu, %lu)\n", frame_offset, frame_offset + sizeof(struct frame_header));
 	//fprintf(stderr, "lw_kt_headers: (%lu, %lu)\n", (u64) headers_offset, (u64) headers_offset + lw_kt_headers_size);
 
-	u64 data_offset = headers_offset + lw_kt_headers_size;
+	u8 *map = file_memory_map_partial(&profiler->file, frame_size, frame_offset, FS_PROT_READ | FS_PROT_WRITE, FS_MAP_SHARED);
+	//log(T_SYSTEM, S_NOTE, "FRAME WRITE: (%lu, %lu)", frame_offset, frame_size);
+
+	struct lw_header *lw_headers = (struct lw_header *) (map + sizeof(struct frame_header));
+	struct kt_header *kt_headers = (struct kt_header *) (map + sizeof(struct frame_header) + profiler->worker_count*sizeof(struct lw_header));
+
+	data_offset = sizeof(struct frame_header) + lw_kt_headers_size;
 	for (u32 i = 0; i < profiler->worker_count; ++i)
 	{
 		const struct kas_frame *f = profiler->worker_frame + i;
 		lw_headers[i].profile_offset = data_offset;
 		lw_headers[i].profile_count = f->completed_count-1;
-		const u64 data_size_lw_profiles = lw_headers[i].profile_count * sizeof(struct lw_profile);
-		file_write_offset(&profiler->file, (u8 *)(f->completed + 1), data_size_lw_profiles, lw_headers[i].profile_offset);
+		u64 data_size = lw_headers[i].profile_count * sizeof(struct lw_profile);
+		memcpy(map + data_offset, f->completed + 1, data_size);
 		//fprintf(stderr, "lw_profile[%u]: (%lu, %lu)\n", i, lw_headers[i].profile_offset, lw_headers[i].profile_offset + data_size_lw_profiles);
-		data_offset += data_size_lw_profiles;
+		data_offset += data_size;
 
 		lw_headers[i].activity_offset = data_offset;
 		lw_headers[i].activity_count = profiler->frame_worker_activity_count[i];
-		const u64 data_size_worker_activity = profiler->frame_worker_activity_count[i] * sizeof(struct worker_activity);
-		file_write_offset(&profiler->file, (u8 *)(profiler->frame_worker_activity[i]), data_size_worker_activity, lw_headers[i].activity_offset);
-		data_offset += data_size_worker_activity;
+		data_size = profiler->frame_worker_activity_count[i] * sizeof(struct worker_activity);
+		memcpy(map + data_offset, profiler->frame_worker_activity[i], data_size);
+		data_offset += data_size;
+
+		//log(T_SYSTEM, S_NOTE, "WRITE P(%lu, %u)", (u64) (&lw_headers[i]) - (u64)map, lw_headers[i].profile_count);
+		//log(T_SYSTEM, S_NOTE, "WRITE A(%lu, %u)", (u64) (&lw_headers[i]) - (u64)map, profiler->frame_worker_activity_count[i]);
 	}
 
 	for (u32 i = 0; i < profiler->kernel_buffer_count; ++i)
@@ -390,27 +407,12 @@ static void kaspf_write_completed_frame(struct kas_profiler *profiler)
 		kt_headers[i].pr_offset = data_offset;
 		kt_headers[i].pr_count = profiler->frame_pr_count[i];
 		const u64 data_size = profiler->frame_pr_count[i] * sizeof(struct process_runtime);
-		file_write_offset(&profiler->file, (u8 *)(profiler->frame_pr[i]), data_size, kt_headers[i].pr_offset);
+		memcpy(map + data_offset, profiler->frame_pr[i], data_size);
 		data_offset += data_size;
 	}
 
-	//TODO REMOVE
-	//kt_header->offset = data_offset;
-	//kt_header->ss_count = profiler->schedule_switch_count;
-	//kt_header->count = profiler->kernel_events_count;
-	////fprintf(stderr, "kt_profile: (%lu, %lu)\n", kt_header->offset, kt_header->offset + profiler->kernel_events_size);
-	//file_write_offset(&profiler->file, (u8 *) profiler->kernel_events, profiler->kernel_events_size, kt_header->offset);
-	//data_offset += profiler->kernel_events_size;
-
-	file_write_offset(&profiler->file, (u8 *) headers, lw_kt_headers_size, headers_offset);
-
-	const u64 frame_size = data_offset - frame_offset;
+	file_memory_unmap(map, frame_size);
 	//fprintf(stderr, "frame %lu has size (unpadded) %lu\n", h->frame_count-1, frame_size);
-	struct frame_header *frame = h->mm_branch[2];
-	frame->size = frame_size;
-	h->bytes += frame_size - sizeof(struct frame_header);	/* we have already taken frame header size into account when we allocated the frame's header */
-	h->bytes += (h->bytes % h->page_size) ? h->page_size - (h->bytes % h->page_size) : 0;
-	profiler->mem = record;
 }
 
 static void kas_profiler_init_io(struct arena *mem, struct kas_profiler *profiler, const char *path)
@@ -422,10 +424,8 @@ static void kas_profiler_init_io(struct arena *mem, struct kas_profiler *profile
 		fatal_cleanup_and_exit(0);
 	}
 
-	u8 buf[sizeof(struct kaspf_header)] = { 0 };
-	file_write_offset(&profiler->file, buf, sizeof(struct kaspf_header), 0);
-
 	profiler->header = file_memory_map_partial(&profiler->file, sizeof(struct kaspf_header), 0, FS_PROT_READ | FS_PROT_WRITE, FS_MAP_SHARED);
+	memset(profiler->header, 0, sizeof(struct kaspf_header));
 	if (profiler->header == NULL)
 	{
 		fatal_cleanup_and_exit(0);
@@ -480,8 +480,6 @@ void kas_profiler_init(struct arena *mem, const u64 master_thread_id, const u32 
 
 	if (profiler.level >= PROFILE_LEVEL_TASK)
 	{
-		void tsc_skew_estimate(void);
-
 		struct lw_profile stub = { 0 };
 		for (u32 i = 0; i < worker_count; ++i)
 		{

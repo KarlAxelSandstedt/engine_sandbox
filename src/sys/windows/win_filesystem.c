@@ -391,7 +391,7 @@ u32 win_file_set_size(const struct file *file, const u64 size)
 {
 	u32 success = 1;
 	LARGE_INTEGER l_size = { .QuadPart = size };
-	if (SetFilePointerEx(file->handle, l_size, NULL, FILE_BEGIN) == INVALID_SET_FILE_POINTER || !SetEndOfFile(file->handle))
+	if (!SetFilePointerEx(file->handle, l_size, NULL, FILE_BEGIN) || !SetEndOfFile(file->handle))
 	{
 		log_system_error(S_ERROR);
 		success = 0;	
@@ -412,8 +412,20 @@ void win_file_close(struct file *file)
 
 u64 win_file_write_offset(const struct file *file, const u8 *buf, const u64 size, const u64 offset)
 {
+	LARGE_INTEGER l_size;
+	if (!GetFileSizeEx(file->handle, &l_size))
+	{
+		log_system_error(S_ERROR);
+		return 0;
+	}
+
+	if ((u64) l_size.QuadPart < offset + size)
+	{
+		win_file_set_size(file, offset + size);
+	}
+
 	LARGE_INTEGER l_offset = { .QuadPart = offset };
-	if (SetFilePointerEx(file->handle, l_offset, NULL, FILE_BEGIN) == INVALID_SET_FILE_POINTER)
+	if (!SetFilePointerEx(file->handle, l_offset, NULL, FILE_BEGIN))
 	{
 		log_system_error(S_ERROR);
 		return 0;
@@ -426,14 +438,17 @@ u64 win_file_write_offset(const struct file *file, const u8 *buf, const u64 size
 		log_system_error(S_ERROR);
 	}
 
+	/* Seems like no memory maps will see our writes if we do not sync... TODO: Fix sane api */
+	file_sync(file);
 	kas_assert_message(bytes_written == size, "bytes_written = %u, size = %u\n", bytes_written, size); 
 	return bytes_written;
+
 }
 
 u64 win_file_write_append(const struct file *file, const u8 *buf, const u64 size)
 {
 	LARGE_INTEGER distance_to_move = { .QuadPart = 0 };
-	if (SetFilePointerEx(file->handle, distance_to_move, NULL, FILE_END) == INVALID_SET_FILE_POINTER)
+	if (!SetFilePointerEx(file->handle, distance_to_move, NULL, FILE_END))
 	{
 		log_system_error(S_ERROR);
 		return 0;
@@ -445,6 +460,9 @@ u64 win_file_write_append(const struct file *file, const u8 *buf, const u64 size
 	{
 		log_system_error(S_ERROR);
 	}
+
+	/* Seems like no memory maps will see our writes if we do not sync... TODO: Fix sane api */
+	file_sync(file);
 
 	kas_assert_message(bytes_written == size, "bytes_written = %u, size = %u\n", bytes_written, size); 
 
@@ -464,32 +482,56 @@ void win_file_sync(const struct file *file)
 void *win_file_memory_map(u64 *size, const struct file *file, const u32 prot, const u32 garbage)
 { 
 	LARGE_INTEGER l_size;
-	GetFileSizeEx(file->handle, &l_size);
-	*size = l_size.QuadPart;
-	return file_memory_map_partial(file, 0, 0, prot, garbage);
+	void *map = NULL;
+	*size = 0;
+	if (!GetFileSizeEx(file->handle, &l_size))
+	{
+		log_system_error(S_ERROR);
+	}
+	else
+	{
+		*size = l_size.QuadPart;
+		map = file_memory_map_partial(file, 0, 0, prot, garbage);
+	}
+
+	return map;
 }
 
 void *win_file_memory_map_partial(const struct file *file, const u64 length, const u64 offset, const u32 prot, const u32 garbage)
 {
 	SYSTEM_INFO info;
 	GetSystemInfo(&info);
-	//kas_assert(info.dwAllocationGranularity == 4096);
-
+	DWORD new_size_low = 0;
+	DWORD new_size_high = 0;
+	if (length)
+	{
+		LARGE_INTEGER l_size;
+		if (!GetFileSizeEx(file->handle, &l_size))
+		{
+			log_system_error(S_ERROR);
+			return NULL;
+		}
+		else if ((u64) l_size.QuadPart < offset + length)
+		{
+			new_size_high = (u32) ((offset + length) >> 32);
+			new_size_low = (u32) (offset + length);
+		}
+	}
 	void *map = NULL;
 	const DWORD map_prot = ((prot & (FILE_MAP_READ | FILE_MAP_WRITE)) == (FILE_MAP_READ | FILE_MAP_WRITE))
 		? PAGE_READWRITE
 		: PAGE_READONLY;
-	HANDLE handle = CreateFileMappingA(file->handle, NULL, map_prot, 0, 0, NULL);
+	HANDLE handle = CreateFileMappingA(file->handle, NULL, map_prot, new_size_high, new_size_low, NULL);
 	if (handle == NULL)
 	{
 		log_system_error(S_ERROR);
 	}
 	else
 	{
-		const DWORD offset_high = (u32) (offset >> 32);
-		const DWORD offset_low = (u32) offset;
-		const DWORD mod = offset_low % info.dwAllocationGranularity;
-		map = MapViewOfFileEx(handle, prot, offset_high, offset_low - mod, length + mod, NULL);
+		const DWORD mod = offset % info.dwAllocationGranularity;
+		const DWORD offset_high = (u32) ((offset-mod) >> 32);
+		const DWORD offset_low = (u32) (offset-mod);
+		map = MapViewOfFileEx(handle, prot, offset_high, offset_low, length + mod, NULL);
 
 		if (map == NULL)
 		{
@@ -507,10 +549,9 @@ void *win_file_memory_map_partial(const struct file *file, const u64 length, con
 	}
 
 	return map;
-
 }
 
-void win_file_memory_unmap(void *addr, const u64 garbage)
+void win_file_memory_unmap(void *addr, const u64 length)
 {
 	SYSTEM_INFO info;
 	GetSystemInfo(&info);
