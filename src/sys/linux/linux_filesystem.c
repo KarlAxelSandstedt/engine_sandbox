@@ -425,6 +425,19 @@ void *linux_file_memory_map(u64 *size, const struct file *file, const u32 prot, 
 
 void *linux_file_memory_map_partial(const struct file *file, const u64 length, const u64 offset, const u32 prot, const u32 flags)
 {
+	struct stat stat;
+	if (file_status_file(&stat, file) != FS_SUCCESS)
+	{
+		LOG_SYSTEM_ERROR(S_ERROR);
+		return NULL;
+	}
+
+	if ((u64) stat.st_size < length + offset && !linux_file_set_size(file, offset + length))
+	{
+		LOG_SYSTEM_ERROR(S_ERROR);
+		return NULL;
+	}
+
 	void *addr = mmap(NULL, length, prot, flags, file->handle, (off_t) offset);
 	if (addr == MAP_FAILED)
 	{
