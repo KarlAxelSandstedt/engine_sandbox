@@ -155,7 +155,7 @@ static u64 internal_alloc_frame_header(struct kas_profiler *profiler)
 {
 	const u64 offset = profiler->header->bytes;
 	profiler->header->bytes += sizeof(struct frame_header);
-	void *map = file_memory_map_partial(&profiler->file, sizeof(struct frame_header), offset, FILE_MAP_READ | FILE_MAP_WRITE, FS_MAP_SHARED);
+	void *map = file_memory_map_partial(&profiler->file, sizeof(struct frame_header), offset, FS_PROT_READ | FS_PROT_WRITE, FS_MAP_SHARED);
 	memset(map, 0, sizeof(struct frame_header));
 	file_memory_unmap(map, sizeof(struct frame_header));
 
@@ -166,7 +166,7 @@ static u64 internal_alloc_frame_table(struct kas_profiler *profiler)
 {
 	const u64 offset = profiler->header->bytes;
 	profiler->header->bytes += FRAME_TABLE_FULL_SIZE;
-	void *map = file_memory_map_partial(&profiler->file, FRAME_TABLE_FULL_SIZE, offset, FILE_MAP_READ | FILE_MAP_WRITE, FS_MAP_SHARED);
+	void *map = file_memory_map_partial(&profiler->file, FRAME_TABLE_FULL_SIZE, offset, FS_PROT_READ | FS_PROT_WRITE, FS_MAP_SHARED);
 	memset(map, 0xff, FRAME_TABLE_FULL_SIZE);
 	file_memory_unmap(map, sizeof(struct frame_header));
 
