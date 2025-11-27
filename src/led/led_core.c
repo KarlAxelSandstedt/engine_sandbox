@@ -1083,41 +1083,26 @@ void cmd_led_stop(void)
 
 void led_compile(struct led *led)
 {
-	KAS_TASK(__func__, T_LED);
-
-	KAS_END;
 }
 
 void led_run(struct led *led)
 {
-	KAS_TASK(__func__, T_LED);
-
 	led->pending_engine_initalized = 1;
 	led->pending_engine_running = 1;
 	led->pending_engine_paused = 0;
-
-	KAS_END;
 }
 
 void led_pause(struct led *led)
 {
-	KAS_TASK(__func__, T_LED);
-
 	led->pending_engine_paused = 1;
 	led->pending_engine_running = 0;
-
-	KAS_END;
 }
 
 void led_stop(struct led *led)
 {
-	KAS_TASK(__func__, T_LED);
-
 	led->pending_engine_initalized = 0;
 	led->pending_engine_running = 0;
 	led->pending_engine_paused = 0;
-
-	KAS_END;
 }
 
 static void led_engine_flush(struct led *led)

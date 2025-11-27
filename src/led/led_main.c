@@ -125,7 +125,7 @@ static void led_profiler_main(struct led *led)
 	  	vec4_set(prof->timeline_config.draggable_color, 0.0625f, 0.125f, 0.125f, 1.0f);
 
 		prof->timeline_config.fixed = 0;
-		prof->timeline_config.ns_interval_size = ((u64) 3) * NSEC_PER_SEC;
+		prof->timeline_config.ns_interval_size = ((u64) 1) * NSEC_PER_SEC;
 
 		prof->timeline_config.task_height = 32.0f;
 		prof->timeline_config.row_count = g_task_ctx->worker_count;

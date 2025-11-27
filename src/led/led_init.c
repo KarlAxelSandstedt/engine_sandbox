@@ -121,8 +121,10 @@ struct led *led_alloc(void)
 
 	g_editor->pending_engine_running = 0;
 	g_editor->pending_engine_initalized = 0;
+	g_editor->pending_engine_paused = 0;
 	g_editor->engine_running = 0;
 	g_editor->engine_initalized = 0;
+	g_editor->engine_paused = 0;
 	g_editor->ns_engine_running = 0;
 
 	struct r_mesh *r_mesh_stub = string_database_address(&g_editor->render_mesh_db, STRING_DATABASE_STUB_INDEX);

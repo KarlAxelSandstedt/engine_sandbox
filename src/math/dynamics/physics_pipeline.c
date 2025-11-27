@@ -266,6 +266,7 @@ struct slot physics_pipeline_rigid_body_alloc(struct physics_pipeline *pipeline,
 	quat_copy(body->rotation, rotation);
 	vec3_set(body->velocity, 0.0f, 0.0f, 0.0f);
 	vec3_set(body->angular_velocity, 0.0f, 0.0f, 0.0f);
+	vec3_set(body->linear_momentum, 0.0f, 0.0f, 0.0f);
 
 	const u32 dynamic_flag = (prefab->dynamic) ? RB_DYNAMIC : 0;
 	body->flags = RB_ACTIVE | (g_solver_config->sleep_enabled * RB_AWAKE) | dynamic_flag;
