@@ -596,6 +596,7 @@ void kaspf_reader_process(struct arena *tmp)
 			/* get file map */
 			{
 				u64 low_offset = reader->mm_branch_high[1]->entries[reader->li_high[2]].offset;
+				//log(T_SYSTEM, S_NOTE, "LOW1: (%lu)", low_offset);
 				u64 high_offset = new_mm_branch_high[1]->entries[new_li_high[2]].offset;
 				struct frame_header *frame = file_memory_map_partial(&g_profiler->file, 
 						sizeof(struct frame_header),
@@ -612,9 +613,7 @@ void kaspf_reader_process(struct arena *tmp)
 						FS_PROT_READ,
 						FS_MAP_SHARED);
 				//fprintf(stderr, "reading frame %lu at offset %lu\n", new_frame_high, high_offset);
-				low_offset = high_offset;
 				high_offset += frame->size;
-
 				file_memory_unmap(frame, sizeof(struct frame_header));
 				//log(T_SYSTEM, S_NOTE, "FRAME READ: (%lu, %lu)", low_offset, high_offset - low_offset);
 
@@ -640,26 +639,26 @@ void kaspf_reader_process(struct arena *tmp)
 	if (faults_low[0] && reader->mm_branch_low[0] != &table_stub)
 	{
 		file_memory_unmap(reader->mm_branch_low[0], FRAME_TABLE_FULL_SIZE);
-		reader->mm_branch_low[0] = new_mm_branch_low[0];
 	}
+	reader->mm_branch_low[0] = new_mm_branch_low[0];
 
 	if (faults_low[1] && reader->mm_branch_low[1] != &table_stub)
 	{
 		file_memory_unmap(reader->mm_branch_low[1], FRAME_TABLE_FULL_SIZE);
-		reader->mm_branch_low[1] = new_mm_branch_low[1];
 	}
+	reader->mm_branch_low[1] = new_mm_branch_low[1];
 
 	if (faults_high[0] && reader->mm_branch_high[0] != &table_stub)
 	{
 		file_memory_unmap(reader->mm_branch_high[0], FRAME_TABLE_FULL_SIZE);
-		reader->mm_branch_high[0] = new_mm_branch_high[0];
 	}
+	reader->mm_branch_high[0] = new_mm_branch_high[0];
 
 	if (faults_high[1] && reader->mm_branch_high[1] != &table_stub)
 	{
 		file_memory_unmap(reader->mm_branch_high[1], FRAME_TABLE_FULL_SIZE);
-		reader->mm_branch_high[1] = new_mm_branch_high[1];
 	}
+	reader->mm_branch_high[1] = new_mm_branch_high[1];
 
 	reader->li_low[0] = new_li_low[0];
 	reader->li_low[1] = new_li_low[1];

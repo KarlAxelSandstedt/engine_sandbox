@@ -48,7 +48,6 @@ static struct r_mesh *debug_contact_manifold_segments_mesh(struct arena *mem, co
 	mesh->vertex_count = vertex_count; 
 	mesh->vertex_data = vertex_data;
 
-	vec3 v[4];
 	for (u32 i = 0; i < cm_count; ++i)
 	{
 		vec3 n0, n1;

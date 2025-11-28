@@ -965,7 +965,7 @@ void led_wall_smash_simulation_setup(struct led *led)
 				vec3_copy(translation, box_base_translation);
 				translation[0] += local_x;
 				translation[1] += local_y;
-				translation[2] += 2.0f * k;
+				translation[2] += 10.0f * k;
 
 				utf8 id = utf8_format(sys_win->ui->mem_frame, "pyramid_%u_%u_%u", i, j, k);
 				sys_win->cmd_queue->regs[0].utf8 = id;
@@ -1083,41 +1083,26 @@ void cmd_led_stop(void)
 
 void led_compile(struct led *led)
 {
-	KAS_TASK(__func__, T_LED);
-
-	KAS_END;
 }
 
 void led_run(struct led *led)
 {
-	KAS_TASK(__func__, T_LED);
-
 	led->pending_engine_initalized = 1;
 	led->pending_engine_running = 1;
 	led->pending_engine_paused = 0;
-
-	KAS_END;
 }
 
 void led_pause(struct led *led)
 {
-	KAS_TASK(__func__, T_LED);
-
 	led->pending_engine_paused = 1;
 	led->pending_engine_running = 0;
-
-	KAS_END;
 }
 
 void led_stop(struct led *led)
 {
-	KAS_TASK(__func__, T_LED);
-
 	led->pending_engine_initalized = 0;
 	led->pending_engine_running = 0;
 	led->pending_engine_paused = 0;
-
-	KAS_END;
 }
 
 static void led_engine_flush(struct led *led)

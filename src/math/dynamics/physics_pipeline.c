@@ -45,7 +45,6 @@ static void thread_set_collision_debug(void *task_addr)
 	struct worker *worker = task->executor;
 	const struct physics_pipeline *pipeline = task->input;
 	tl_debug = pipeline->debug + kas_thread_self_index();
-	log(T_SYSTEM, S_NOTE, "tl_debug aquired: %u", kas_thread_self_index());
 
 	atomic_fetch_add_rel_32(&g_a_thread_counter, 1);
 	while (atomic_load_acq_32(&g_a_thread_counter) != pipeline->debug_count);
@@ -267,6 +266,7 @@ struct slot physics_pipeline_rigid_body_alloc(struct physics_pipeline *pipeline,
 	quat_copy(body->rotation, rotation);
 	vec3_set(body->velocity, 0.0f, 0.0f, 0.0f);
 	vec3_set(body->angular_velocity, 0.0f, 0.0f, 0.0f);
+	vec3_set(body->linear_momentum, 0.0f, 0.0f, 0.0f);
 
 	const u32 dynamic_flag = (prefab->dynamic) ? RB_DYNAMIC : 0;
 	body->flags = RB_ACTIVE | (g_solver_config->sleep_enabled * RB_AWAKE) | dynamic_flag;
