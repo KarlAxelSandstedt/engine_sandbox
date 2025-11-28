@@ -1,7 +1,10 @@
-Place Holder
-============
+Contents
+========
 
 General Notes 
+Usage
+Installing on Windows
+Installing on Linux 
 Compiling on Windows
 Compiling on Linux
 License
@@ -9,11 +12,42 @@ License
 
 General Notes 
 =============
+
+This project is a game/physics engine in progress. Currently most development efforts
+are put into the 3D physics engine, the engine's UI library, and the platform independent
+base layer. 
  
+
+Usage
+=====
+
+When running the program, two windows will pop up. The first window displays the 
+profiler. The timeline is draggable using left-click. If you press control + 
+left-click while dragging you will zoom-in or out of the timeline. 
+
+The second window displays the simulation and simulation related data.  click the
+colored run, pause or stop signs at the top of the window to interact with the 
+simulation. By clicking on the display region of the simulation you enter focused
+mode and can move the camera using the WASD-keys and the mouse. To exit focus mode,
+you press Escape.  In the bottom-right you will find additional display options. 
+4 checkbox options and a dropdown menu displaying the current rigid body coloring mode.
+
+
+Installing on Windows 
+=====================
+
+1. Download and run the installer. 
+
+2. Make sure to set the install path to a directory you own, such as 
+".../user/programs/engine_sandbox" so that you can run the exe without elevated 
+privileges.
+
+
+Installing on Linux
+===================
 
 Compiling on Windows 
 ====================
-
 
 Compiling on Linux
 ==================
