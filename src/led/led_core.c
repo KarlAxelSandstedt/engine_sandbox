@@ -965,7 +965,7 @@ void led_wall_smash_simulation_setup(struct led *led)
 				vec3_copy(translation, box_base_translation);
 				translation[0] += local_x;
 				translation[1] += local_y;
-				translation[2] += 2.0f * k;
+				translation[2] += 10.0f * k;
 
 				utf8 id = utf8_format(sys_win->ui->mem_frame, "pyramid_%u_%u_%u", i, j, k);
 				sys_win->cmd_queue->regs[0].utf8 = id;
