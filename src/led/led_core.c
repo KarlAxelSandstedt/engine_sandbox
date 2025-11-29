@@ -1264,9 +1264,10 @@ static void led_engine_run(struct led *led)
 	led->physics.body_color_mode = led->physics.pending_body_color_mode;
 
 	struct physics_event *event = NULL;
-	for (u32 i = led->physics.event_list.first; i != DLL_NULL; i = DLL_NEXT(event))
+	for (u32 i = led->physics.event_list.first; i != DLL_NULL; )
 	{
 		event = pool_address(&led->physics.event_pool, i);
+		const u32 next = DLL_NEXT(event);
 		switch (event->type)
 		{
 			case PHYSICS_EVENT_CONTACT_NEW:
@@ -1402,6 +1403,8 @@ static void led_engine_run(struct led *led)
 						, node->proxy);
 			} break;
 		}
+		pool_remove(&led->physics.event_pool, i);
+		i = next;
 	}
 	
 	dll_flush(&led->physics.event_list);
