@@ -164,6 +164,12 @@ link_libraries(kas_common)
 link_libraries(log)
 link_libraries(kas_profiler)
 
+if (NOT CMAKE_BUILD_TYPE STREQUAL "Release")
+	message(CHECK_START "Tracy Profiling Enabled") 
+	option(TRACY_ENABLE "" ON)
+	link_libraries(Tracy::TracyClient)
+endif()
+
 if (DEFINED EMSCRIPTEN)
 	add_subdirectory(${SRC_PATH}/sys/wasm)
 	#target_include_directories(${PROJECT_NAME}

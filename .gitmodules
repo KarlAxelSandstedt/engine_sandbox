@@ -4,3 +4,6 @@
 [submodule "lib/freetype"]
 	path = lib/freetype
 	url = https://github.com/freetype/freetype
+[submodule "lib/tracy"]
+	path = lib/tracy
+	url = https://github.com/wolfpld/tracy.git

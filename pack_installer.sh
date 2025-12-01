@@ -10,7 +10,7 @@ else
 	CMAKE_GENERATOR="Unix Makefiles"
 fi
 
-cmake -S . -B build -Dapply_optimization_options=ON -G $CMAKE_GENERATOR
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -Dapply_optimization_options=ON -G $CMAKE_GENERATOR
 #cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -Dkas_debug=ON -G Ninja
 cd build
 cmake --build . --parallel
