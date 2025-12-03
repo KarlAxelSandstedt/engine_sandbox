@@ -89,11 +89,9 @@ int main(int argc, char *argv[])
 
 		system_process_events();
 
-		TracyCZoneN(ctx, "MainZone", 1);
 		led_main(editor, ns_tick);
 		led_ui_main(editor);
 		r_led_main(editor);
-		TracyCZoneEnd(ctx);
 	}
 
 

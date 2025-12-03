@@ -26,7 +26,6 @@
 #include "sys_public.h"
 #include "led_public.h"
 #include "r_public.h"
-#include "kas_profiler.h"
 
 static void win_init_rng(void)
 {
@@ -83,7 +82,7 @@ int CALLBACK WinMain(HINSTANCE h_instance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	u64 old_time = editor->ns;
 	while (editor->running)
 	{
-		kas_profiler_new_frame();
+		TracyCFrameMark;
 
 		system_free_tagged_windows();
 

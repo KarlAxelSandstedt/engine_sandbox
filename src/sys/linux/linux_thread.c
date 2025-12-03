@@ -31,7 +31,8 @@
 kas_thread_local struct kas_thread *self = NULL;
 u32	a_index_counter = 1;
 
-const char *thread_profiler_id[] = {
+const char *thread_profiler_id[] = 
+{
 	"Master", "Worker 1", "Worker 2", "Worker 3", "Worker 4", "Worker 5", "Worker 6", "Worker 7", "Worker 8", "Worker 9",
 	"Worker 10", "Worker 11", "Worker 12", "Worker 13", "Worker 14", "Worker 15", "Worker 16", "Worker 17", "Worker 18", "Worker 19",
 	"Worker 20", "Worker 21", "Worker 22", "Worker 23", "Worker 24", "Worker 25", "Worker 26", "Worker 27", "Worker 28", "Worker 29",
