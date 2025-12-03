@@ -146,6 +146,15 @@ find_package(OpenGL REQUIRED)
 find_package(Threads REQUIRED)
 
 add_subdirectory("${LIB_PATH}")
+
+if (NOT CMAKE_BUILD_TYPE STREQUAL "Release")
+	message(CHECK_START "Tracy Profiling Enabled") 
+	option(TRACY_ENABLE "" ON)
+	link_libraries(Tracy::TracyClient)
+	include_directories(tracy/public)
+	add_compile_definitions(KAS_PROFILE)
+endif()
+
 add_subdirectory("${SRC_PATH}/misc")
 add_subdirectory("${SRC_PATH}/misc/ui")
 add_subdirectory("${SRC_PATH}/misc/profiler")
@@ -163,12 +172,6 @@ add_subdirectory("${SRC_PATH}/asset_system")
 link_libraries(kas_common)
 link_libraries(log)
 link_libraries(kas_profiler)
-
-if (NOT CMAKE_BUILD_TYPE STREQUAL "Release")
-	message(CHECK_START "Tracy Profiling Enabled") 
-	option(TRACY_ENABLE "" ON)
-	link_libraries(Tracy::TracyClient)
-endif()
 
 if (DEFINED EMSCRIPTEN)
 	add_subdirectory(${SRC_PATH}/sys/wasm)

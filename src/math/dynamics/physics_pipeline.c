@@ -863,8 +863,6 @@ static void internal_remove_marked_bodies(struct physics_pipeline *pipeline)
 
 void internal_physics_pipeline_simulate_frame(struct physics_pipeline *pipeline, const f32 delta)
 {
-	KAS_TASK(__func__, T_PHYSICS);
-
 	internal_remove_marked_bodies(pipeline);
 
 	/* update, if possible, any pending values in contact solver config */
@@ -881,13 +879,12 @@ void internal_physics_pipeline_simulate_frame(struct physics_pipeline *pipeline,
 	internal_parallel_solve_islands(&pipeline->frame, pipeline, delta);
 
 	PHYSICS_PIPELINE_VALIDATE(pipeline);
-	
-	KAS_END;
 }
 
 void physics_pipeline_tick(struct physics_pipeline *pipeline)
 {
 	KAS_TASK(__func__, T_PHYSICS);
+	TracyCZoneN(ctx, "Physics Tick", 1);
 
 	if (pipeline->frames_completed > 0)
 	{
@@ -897,6 +894,7 @@ void physics_pipeline_tick(struct physics_pipeline *pipeline)
 	const f32 delta = (f32) pipeline->ns_tick / NSEC_PER_SEC;
 	internal_physics_pipeline_simulate_frame(pipeline, delta);
 
+	TracyCZoneEnd(ctx);
 	KAS_END;
 }
 

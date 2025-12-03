@@ -29,6 +29,7 @@
 #include <sys/random.h>
 #include <unistd.h>
 
+#include "kas_common.h"
 #include "linux_local.h"
 #include "kas_profiler.h"
 #include "memory.h"
@@ -43,6 +44,8 @@
 #if defined(KAS_TEST_CORRECTNESS) || defined(KAS_TEST_PERFORMANCE)
 #include "test_public.h"
 #endif
+
+const char * const main_str = "main";
 
 int main(int argc, char *argv[])
 {	
@@ -75,6 +78,8 @@ int main(int argc, char *argv[])
 	u64 old_time = editor->ns;
 	while (editor->running)
 	{
+		TracyCFrameMark;
+
 		kas_profiler_new_frame();
 
 		system_free_tagged_windows();
@@ -87,10 +92,13 @@ int main(int argc, char *argv[])
 
 		system_process_events();
 
+		TracyCZoneN(ctx, "MainZone", 1);
 		led_main(editor, ns_tick);
 		led_ui_main(editor);
 		r_led_main(editor);
+		TracyCZoneEnd(ctx);
 	}
+
 
 	led_dealloc(editor);
 	asset_database_cleanup();

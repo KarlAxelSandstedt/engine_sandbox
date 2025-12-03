@@ -20,8 +20,13 @@
 #ifndef __KAS_COMMON_H__
 #define __KAS_COMMON_H__
 
-/*** profiler definitions ***/
-#define KAS_PROFILER	/* PROFILER ON */
+#ifdef KAS_PROFILE
+#define KAS_PROFILER
+#include "tracy/TracyC.h"
+#if !defined(TRACY_ENABLE)
+#error
+#endif
+#endif
 
 /*** logger definitions ***/
 #define KAS_LOG		/* LOGGER ON */
@@ -46,7 +51,6 @@
 	#define __OS__ 	__LINUX__
 #elif defined(__EMSCRIPTEN__)
 	#define __OS__ 	__WEB__
-	#undef KAS_PROFILER
 #elif defined(_WIN64)
 	#define __OS__ 	__WIN64__
 #endif
