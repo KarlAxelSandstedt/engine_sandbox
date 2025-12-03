@@ -71,74 +71,6 @@ void led_project_menu_main(struct led *led)
 	}
 }
 
-static void led_profiler_interaction(struct led *led)
-{
-	struct led_profiler *prof = &led->profiler;
-	struct system_window *win = system_window_address(prof->window);
-	if (win->tagged_for_destruction)
-	{
-		prof->visible = 0;
-		prof->window = HI_NULL_INDEX;
-	}
-}
-
-static void led_profiler_main(struct led *led)
-{
-	struct led_profiler *prof = &led->profiler;
-
-	if (prof->window == HI_NULL_INDEX)
-	{
-		prof->window = system_window_alloc("Profiler", vec2u32_inline(0,0), vec2u32_inline(1280, 720), g_process_root_window);
-		struct system_window *win = system_window_address(prof->window);
-
-		prof->transparency = 0.7f;
-		vec4_set(prof->system_colors[T_GAME],  34.0f/256.0f, 278.0f/256.0f,  144.0f/256.0f, prof->transparency);
-		vec4_set(prof->system_colors[T_UTILITY],  84.0f/256.0f, 178.0f/256.0f,  84.0f/256.0f, prof->transparency);
-		vec4_set(prof->system_colors[T_PHYSICS], 80.0f/256.0f, 120.0f/256.0f, 210.0f/256.0f, prof->transparency);
-		vec4_set(prof->system_colors[T_RENDERER], 204.0f/256.0f, 48.0f/256.0f, 64.0f/256.0f, prof->transparency);
-		vec4_set(prof->system_colors[T_CSG], 44.0f/256.0f, 148.0f/256.0f, 164.0f/256.0f, prof->transparency);
-		vec4_set(prof->system_colors[T_UI], 194.0f/256.0f, 68.0f/256.0f, 191.0f/256.0f, prof->transparency);
-		vec4_set(prof->system_colors[T_LED], 24.0f/256.0f, 118.0f/256.0f, 161.0f/256.0f, prof->transparency);
-		vec4_set(prof->system_colors[T_PROFILER], 235.0f/256.0f, 155.0f/256.0f, 74.0f/256.0f, prof->transparency);
-		vec4_set(prof->system_colors[T_ASSET], 35.0f/256.0f, 155.0f/256.0f, 74.0f/256.0f, prof->transparency);
-
-	  	prof->draw_worker_activity_online = 0;
-	  
-	  	prof->timeline_config.unit_line_width = 2.0f;
-	  	prof->timeline_config.subline_width = 1.0f;
-	  	prof->timeline_config.sublines_per_line = 4;
-	  	prof->timeline_config.unit_line_preferred_count = 5;
-
-		vec4_set(prof->timeline_config.task_gradient_br, 0.1225f, 0.1225f, 0.4225f, 0.5f);
-		vec4_set(prof->timeline_config.task_gradient_tr, 0.0f, 0.0f, 0.0f, 0.0f);
-		vec4_set(prof->timeline_config.task_gradient_tl, 0.0f, 0.0f, 0.0f, 0.0f);
-		vec4_set(prof->timeline_config.task_gradient_bl, 0.1225f, 0.1225f, 0.4225f, 0.5f);
-	  
-	  	prof->timeline_config.draw_sublines = 1;
-	  	prof->timeline_config.draw_edgelines = 1;
-		prof->timeline_config.perc_width_row_title_column = 0.125f;
-	  
-	  	vec4_set(prof->timeline_config.unit_line_color, 0.50f, 0.50f, 0.50f, 0.2f);
-	  	vec4_set(prof->timeline_config.subline_color, 0.3f, 0.3f, 0.3f, 0.2f);
-	  	vec4_set(prof->timeline_config.text_color, 0.8f, 0.8f, 0.8f, 0.6f);
-	  	vec4_set(prof->timeline_config.background_color, 0.0625f, 0.0625f, 0.0750f, 1.0f);
-	  	vec4_set(prof->timeline_config.draggable_color, 0.0625f, 0.125f, 0.125f, 1.0f);
-
-		prof->timeline_config.fixed = 0;
-		prof->timeline_config.ns_interval_size = ((u64) 1) * NSEC_PER_SEC;
-
-		prof->timeline_config.task_height = 32.0f;
-		prof->timeline_config.row_count = g_task_ctx->worker_count;
-		prof->timeline_config.row = arena_push(&win->mem_persistent, g_task_ctx->worker_count*sizeof(struct timeline_row_config));
-		for (u32 i = 0; i < g_task_ctx->worker_count; ++i)
-		{
-			prof->timeline_config.row[i].height = prof->timeline_config.task_height;
-			prof->timeline_config.row[i].depth_visible = intv_inline(0.0f, prof->timeline_config.row[i].height / prof->timeline_config.task_height);
-		}
-	}
-
-	led_profiler_interaction(led);
-}
 
 void led_main(struct led *led, const u64 ns_delta)
 {
@@ -149,11 +81,6 @@ void led_main(struct led *led, const u64 ns_delta)
 	if (!led->project.initialized)
 	{
 		//led_project_menu_main(led);		
-	}
-
-	if (led->profiler.visible)
-	{
-		led_profiler_main(led);
 	}
 
 	/*
