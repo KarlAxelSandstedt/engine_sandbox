@@ -31,7 +31,6 @@
 
 #include "kas_common.h"
 #include "linux_local.h"
-#include "kas_profiler.h"
 #include "memory.h"
 #include "kas_string.h"
 #include "sys_public.h"
@@ -79,8 +78,6 @@ int main(int argc, char *argv[])
 	while (editor->running)
 	{
 		TracyCFrameMark;
-
-		kas_profiler_new_frame();
 
 		system_free_tagged_windows();
 

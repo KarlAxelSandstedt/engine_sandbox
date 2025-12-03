@@ -27,7 +27,6 @@
 #include "bit_vector.h"
 #include "asset_public.h"
 #include "string_database.h"
-#include "kas_profiler.h"
 #include "array_list.h"
 #include "list.h"
 #include "sys_gl.h"

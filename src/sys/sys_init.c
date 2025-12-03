@@ -18,7 +18,6 @@
 */
 
 #include "sys_local.h"
-#include "kas_profiler.h"
 #include "log.h"
 #include "dtoa.h"
 
@@ -70,7 +69,6 @@ void system_resources_init(struct arena *mem)
 	const u32 count_1MB = 1024;
 
 	global_thread_block_allocators_alloc(count_256B, count_1MB);
-	kas_profiler_init(mem, 0, g_arch_config->logical_core_count, 4*4096, 1024, freq_rdtsc(), PROFILE_LEVEL_KERNEL);
 	system_graphics_init();
 	task_context_init(mem, g_arch_config->logical_core_count);
 }
@@ -79,7 +77,6 @@ void system_resources_cleanup(void)
 {
 	task_context_destroy(g_task_ctx);
 	system_graphics_destroy();
-	kas_profiler_shutdown();
 	global_thread_block_allocators_free();
 
 	log_shutdown();

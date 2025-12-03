@@ -19,7 +19,6 @@
 
 #include "sys_public.h"
 #include "log.h"
-#include "kas_profiler.h"
 #include "kas_random.h"
 
 struct task_context t_ctx;
@@ -80,7 +79,6 @@ void task_main(kas_thread *thr)
 	while (atomic_load_acq_32(&a_startup_complete) == 0);
 
 	w->thr = thr;
-	kas_profiler_acquire_thread_local_frame(kas_thread_self_index(), kas_thread_self_tid());
 	atomic_fetch_add_seq_cst_32(&a_startup_complete, 1);
 	log_string(T_SYSTEM, S_NOTE, "task_worker setup finalized");
 

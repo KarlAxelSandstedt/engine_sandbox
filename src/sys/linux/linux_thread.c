@@ -31,6 +31,16 @@
 kas_thread_local struct kas_thread *self = NULL;
 u32	a_index_counter = 1;
 
+const char *thread_profiler_id[] = {
+	"Master", "Worker 1", "Worker 2", "Worker 3", "Worker 4", "Worker 5", "Worker 6", "Worker 7", "Worker 8", "Worker 9",
+	"Worker 10", "Worker 11", "Worker 12", "Worker 13", "Worker 14", "Worker 15", "Worker 16", "Worker 17", "Worker 18", "Worker 19",
+	"Worker 20", "Worker 21", "Worker 22", "Worker 23", "Worker 24", "Worker 25", "Worker 26", "Worker 27", "Worker 28", "Worker 29",
+	"Worker 30", "Worker 31", "Worker 32", "Worker 33", "Worker 34", "Worker 35", "Worker 36", "Worker 37", "Worker 38", "Worker 39",
+	"Worker 40", "Worker 41", "Worker 42", "Worker 43", "Worker 44", "Worker 45", "Worker 46", "Worker 47", "Worker 48", "Worker 49",
+	"Worker 50", "Worker 51", "Worker 52", "Worker 53", "Worker 54", "Worker 55", "Worker 56", "Worker 57", "Worker 58", "Worker 59",
+	"Worker 60", "Worker 61", "Worker 62", "Worker 63",
+};
+
 static void *kas_thread_clone_start(void *void_thr)
 {
 	self = void_thr;
@@ -39,6 +49,7 @@ static void *kas_thread_clone_start(void *void_thr)
 	thr->gtid = getpid();
 	thr->tid = gettid();
 	thr->index = atomic_fetch_add_rlx_32(&a_index_counter, 1);
+	TracyCSetThreadName(thread_profiler_id[thr->index]);
 	thr->start(thr);
 
 	return NULL;
@@ -51,6 +62,7 @@ void kas_thread_master_init(struct arena *mem)
 	self->gtid = getpid();
 	self->tid = gettid();
 	self->index = 0;
+	TracyCSetThreadName(thread_profiler_id[self->index]);
 }
 
 void kas_thread_clone(struct arena *mem, void (*start)(kas_thread *), void *args, const u64 stack_size)

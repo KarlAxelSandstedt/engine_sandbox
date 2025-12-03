@@ -21,7 +21,6 @@
 
 #include "ui_local.h"
 #include "hash_map.h"
-#include "kas_profiler.h"
 
 #define INITIAL_UNIT_COUNT	1024
 #define INITIAL_HASH_COUNT	1024
@@ -422,7 +421,6 @@ struct ui_text_input ui_text_input_alloc(struct arena *mem, const u32 max_len)
 
 static void ui_childsum_layout_size_and_prune_nodes(void)
 {
-	KAS_TASK(__func__, T_UI);
 	arena_push_record(g_ui->mem_frame);
 
 	//stack_u32 stack_free = stack_u32_alloc(g_ui->mem_frame, g_ui->node_count_prev_frame, 0);
@@ -482,7 +480,6 @@ static void ui_childsum_layout_size_and_prune_nodes(void)
 	}
 
 	arena_pop_record(g_ui->mem_frame);
-	KAS_END;
 }
 
 static void ui_node_solve_child_violation(struct ui_node *node, const enum axis_2 axis)
@@ -631,7 +628,6 @@ static void ui_node_solve_child_violation(struct ui_node *node, const enum axis_
 
 static void ui_solve_violations(void)
 {
-	KAS_TASK(__func__, T_UI);
 	struct arena tmp = arena_alloc_1MB();
 	struct hierarchy_index_iterator	it = hierarchy_index_iterator_init(&tmp, g_ui->node_hierarchy, g_ui->root);
 	while(it.count)
@@ -644,13 +640,10 @@ static void ui_solve_violations(void)
 	}
 	hierarchy_index_iterator_release(&it);
 	arena_free_1MB(&tmp);
-	KAS_END;
 }
 
 static void ui_layout_absolute_position(void)
 {
-	KAS_TASK(__func__, T_UI);
-
 	struct arena tmp = arena_alloc_1MB();
 	struct hierarchy_index_iterator	it = hierarchy_index_iterator_init(&tmp, g_ui->node_hierarchy, g_ui->root);
 
@@ -761,7 +754,6 @@ static void ui_layout_absolute_position(void)
 
 	hierarchy_index_iterator_release(&it);
 	arena_free_1MB(&tmp);
-	KAS_END;
 }
 
 static void inter_debug_print(const u64 inter)

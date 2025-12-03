@@ -179,90 +179,6 @@ static void led_project_menu_ui(struct led *led, const struct ui_visual *visual)
 	ui_frame_end();
 }
 
-static void led_profiler_ui(struct led *led, const struct ui_visual *visual)
-{
-	struct led_profiler *prof = &led->profiler;
-	struct system_window *win = system_window_address(prof->window);
-	if (g_profiler->level < PROFILE_LEVEL_TASK)
-	{
-		system_window_event_handler(win);
-		return;
-	}
-	system_window_set_global(prof->window);
-	cmd_queue_execute();
-
-	if (g_profiler->frame_counter == 0)
-	{
-		kaspf_reader_stream(prof->timeline_config.ns_interval_size);
-		return;
-	}
-
-	ui_frame_begin(win->size, visual);
-
-	if (prof->timeline_config.fixed)
-	{
-		kaspf_reader_fixed(prof->timeline_config.ns_interval_start, prof->timeline_config.ns_interval_end);
-	}
-	else
-	{
-		kaspf_reader_stream(prof->timeline_config.ns_interval_size);
-		prof->timeline_config.ns_interval_start = g_kaspf_reader->ns_start;
-		prof->timeline_config.ns_interval_end = g_kaspf_reader->ns_end;
-		prof->timeline_config.ns_interval_size = g_kaspf_reader->ns_end - g_kaspf_reader->ns_start;
-	}
-
-	ui_child_layout_axis(AXIS_2_Y)
-	ui_width(ui_size_perc(1.0f))
-	ui_height(ui_size_perc(1.0f))
-	ui_flags(UI_TEXT_ALLOW_OVERFLOW)
-	ui_parent(ui_node_alloc_f(UI_DRAW_BACKGROUND | UI_DRAW_BORDER, "###window_%u", prof->window).index)
-	{
-		ui_height(ui_size_perc(0.1f))
-		ui_width(ui_size_perc(1.0f))
-		ui_font(FONT_DEFAULT_MEDIUM)
-		ui_node_alloc_f(UI_DRAW_TEXT, "PROFILER", win->ui);
-
-		ui_height(ui_size_pixel(600.0f, 1.0f))
-		ui_width(ui_size_perc(0.9f))
-		ui_timeline(&prof->timeline_config);
-		for (u32 wi = 0; wi < g_task_ctx->worker_count; ++wi)
-		{
-			const char *title_format = (wi)
-				? "Worker_%u"
-				: "Master###%u";
-			ui_timeline_row(&prof->timeline_config, wi, title_format, wi)
-			{
-				struct hw_frame_header *fh = g_kaspf_reader->low;
-				for (u64 fi = g_kaspf_reader->frame_low; fi <= g_kaspf_reader->frame_high; ++fi) 
-				{
-					struct hw_profile_header *hw_h = fh->hw_profile_h + wi;
-					for (u64 pi = 0; pi < hw_h->profile_count; ++pi)
-					{
-						struct hw_profile *p  = hw_h->profiles + pi;
-						const vec4 prof_text = { 0.0f, 0.0f, 0.0f, 0.8f };
-						const vec4 border_blend_color = { 0.0f, 0.0f, 0.0f, 1.0f };
-						vec4 border_color;
-
-						struct kaspf_task_info *info = g_kaspf_reader->task_info + p->task_id;
-						vec4_interpolate(border_color, border_blend_color, prof->system_colors[info->system], 0.525f);
-						ui_background_color(prof->system_colors[info->system])
-						ui_border_color(border_color)
-						ui_width(ui_size_unit(intv_inline(p->ns_start, p->ns_end)))
-						ui_height(ui_size_unit(intv_inline(p->depth, p->depth+1)))
-						ui_external_text_layout(info->layout, info->id)
-						p->cache = ui_node_alloc_cached(UI_DRAW_BACKGROUND | UI_DRAW_BORDER | UI_DRAW_GRADIENT | UI_DRAW_TEXT | UI_TEXT_EXTERNAL_LAYOUT | UI_DRAW_TEXT_FADE, p->id, utf8_empty(), p->cache);
-					}
-
-					fh = fh->next;
-				}
-			}
-		}
-	}
-
-	system_window_event_handler(win);
-	ui_frame_end();
-}
-
 static void led_ui_test(struct led *led, const struct ui_visual *visual)
 {
 	system_window_set_global(led->window);
@@ -1142,7 +1058,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 
 void led_ui_main(struct led *led)
 {
-	KAS_TASK(__func__, T_UI);
+	TracyCZone(ctx, 1);
 
 	const vec4 bg = { 0.0625f, 0.0625f, 0.0625f, 1.0f };
 	const vec4 br = { 0.0f, 0.15f, 0.25f, 1.0f };
@@ -1172,14 +1088,5 @@ void led_ui_main(struct led *led)
 		led_project_menu_ui(led, &visual);
 	}
 
-	if (led->profiler.window)
-	{
-		led_profiler_ui(led, &visual);
-	}
-	else
-	{
-		g_kaspf_reader->read_state = KASPF_READER_CLOSED;
-	}
-
-	KAS_END;
+	TracyCZoneEnd(ctx);
 }

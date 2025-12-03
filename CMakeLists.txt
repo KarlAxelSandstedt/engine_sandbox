@@ -157,7 +157,6 @@ endif()
 
 add_subdirectory("${SRC_PATH}/misc")
 add_subdirectory("${SRC_PATH}/misc/ui")
-add_subdirectory("${SRC_PATH}/misc/profiler")
 add_subdirectory("${SRC_PATH}/misc/debug")
 add_subdirectory("${SRC_PATH}/common")
 add_subdirectory("${SRC_PATH}/math")
@@ -171,7 +170,6 @@ add_subdirectory("${SRC_PATH}/asset_system")
 
 link_libraries(kas_common)
 link_libraries(log)
-link_libraries(kas_profiler)
 
 if (DEFINED EMSCRIPTEN)
 	add_subdirectory(${SRC_PATH}/sys/wasm)

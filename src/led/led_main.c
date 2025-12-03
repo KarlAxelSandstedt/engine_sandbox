@@ -142,8 +142,6 @@ static void led_profiler_main(struct led *led)
 
 void led_main(struct led *led, const u64 ns_delta)
 {
-	KAS_TASK(__func__, T_LED);
-
 	led->ns_delta = ns_delta * led->ns_delta_modifier;
 	led->ns += led->ns_delta;
 	arena_flush(&led->frame);
@@ -162,6 +160,4 @@ void led_main(struct led *led, const u64 ns_delta)
 	 * (1) process user input => (2) build ui => (3) led_core(): process systems in order
 	 */
 	led_core(led);
-
-	KAS_END;
 }

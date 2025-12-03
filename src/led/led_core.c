@@ -1412,8 +1412,6 @@ static void led_engine_run(struct led *led)
 
 void led_core(struct led *led)
 {
-	KAS_TASK(__func__, T_LED);
-
 	//TODO fix 
 	static u32 once = 1;
 	struct system_window *sys_win = system_window_address(g_editor->window);
@@ -1448,6 +1446,4 @@ void led_core(struct led *led)
 	}
 
 	//TODO: led_draw();
-
-	KAS_END;
 }

@@ -18,7 +18,6 @@
 */
 
 #include "sys_common.h"
-#include "kas_profiler.h"
 #include "dynamics.h"
 #include "quaternion.h"
 
@@ -740,12 +739,12 @@ static u32 *island_solve(struct arena *mem_frame, struct physics_pipeline *pipel
 
 void thread_island_solve(void *task_input)
 {
-	KAS_TASK(__func__, T_PHYSICS);
+	TracyCZone(ctx, 1);
 
 	struct task *t_ctx = task_input;
 	struct island_solve_input *args = t_ctx->input;
 	args->out->body_count = args->is->body_count;
 	args->out->bodies = island_solve(&t_ctx->executor->mem_frame, args->pipeline, args->is, args->timestep);
 
-	KAS_END;
+	TracyCZoneEnd(ctx);
 }

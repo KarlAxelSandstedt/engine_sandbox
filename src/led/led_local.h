@@ -23,7 +23,6 @@
 #include "led_public.h"
 #include "sys_public.h"
 #include "r_public.h"
-#include "kas_profiler.h"
 #include "ui_public.h"
 
 #define LED_ROOT_FOLDER_PATH	"../asset_components/led_projects"

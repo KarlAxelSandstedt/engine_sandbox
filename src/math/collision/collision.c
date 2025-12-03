@@ -21,7 +21,6 @@
 #include "float32.h"
 #include "collision.h"
 #include "dynamics.h"
-#include "kas_profiler.h"
 
 DEFINE_STACK(visual_segment);
 

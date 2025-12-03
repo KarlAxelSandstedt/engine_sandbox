@@ -18,7 +18,6 @@
 */
 
 #include "sys_public.h"
-#include "kas_profiler.h"
 #include "dynamics.h"
 
 u32 c_db_index_in_previous_contact_node(struct nll *net, void **prev_node, const void *cur_node, const u32 cur_index)

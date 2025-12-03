@@ -22,7 +22,6 @@
 #include <float.h>
 
 #include "dynamics.h"
-#include "kas_profiler.h"
 #include "float32.h"
 
 const char *body_color_mode_str_buf[RB_COLOR_MODE_COUNT] = 
@@ -201,10 +200,12 @@ void physics_pipeline_flush(struct physics_pipeline *pipeline)
 
 void physics_pipeline_validate(const struct physics_pipeline *pipeline)
 {
-	KAS_TASK(__func__, T_PHYSICS);
+	TracyCZone(ctx, 1);
+
 	c_db_validate(pipeline);
 	is_db_validate(pipeline);
-	KAS_END;
+
+	TracyCZoneEnd(ctx);
 }
 
 static void rigid_body_update_local_box(struct rigid_body *body, const struct collision_shape *shape)
@@ -307,7 +308,7 @@ struct slot physics_pipeline_rigid_body_alloc(struct physics_pipeline *pipeline,
 
 static void internal_update_dynamic_tree(struct physics_pipeline *pipeline)
 {
-	KAS_TASK(__func__, T_PHYSICS);
+	TracyCZone(ctx, 1);
 	struct AABB world_AABB;
 
 	const u32 flags = RB_ACTIVE | RB_DYNAMIC | (g_solver_config->sleep_enabled * RB_AWAKE);
@@ -333,14 +334,14 @@ static void internal_update_dynamic_tree(struct physics_pipeline *pipeline)
 			}
 		}
 	}
-	KAS_END;
+	TracyCZoneEnd(ctx);
 }
 
 static void internal_push_proxy_overlaps(struct arena *mem_frame, struct physics_pipeline *pipeline)
 {
-	KAS_TASK(__func__, T_PHYSICS);
+	TracyCZone(ctx, 1);
 	pipeline->proxy_overlap = dbvt_push_overlap_pairs(mem_frame, &pipeline->proxy_overlap_count, &pipeline->dynamic_tree);
-	KAS_END;
+	TracyCZoneEnd(ctx);
 }
 
 struct tpc_output
@@ -351,7 +352,7 @@ struct tpc_output
 
 static void thread_push_contacts(void *task_addr)
 {
-	KAS_TASK("contact creation", T_PHYSICS);
+	TracyCZone(ctx, 1);
 
 	struct task *task = task_addr;
 	struct worker *worker = task->executor;
@@ -395,7 +396,7 @@ static void thread_push_contacts(void *task_addr)
 	arena_pop_packed(&worker->mem_frame, (range->count - out->result_count) * sizeof(struct collision_result));
 
 	task->output = out;
-	KAS_END;
+	TracyCZoneEnd(ctx);
 }
 
 static void internal_parallel_push_contacts(struct arena *mem_frame, struct physics_pipeline *pipeline)
@@ -409,7 +410,7 @@ static void internal_parallel_push_contacts(struct arena *mem_frame, struct phys
 			sizeof(struct dbvt_overlap), 
 			pipeline);
 
-	KAS_TASK(__func__, T_PHYSICS);
+	TracyCZone(ctx, 1);
 	pipeline->cm = (struct contact_manifold *) arena_push(mem_frame, pipeline->proxy_overlap_count * sizeof(struct contact_manifold));
 	arena_push_record(mem_frame);
 
@@ -452,18 +453,22 @@ static void internal_parallel_push_contacts(struct arena *mem_frame, struct phys
 	pipeline->contact_new_count = 0;
 	pipeline->contact_new = (u32 *) mem_frame->stack_ptr;
 	//fprintf(stderr, "A: {");
-	for (u32 i = 0; i < pipeline->cm_count; ++i)
 	{
-		const struct contact *c = c_db_add_contact(pipeline, pipeline->cm + i, pipeline->cm[i].i1, pipeline->cm[i].i2);
-		/* add to new links if needed */
-		const u32 index = (u32) nll_index(&pipeline->c_db.contact_net, c);
-		if (index >= pipeline->c_db.contacts_persistent_usage.bit_count
-			 || bit_vec_get_bit(&pipeline->c_db.contacts_persistent_usage, index) == 0)
+		TracyCZoneN(ctx, "internal_gather_real_contacts", 1);
+		for (u32 i = 0; i < pipeline->cm_count; ++i)
 		{
-				pipeline->contact_new_count += 1;
-				arena_push_packed_memcpy(mem_frame, &index, sizeof(index));
+			const struct contact *c = c_db_add_contact(pipeline, pipeline->cm + i, pipeline->cm[i].i1, pipeline->cm[i].i2);
+			/* add to new links if needed */
+			const u32 index = (u32) nll_index(&pipeline->c_db.contact_net, c);
+			if (index >= pipeline->c_db.contacts_persistent_usage.bit_count
+				 || bit_vec_get_bit(&pipeline->c_db.contacts_persistent_usage, index) == 0)
+			{
+					pipeline->contact_new_count += 1;
+					arena_push_packed_memcpy(mem_frame, &index, sizeof(index));
+			}
+			//fprintf(stderr, " %u", index);
 		}
-		//fprintf(stderr, " %u", index);
+		TracyCZoneEnd(ctx);
 	}
 	//fprintf(stderr, " } ");
 
@@ -489,12 +494,12 @@ static void internal_parallel_push_contacts(struct arena *mem_frame, struct phys
 	//	}
 	//	//fprintf(stderr, " } ");
 	//}
-	KAS_END;
+	TracyCZoneEnd(ctx);
 }
 
 static void internal_merge_islands(struct arena *mem_frame, struct physics_pipeline *pipeline)
 {
-	KAS_TASK(__func__, T_PHYSICS);
+	TracyCZone(ctx, 1);
 	for (u32 i = 0; i < pipeline->contact_new_count; ++i)
 	{
 		struct contact *c = nll_address(&pipeline->c_db.contact_net, pipeline->contact_new[i]);
@@ -525,15 +530,15 @@ static void internal_merge_islands(struct arena *mem_frame, struct physics_pipel
 			} break;
 		}
 	}
-	KAS_END;
+	TracyCZoneEnd(ctx);
 }
 
 static void internal_remove_contacts_and_tag_split_islands(struct arena *mem_frame, struct physics_pipeline *pipeline)
 {
-	KAS_TASK(__func__, T_PHYSICS);
+	TracyCZone(ctx, 1);
 	if (pipeline->c_db.contact_net.pool.count == 0) 
 	{ 
-		KAS_END;
+	TracyCZoneEnd(ctx);
 		return; 
 	}
 
@@ -591,12 +596,12 @@ static void internal_remove_contacts_and_tag_split_islands(struct arena *mem_fra
 	}	
 	is_db_release_unused_splits_memory(mem_frame, &pipeline->is_db);
 	//fprintf(stderr, " }\tcontacts: %u\n", pipeline->c_db.contacts->count-2);
-	KAS_END;
+	TracyCZoneEnd(ctx);
 }
 
 static void internal_split_islands(struct arena *mem_frame, struct physics_pipeline *pipeline)
 {
-	KAS_TASK(__func__, T_PHYSICS);
+	TracyCZone(ctx, 1);
 	/* TODO: Parallelize island splitting */
 
 	for (u32 i = 0; i < pipeline->is_db.possible_splits_count; ++i)
@@ -606,12 +611,12 @@ static void internal_split_islands(struct arena *mem_frame, struct physics_pipel
 
 	c_db_update_persistent_contacts_usage(&pipeline->c_db);
 
-	KAS_END;
+	TracyCZoneEnd(ctx);
 }
 
 static void internal_parallel_solve_islands(struct arena *mem_frame, struct physics_pipeline *pipeline, const f32 delta)
 {
-	KAS_TASK(__func__, T_PHYSICS);
+	TracyCZone(ctx, 1);
 
 	/* acquire any task resources */
 	struct task_stream *stream = task_stream_init(mem_frame);
@@ -684,7 +689,7 @@ static void internal_parallel_solve_islands(struct arena *mem_frame, struct phys
 		}
 	}
 
-	KAS_END;
+	TracyCZoneEnd(ctx);
 }
 
 void physics_pipeline_enable_sleeping(struct physics_pipeline *pipeline)
@@ -883,7 +888,6 @@ void internal_physics_pipeline_simulate_frame(struct physics_pipeline *pipeline,
 
 void physics_pipeline_tick(struct physics_pipeline *pipeline)
 {
-	KAS_TASK(__func__, T_PHYSICS);
 	TracyCZoneN(ctx, "Physics Tick", 1);
 
 	if (pipeline->frames_completed > 0)
@@ -895,7 +899,6 @@ void physics_pipeline_tick(struct physics_pipeline *pipeline)
 	internal_physics_pipeline_simulate_frame(pipeline, delta);
 
 	TracyCZoneEnd(ctx);
-	KAS_END;
 }
 
 f32 physics_pipeline_raycast_parameter(struct arena *mem_tmp, struct slot *slot, const struct physics_pipeline *pipeline, const struct ray *ray)

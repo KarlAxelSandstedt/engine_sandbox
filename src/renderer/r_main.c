@@ -333,7 +333,7 @@ end:
 
 static void r_led_draw(const struct led *led)
 {
-	KAS_TASK(__func__, T_RENDERER);
+	TracyCZone(ctx, 1);
 
 	const u32 depth_exponent = 1 + f32_exponent_bits(led->cam.fz_far);
 	kas_assert(depth_exponent >= 23);
@@ -434,7 +434,7 @@ static void r_led_draw(const struct led *led)
 
 	}
 
-	KAS_END;
+	TracyCZoneEnd(ctx);
 }
 
 static void internal_r_proxy3d_uniforms(const struct led *led, const u32 window)
@@ -476,7 +476,7 @@ static void internal_r_ui_uniforms(const u32 window)
 
 static void r_scene_render(const struct led *led, const u32 window)
 {
-	KAS_TASK(__func__, T_RENDERER);
+	TracyCZone(ctx, 1);
 
 	struct system_window *sys_win = system_window_address(window);
 	kas_glViewport(0, 0, (i32) sys_win->size[0], (i32) sys_win->size[1]); 
@@ -486,7 +486,7 @@ static void r_scene_render(const struct led *led, const u32 window)
 
 	for (struct r_bucket *b = sys_win->r_scene->frame_bucket_list; b; b = b->next)
 	{
-		KAS_TASK("render bucket", T_RENDERER);
+		TracyCZoneN(ctx, "render bucket", 1);
 		switch (b->screen_layer)
 		{
 			case R_CMD_SCREEN_LAYER_GAME:
@@ -625,25 +625,24 @@ static void r_scene_render(const struct led *led, const u32 window)
 		}
 
 		kas_glDeleteVertexArrays(1, &vao);
-		KAS_END;
+		TracyCZoneEnd(ctx);
 	}
 
 	system_window_swap_gl_buffers(window);
 	GL_STATE_ASSERT;
-	KAS_END;
+	TracyCZoneEnd(ctx);
 }
 
 void r_led_main(const struct led *led)
 {
-	KAS_TASK(__func__, T_RENDERER);
-
 	g_r_core->ns_elapsed = led->ns;
-	arena_flush(&g_r_core->frame);
 	if (g_r_core->ns_tick)
 	{
 		const u64 frames_elapsed_since_last_draw = (g_r_core->ns_elapsed - (g_r_core->frames_elapsed * g_r_core->ns_tick)) / g_r_core->ns_tick;
 		if (frames_elapsed_since_last_draw)
 		{
+			TracyCZoneN(ctx, "render frame", 1);
+			arena_flush(&g_r_core->frame);
 			struct arena tmp = arena_alloc_1MB();
 
 			g_r_core->frames_elapsed += frames_elapsed_since_last_draw;
@@ -686,6 +685,7 @@ void r_led_main(const struct led *led)
 			system_window_set_current_gl_context(g_process_root_window);
 
 			arena_free_1MB(&tmp);
+			TracyCZoneEnd(ctx);
 		}
 	}
 	else
@@ -693,6 +693,4 @@ void r_led_main(const struct led *led)
 		kas_assert(0);
 		g_r_core->frames_elapsed += 1;
 	}
-
-	KAS_END;
 }
