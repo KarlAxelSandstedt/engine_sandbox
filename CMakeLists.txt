@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.14.3)
 project(engine_sandbox)
 set(CPACK_PACKAGE_MAJOR "0")
 set(CPACK_PACKAGE_MINOR "1")
-set(CPACK_PACKAGE_PATCH "0")
+set(CPACK_PACKAGE_PATCH "1")
 set(CPACK_PACKAGE_VERSION "${CPACK_PACKAGE_MAJOR}.${CPACK_PACKAGE_MINOR}.${CPACK_PACKAGE_PATCH}")
 
 #TODO Turn off when making release builds
@@ -148,17 +148,23 @@ unset(apply_optimization_options CACHE)
 find_package(OpenGL REQUIRED)
 find_package(Threads REQUIRED)
 
+#TODO Fix this, need to setup own profiler macro layer above Tracy so we can switch on/off easily 
+if (CMAKE_BUILD_TYPE STREQUAL "Release")
+	option(TRACY_ENABLE "" OFF)
+else ()
+	option(TRACY_ENABLE "" ON)
+endif()
+
+
 add_subdirectory("${LIB_PATH}")
 
 #TODO Fix this, need to setup own profiler macro layer above Tracy so we can switch on/off easily 
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
 	link_libraries(Tracy::TracyClient)
-	option(TRACY_ENABLE "" OFF)
 	include_directories(tracy/public)
 	add_compile_definitions(KAS_PROFILE)
 else ()
 	link_libraries(Tracy::TracyClient)
-	option(TRACY_ENABLE "" ON)
 	include_directories(tracy/public)
 	add_compile_definitions(KAS_PROFILE)
 endif()

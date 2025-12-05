@@ -22,9 +22,6 @@
 
 #ifdef KAS_PROFILE
 	#include "tracy/TracyC.h"
-	#if !defined(TRACY_ENABLE)
-	#error
-	#endif
 #else
 //TODO
 #endif
