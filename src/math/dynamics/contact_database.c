@@ -74,8 +74,8 @@ void c_db_free(struct contact_database *c_db)
 
 void c_db_flush(struct contact_database *c_db)
 {
-	dll_flush(&c_db->sat_cache_list);
 	c_db_clear_frame(c_db);
+	dll_flush(&c_db->sat_cache_list);
 	pool_flush(&c_db->sat_cache_pool);
 	hash_map_flush(c_db->sat_cache_map);
 	nll_flush(&c_db->contact_net);

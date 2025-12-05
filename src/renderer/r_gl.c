@@ -721,9 +721,10 @@ void kas_glDeleteTextures(const GLsizei count, const GLuint tx[])
 		if (tx[i] > 0)
 		{
 			struct gl_texture *tx_ptr = array_list_address(tx_list, tx[i]);
-			for (u32 k = tx_ptr->binding_list.first; k != DLL_NULL; ++k)
+			struct texture_unit_binding *binding;
+			for (u32 k = tx_ptr->binding_list.first; k != DLL_NULL; k = DLL_NEXT(binding))
 			{
-				struct texture_unit_binding *binding = pool_address(&g_binding_pool, k);
+				binding = pool_address(&g_binding_pool, k);
 				struct gl_state *local_state = array_list_intrusive_address(g_gl_state_list, binding->context);
 				kas_assert(binding->tx_unit < g_gl_limits->tx_unit_count);
 				if (local_state->tx_unit[binding->tx_unit].gl_tx_2d_index == tx[i])

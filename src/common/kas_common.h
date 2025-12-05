@@ -21,11 +21,12 @@
 #define __KAS_COMMON_H__
 
 #ifdef KAS_PROFILE
-#define KAS_PROFILER
-#include "tracy/TracyC.h"
-#if !defined(TRACY_ENABLE)
-#error
-#endif
+	#include "tracy/TracyC.h"
+	#if !defined(TRACY_ENABLE)
+	#error
+	#endif
+#else
+//TODO
 #endif
 
 /*** logger definitions ***/

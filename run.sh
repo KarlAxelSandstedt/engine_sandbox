@@ -13,5 +13,11 @@ fi
 cmake -S . -B build -Dapply_optimization_options=ON -G $CMAKE_GENERATOR
 cd build
 cmake --build . --parallel
+
+TRACY_PROFILER="../lib/tracy/profiler/build/tracy-profiler"
+if [ -z $(pgrep -f "tracy-profiler")]; then
+	nohup "$TRACY_PROFILER" > /dev/null 2>&1 &
+fi
+
 ./engine_sandbox
 cd ..

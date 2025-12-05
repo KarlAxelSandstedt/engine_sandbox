@@ -34,8 +34,6 @@
 
 #define KAS_ASSERT_DEBUG 	/* Asserts on 						*/
 
-#else
-#define NDEBUG
 #endif
 
 /*** enables opengl debugging ***/
