@@ -32,11 +32,14 @@
 #include "sys_gl.h"
 
 #define S_COLOR_STRIDE		0
+#define S_LIGHTNING_STRIDE	0
 
 #define L_POSITION_OFFSET	0
 #define L_COLOR_OFFSET		(sizeof(vec3))
+#define L_NORMAL_OFFSET		(sizeof(vec3) + sizeof(vec4))
 
 #define L_COLOR_STRIDE		(sizeof(vec3) + sizeof(vec4))
+#define L_LIGHTNING_STRIDE	(2*sizeof(vec3) + sizeof(vec4))
 
 /********************************************************
  *			r_ui.c				*

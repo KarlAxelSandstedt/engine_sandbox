@@ -54,19 +54,6 @@ struct led_project_menu
 	struct ui_text_input 	input_line_new_project;
 };
 
-struct led_profiler
-{
-	u32			window;
-	u32			visible;
-
-	f32			transparency;
-	vec4			system_colors[T_COUNT];
-
-	u32			draw_worker_activity_online;
-
-	struct timeline_config 	timeline_config;
-};
-
 struct led_project
 {
 	u32			initialized;	/* is project setup/loaded and initialized? 	*/	
@@ -117,10 +104,10 @@ struct led
 	u32			window;
 	struct file		root_folder;
 
+	struct arena		mem_persistent;
+
 	struct led_project	project;
 	struct led_project_menu project_menu;
-
-	struct led_profiler	profiler;
 
 	struct r_camera		cam;
 	f32			cam_left_velocity;

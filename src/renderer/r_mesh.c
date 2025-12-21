@@ -68,6 +68,7 @@ void r_mesh_set_stub_box(struct r_mesh *mesh_stub)
 	mesh_stub->index_data = stub_indices;
 	mesh_stub->vertex_count = sizeof(stub_vertices) / sizeof(stub_vertices[0]);
 	mesh_stub->vertex_data = stub_vertices;
+	mesh_stub->local_stride = sizeof(stub_vertices[0]);
 }
 
 static void internal_r_mesh_set_sphere(u32 *b_i, u8 *vertex_data, u32 *index_data, const f32 radius, const vec3 translation, const u32 refinement)
@@ -180,6 +181,7 @@ void r_mesh_set_sphere(struct arena *mem, struct r_mesh *mesh, const f32 radius,
 	mesh->index_data = index_data;
 	mesh->vertex_count = vertex_count;
 	mesh->vertex_data = (void *) vertex_data;
+	mesh->local_stride = vertex_size;
 }
 
 void r_mesh_set_capsule(struct arena *mem, struct r_mesh *mesh, const vec3 p1, const f32 radius, const quat rotation, const u32 refinement)
@@ -310,12 +312,14 @@ void r_mesh_set_capsule(struct arena *mem, struct r_mesh *mesh, const vec3 p1, c
 	mesh->index_data = index_data;
 	mesh->vertex_count = vertex_count;
 	mesh->vertex_data = (void *) vertex_data;
+	mesh->local_stride = vertex_size;
 }
 
 void r_mesh_set_hull(struct arena *mem, struct r_mesh *mesh, const struct dcel *hull)
 {
 	mesh->vertex_data = mem->stack_ptr;
 	mesh->vertex_count = 0;
+	mesh->local_stride = sizeof(vec3) + sizeof(vec3);
 
 	for (u32 fi = 0; fi < hull->f_count; ++fi)
 	{
@@ -386,4 +390,40 @@ void r_mesh_set_hull(struct arena *mem, struct r_mesh *mesh, const struct dcel *
 	}
 
 	mesh->index_max_used = m_i - 1;
+}
+
+void r_mesh_set_tri_mesh(struct arena *mem, struct r_mesh *mesh, const struct tri_mesh *tri_mesh)
+{
+
+	mesh->vertex_count = 3*tri_mesh->tri_count;
+	mesh->vertex_data = mem->stack_ptr;
+	mesh->index_count = 0;
+	mesh->index_data = NULL;
+	//mesh->index_count = 3*tri_mesh->tri_count;
+	//mesh->index_data = arena_push_memcpy(mem, (u32*) tri_mesh->tri, mesh->index_count*sizeof(u32));
+	mesh->local_stride = sizeof(vec3) + sizeof(vec4) + sizeof(vec3);
+
+	const vec4 color = { 0.5f, 0.5f, 0.8f, 1.0f };
+
+	for (u32 t = 0; t < tri_mesh->tri_count; ++t)
+	{
+		vec3 normal;
+		tri_ccw_normal(normal, 
+				tri_mesh->v[tri_mesh->tri[t][0]],
+				tri_mesh->v[tri_mesh->tri[t][1]],
+				tri_mesh->v[tri_mesh->tri[t][2]]);
+
+		arena_push_packed_memcpy(mem, tri_mesh->v[tri_mesh->tri[t][0]], sizeof(vec3));
+		arena_push_packed_memcpy(mem, color, sizeof(vec4));
+		arena_push_packed_memcpy(mem, normal, sizeof(vec3));
+		arena_push_packed_memcpy(mem, tri_mesh->v[tri_mesh->tri[t][1]], sizeof(vec3));
+		arena_push_packed_memcpy(mem, color, sizeof(vec4));
+		arena_push_packed_memcpy(mem, normal, sizeof(vec3));
+		arena_push_packed_memcpy(mem, tri_mesh->v[tri_mesh->tri[t][2]], sizeof(vec3));
+		arena_push_packed_memcpy(mem, color, sizeof(vec4));
+		arena_push_packed_memcpy(mem, normal, sizeof(vec3));
+	}
+
+	mesh->index_max_used = 0;
+	//mesh->index_max_used = mesh->index_count-1;
 }

@@ -435,6 +435,7 @@ struct r_mesh
 	u32				index_max_used;		/* max used index */
 	u32				vertex_count;   	
 	void *				vertex_data;		/* vertex_data[vertex_count] */
+	u64				local_stride;
 };
 
 /**************** TEMPORARY: quick and dirty mesh generation *****************/
@@ -447,6 +448,8 @@ void 		r_mesh_set_sphere(struct arena *mem, struct r_mesh *mesh, const f32 radiu
 void 		r_mesh_set_capsule(struct arena *mem, struct r_mesh *mesh, const vec3 p1, const f32 radius, const quat rotation, const u32 refinement);
 /* setup mesh from collison hull */
 void 		r_mesh_set_hull(struct arena *mem, struct r_mesh *mesh, const struct dcel *hull);
+/* setup mesh from tri mesh */
+void 		r_mesh_set_tri_mesh(struct arena *mem, struct r_mesh *mesh, const struct tri_mesh *tri_mesh);
 
 /********************************************************
  *			r_gl.c				*

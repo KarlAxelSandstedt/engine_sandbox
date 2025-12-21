@@ -378,7 +378,7 @@ void r_scene_generate_bucket_list(void)
 			case R_INSTANCE_MESH:
 			{
 				r_buffer_constructor_buffer_add_size(&buf_constructor,
-						instance->mesh->vertex_count * L_COLOR_STRIDE,
+						instance->mesh->vertex_count * instance->mesh->local_stride,
 						0,
 						0,
 						0);
@@ -721,8 +721,8 @@ static void r_scene_bucket_generate_draw_data(struct r_bucket *b)
 				{
 					r_cmd = g_scene->cmd_frame + i;
 					instance = array_list_intrusive_address(g_scene->instance_list, r_cmd->instance);
-					memcpy(local_data, instance->mesh->vertex_data, instance->mesh->vertex_count * L_COLOR_STRIDE);
-					local_data += instance->mesh->vertex_count * L_COLOR_STRIDE;
+					memcpy(local_data, instance->mesh->vertex_data, instance->mesh->vertex_count * instance->mesh->local_stride);
+					local_data += instance->mesh->vertex_count * instance->mesh->vertex_count * instance->mesh->local_stride;
 				}
 			} break;
 

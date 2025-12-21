@@ -34,6 +34,7 @@ void cmd_led_node_set_proxy3d(void);
 
 void cmd_collision_shape_add(void);
 void cmd_collision_shape_remove(void);
+void cmd_collision_tri_mesh_add(void);
 void cmd_collision_dcel_add(void);
 void cmd_collision_box_add(void);
 void cmd_collision_sphere_add(void);
@@ -69,6 +70,7 @@ u32 cmd_collision_box_add_id;
 u32 cmd_collision_dcel_add_id;
 u32 cmd_collision_sphere_add_id;
 u32 cmd_collision_capsule_add_id;
+u32 cmd_collision_tri_mesh_add_id;
 
 void led_core_init_commands(void)
 {
@@ -95,6 +97,7 @@ void led_core_init_commands(void)
 	cmd_collision_dcel_add_id = cmd_function_register(utf8_inline("collision_dcel_add"), 2, &cmd_collision_dcel_add).index;
 	cmd_collision_sphere_add_id = cmd_function_register(utf8_inline("collision_sphere_add"), 2, &cmd_collision_sphere_add).index;
 	cmd_collision_capsule_add_id = cmd_function_register(utf8_inline("collision_capsule_add"), 3, &cmd_collision_capsule_add).index;
+	cmd_collision_tri_mesh_add_id = cmd_function_register(utf8_inline("collision_tri_mesh_add"), 2, &cmd_collision_tri_mesh_add).index;
 	cmd_collision_shape_remove_id = cmd_function_register(utf8_inline("collision_shape_remove"), 1, &cmd_collision_shape_remove).index;
 }
 
@@ -196,9 +199,29 @@ void cmd_collision_dcel_add(void)
 	}
 	else
 	{
-		log_string(T_LED, S_WARNING, "Failed to allocate collision box: bad parameters");
+		log_string(T_LED, S_WARNING, "Failed to allocate collision dcel: bad parameters");
 	}
+}
 
+void cmd_collision_tri_mesh_add(void)
+{
+	struct tri_mesh *tri_mesh = g_queue->cmd_exec->arg[1].ptr;
+	if (tri_mesh->v_count)
+	{
+		struct collision_shape shape =
+		{
+			.id = g_queue->cmd_exec->arg[0].utf8,
+			.type = COLLISION_SHAPE_TRI_MESH,
+			.tri_mesh = *tri_mesh, 
+			.center_of_mass_localized = 1,
+		};
+
+		led_collision_shape_add(g_editor, &shape);
+	}
+	else
+	{
+		log_string(T_LED, S_WARNING, "Failed to allocate collision tri_mesh: bad parameters");
+	}
 }
 
 void cmd_collision_sphere_add(void)
@@ -292,6 +315,11 @@ struct slot led_collision_shape_add(struct led *led, const struct collision_shap
 				{ 
 					new_shape->hull = shape->hull; 
 				} break;
+
+				case COLLISION_SHAPE_TRI_MESH: 
+				{ 
+					new_shape->tri_mesh = shape->tri_mesh; 
+				} break;
 			};
 		}
 	}
@@ -364,6 +392,7 @@ struct slot led_render_mesh_add(struct led *led, const utf8 id, const utf8 shape
 				case COLLISION_SHAPE_SPHERE: { r_mesh_set_sphere(&sys_win->mem_persistent, mesh, s->sphere.radius, 12); } break;
 				case COLLISION_SHAPE_CAPSULE: { kas_assert(0); } break;
 				case COLLISION_SHAPE_CONVEX_HULL: { r_mesh_set_hull(&sys_win->mem_persistent, mesh, &s->hull); } break;
+				case COLLISION_SHAPE_TRI_MESH: { r_mesh_set_tri_mesh(&sys_win->mem_persistent, mesh, &s->tri_mesh); } break;
 			}
 		}
 	}
@@ -704,6 +733,175 @@ void led_node_set_proxy3d(struct led *led, const utf8 id, const utf8 mesh, const
 	}
 }
 
+static struct tri_mesh tri_mesh_perlin_noise(struct arena *mem_persistent, const u32 n, const f32 width)
+{
+	kas_assert(is_power_of_two(n) && n >= 32);
+
+	struct arena tmp = arena_alloc_1MB();
+
+	struct tri_mesh mesh = 
+	{
+		.v_count = (n-1)*(n-1),
+		.tri_count = 2*(n-2)*(n-2),
+	};
+	mesh.v = arena_push(mem_persistent, mesh.v_count*sizeof(vec3));
+	mesh.tri = arena_push(mem_persistent, mesh.tri_count*sizeof(vec3u32));
+	//TODO move out functino to tri_mesh_perlin_noise method
+	//TODO return stub mesh
+	kas_assert(mesh.v && mesh.tri);
+
+	const f32 unit = width / n;
+
+#define OCTAVES	6
+	vec2ptr grad[OCTAVES];
+	for (u32 o = 0; o < OCTAVES; ++o)
+	{
+		const u32 on = n >> o;
+		grad[o] = arena_push(&tmp, on*on*sizeof(vec2));
+		for (u32 x = 0; x < on; ++x)
+		{
+			for (u32 z = 0; z < on; ++z)
+			{
+				const f32 angle = rng_f32_range(0.0f, MM_PI_2_F);
+				grad[o][x*on + z][0] = f32_cos(angle);
+				grad[o][x*on + z][1] = f32_sin(angle);
+			}
+		}
+	}
+
+	const vec3 offset =
+	{
+		-unit * (n >> 1),
+		-20.0f,
+		-unit * (n >> 1) + 30.0f,
+	};
+
+	for (u32 x = 0; x < n-1; ++x)
+	{
+		for (u32 z = 0; z < n-1; ++z)
+		{
+			mesh.v[x*(n-1) + z][0] = (0.5f + x) * unit;
+			mesh.v[x*(n-1) + z][1] = 0.0f;
+			mesh.v[x*(n-1) + z][2] = (0.5f + z) * unit;
+
+			f32 amplitude = 1.0f / (1 << OCTAVES);
+			for (u32 i = 0; i < OCTAVES; ++i)
+			{
+				const u32 on = n >> i;
+				const u32 x_low = x - (x % (1 << i));
+				const u32 z_low = z - (z % (1 << i));
+
+				const u32 x_high = x_low + (1 << i);
+				const u32 z_high = z_low + (1 << i);
+	
+				const vec2 bl_diff = 
+				{
+					mesh.v[x*(n-1) + z][0] - x_low * unit, 	
+					mesh.v[x*(n-1) + z][2] - z_low * unit, 	
+				};
+
+				const vec2 tl_diff = 
+				{
+					mesh.v[x*(n-1) + z][0] - x_low * unit, 	
+					mesh.v[x*(n-1) + z][2] - z_high * unit, 	
+				};
+
+				const vec2 br_diff = 
+				{
+					mesh.v[x*(n-1) + z][0] - x_high * unit, 	
+					mesh.v[x*(n-1) + z][2] - z_low * unit, 	
+				};
+
+				const vec2 tr_diff = 
+				{
+					mesh.v[x*(n-1) + z][0] - x_high * unit, 	
+					mesh.v[x*(n-1) + z][2] - z_high * unit, 	
+				};
+
+				//const f32 bl_dot = vec2_dot(bl_diff, grad[i][(x_low >> i)*on + (z_low >> i)]);
+				//const f32 br_dot = vec2_dot(br_diff, grad[i][(x_high >> i)*on + (z_low >> i)]);
+				//const f32 tl_dot = vec2_dot(tl_diff, grad[i][(x_low >> i)*on + (z_high >> i)]);
+				//const f32 tr_dot = vec2_dot(tr_diff, grad[i][(x_high >> i)*on + (z_high >> i)]);
+				
+				const u32 xg_low = x_low >> i;
+				const u32 xg_high = xg_low + 1;
+				const u32 zg_low = z_low >> i;
+				const u32 zg_high = zg_low + 1;
+				const f32 bl_dot = vec2_dot(bl_diff, grad[i][xg_low*on  + zg_low]);
+				const f32 br_dot = vec2_dot(br_diff, grad[i][xg_high*on + zg_low]);
+				const f32 tl_dot = vec2_dot(tl_diff, grad[i][xg_low*on  + zg_high]);
+				const f32 tr_dot = vec2_dot(tr_diff, grad[i][xg_high*on + zg_high]);
+
+				//fprintf(stderr, "(%u, %u), (%u, %u)\n",
+				//	(x_low >> i),
+				//	(x_high >> i),
+				//	(z_low >> i),
+				//	(z_high >> i));
+
+				const vec2 low = 
+				{
+					x_low * unit,
+					z_low * unit,
+				};
+
+				const vec2 high = 
+				{
+					x_high * unit,
+					z_high * unit,
+				};
+
+				const vec2 t = 
+				{
+					(mesh.v[x*(n-1) + z][0] - low[0]) / (high[0] - low[0]),
+					(mesh.v[x*(n-1) + z][2] - low[1]) / (high[1] - low[1]),
+				};
+
+				const vec2 smoothstep =
+				{
+					6*t[0]*t[0]*t[0]*t[0]*t[0] - 15*t[0]*t[0]*t[0]*t[0] + 10*t[0]*t[0]*t[0],
+					6*t[1]*t[1]*t[1]*t[1]*t[1] - 15*t[1]*t[1]*t[1]*t[1] + 10*t[1]*t[1]*t[1],
+				};
+
+				//if (i == OCTAVES-4)
+				//{
+				//fprintf(stderr, "(%u, %u) -> (%u, %u), (%u, %u)\n", x, z, x_low, z_low, x_high, z_high);
+				////fprintf(stderr, "%f, %f\n", low[0], low[1]);
+				//fprintf(stderr, "%f, %f\n", t[0], t[1]);
+				////fprintf(stderr, "%f, %f\n", smoothstep[0], smoothstep[1]);
+				//}
+
+				const f32 vb = bl_dot*(1.0f - smoothstep[0]) + br_dot*smoothstep[0];
+				const f32 vt = tl_dot*(1.0f - smoothstep[0]) + tr_dot*smoothstep[0];
+				const f32 perlin = vb*(1.0f - smoothstep[1]) + vt*smoothstep[1];
+
+				mesh.v[x*(n-1) + z][1] += perlin * amplitude;
+				amplitude *= 2.0f;
+			}
+
+			mesh.v[x*(n-1) + z][0] += offset[0];
+			mesh.v[x*(n-1) + z][1] += offset[1];
+			mesh.v[x*(n-1) + z][2] += offset[2];
+		}
+	}
+
+	for (u32 x = 0; x < n-2; ++x)
+	{
+		for (u32 z = 0; z < n-2; ++z)
+		{
+			mesh.tri[2*(x*(n-2) + z) + 0][0] = x*(n-1) + z; 
+			mesh.tri[2*(x*(n-2) + z) + 0][1] = x*(n-1) + z+1;
+			mesh.tri[2*(x*(n-2) + z) + 0][2] = (x+1)*(n-1) + z; 
+			mesh.tri[2*(x*(n-2) + z) + 1][0] = (x+1)*(n-1) + z; 
+			mesh.tri[2*(x*(n-2) + z) + 1][1] = x*(n-1) + z+1;
+			mesh.tri[2*(x*(n-2) + z) + 1][2] = (x+1)*(n-1) + z+1;
+		}
+	}
+
+	arena_free_1MB(&tmp);
+
+	return mesh;
+}
+
 void led_wall_smash_simulation_setup(struct led *led)
 {
 	struct system_window *sys_win = system_window_address(g_editor->window);
@@ -784,6 +982,12 @@ void led_wall_smash_simulation_setup(struct led *led)
 	sys_win->cmd_queue->regs[1].ptr = c_ramp;
 	cmd_queue_submit(sys_win->cmd_queue, cmd_collision_dcel_add_id);
 
+	struct tri_mesh *map = arena_push(sys_win->ui->mem_frame, sizeof(struct tri_mesh));
+	*map = tri_mesh_perlin_noise(&led->mem_persistent, 64, 100.0f);
+	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_map");
+	sys_win->cmd_queue->regs[1].ptr = map;
+	cmd_queue_submit(sys_win->cmd_queue, cmd_collision_tri_mesh_add_id);
+
 	struct dcel *c_dsphere = arena_push(&sys_win->mem_persistent, sizeof(struct dcel));
 	*c_dsphere = dcel_convex_hull(&sys_win->mem_persistent, dsphere_vertices, dsphere_v_count, F32_EPSILON * 100.0f);
 	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_dsphere");
@@ -829,6 +1033,10 @@ void led_wall_smash_simulation_setup(struct led *led)
 	sys_win->cmd_queue->regs[4].f32 = ramp_friction;
 	sys_win->cmd_queue->regs[5].u32 = 0;
 	cmd_queue_submit(sys_win->cmd_queue, cmd_rb_prefab_add_id);
+
+	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rm_map");
+	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_map");
+	cmd_queue_submit(sys_win->cmd_queue, cmd_render_mesh_add_id);
 
 	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rm_floor");
 	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_floor");

@@ -30,6 +30,8 @@
 #define fragment_proxy3d	"../assets/shaders/proxy3d.frag"
 #define vertex_color		"../assets/shaders/color.vert"
 #define fragment_color		"../assets/shaders/color.frag"
+#define vertex_lightning	"../assets/shaders/lightning.vert"
+#define fragment_lightning	"../assets/shaders/lightning.frag"
 #elif __OS__ == __WEB__
 #define vertex_ui		"../assets/shaders/gles_ui.vert"
 #define fragment_ui		"../assets/shaders/gles_ui.frag"
@@ -37,6 +39,8 @@
 #define fragment_proxy3d	"../assets/shaders/gles_proxy3d.frag"
 #define vertex_color		"../assets/shaders/gles_color.vert"
 #define fragment_color		"../assets/shaders/gles_color.frag"
+#define vertex_lightning	"../assets/shaders/gles_lightning.vert"
+#define fragment_lightning	"../assets/shaders/gles_lightning.frag"
 #endif
 
 static void shader_source_and_compile(GLuint shader, const char *filepath)
@@ -111,7 +115,19 @@ void r_color_buffer_layout_setter(void)
 
 	kas_glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, (GLsizei)  stride, 0);
 	kas_glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, (GLsizei)  stride, (void *)(sizeof(vec3)));
+}
 
+void r_lightning_buffer_layout_setter(void)
+{
+	kas_glEnableVertexAttribArray(0);
+	kas_glEnableVertexAttribArray(1);
+	kas_glEnableVertexAttribArray(2);
+
+	const u64 stride = 2*sizeof(vec3) + sizeof(vec4);
+
+	kas_glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, (GLsizei)  stride, 0);
+	kas_glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, (GLsizei)  stride, (void *)(sizeof(vec3)));
+	kas_glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, (GLsizei)  stride, (void *)(sizeof(vec3) + sizeof(vec4)));
 }
 
 void r_init(struct arena *mem_persistent, const u64 ns_tick, const u64 frame_size, const u64 core_unit_count, struct string_database *mesh_database)
@@ -137,6 +153,12 @@ void r_init(struct arena *mem_persistent, const u64 ns_tick, const u64 frame_siz
 	g_r_core->program[PROGRAM_COLOR].local_stride = L_COLOR_STRIDE;
 	g_r_core->program[PROGRAM_COLOR].buffer_shared_layout_setter = NULL;
 	g_r_core->program[PROGRAM_COLOR].buffer_local_layout_setter = r_color_buffer_layout_setter;
+
+	r_compile_shader(&g_r_core->program[PROGRAM_LIGHTNING].gl_program, vertex_lightning, fragment_lightning);
+	g_r_core->program[PROGRAM_LIGHTNING].shared_stride = S_LIGHTNING_STRIDE;
+	g_r_core->program[PROGRAM_LIGHTNING].local_stride = L_LIGHTNING_STRIDE;
+	g_r_core->program[PROGRAM_LIGHTNING].buffer_shared_layout_setter = NULL;
+	g_r_core->program[PROGRAM_LIGHTNING].buffer_local_layout_setter = r_lightning_buffer_layout_setter;
 
 	g_r_core->frame = arena_alloc(frame_size); 
 	if (g_r_core->frame.mem_size == 0)

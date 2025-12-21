@@ -335,6 +335,20 @@ static void r_led_draw(const struct led *led)
 {
 	TracyCZone(ctx, 1);
 
+	{
+		struct slot slot = string_database_lookup(&led->render_mesh_db, utf8_inline("rm_map"));
+		kas_assert(slot.index != STRING_DATABASE_STUB_INDEX);
+		if (slot.index != STRING_DATABASE_STUB_INDEX)
+		{
+			const u64 material = r_material_construct(PROGRAM_LIGHTNING, slot.index, TEXTURE_NONE);
+			const u64 depth = 0;
+			const u64 cmd = r_command_key(R_CMD_SCREEN_LAYER_GAME, 0, R_CMD_TRANSPARENCY_OPAQUE, material, R_CMD_PRIMITIVE_TRIANGLE, R_CMD_NON_INSTANCED, R_CMD_ARRAYS);
+			struct r_instance *instance = r_instance_add_non_cached(cmd);
+			instance->type = R_INSTANCE_MESH;
+			instance->mesh = slot.address;
+		}
+	}
+
 	const u32 depth_exponent = 1 + f32_exponent_bits(led->cam.fz_far);
 	kas_assert(depth_exponent >= 23);
 
@@ -454,6 +468,17 @@ static void internal_r_proxy3d_uniforms(const struct led *led, const u32 window)
 	kas_glUniform3f(light_position_addr, cam->position[0], cam->position[1], cam->position[2]);
 	kas_glUniformMatrix4fv(perspective_addr, 1, GL_FALSE, (f32 *) perspective);
 	kas_glUniformMatrix4fv(view_addr, 1, GL_FALSE, (f32 *) view);
+
+	kas_glUseProgram(g_r_core->program[PROGRAM_LIGHTNING].gl_program);
+	aspect_ratio_addr = kas_glGetUniformLocation(g_r_core->program[PROGRAM_LIGHTNING].gl_program, "aspect_ratio");
+	view_addr = kas_glGetUniformLocation(g_r_core->program[PROGRAM_LIGHTNING].gl_program, "view");
+	perspective_addr = kas_glGetUniformLocation(g_r_core->program[PROGRAM_LIGHTNING].gl_program, "perspective");
+	light_position_addr = kas_glGetUniformLocation(g_r_core->program[PROGRAM_LIGHTNING].gl_program, "light_position");
+	kas_glUniform1f(aspect_ratio_addr, (f32) cam->aspect_ratio);
+	kas_glUniform3f(light_position_addr, cam->position[0], cam->position[1], cam->position[2]);
+	kas_glUniformMatrix4fv(perspective_addr, 1, GL_FALSE, (f32 *) perspective);
+	kas_glUniformMatrix4fv(view_addr, 1, GL_FALSE, (f32 *) view);
+	
 	
 	kas_glUseProgram(g_r_core->program[PROGRAM_COLOR].gl_program);
 	aspect_ratio_addr = kas_glGetUniformLocation(g_r_core->program[PROGRAM_COLOR].gl_program, "aspect_ratio");
@@ -548,6 +573,7 @@ static void r_scene_render(const struct led *led, const u32 window)
 				kas_glViewport(0, 0, (i32) sys_win->size[0], (i32) sys_win->size[1]); 
 			} break;
 
+			case PROGRAM_LIGHTNING:
 			case PROGRAM_COLOR:
 			case PROGRAM_PROXY3D:
 			{

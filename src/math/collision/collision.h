@@ -84,6 +84,7 @@ struct collision_shape
 		struct sphere 	sphere;
 		struct capsule 	capsule;
 		struct dcel	hull;
+		struct tri_mesh tri_mesh;
 	};
 };
 

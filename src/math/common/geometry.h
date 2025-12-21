@@ -186,6 +186,19 @@ void	capsule_support(vec3 support, const vec3 dir, const struct capsule *cap, ma
 
 /********************************** dcel ************************************/
 
+/*
+ * triangle mesh (CCW) - set of ungrouped triangles.
+ */
+struct tri_mesh
+{
+	vec3ptr		v;
+	vec3u32ptr	tri;
+	u32 		v_count;	
+	u32 		tri_count;
+};
+
+/********************************** dcel ************************************/
+
 struct dcel_face
 {
 	u32 first;	/* first half edge */

@@ -49,6 +49,7 @@ void led_project_menu_dealloc(struct led_project_menu *menu)
 struct led *led_alloc(void)
 {
 	led_core_init_commands();
+	g_editor->mem_persistent = arena_alloc(16*1024*1024);
 
 	g_editor->window = system_process_root_window_alloc("Level Editor", vec2u32_inline(400,400), vec2u32_inline(1280, 720));
 
@@ -85,12 +86,6 @@ struct led *led_alloc(void)
 	g_editor->cam_forward_velocity = 0.0f;
 	g_editor->ns_delta = 0;
 	g_editor->ns_delta_modifier = 1.0f;
-
-#if defined(KAS_PROFILER)
-	g_editor->profiler.visible = 1;
-#else
-	g_editor->profiler.visible = 0;
-#endif
 
 	g_editor->project.initialized = 0;
 	g_editor->project.folder = file_null();
@@ -147,6 +142,7 @@ struct led *led_alloc(void)
 
 void led_dealloc(struct led *led)
 {
+	arena_free(&led->mem_persistent);
 	led_project_menu_dealloc(&led->project_menu);
 	csg_dealloc(&led->csg);
 	gpool_dealloc(&led->node_pool);
