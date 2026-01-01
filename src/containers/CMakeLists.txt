@@ -20,6 +20,8 @@ add_library(containers STATIC
 	hierarchy_index.h
 	string_database.c
 	string_database.h
+	tree.c
+	tree.h
 )
 
 target_link_libraries(containers

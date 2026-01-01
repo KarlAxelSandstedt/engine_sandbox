@@ -177,7 +177,12 @@ u32 		AABB_contains(const struct AABB *a, const struct AABB *b);
 /* If the ray hits aabb, return 1 and set intersection. otherwise return 0. */
 u32 		AABB_raycast(vec3 intersection, const struct AABB *aabb, const struct ray *ray);
 /* sets up vertex buffer to use with glDrawArrays. Returns number of bytes written. */
-u64 	AABB_push_lines_buffered(u8 *buf, const u64 bufsize, const struct AABB *box, const vec4 color);
+u64 		AABB_push_lines_buffered(u8 *buf, const u64 bufsize, const struct AABB *box, const vec4 color);
+/* return AABB bounding box of triangle */
+struct AABB	bbox_triangle(const vec3 p0, const vec3 p1, const vec3 p2);
+/* Return smallest AABB that contains both a and b  */
+struct AABB	bbox_union(const struct AABB a, const struct AABB b);
+
 
 /********************************* capsule **********************************/
 
@@ -196,6 +201,8 @@ struct tri_mesh
 	u32 		v_count;	
 	u32 		tri_count;
 };
+
+struct AABB	tri_mesh_bbox(const struct tri_mesh *mesh);
 
 /********************************** dcel ************************************/
 

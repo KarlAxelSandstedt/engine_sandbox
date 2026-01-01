@@ -583,6 +583,56 @@ u64 AABB_push_lines_buffered(u8 *buf, const u64 bufsize, const struct AABB *box,
 	return bytes_written;
 }
 
+struct AABB bbox_triangle(const vec3 p0, const vec3 p1, const vec3 p2)
+{
+	struct AABB bbox;
+
+	vec3 min = { p0[0], p0[1], p0[2] };
+	vec3 max = { p0[0], p0[1], p0[2] };
+
+	min[0] = f32_min(min[0], p1[0]); 
+	min[1] = f32_min(min[1], p1[1]); 
+	min[2] = f32_min(min[2], p1[2]); 
+
+	max[0] = f32_max(max[0], p1[0]); 
+	max[1] = f32_max(max[1], p1[1]); 
+	max[2] = f32_max(max[2], p1[2]); 
+
+	min[0] = f32_min(min[0], p2[0]); 
+	min[1] = f32_min(min[1], p2[1]); 
+	min[2] = f32_min(min[2], p2[2]); 
+
+	max[0] = f32_max(max[0], p2[0]); 
+	max[1] = f32_max(max[1], p2[1]); 
+	max[2] = f32_max(max[2], p2[2]); 
+
+	vec3_sub(bbox.hw, max, min);
+	vec3_mul_constant(bbox.hw, 0.5f);
+	vec3_add(bbox.center, min, bbox.hw);
+
+	return bbox;
+}
+
+struct AABB bbox_union(const struct AABB a, const struct AABB b)
+{
+	struct AABB bbox;
+	vec3 min, max;
+	
+	min[0] = f32_min(a.center[0] - a.hw[0], b.center[0] - b.hw[0]);
+	min[1] = f32_min(a.center[1] - a.hw[1], b.center[1] - b.hw[1]);
+	min[2] = f32_min(a.center[2] - a.hw[2], b.center[2] - b.hw[2]);
+                                                                      
+	max[0] = f32_max(a.center[0] + a.hw[0], b.center[0] + b.hw[0]);
+	max[1] = f32_max(a.center[1] + a.hw[1], b.center[1] + b.hw[1]);
+	max[2] = f32_max(a.center[2] + a.hw[2], b.center[2] + b.hw[2]);
+	
+	vec3_sub(bbox.hw, max, min);
+	vec3_mul_constant(bbox.hw, 0.5f);
+	vec3_add(bbox.center, bbox.hw, min);
+
+	return bbox;
+}
+
 u32 vertex_support(vec3 support, const vec3 dir, const vec3ptr v, const u32 v_count)
 {
 	u32 best = U32_MAX;
@@ -1703,4 +1753,11 @@ end:
 	arena_free_1MB(&tmp2);
 
 	return dcel;
+}
+
+struct AABB tri_mesh_bbox(const struct tri_mesh *mesh)
+{
+	struct AABB bbox = { 0 };	
+	AABB_vertex(&bbox, mesh->v, mesh->v_count, 0.0f);	
+	return bbox;
 }

@@ -839,10 +839,10 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 							ui_node_alloc_f(UI_DRAW_TEXT, "draw DBVT");
 							if (node->inter & UI_INTER_LEFT_CLICK)
 							{
-								led->physics.draw_dbvt = !led->physics.draw_dbvt;
+								led->physics.draw_dbvh = !led->physics.draw_dbvh;
 							}
 
-							if (led->physics.draw_dbvt)
+							if (led->physics.draw_dbvh)
 							{
 								vec4_set(node->background_color, 0.9f, 0.9f, 0.9f, 1.0f);
 							}

@@ -28,6 +28,7 @@
 #include "string_database.h"
 #include "float32.h"
 #include "queue.h"
+#include "tree.h"
 
 #define COLLISION_DEFAULT_MARGIN	(100.0f * F32_EPSILON)
 #define COLLISION_POINT_DIST_SQ		(10000.0f * F32_EPSILON)
@@ -171,52 +172,33 @@ f32 	body_raycast_parameter(const struct physics_pipeline *pipeline, const struc
 u32 	body_raycast(vec3 intersection, const struct physics_pipeline *pipeline, const struct rigid_body *b, const struct ray *ray);
 
 /*
-=================================================================================================================
-|					Dynamic Bounding Volume Hierachy					|
-=================================================================================================================
+bounding volume hierarchy
+=========================
 */
 
-/**
- * Basic steps for a simple dynamic bounding volume hierarchy:
- *
- * INCREMENTAL ADD
- * 	(1) Alloc leaf node
- * 	(2) Find the best sibling for the new volume
- * 	(3) Add parent to sibling and new node
- * 	(4) Rebase the tree, in order to balance it at keep the performance good
- *
- * INCREMENTAL CHECK OVERLAP
- * 	- several possibilities, we should as a first step try descendLargestVolume.
- * 	  If one goes through a whole tree at a time (depth first) one may get into really bad
- * 	  situations as comparing super small object vs relatively large ones, and check overlaps
- * 	  all the time.
- *
- * INCREMENTAL REMOVE
- * 	(1) Remove leaf
- * 	(2) Set sibling as parent leaf
- *
- * Some useful stuff for debugging purposes and performance monitoring would be:
- * 	- draw line box around AABB_2d volumes
- * 	- average number of overlaps every frame
- * 	- number of nodes
- * 	- deepest leaves
- *
- * Some general optimisations
- * 	- enlarged AABB_2ds somehow (less reinserts)
- * 	- do not recompute cost of child in balance if...
- * 	- clever strategy for how to place parant vs child nodes (left always comes after parent...)
- * 	  We want to make the cache more coherent in traversing the tree
- * 	- remove min_queue queue_indices, aren't they unnecessary?
- * 	- Another strategy for cache coherency while traversing would be double layer nodes (parent, child, child) 
- * 	- Global caching of collisions (Hash table of previous primitive collisions)
- * 	- Local caching (Every single object has a cache of collisions)
- * 	- SIMD AABB_2d operations
- */
+#define BVH_NO_NODE			U32_MAX 
 
-#define DBVT_NO_NODE			U32_MAX 
+struct sbvh_node
+{
+	BT_SLOT_STATE;
+	struct AABB	bbox;
+	u32		id;
+};
+
+struct sbvh
+{
+	struct bt	tree;
+};
+
+/* Return non-empty bvh on success. If mem != NULL, arena is used as allocator. */
+struct sbvh 	sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, const u32 bin_count);
+
+
+
+
 #define COST_QUEUE_INITIAL_COUNT 	4096 
 
-struct dbvt_node 
+struct dbvh_node 
 {
 	POOL_SLOT_STATE;
 	struct AABB	box;
@@ -226,7 +208,7 @@ struct dbvt_node
 	u32 		right;
 };
 
-struct dbvt
+struct dbvh
 {
 	struct pool		node_pool;
 	struct min_queue	cost_queue;
@@ -235,27 +217,27 @@ struct dbvt
 	u32 			root;
 };
 
-struct dbvt_overlap
+struct dbvh_overlap
 {
 	u32 id1;
 	u32 id2;	
 };
 
 /* If mem == NULL, standard malloc is used */
-struct dbvt 		dbvt_alloc(const u32 len);
+struct dbvh 		dbvh_alloc(const u32 len);
 /* free allocated resources */
-void 			dbvt_free(struct dbvt *tree);
+void 			dbvh_free(struct dbvh *tree);
 /* flush / reset the hierarchy  */
-void 			dbvt_flush(struct dbvt *tree);
+void 			dbvh_flush(struct dbvh *tree);
 /* id is an integer identifier from the outside, return index of added value */
-u32 			dbvt_insert(struct dbvt *tree, const u32 id, const struct AABB *box);
+u32 			dbvh_insert(struct dbvh *tree, const u32 id, const struct AABB *box);
 /* remove leaf corresponding to index from tree */
-void 			dbvt_remove(struct dbvt *tree, const u32 index);
+void 			dbvh_remove(struct dbvh *tree, const u32 index);
 /* Return overlapping ids ptr, set to NULL if no overlap. if overlap, count is set */
-struct dbvt_overlap *	dbvt_push_overlap_pairs(struct arena *mem, u32 *count, struct dbvt *tree);
+struct dbvh_overlap *	dbvh_push_overlap_pairs(struct arena *mem, u32 *count, struct dbvh *tree);
 /* push	id:s of leaves hit by raycast. returns number of hits. -1 == out of memory */
-u32			dbvt_raycast(struct arena *mem, const struct dbvt *tree, const struct ray *ray);
+u32			dbvh_raycast(struct arena *mem, const struct dbvh *tree, const struct ray *ray);
 /* validate tree construction */
-void			dbvt_validate(struct dbvt *tree);
+void			dbvh_validate(struct dbvh *tree);
 
 #endif

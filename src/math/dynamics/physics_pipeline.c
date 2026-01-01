@@ -95,7 +95,7 @@ struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 init
 	pipeline.margin_on = 1;
 	pipeline.margin = COLLISION_MARGIN_DEFAULT;
 
-	pipeline.dynamic_tree = dbvt_alloc(2*initial_size);
+	pipeline.dynamic_tree = dbvh_alloc(2*initial_size);
 
 	pipeline.c_db = c_db_alloc(mem, initial_size);
 	pipeline.is_db = is_db_alloc(mem, initial_size);
@@ -108,11 +108,11 @@ struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 init
 	vec4_set(pipeline.sleep_color, 113.0f/256.0f, 241.0f/256.0f, 157.0f/256.0f, 0.7f);
 	vec4_set(pipeline.awake_color, 255.0f/256.0f, 36.0f/256.0f, 48.0f/256.0f, 0.7f);
 	vec4_set(pipeline.manifold_color, 0.6f, 0.6f, 0.9f, 1.0f);
-	vec4_set(pipeline.dbvt_color, 0.8f, 0.1f, 0.0f, 0.6f);
+	vec4_set(pipeline.dbvh_color, 0.8f, 0.1f, 0.0f, 0.6f);
 	vec4_set(pipeline.bounding_box_color, 0.8f, 0.1f, 0.6f, 1.0f);
 
 	pipeline.draw_bounding_box = 0;
-	pipeline.draw_dbvt = 0;
+	pipeline.draw_dbvh = 0;
 	pipeline.draw_manifold = 0;
 	pipeline.draw_lines = 1;
 
@@ -148,7 +148,7 @@ void physics_pipeline_free(struct physics_pipeline *pipeline)
 		stack_visual_segment_free(&pipeline->debug[i].stack_segment);
 	}
 #endif
-	dbvt_free(&pipeline->dynamic_tree);
+	dbvh_free(&pipeline->dynamic_tree);
 	c_db_free(&pipeline->c_db);
 	is_db_free(&pipeline->is_db);
 	pool_dealloc(&pipeline->body_pool);
@@ -182,7 +182,7 @@ void physics_pipeline_flush(struct physics_pipeline *pipeline)
 		stack_visual_segment_flush(&pipeline->debug[i].stack_segment);
 	}
 #endif
-	dbvt_flush(&pipeline->dynamic_tree);
+	dbvh_flush(&pipeline->dynamic_tree);
 	c_db_flush(&pipeline->c_db);
 	is_db_flush(&pipeline->is_db);
 	
@@ -291,7 +291,7 @@ struct slot physics_pipeline_rigid_body_alloc(struct physics_pipeline *pipeline,
 	vec3_set(proxy.hw, body->local_box.hw[0] + body->margin,
 			body->local_box.hw[1] + body->margin,
 			body->local_box.hw[2] + body->margin);
-	body->proxy = dbvt_insert(&pipeline->dynamic_tree, slot.index, &proxy);
+	body->proxy = dbvh_insert(&pipeline->dynamic_tree, slot.index, &proxy);
 
 	body->first_contact_index = NLL_NULL;
 	if (body->flags & RB_DYNAMIC)
@@ -322,15 +322,15 @@ static void internal_update_dynamic_tree(struct physics_pipeline *pipeline)
 			rigid_body_update_local_box(b, shape);
 			vec3_add(world_AABB.center, b->local_box.center, b->position);
 			vec3_copy(world_AABB.hw, b->local_box.hw);
-			const struct dbvt_node *node = pool_address(&pipeline->dynamic_tree.node_pool, b->proxy);
+			const struct dbvh_node *node = pool_address(&pipeline->dynamic_tree.node_pool, b->proxy);
 			const struct AABB *proxy = &node->box;
 			if (!AABB_contains(proxy, &world_AABB))
 			{
 				world_AABB.hw[0] += b->margin;
 				world_AABB.hw[1] += b->margin;
 				world_AABB.hw[2] += b->margin;
-				dbvt_remove(&pipeline->dynamic_tree, b->proxy);
-				b->proxy = dbvt_insert(&pipeline->dynamic_tree, i, &world_AABB);
+				dbvh_remove(&pipeline->dynamic_tree, b->proxy);
+				b->proxy = dbvh_insert(&pipeline->dynamic_tree, i, &world_AABB);
 			}
 		}
 	}
@@ -340,7 +340,7 @@ static void internal_update_dynamic_tree(struct physics_pipeline *pipeline)
 static void internal_push_proxy_overlaps(struct arena *mem_frame, struct physics_pipeline *pipeline)
 {
 	TracyCZone(ctx, 1);
-	pipeline->proxy_overlap = dbvt_push_overlap_pairs(mem_frame, &pipeline->proxy_overlap_count, &pipeline->dynamic_tree);
+	pipeline->proxy_overlap = dbvh_push_overlap_pairs(mem_frame, &pipeline->proxy_overlap_count, &pipeline->dynamic_tree);
 	TracyCZoneEnd(ctx);
 }
 
@@ -358,7 +358,7 @@ static void thread_push_contacts(void *task_addr)
 	struct worker *worker = task->executor;
 	const struct task_range *range = task->range;
 	const struct physics_pipeline *pipeline = task->input;
-	const struct dbvt_overlap *proxy_overlap = range->base;
+	const struct dbvh_overlap *proxy_overlap = range->base;
 
 	struct tpc_output *out = arena_push(&worker->mem_frame, sizeof(struct tpc_output));
 	out->result_count = 0;
@@ -407,7 +407,7 @@ static void internal_parallel_push_contacts(struct arena *mem_frame, struct phys
 			g_task_ctx->worker_count, 
 			pipeline->proxy_overlap, 
 			pipeline->proxy_overlap_count, 
-			sizeof(struct dbvt_overlap), 
+			sizeof(struct dbvh_overlap), 
 			pipeline);
 
 	TracyCZone(ctx, 1);
@@ -772,7 +772,7 @@ static void physics_pipeline_rigid_body_dealloc(struct physics_pipeline *pipelin
 	kas_assert(POOL_SLOT_ALLOCATED(body));
 
 	string_database_dereference(pipeline->shape_db, body->shape_handle);
-	dbvt_remove(&pipeline->dynamic_tree, body->proxy);
+	dbvh_remove(&pipeline->dynamic_tree, body->proxy);
 	if (body->island_index != ISLAND_STATIC)
 	{
 		is_db_island_remove_body_resources(pipeline, body->island_index, handle);
@@ -906,7 +906,7 @@ f32 physics_pipeline_raycast_parameter(struct arena *mem_tmp, struct slot *slot,
 	arena_push_record(mem_tmp);
 
 	const i32 *proxies_hit = (i32 *) mem_tmp->stack_ptr;
-	const u32 proxy_count = dbvt_raycast(mem_tmp, &pipeline->dynamic_tree, ray);
+	const u32 proxy_count = dbvh_raycast(mem_tmp, &pipeline->dynamic_tree, ray);
 
 	f32 t_best = F32_INFINITY;
 	if (proxy_count == 0) 

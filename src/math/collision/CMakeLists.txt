@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.14.3)
 add_library(collision STATIC
 	collision.h
 	collision.c
-	dbvt.c
+	bvh.c
 )
 
 target_link_libraries(collision PUBLIC

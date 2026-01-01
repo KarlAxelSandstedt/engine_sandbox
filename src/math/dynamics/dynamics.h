@@ -700,7 +700,7 @@ struct physics_pipeline
 	struct pool		event_pool;
 	struct dll		event_list;
 
-	struct dbvt 		dynamic_tree;
+	struct dbvh 		dynamic_tree;
 
 	struct contact_database	c_db;
 	struct island_database 	is_db;
@@ -719,7 +719,7 @@ struct physics_pipeline
 	u32			proxy_overlap_count;
 	u32			cm_count;
 	u32 *			contact_new;
-	struct dbvt_overlap *	proxy_overlap;
+	struct dbvh_overlap *	proxy_overlap;
 	struct contact_manifold *cm;
 
 	/* debug */
@@ -731,11 +731,11 @@ struct physics_pipeline
 	vec4				awake_color;
 
 	vec4				bounding_box_color;
-	vec4				dbvt_color;
+	vec4				dbvh_color;
 	vec4				manifold_color;
 
 	u32				draw_bounding_box;
-	u32				draw_dbvt;
+	u32				draw_dbvh;
 	u32				draw_manifold;
 	u32				draw_lines;
 };
