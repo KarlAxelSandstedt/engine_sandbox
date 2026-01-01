@@ -22,8 +22,16 @@
 
 #ifdef KAS_PROFILE
 	#include "tracy/TracyC.h"
+	#define PROF_FRAME_MARK		TracyCFrameMark
+	#define	PROF_ZONE		TracyCZone(ctx, 1)
+	#define PROF_ZONE_NAMED(str)	TracyCZoneN(ctx, str, 1)
+	#define PROF_ZONE_END		TracyCZoneEnd(ctx)
+	#define PROF_THREAD_NAMED(str)	TracyCSetThreadName(str)
 #else
-//TODO
+	#define	PROF_ZONE		
+	#define PROF_ZONE_NAMED(str)
+	#define PROF_ZONE_END	
+	#define PROF_THREAD_NAMED(str)
 #endif
 
 /*** logger definitions ***/

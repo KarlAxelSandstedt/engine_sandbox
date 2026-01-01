@@ -333,7 +333,7 @@ end:
 
 static void r_led_draw(const struct led *led)
 {
-	TracyCZone(ctx, 1);
+	PROF_ZONE;
 
 	{
 		struct slot slot = string_database_lookup(&led->render_mesh_db, utf8_inline("rm_map"));
@@ -448,7 +448,7 @@ static void r_led_draw(const struct led *led)
 
 	}
 
-	TracyCZoneEnd(ctx);
+	PROF_ZONE_END;
 }
 
 static void internal_r_proxy3d_uniforms(const struct led *led, const u32 window)
@@ -501,7 +501,7 @@ static void internal_r_ui_uniforms(const u32 window)
 
 static void r_scene_render(const struct led *led, const u32 window)
 {
-	TracyCZone(ctx, 1);
+	PROF_ZONE;
 
 	struct system_window *sys_win = system_window_address(window);
 	kas_glViewport(0, 0, (i32) sys_win->size[0], (i32) sys_win->size[1]); 
@@ -511,7 +511,7 @@ static void r_scene_render(const struct led *led, const u32 window)
 
 	for (struct r_bucket *b = sys_win->r_scene->frame_bucket_list; b; b = b->next)
 	{
-		TracyCZoneN(ctx, "render bucket", 1);
+		PROF_ZONE_NAMED("render bucket");
 		switch (b->screen_layer)
 		{
 			case R_CMD_SCREEN_LAYER_GAME:
@@ -651,12 +651,12 @@ static void r_scene_render(const struct led *led, const u32 window)
 		}
 
 		kas_glDeleteVertexArrays(1, &vao);
-		TracyCZoneEnd(ctx);
+		PROF_ZONE_END;
 	}
 
 	system_window_swap_gl_buffers(window);
 	GL_STATE_ASSERT;
-	TracyCZoneEnd(ctx);
+	PROF_ZONE_END;
 }
 
 void r_led_main(const struct led *led)
@@ -667,7 +667,7 @@ void r_led_main(const struct led *led)
 		const u64 frames_elapsed_since_last_draw = (g_r_core->ns_elapsed - (g_r_core->frames_elapsed * g_r_core->ns_tick)) / g_r_core->ns_tick;
 		if (frames_elapsed_since_last_draw)
 		{
-			TracyCZoneN(ctx, "render frame", 1);
+			PROF_ZONE_NAMED("render frame");
 			arena_flush(&g_r_core->frame);
 			struct arena tmp = arena_alloc_1MB();
 
@@ -711,7 +711,7 @@ void r_led_main(const struct led *led)
 			system_window_set_current_gl_context(g_process_root_window);
 
 			arena_free_1MB(&tmp);
-			TracyCZoneEnd(ctx);
+			PROF_ZONE_END;
 		}
 	}
 	else

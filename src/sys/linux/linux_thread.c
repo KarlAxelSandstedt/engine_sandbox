@@ -50,7 +50,7 @@ static void *kas_thread_clone_start(void *void_thr)
 	thr->gtid = getpid();
 	thr->tid = gettid();
 	thr->index = atomic_fetch_add_rlx_32(&a_index_counter, 1);
-	TracyCSetThreadName(thread_profiler_id[thr->index]);
+	PROF_THREAD_NAMED(thread_profiler_id[thr->index]);
 	thr->start(thr);
 
 	return NULL;
@@ -63,7 +63,7 @@ void kas_thread_master_init(struct arena *mem)
 	self->gtid = getpid();
 	self->tid = gettid();
 	self->index = 0;
-	TracyCSetThreadName(thread_profiler_id[self->index]);
+	PROF_THREAD_NAMED(thread_profiler_id[self->index]);
 }
 
 void kas_thread_clone(struct arena *mem, void (*start)(kas_thread *), void *args, const u64 stack_size)

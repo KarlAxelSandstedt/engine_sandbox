@@ -1058,7 +1058,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 
 void led_ui_main(struct led *led)
 {
-	TracyCZone(ctx, 1);
+	PROF_ZONE;
 
 	const vec4 bg = { 0.0625f, 0.0625f, 0.0625f, 1.0f };
 	const vec4 br = { 0.0f, 0.15f, 0.25f, 1.0f };
@@ -1088,5 +1088,5 @@ void led_ui_main(struct led *led)
 		led_project_menu_ui(led, &visual);
 	}
 
-	TracyCZoneEnd(ctx);
+	PROF_ZONE_END;
 }

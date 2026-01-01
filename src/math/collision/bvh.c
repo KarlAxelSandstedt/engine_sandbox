@@ -575,7 +575,7 @@ struct sbvh sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, c
 		return (struct sbvh) { 0 };
 	}
 
-	TracyCZone(ctx, 1);
+	PROF_ZONE;
 
 	arena_push_record(mem);
 	const u32 node_count_required = 2*mesh->tri_count - 1;
@@ -641,7 +641,7 @@ struct sbvh sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, c
 			continue;
 		}
 
-		TracyCZoneN(ctx, "sbvh construction iteration", 1);
+		PROF_ZONE_NAMED("sbvh construction iteration");
 		struct AABB bbox = stack[sc].bbox;
 		vec3 bbox_min, bbox_max;
 		vec3_add(bbox_max, bbox.center, bbox.hw);
@@ -728,7 +728,7 @@ struct sbvh sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, c
 			break;
 		}
 
-		TracyCZoneEnd(ctx);
+		PROF_ZONE_END;
 	}
 	
 end:
@@ -739,6 +739,6 @@ end:
 		sbvh = (struct sbvh) { 0 };
 	}
 	arena_pop_record(mem);
-	TracyCZoneEnd(ctx);
+	PROF_ZONE_END;
 	return sbvh;
 }

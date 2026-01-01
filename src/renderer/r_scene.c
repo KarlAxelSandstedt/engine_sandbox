@@ -140,7 +140,7 @@ void r_scene_assert_instance_cmd_bijection(void)
 
 static void r_scene_sort_commands_and_prune_instances(void)
 {
-	TracyCZone(ctx, 1);
+	PROF_ZONE;
 
 	g_scene->cmd_frame = arena_push(g_scene->mem_frame, g_scene->cmd_frame_count * sizeof(struct r_command));
 	arena_push_record(g_scene->mem_frame);
@@ -231,7 +231,7 @@ static void r_scene_sort_commands_and_prune_instances(void)
 	R_SCENE_ASSERT_CMD_SORTED;
 	R_SCENE_ASSERT_INSTANCE_CMD_BIJECTION;
 
-	TracyCZoneEnd(ctx);
+	PROF_ZONE_END;
 }
 
 void r_buffer_constructor_reset(struct r_buffer_constructor *constructor)
@@ -302,7 +302,7 @@ static struct r_bucket bucket_stub =
 
 void r_scene_generate_bucket_list(void)
 {
-	TracyCZone(ctx, 1);
+	PROF_ZONE;
 
 	struct r_bucket *start = &bucket_stub;
 	struct r_bucket *b = start;
@@ -394,14 +394,14 @@ void r_scene_generate_bucket_list(void)
 	b->buffer_array = r_buffer_constructor_finish(&buf_constructor, g_scene->cmd_frame_count-1);
 	b->c_h = g_scene->cmd_frame_count-1;
 
-	TracyCZoneEnd(ctx);
+	PROF_ZONE_END;
 
 	g_scene->frame_bucket_list = start->next;
 }
 
 static void r_scene_bucket_generate_draw_data(struct r_bucket *b)
 {
-	TracyCZone(ctx, 1);
+	PROF_ZONE;
 
 	const vec4 zero4 = { 0.0f, 0.0f, 0.0f, 0.0f };
 	const vec3 zero3 = { 0.0f, 0.0f, 0.0f };
@@ -733,12 +733,12 @@ static void r_scene_bucket_generate_draw_data(struct r_bucket *b)
 		}
 	}
 
-	TracyCZoneEnd(ctx);
+	PROF_ZONE_END;
 }
 
 void r_scene_frame_end(void)
 {
-	TracyCZone(ctx, 1);
+	PROF_ZONE;
 
 	r_scene_sort_commands_and_prune_instances();
 	r_scene_generate_bucket_list();
@@ -746,7 +746,7 @@ void r_scene_frame_end(void)
 	{
 		r_scene_bucket_generate_draw_data(b);
 	}
-	TracyCZoneEnd(ctx);
+	PROF_ZONE_END;
 }
 
 struct r_instance *r_instance_add(const u32 unit, const u64 cmd)

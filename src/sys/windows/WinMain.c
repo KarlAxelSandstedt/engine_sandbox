@@ -82,7 +82,7 @@ int CALLBACK WinMain(HINSTANCE h_instance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	u64 old_time = editor->ns;
 	while (editor->running)
 	{
-		TracyCFrameMark;
+		PROF_FRAME_MARK;
 
 		system_free_tagged_windows();
 

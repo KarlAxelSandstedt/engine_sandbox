@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
 	u64 old_time = editor->ns;
 	while (editor->running)
 	{
-		TracyCFrameMark;
+		PROF_FRAME_MARK;
 
 		system_free_tagged_windows();
 

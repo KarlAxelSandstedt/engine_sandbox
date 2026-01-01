@@ -148,24 +148,14 @@ unset(apply_optimization_options CACHE)
 find_package(OpenGL REQUIRED)
 find_package(Threads REQUIRED)
 
-#TODO Fix this, need to setup own profiler macro layer above Tracy so we can switch on/off easily 
+add_subdirectory("${LIB_PATH}")
+
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
 	option(TRACY_ENABLE "" OFF)
 else ()
+	link_libraries(Tracy::TracyClient)
+	include_directories(tracy/public)
 	option(TRACY_ENABLE "" ON)
-endif()
-
-
-add_subdirectory("${LIB_PATH}")
-
-#TODO Fix this, need to setup own profiler macro layer above Tracy so we can switch on/off easily 
-if (CMAKE_BUILD_TYPE STREQUAL "Release")
-	link_libraries(Tracy::TracyClient)
-	include_directories(tracy/public)
-	add_compile_definitions(KAS_PROFILE)
-else ()
-	link_libraries(Tracy::TracyClient)
-	include_directories(tracy/public)
 	add_compile_definitions(KAS_PROFILE)
 endif()
 
