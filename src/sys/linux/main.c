@@ -94,7 +94,6 @@ int main(int argc, char *argv[])
 		r_led_main(editor);
 	}
 
-
 	led_dealloc(editor);
 	asset_database_cleanup();
 	cmd_free();
