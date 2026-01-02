@@ -931,7 +931,6 @@ void kas_glTexParameteriv(const GLenum target, const GLenum pname, const GLint *
 
 	switch (pname)
 	{
-		case GL_TEXTURE_BORDER_COLOR: 	{ kas_assert(0); } break;
 		default: 		    	{ kas_assert(0); } break;
 	}
 
@@ -945,7 +944,6 @@ void kas_glTexParameterfv(const GLenum target, const GLenum pname, const GLfloat
 
 	switch (pname)
 	{
-		case GL_TEXTURE_BORDER_COLOR: 	{ kas_assert(0); } break;
 		default: 		    	{ kas_assert(0); } break;
 	}
 

@@ -1,6 +1,6 @@
 /*
 ==========================================================================
-    Copyright (C) 2025 Axel Sandstedt 
+    Copyright (C) 2025,2026 Axel Sandstedt 
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -33,7 +33,6 @@ void (*fatal_cleanup_and_exit)(const u32 thread);
 u32 a_fatal_cleanup_initiated;
 static void linux_fatal_cleanup_and_exit(const u32 thread)
 {
-	kas_assert(0);
 	u32 desired = 0;
 	// TODO Somehow stop/force all threads to not continue / shut down program until cleanup is complete 
 	
@@ -59,8 +58,6 @@ static void linux_fatal_cleanup_and_exit(const u32 thread)
 		}
 
 		log_shutdown();
-	
-		//TODO kernel_tracer_shutdown(kt);
 		exit(1);
 	}
 
@@ -75,7 +72,7 @@ void init_error_handling_func_ptrs(void)
 
 utf8 utf8_system_error_code_string_buffered(u8 *buf, const u32 bufsize, const u32 code)
 {
-	assert(bufsize > 0);
+	kas_assert(bufsize > 0);
 	utf8 err_str = 
 	{
 		.len = 0,
@@ -92,7 +89,7 @@ utf8 utf8_system_error_code_string_buffered(u8 *buf, const u32 bufsize, const u3
 		}
 		else if (status == ERANGE)
 		{
-			assert(0 && "increase system error string buffer size!");
+			kas_assert(0 && "increase system error string buffer size!");
 		}
 
 		return utf8_empty();

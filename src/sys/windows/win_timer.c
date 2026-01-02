@@ -32,11 +32,8 @@ u64	(*time_tsc_from_ns)(const u64 ns);			/* determine time elapsed from start in
 u64	(*time_ns_from_tsc_truth_source)(const u64 tsc, const u64 ns_truth, const u64 cc_truth); /* determine time elapsed from timer initialisation start in ns using hw tsc, with additional truth pair (ns, tsc) in order to reduce error) */
 u64	(*time_tsc_from_ns_truth_source)(const u64 ns, const u64 ns_truth, const u64 cc_truth);  /* determine time elapsed from timer initialisation start in hw tsc using ns  with additional truth pair (ns, tsc) in order to reduce error) */
 u64 	(*ns_from_tsc)(const u64 tsc);				/* transform tsc to corresponding ns */
-u64	(*tsc_from_ns)(const u64 kt);				/* transform ns to corresponding tsc */
-u64 	(*tsc_from_kt)(const u64 tsc);				/* transform kernel trace value to corresponding tsc */
-u64	(*kt_from_tsc)(const u64 kt);				/* transform tsc to corresponding kernel trace value */
+u64	(*tsc_from_ns)(const u64 ns);				/* transform ns to corresponding tsc */
 u64	(*time_ns_per_tick)(void);
-void 	(*time_set_kt_transform_parameters)(const u64 time_mult, const u64 time_zero, const u64 time_shift);
 u64 	(*freq_rdtsc)(void);
 f64 	(*time_seconds_from_rdtsc)(const u64 ticks);
 
@@ -60,23 +57,6 @@ struct timer
 
 struct rdtsc_timer g_precision_timer;
 struct timer g_timer;
-
-static void win_time_set_kt_transform_parameters(const u64 time_mult, const u64 time_zero, const u64 time_shift)
-{
-	kas_assert_string(0, "implement");
-}
-
-static u64 win_kt_from_tsc(const u64 tsc)
-{
-	kas_assert_string(0, "implement");
-	return 0;
-}
-
-static u64 win_tsc_from_kt(const u64 kt_time)
-{
-	kas_assert_string(0, "implement");
-	return 0;
-}
 
 static u64 win_ns_from_tsc(const u64 tsc)
 {
@@ -381,7 +361,4 @@ void time_init(struct arena *persistent)
 	time_tsc_from_ns_truth_source = &win_time_tsc_from_ns_truth_source;
 	ns_from_tsc = &win_ns_from_tsc;
 	tsc_from_ns = &win_tsc_from_ns;
- 	tsc_from_kt = &win_tsc_from_kt;
-	kt_from_tsc = &win_kt_from_tsc;
-	time_set_kt_transform_parameters = &win_time_set_kt_transform_parameters;
 }

@@ -1,6 +1,6 @@
 /*
 ==========================================================================
-    Copyright (C) 2025 Axel Sandstedt 
+    Copyright (C) 2025,2026 Axel Sandstedt 
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -24,6 +24,8 @@
 #include "wasm_public.h"
 #include "wasm_local.h"
 
+#include "sys_public.h"
+
 void (*fatal_cleanup_and_exit)(const u32 thread);
 
 u32 a_fatal_cleanup_initiated;
@@ -34,9 +36,7 @@ static void wasm_fatal_cleanup_and_exit(const u32 thread)
 	
 	if (atomic_compare_exchange_acq_32(&a_fatal_cleanup_initiated, &desired, 1))
 	{
-		LOG_SHUTDOWN();
-	
-		//TODO kernel_tracer_shutdown(kt);
+		log_shutdown();
 		exit(1);
 	}
 
@@ -51,22 +51,35 @@ void init_error_handling_func_ptrs(void)
 
 utf8 utf8_system_error_code_string_buffered(u8 *buf, const u32 bufsize, const u32 code)
 {
-	struct utf8 err_str = utf8_empty();
+	kas_assert(bufsize > 0);
+	utf8 err_str = 
+	{
+		.len = 0,
+		.buf = buf,
+		.size = bufsize,
+	};
 
 	const u32 status = strerror_r(code, (char *) buf, bufsize);
-	if (status == 0)
+	if (status != 0)
 	{
-		err_str.buf = buf;
-		err_str.len = strnlen((char *) err_str.buf, bufsize);
-		err_str.size = bufsize;
-		err_str.req_size = utf8_required_size(err_str);
+		if (status == EINVAL)
+		{
+			LOG_SYSTEM_ERROR_CODE(S_ERROR, status);
+		}
+		else if (status == ERANGE)
+		{
+			kas_assert(0 && "increase system error string buffer size!");
+		}
+
+		return utf8_empty();
 	}
 
-	if (err_str.buf == NULL)
+	err_str.len = strnlen((char *) err_str.buf, ERROR_BUFSIZE);
+	if (err_str.len == ERROR_BUFSIZE)
 	{
-		fprintf(stderr, "Error in %s\n", __func__);
+		log(T_SYSTEM, S_ERROR, "strnlen failed to determine string length in %s, most likely due to no null-termination? Fix.", __func__);
+		return utf8_empty();
 	}
-
 
 	return err_str;
 }

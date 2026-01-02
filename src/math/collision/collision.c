@@ -740,7 +740,6 @@ static f32 gjk_distance_sq(vec3 c1, vec3 c2, struct gjk_input *in1, struct gjk_i
 				|| simplex.id[0] == support_id || simplex.id[1] == support_id 
 				|| simplex.id[2] == support_id || simplex.id[3] == support_id)
 		{
-			kas_assert(simplex.id != 0);
 			kas_assert(dist_sq != FLT_MAX);
 			simplex.type -= 1;
 			gjk_internal_closest_points(c1, c2, in1, &simplex, lambda);

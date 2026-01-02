@@ -348,9 +348,6 @@ extern u64	(*time_ns_from_tsc_truth_source)(const u64 tsc, const u64 ns_truth, c
 extern u64	(*time_tsc_from_ns_truth_source)(const u64 ns, const u64 ns_truth, const u64 cc_truth);  /* determine time elapsed from timer initialisation start in hw tsc using ns  with additional truth pair (ns, tsc) in order to reduce error) */
 extern u64 	(*ns_from_tsc)(const u64 tsc);				/* transform tsc to corresponding ns */
 extern u64	(*tsc_from_ns)(const u64 ns);				/* transform ns to corresponding tsc */
-extern u64 	(*tsc_from_kt)(const u64 tsc);				/* transform kernel trace value to corresponding tsc */
-extern u64	(*kt_from_tsc)(const u64 kt);				/* transform tsc to corresponding kernel trace value */
-extern void 	(*time_set_kt_transform_parameters)(const u64 time_mult, const u64 time_zero, const u64 time_shift); /* set parameters provided by kernel to transform os_ns <-> tsc */
 extern u64	(*time_ns_per_tick)(void);
 extern u64 	(*freq_rdtsc)(void);
 extern f64 	(*time_seconds_from_rdtsc)(const u64 ticks);

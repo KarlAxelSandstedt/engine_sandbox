@@ -23,7 +23,7 @@ if (DEFINED EMSCRIPTEN)
 	target_link_libraries(sdl3_wrapper 
 		PRIVATE 
 			SDL3::SDL3-static
-			SDL3::SDL3_Headers
+			SDL3::Headers
 	)
 else ()
 	target_link_libraries(sdl3_wrapper PRIVATE SDL3::SDL3-shared)	

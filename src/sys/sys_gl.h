@@ -1,6 +1,6 @@
 /*
 ==========================================================================
-    Copyright (C) 2025 Axel Sandstedt 
+    Copyright (C) 2025,2026 Axel Sandstedt 
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -25,8 +25,9 @@
 #if __OS__ == __WIN64__ || __OS__ == __LINUX__
 #include "GL/glcorearb.h"
 #include "GL/glext.h"
-#elif __OS__ == WEB
-#include "GLES/gl3.h"
+#elif __OS__ == __WEB__
+#include "GLES3/gl3.h"
+#define APIENTRY	GL_APIENTRY
 #endif
 
 
@@ -42,7 +43,9 @@ typedef void 		(APIENTRY *type_glDisable)(GLenum);
 typedef void		(APIENTRY *type_glCullFace)(GLenum);
 typedef void		(APIENTRY *type_glFrontFace)(GLenum);
 typedef void		(APIENTRY *type_glPolygonMode)(GLenum, GLenum);
-typedef void 		(APIENTRY *type_glDebugMessageCallback)(GLDEBUGPROC, void *);
+typedef void		(APIENTRY *type_DEBUGPROC)(GLenum, GLenum, GLuint, GLenum, GLsizei, const GLchar *, const void *);
+typedef void 		(APIENTRY *type_glDebugMessageCallback)(type_DEBUGPROC, void *);
+//typedef void 		(APIENTRY *type_glDebugMessageCallback)(GLDEBUGPROC, void *);
 typedef void 		(APIENTRY *type_glGenBuffers)(GLsizei, GLuint *);
 typedef void 		(APIENTRY *type_glBindBuffer)(GLenum, GLuint);
 typedef void 		(APIENTRY *type_glBufferData)(GLenum, GLsizeiptr, const void *, GLenum);

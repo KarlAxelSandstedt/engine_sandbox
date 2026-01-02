@@ -86,7 +86,7 @@ u64 rng_u64_range(const u64 min, const u64 max)
 
 f32 rng_f32_normalized(void)
 {
-	return (f32) rng_u64() / U64_MAX;
+	return (f32) rng_u64() / (f32) U64_MAX;
 }
 
 f32 rng_f32_range(const f32 min, const f32 max)

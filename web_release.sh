@@ -10,7 +10,7 @@ else
 	CMAKE_GENERATOR="Unix Makefiles"
 fi
 
-emcmake cmake -S . -B build -Dapply_optimization_options=ON -G $CMAKE_GENERATOR
+emcmake cmake -S . -B build -Dapply_optimization_options=ON -DCMAKE_BUILD_TYPE=Release -G $CMAKE_GENERATOR
 cd build
 cmake --build . --parallel
 emrun engine_sandbox.html

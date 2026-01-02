@@ -1,6 +1,6 @@
 /*
 ==========================================================================
-    Copyright (C) 2025 Axel Sandstedt 
+    Copyright (C) 2025,2026 Axel Sandstedt 
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -16,8 +16,6 @@
     along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ==========================================================================
 */
-
-#include "linux_local.h"
 
 #include <dirent.h>
 #include <unistd.h>
@@ -74,6 +72,7 @@ u32 linux_system_user_is_admin(void)
 {
 	return getuid() == 0;
 }
+
 u32 linux_utf8_path_is_relative(const utf8 path)
 {
 	u32 rel = 1;

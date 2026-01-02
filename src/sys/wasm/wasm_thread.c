@@ -1,6 +1,6 @@
 /*
 ==========================================================================
-    Copyright (C) 2025 Axel Sandstedt 
+    Copyright (C) 2025,2026 Axel Sandstedt 
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,58 +17,135 @@
 ==========================================================================
 */
 
+#define _GNU_SOURCE
+#include <sched.h>
+#include <sys/syscall.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <sys/mman.h>
+
 #include "wasm_local.h"
+#include "sys_public.h"
 
-static void kas_thread_clone_start(int int_addr_thr)
+kas_thread_local struct kas_thread *self = NULL;
+u32	a_index_counter = 1;
+
+const char *thread_profiler_id[] = 
 {
-	struct kas_thread *thr = (struct kas_thread *) int_addr_thr;
-	thr->tid = emscripten_wasm_worker_self_id();
-	atomic_store_rel_32(&thr->a_has_exit_jumped, 0);
-	if (setjmp(thr->exit_jmp) == 0)
-	{
-		thr->start(thr);
-	}
+	"Master", "Worker 1", "Worker 2", "Worker 3", "Worker 4", "Worker 5", "Worker 6", "Worker 7", "Worker 8", "Worker 9",
+	"Worker 10", "Worker 11", "Worker 12", "Worker 13", "Worker 14", "Worker 15", "Worker 16", "Worker 17", "Worker 18", "Worker 19",
+	"Worker 20", "Worker 21", "Worker 22", "Worker 23", "Worker 24", "Worker 25", "Worker 26", "Worker 27", "Worker 28", "Worker 29",
+	"Worker 30", "Worker 31", "Worker 32", "Worker 33", "Worker 34", "Worker 35", "Worker 36", "Worker 37", "Worker 38", "Worker 39",
+	"Worker 40", "Worker 41", "Worker 42", "Worker 43", "Worker 44", "Worker 45", "Worker 46", "Worker 47", "Worker 48", "Worker 49",
+	"Worker 50", "Worker 51", "Worker 52", "Worker 53", "Worker 54", "Worker 55", "Worker 56", "Worker 57", "Worker 58", "Worker 59",
+	"Worker 60", "Worker 61", "Worker 62", "Worker 63",
+};
 
-	atomic_store_rel_32(&thr->a_has_exit_jumped, 1);
+static void *kas_thread_clone_start(void *void_thr)
+{
+	self = void_thr;
+	struct kas_thread *thr = void_thr;
+	thr->tid = gettid();
+	thr->index = atomic_fetch_add_rlx_32(&a_index_counter, 1);
+	PROF_THREAD_NAMED(thread_profiler_id[thr->index]);
+	thr->start(thr);
+
+	return NULL;
+}
+
+void kas_thread_master_init(struct arena *mem)
+{
+	self = arena_push(mem, sizeof(struct kas_thread));
+	self->tid = gettid();
+	self->index = 0;
+	PROF_THREAD_NAMED(thread_profiler_id[self->index]);
 }
 
 void kas_thread_clone(struct arena *mem, void (*start)(kas_thread *), void *args, const u64 stack_size)
 {
-	struct kas_thread *thr = arena_push_aligned(mem, NULL, sizeof(struct kas_thread), g_arch_config->cacheline);
+	kas_assert(stack_size > 0);
+
+	const u64 thr_size = (sizeof(kas_thread) % g_arch_config->cacheline == 0)
+		? sizeof(kas_thread)
+		: sizeof(kas_thread) + g_arch_config->cacheline - (sizeof(kas_thread) % g_arch_config->cacheline);
+
+	kas_thread *thr = NULL;
+	if (mem)
+	{
+		thr = arena_push_aligned(mem, thr_size, g_arch_config->cacheline);
+	}
+	else
+	{
+		memory_alloc_aligned(&thr, g_arch_config->cacheline, thr_size);
+	}
+
+	if (thr == NULL)
+	{
+		log_string(T_SYSTEM, S_FATAL, "Failed to alloc thread memory, aborting.");
+		fatal_cleanup_and_exit(gettid());
+	}
+
+	kas_assert((u64) thr % g_arch_config->cacheline == 0);
+
 	thr->start = start;
 	thr->args = args;
-	thr->tls_size = __builtin_wasm_tls_size();
-	thr->stack_size = stack_size;
-	/* Force stack + tls to be aligned to pagesize, just to make sure size is aligned to internal STACK_ALIGN in emscripten, TODO, do this better  */
-	if ((thr->stack_size + thr->tls_size) % __BIGGEST_ALIGNMENT__)
-	{
-		thr->stack_size +=  g_arch_config->pagesize - ((thr->stack_size + thr->tls_size) % __BIGGEST_ALIGNMENT__);
-	}
-	thr->stack = arena_push_aligned(mem, NULL, thr->stack_size + thr->tls_size, __BIGGEST_ALIGNMENT__);
 	thr->ret = NULL;
 	thr->ret_size = 0;
-	thr->wasm_worker = emscripten_create_wasm_worker(thr->stack, thr->stack_size + thr->tls_size);
+	thr->stack_size = (stack_size % g_arch_config->pagesize == 0) 
+				? stack_size 
+				: stack_size + (g_arch_config->pagesize - stack_size % g_arch_config->pagesize);
 
-	kas_assert(((u64) thr->stack) % __BIGGEST_ALIGNMENT__ == 0);
-	kas_assert((thr->stack_size + thr->tls_size) % __BIGGEST_ALIGNMENT__ == 0);
-	kas_static_assert(sizeof(int) == sizeof(void *), "expecting (int) and (void*) to be of equal size in wasm build");
-	emscripten_wasm_worker_post_function_vi(thr->wasm_worker, &kas_thread_clone_start, (int) thr);
+	pthread_attr_t attr;
+	if (pthread_attr_init(&attr) != 0)
+	{
+		LOG_SYSTEM_ERROR(S_FATAL);	
+		fatal_cleanup_and_exit(gettid());
+	}
+
+	if (pthread_attr_setstacksize(&attr, thr->stack_size) != 0)
+	{
+		LOG_SYSTEM_ERROR(S_FATAL);	
+		fatal_cleanup_and_exit(gettid());
+	}
+
+	size_t real_size;
+	pthread_attr_getstacksize(&attr, &real_size);
+	kas_assert(real_size == thr->stack_size);
+
+	if (pthread_create(&thr->pthread, &attr, kas_thread_clone_start, thr) != 0)
+	{
+		LOG_SYSTEM_ERROR(S_FATAL);	
+		fatal_cleanup_and_exit(gettid());
+	}
+
+	if (pthread_attr_destroy(&attr) != 0)
+	{
+		LOG_SYSTEM_ERROR(S_FATAL);	
+		fatal_cleanup_and_exit(gettid());
+	}
 }
 
 void kas_thread_exit(kas_thread *thr)
 {
-	longjmp(thr->exit_jmp, 1);
+	self = NULL;
+	pthread_exit(0);
 }
 
 void kas_thread_wait(const kas_thread *thr)
 {
-	while (atomic_load_acq_32(&thr->a_has_exit_jumped) == 0);
-	LOG_MESSAGE(T_SYSTEM, S_NOTE, 0, "main thread acknowledged worker %u has exit jumped\n", thr->tid);
+	void *garbage;
+
+	i32 status = pthread_join(thr->pthread, &garbage);
+	if (status != 0)
+	{
+		log_string(T_SYSTEM, S_FATAL, "Failed to alloc thread memory, aborting.");
+		fatal_cleanup_and_exit(gettid());
+	}
 }
 
 void kas_thread_release(kas_thread *thr)
 {
-	emscripten_terminate_wasm_worker(thr->wasm_worker);
+	return;
 }
 
 void *kas_thread_ret_value(const kas_thread *thr)
@@ -93,5 +170,151 @@ tid kas_thread_tid(const kas_thread *thr)
 
 tid kas_thread_self_tid(void)
 {
-	return emscripten_wasm_worker_self_id();
+	return self->tid;
 }
+
+u32 kas_thread_index(const kas_thread *thr)
+{
+	return thr->index;
+}
+
+u32 kas_thread_self_index(void)
+{
+	return self->index;
+}
+
+
+//kas_thread_local struct kas_thread *self = NULL;
+//u32 a_index_counter = 1;
+//
+//const char *thread_profiler_id[] = 
+//{
+//	"Master", "Worker 1", "Worker 2", "Worker 3", "Worker 4", "Worker 5", "Worker 6", "Worker 7", "Worker 8", "Worker 9",
+//	"Worker 10", "Worker 11", "Worker 12", "Worker 13", "Worker 14", "Worker 15", "Worker 16", "Worker 17", "Worker 18", "Worker 19",
+//	"Worker 20", "Worker 21", "Worker 22", "Worker 23", "Worker 24", "Worker 25", "Worker 26", "Worker 27", "Worker 28", "Worker 29",
+//	"Worker 30", "Worker 31", "Worker 32", "Worker 33", "Worker 34", "Worker 35", "Worker 36", "Worker 37", "Worker 38", "Worker 39",
+//	"Worker 40", "Worker 41", "Worker 42", "Worker 43", "Worker 44", "Worker 45", "Worker 46", "Worker 47", "Worker 48", "Worker 49",
+//	"Worker 50", "Worker 51", "Worker 52", "Worker 53", "Worker 54", "Worker 55", "Worker 56", "Worker 57", "Worker 58", "Worker 59",
+//	"Worker 60", "Worker 61", "Worker 62", "Worker 63",
+//};
+//
+//static void kas_thread_clone_start(int int_addr_thr)
+//{
+//	struct kas_thread *thr = (struct kas_thread *) int_addr_thr;
+//	self = thr;
+//	thr->tid = emscripten_wasm_worker_self_id();
+//	thr->index = atomic_fetch_add_rlx_32(&a_index_counter, 1);
+//	PROF_THREAD_NAMED(thread_profiler_id[thr->index]);
+//
+//	atomic_store_rel_32(&thr->a_has_exit_jumped, 0);
+//	if (setjmp(thr->exit_jmp) == 0)
+//	{
+//		thr->start(thr);
+//	}
+//
+//	atomic_store_rel_32(&thr->a_has_exit_jumped, 1);
+//}
+//
+//void kas_thread_master_init(struct arena *mem)
+//{
+//	self = arena_push(mem, sizeof(struct kas_thread));
+//	self->tid = emscripten_wasm_worker_self_id();
+//	self->index = 0;
+//	PROF_THREAD_NAMED(thread_profiler_id[self->index]);
+//}
+//
+//void kas_thread_clone(struct arena *mem, void (*start)(kas_thread *), void *args, const u64 stack_size)
+//{
+//	kas_assert(stack_size > 0);
+//	kas_thread *thr = NULL;
+//	if (mem)
+//	{
+//		thr = arena_push_aligned(mem, sizeof(kas_thread), g_arch_config->cacheline);
+//	}
+//	else
+//	{
+//		memory_alloc_aligned(&thr, g_arch_config->cacheline, sizeof(kas_thread));
+//	}
+//
+//	if (thr == NULL)
+//	{
+//		log_string(T_SYSTEM, S_FATAL, "Failed to alloc thread memory, aborting.");
+//		fatal_cleanup_and_exit(kas_thread_self_tid());
+//	}
+//
+//	thr->start = start;
+//	thr->args = args;
+//	thr->tls_size = __builtin_wasm_tls_size();
+//	thr->stack_size = stack_size;
+//	/* Force stack + tls to be aligned to pagesize, just to make sure size is aligned to internal STACK_ALIGN in emscripten, TODO, do this better  */
+//	if ((thr->stack_size + thr->tls_size) % g_arch_config->pagesize)
+//	{
+//		thr->stack_size +=  g_arch_config->pagesize - ((thr->stack_size + thr->tls_size) % g_arch_config->pagesize);
+//	}
+//	thr->stack = arena_push_aligned(mem, thr->stack_size + thr->tls_size, __BIGGEST_ALIGNMENT__);
+//	if (thr->stack == NULL)
+//	{
+//		log_string(T_SYSTEM, S_FATAL, "Failed to alloc thread memory, aborting.");
+//		fatal_cleanup_and_exit(kas_thread_self_tid());
+//	}
+//
+//	thr->ret = NULL;
+//	thr->ret_size = 0;
+//	thr->wasm_worker = emscripten_create_wasm_worker(thr->stack, thr->stack_size + thr->tls_size);
+//
+//	kas_assert(((u64) thr->stack) % __BIGGEST_ALIGNMENT__ == 0);
+//	kas_assert((thr->stack_size + thr->tls_size) % __BIGGEST_ALIGNMENT__ == 0);
+//	kas_static_assert(sizeof(int) == sizeof(void *), "expecting (int) and (void*) to be of equal size in wasm build");
+//	emscripten_wasm_worker_post_function_vi(thr->wasm_worker, &kas_thread_clone_start, (int) thr);
+//}
+//
+//void kas_thread_exit(kas_thread *thr)
+//{
+//	longjmp(thr->exit_jmp, 1);
+//}
+//
+//void kas_thread_wait(const kas_thread *thr)
+//{
+//	while (atomic_load_acq_32(&thr->a_has_exit_jumped) == 0);
+//	log(T_SYSTEM, S_NOTE, 0, "main thread acknowledged worker %u has exit jumped.", thr->tid);
+//}
+//
+//void kas_thread_release(kas_thread *thr)
+//{
+//	emscripten_terminate_wasm_worker(thr->wasm_worker);
+//}
+//
+//void *kas_thread_ret_value(const kas_thread *thr)
+//{
+//	return thr->ret;	
+//}
+//
+//void *kas_thread_args(const kas_thread *thr)
+//{
+//	return thr->args;
+//}
+//
+//u64 kas_thread_ret_value_size(const kas_thread *thr)
+//{
+//	return thr->ret_size;
+//}
+//
+//tid kas_thread_tid(const kas_thread *thr)
+//{
+//	return thr->tid;
+//}
+//
+//tid kas_thread_self_tid(void)
+//{
+//	return self->tid;
+//}
+//
+//u32 kas_thread_index(const kas_thread *thr)
+//{
+//	return thr->index;
+//}
+//
+//u32 kas_thread_self_index(void)
+//{
+//	return self->index;
+//}

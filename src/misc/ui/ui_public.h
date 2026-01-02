@@ -1,6 +1,6 @@
 /*
 ==========================================================================
-    Copyright (C) 2025 Axel Sandstedt 
+    Copyright (C) 2025,2026 Axel Sandstedt 
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -837,7 +837,7 @@ u32	ui_pad_fill(void);
 						ui_floating_x(pixel)
 #define ui_fixed_y(pixel)			ui_flags(UI_FIXED_Y)		\
 						ui_floating_y(pixel)
-#define ui_child_layout_axis(axis)		UI_SCOPE(ui_child_layout_axis_push(axis), ui_child_layout_axis_pop(axis))
+#define ui_child_layout_axis(axis)		UI_SCOPE(ui_child_layout_axis_push(axis), ui_child_layout_axis_pop())
 #define ui_background_color(color)		UI_SCOPE(ui_background_color_push(color), ui_background_color_pop())
 #define ui_border_color(color)			UI_SCOPE(ui_border_color_push(color), ui_border_color_pop())
 #define ui_sprite_color(color)			UI_SCOPE(ui_sprite_color_push(color), ui_sprite_color_pop())
@@ -884,7 +884,7 @@ void 	ui_floating_pop(const enum axis_2 axis);
 
 void 	ui_child_layout_axis_push(const enum axis_2 axis);
 void 	ui_child_layout_axis_set(const enum axis_2 axis);
-void 	ui_child_layout_axis_pop();
+void 	ui_child_layout_axis_pop(void);
 
 void 	ui_intv_viewable_push(const enum axis_2 axis, const intv inv);
 void 	ui_intv_viewable_set(const enum axis_2 axis, const intv inv);

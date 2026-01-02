@@ -223,7 +223,7 @@ void set_max_dtoa_threads(unsigned int n);
 
 #define MULTIPLE_THREADS
 
-#if __OS__ == __LINUX__ || __OS__ == __WEB__
+#if __OS__ == __LINUX__
 #include <pthread.h>
 static pthread_mutex_t g_lock[2] = { PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER };
 #define ACQUIRE_DTOA_LOCK(n) 	pthread_mutex_lock(g_lock + n)
@@ -233,6 +233,27 @@ void dmg_dtoa_init(const u32 max_thread_count)
 {
 	set_max_dtoa_threads(max_thread_count);
 }
+#elif __OS__ == __WEB__
+#define _GNU_SOURCE
+#include <pthread.h>
+#include <unistd.h>
+static pthread_mutex_t g_lock[2] = { PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER };
+#define ACQUIRE_DTOA_LOCK(n) 	pthread_mutex_lock(g_lock + n)
+#define FREE_DTOA_LOCK(n) 	pthread_mutex_unlock(g_lock + n)
+#define dtoa_get_threadno 	gettid
+void dmg_dtoa_init(const u32 max_thread_count)
+{
+	set_max_dtoa_threads(max_thread_count);
+}
+//#include <emscripten/wasm_worker.h>
+//static emscripten_lock_t g_lock[2] = { EMSCRIPTEN_LOCK_T_STATIC_INITIALIZER, EMSCRIPTEN_LOCK_T_STATIC_INITIALIZER };
+//#define ACQUIRE_DTOA_LOCK(n) 	emscripten_lock_waitinf_acquire(g_lock + n)
+//#define FREE_DTOA_LOCK(n) 	emscripten_lock_release(g_lock + n)
+//#define dtoa_get_threadno 	emscripten_wasm_worker_self_id
+//void dmg_dtoa_init(const u32 max_thread_count)
+//{
+//	set_max_dtoa_threads(max_thread_count);
+//}
 #elif __OS__ == __WIN64__
 #include <windows.h>
 static CRITICAL_SECTION g_lock[2];

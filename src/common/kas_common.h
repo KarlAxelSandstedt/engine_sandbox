@@ -1,6 +1,6 @@
 /*
 ==========================================================================
-    Copyright (C) 2025 Axel Sandstedt 
+    Copyright (C) 2025,2026 Axel Sandstedt 
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -66,10 +66,8 @@
 #if defined(__EMSCRIPTEN__)
 	#define __COMPILER__ 		__EMSCRIPTEN__ 
 	#define kas_thread_local	__thread
-	#if (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN)
+	#ifndef LITTLE_ENDIAN
 		#define LITTLE_ENDIAN
-	#elif (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN)
-		#define BIG_ENDIAN
 	#endif
 #elif defined(__GNUC__)
 	#define __COMPILER__ 		__GCC__

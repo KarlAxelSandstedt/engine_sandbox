@@ -1,6 +1,6 @@
 /*
 ==========================================================================
-    Copyright (C) 2025 Axel Sandstedt 
+    Copyright (C) 2025,2026 Axel Sandstedt 
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -18,14 +18,13 @@
 */
 
 #define _GNU_SOURCE
-#include "sys_common.h"
-#include "linux_local.h"
 #include <sys/time.h>
 #include <time.h>
 #include <x86intrin.h>
 #include <pthread.h>
 
 #include "sys_public.h"
+#include "linux_local.h"
 
 u64 *	g_tsc_skew;
 
@@ -39,11 +38,8 @@ u64	(*time_tsc_from_ns)(const u64 ns);			/* determine time elapsed from start in
 u64	(*time_ns_from_tsc_truth_source)(const u64 tsc, const u64 ns_truth, const u64 cc_truth); /* determine time elapsed from timer initialisation start in ns using hw tsc, with additional truth pair (ns, tsc) in order to reduce error) */
 u64	(*time_tsc_from_ns_truth_source)(const u64 ns, const u64 ns_truth, const u64 cc_truth);  /* determine time elapsed from timer initialisation start in hw tsc using ns  with additional truth pair (ns, tsc) in order to reduce error) */
 u64 	(*ns_from_tsc)(const u64 tsc);				/* transform tsc to corresponding ns */
-u64	(*tsc_from_ns)(const u64 kt);				/* transform ns to corresponding tsc */
-u64 	(*tsc_from_kt)(const u64 tsc);				/* transform kernel trace value to corresponding tsc */
-u64	(*kt_from_tsc)(const u64 kt);				/* transform tsc to corresponding kernel trace value */
+u64	(*tsc_from_ns)(const u64 ns);				/* transform ns to corresponding tsc */
 u64	(*time_ns_per_tick)(void);
-void 	(*time_set_kt_transform_parameters)(const u64 time_mult, const u64 time_zero, const u64 time_shift);
 u64 	(*freq_rdtsc)(void);
 f64 	(*time_seconds_from_rdtsc)(const u64 ticks);
 
@@ -59,46 +55,14 @@ struct rdtsc_timer
  */
 struct timer
 {
-	/* see ns <-> tsc from man perf_event_open */
-	u64 time_mult;
-	u64 time_zero;
-	u64 time_shift;
-
 	u64 ns_start;
 	u64 tsc_start;
-	u64 kt_start;
 
 	u64 ns_resolution;	/* ns per tick */
 };
 
 struct rdtsc_timer g_precision_timer;
 struct timer g_timer;
-
-void linux_time_set_kt_transform_parameters(const u64 time_mult, const u64 time_zero, const u64 time_shift)
-{
-	g_timer.time_mult = time_mult;
-	g_timer.time_zero = time_zero;
-	g_timer.time_shift = time_shift;
-	g_timer.kt_start = kt_from_tsc(g_timer.tsc_start);
-}
-
-u64 linux_kt_from_tsc(const u64 tsc)
-{
-	const u64 quot = tsc >> g_timer.time_shift;
-	const u64 rem  = tsc & (((u64)1 << g_timer.time_shift) - 1);
-	const u64 kt_time = g_timer.time_zero + quot * g_timer.time_mult + ((rem * g_timer.time_mult) >> g_timer.time_shift);
-	return kt_time;
-}
-
-u64 linux_tsc_from_kt(const u64 kt_time)
-{
-	const u64 time = kt_time - g_timer.time_zero;
-	const u64 quot = time / g_timer.time_mult;
-	const u64 rem = time % g_timer.time_mult;
-	const u64 tsc = (quot << g_timer.time_shift) + (rem << g_timer.time_shift) / g_timer.time_mult;
-
-	return tsc;
-}
 
 u64 linux_ns_from_tsc(const u64 tsc)
 {
@@ -397,15 +361,12 @@ void time_init(struct arena *persistent)
 	time_us = &linux_time_us;
 	time_ns = &linux_time_ns;
 	time_ns_per_tick = &linux_time_ns_per_tick;
-	time_set_kt_transform_parameters = &linux_time_set_kt_transform_parameters;
 	time_ns_from_tsc = &linux_time_ns_from_tsc;
 	time_tsc_from_ns = &linux_time_tsc_from_ns;
 	time_ns_from_tsc_truth_source = &linux_time_ns_from_tsc_truth_source;
 	time_tsc_from_ns_truth_source = &linux_time_tsc_from_ns_truth_source;
  	ns_from_tsc = &linux_ns_from_tsc;
 	tsc_from_ns = &linux_tsc_from_ns;
-	tsc_from_kt = &linux_tsc_from_kt;
-	kt_from_tsc = &linux_kt_from_tsc;
 
 	freq_rdtsc = &linux_freq_rdtsc;
 	time_seconds_from_rdtsc = &linux_time_seconds_from_rdtsc;

@@ -6,8 +6,9 @@ set(CPACK_PACKAGE_MINOR "1")
 set(CPACK_PACKAGE_PATCH "2")
 set(CPACK_PACKAGE_VERSION "${CPACK_PACKAGE_MAJOR}.${CPACK_PACKAGE_MINOR}.${CPACK_PACKAGE_PATCH}")
 
-#TODO Turn off when making release builds
-add_compile_definitions(KAS_DEV)
+if (NOT CMAKE_BUILD_TYPE STREQUAL "Release")
+	add_compile_definitions(KAS_DEV)
+endif()
 add_compile_definitions(KAS_EXECUTABLE_CSTR="${PROJECT_NAME}")
 add_compile_definitions(KAS_VERSION_CSTR="${CPACK_PACKAGE_VERSION}")
 
@@ -15,7 +16,19 @@ set(SRC_PATH "${CMAKE_CURRENT_SOURCE_DIR}/src")
 set(TEST_PATH "${CMAKE_CURRENT_SOURCE_DIR}/test")
 set(LIB_PATH "${CMAKE_CURRENT_SOURCE_DIR}/lib")
 
+find_package(OpenGL REQUIRED)
+find_package(Threads QUIET)
 if (DEFINED EMSCRIPTEN)
+	if (NOT Threads_FOUND)
+		set(Threads_FOUND TRUE)
+        	set(CMAKE_THREAD_LIBS_INIT "-pthread")
+        	set(CMAKE_HAVE_THREADS_LIBRARY 1)
+        	set(CMAKE_USE_WIN32_THREADS_INIT 0)
+        	set(CMAKE_USE_PTHREADS_INIT 1)
+        	add_library(Threads::Threads INTERFACE IMPORTED)
+        	target_compile_options(Threads::Threads INTERFACE -pthread)
+		target_link_options(Threads::Threads INTERFACE -pthread -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=8 -s PROXY_TO_PTHREAD=1)
+    	endif()
 	add_executable(${PROJECT_NAME} ${SRC_PATH}/sys/wasm/main.c)
 	set(CMAKE_EXECUTABLE_SUFFIX ".html")
 	add_link_options(--emrun)
@@ -84,8 +97,11 @@ if (DEFINED EMSCRIPTEN)
 	message(CHECK_PASS "Emscripten")
 	# enable simd => web assembly vector instructions
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx -msimd128")
+
 	# enable wasm workers
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -sWASM_WORKERS=1")
+	#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -sWASM_WORKERS=1")
+	#add_compile_options(-sWASM_WORKERS)
+	#add_link_options(-sWASM_WORKERS)
 
 	if (kas_debug)
 		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0 -W -Wall -gsource-map -Wno-switch -Wno-unused-parameter -Wno-unused-variable -Wno-unused-function")
@@ -102,9 +118,9 @@ if (DEFINED EMSCRIPTEN)
 	endif ()	
 
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --embed-file=../assets@../assets")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --embed-file=../asset_components@../asset_components")
 	# enable memory growth, no over commitment of memory when process requires more memory
   	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -sALLOW_MEMORY_GROWTH=1 -sMEMORY_GROWTH_GEOMETRIC_STEP=0")
-
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 	message(CHECK_PASS "MSVC")
 
@@ -145,9 +161,6 @@ unset(kas_test_correctness CACHE)
 unset(kas_test_performance CACHE)
 unset(apply_optimization_options CACHE)
 
-find_package(OpenGL REQUIRED)
-find_package(Threads REQUIRED)
-
 add_subdirectory("${LIB_PATH}")
 
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
@@ -175,8 +188,16 @@ add_subdirectory("${SRC_PATH}/asset_system")
 link_libraries(kas_common)
 link_libraries(log)
 
+target_link_libraries(${PROJECT_NAME}
+	PRIVATE
+		system_graphics
+		renderer
+		asset_system
+		led
+	)
 if (DEFINED EMSCRIPTEN)
 	add_subdirectory(${SRC_PATH}/sys/wasm)
+	target_link_libraries(${PROJECT_NAME} PRIVATE wasm_interface)
 	#target_include_directories(${PROJECT_NAME}
 	#	PRIVATE
 	#		"${LIB_PATH}"
@@ -196,45 +217,21 @@ if (DEFINED EMSCRIPTEN)
 	#		"${SRC_PATH}/sys"
 	#		"${SRC_PATH}/sys/wasm"
 	#)
-
-	target_link_libraries(${PROJECT_NAME}
-		PRIVATE
-			wasm_interface
-			memory
-			system
-			renderer
-			asset_system
-	)
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
 	add_subdirectory(${SRC_PATH}/sys/linux)
-	target_link_libraries(${PROJECT_NAME}
-		PRIVATE
-			linux_interface
-			system_graphics
-			renderer
-			asset_system
-			led
-	)
+	target_link_libraries(${PROJECT_NAME} PRIVATE linux_interface)
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 	add_subdirectory(${SRC_PATH}/sys/windows)
-	target_link_libraries(${PROJECT_NAME}
-		PRIVATE
-			windows_interface
-			system_graphics
-			renderer
-			asset_system
-			led
-			bcrypt
-		)
+	target_link_libraries(${PROJECT_NAME} PRIVATE windows_interface bcrypt)
 
-		# DLLs must be in same folder as exe? Not as on linux where we have rpath and such...
-		add_custom_command(
-			TARGET	${PROJECT_NAME} POST_BUILD
-			COMMAND ${CMAKE_COMMAND} -E copy_if_different
-				$<TARGET_FILE:SDL3::SDL3-shared>
-				$<TARGET_FILE_DIR:${PROJECT_NAME}>
-			VERBATIM
-		)
+	# DLLs must be in same folder as exe? Not as on linux where we have rpath and such...
+	add_custom_command(
+		TARGET	${PROJECT_NAME} POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+			$<TARGET_FILE:SDL3::SDL3-shared>
+			$<TARGET_FILE_DIR:${PROJECT_NAME}>
+		VERBATIM
+	)
 endif ()
 
 #
@@ -249,7 +246,7 @@ include(InstallRequiredSystemLibraries)
 set(CPACK_PACKAGE_NAME ${PROJECT_NAME})
 set(CPACK_PACKAGE_INSTALL_DIRECTORY ${CPACK_PACKAGE_NAME})
 set(CPACK_VERBATIM_VARIABLES YES)
-set(CPACK_PACKAGE_VENDOR "OrangutanBaboozaAB")
+set(CPACK_PACKAGE_VENDOR "PeonDynamics")
 set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/COPYING.txt")
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")

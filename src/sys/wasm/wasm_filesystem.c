@@ -1,6 +1,6 @@
 /*
 ==========================================================================
-    Copyright (C) 2025 Axel Sandstedt 
+    Copyright (C) 2025,2026 Axel Sandstedt 
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,8 +17,6 @@
 ==========================================================================
 */
 
-#include "wasm_local.h"
-
 #include <dirent.h>
 #include <unistd.h>
 #include <sys/sysmacros.h>
@@ -26,78 +24,261 @@
 #include <string.h>
 #include <sys/mman.h>
 
-#include "wasm_public.h"
 #include "wasm_local.h"
+#include "sys_public.h"
 
 u32 			(*system_user_is_admin)(void);
 
-u32			(*path_is_relative)(const kas_string *path);
+u32			(*utf8_path_is_relative)(utf8 path);
+u32			(*cstr_path_is_relative)(const char *path);
 
-struct kas_buffer 	(*file_dump)(struct arena *mem, const kas_string *path);
-file_handle 		(*file_open_for_reading)(const kas_string *path);
-u32 			(*file_try_create_or_truncate)(file_handle *handle, const kas_string *filename);
-void 			(*file_close)(file_handle handle);
-u32 			(*file_write_offset)(file_handle handle, const u8 *buf, const u32 bufsize, const u64 offset);
-u32 			(*file_write_append)(file_handle handle, const u8 *buf, const u32 size);
-void 			(*file_sync)(file_handle handle);
-void *			(*file_memory_map)(u64 *size, const file_handle handle, const u32 prot, const u32 flags);
-void *			(*file_memory_map_partial)(const file_handle handle, const u64 length, const u64 offset, const u32 prot, const u32 flags);
+enum fs_error 		(*file_try_create)(struct arena *mem, struct file *file, const char *filename, const struct file *dir, const u32 truncate);
+enum fs_error 		(*file_try_create_at_cwd)(struct arena *mem, struct file *file, const char *filename, const u32 truncate);
+enum fs_error 		(*file_try_open)(struct arena *mem, struct file *file, const char *filename, const struct file *dir, const u32 writeable);
+enum fs_error 		(*file_try_open_at_cwd)(struct arena *mem, struct file *file, const char *filename, const u32 writeable);
+enum fs_error 		(*file_try_open_absolute)(struct arena *mem, struct file *file, const char *filename);
+
+enum fs_error 		(*directory_try_create)(struct arena *mem, struct file *dir, const char *filename, const struct file *parent_dir);
+enum fs_error 		(*directory_try_create_at_cwd)(struct arena *mem, struct file *dir, const char *filename);
+enum fs_error 		(*directory_try_open)(struct arena *mem, struct file *dir, const char *filename, const struct file *parent_dir);
+enum fs_error 		(*directory_try_open_at_cwd)(struct arena *mem, struct file *dir, const char *filename);
+enum fs_error		(*directory_push_entries)(struct arena *mem, struct vector *vec, struct file *dir);
+
+u64 			(*file_write_offset)(const struct file *file, const u8 *buf, const u64 bufsize, const u64 offset);
+u64 			(*file_write_append)(const struct file *file, const u8 *buf, const u64 size);
+void 			(*file_sync)(const struct file *file);
+void 			(*file_close)(struct file *file);
+
+void *			(*file_memory_map)(u64 *size, const struct file *file, const u32 prot, const u32 flags);
+void *			(*file_memory_map_partial)(const struct file *file, const u64 length, const u64 offset, const u32 prot, const u32 flags);
 void 			(*file_memory_unmap)(void *addr, const u64 length);
 void 			(*file_memory_sync_unmap)(void *addr, const u64 length);
 
-void 			(*directory_print_tree)(struct arena *tmp, const struct kas_directory *dir);
-kas_string 		(*directory_current_path)(struct arena *mem);
-kas_string		(*directory_current_path_buffered)(u8 *buf, const u32 bufsize);
-enum kas_fs_error_type  (*directory_get_current)(struct kas_directory *dir, struct arena *mem);
-enum kas_fs_error_type  (*directory_get_current_buffered)(struct kas_directory *dir, u8 *buf, const u32 bufsize);
-enum kas_fs_error_type 	(*directory_try_create_relative_to)(struct kas_directory *dir, const struct kas_directory *relative, const kas_string *path);
-enum kas_fs_error_type 	(*directory_try_remove)(const struct kas_directory *dir);
+utf8			(*cwd_get)(struct arena *mem);
+enum fs_error		(*cwd_set)(struct arena *mem, const char *path);
 
-void			(*file_status_print)(const file_status *stat);
-enum kas_fs_error_type	(*file_status_from_directory)(file_status *status, const struct kas_directory *dir);
-enum kas_fs_error_type	(*file_status_from_handle)(file_status *status, const file_handle handle);
-enum kas_fs_error_type	(*file_status_from_path)(file_status *status, const kas_string *path);
+struct kas_buffer 	(*file_dump)(struct arena *mem, const char *path, const struct file *dir);
+struct kas_buffer 	(*file_dump_at_cwd)(struct arena *mem, const char *path);
+
+enum fs_error		(*file_status_path)(file_status *status, const char *path, const struct file *dir);
+enum fs_error		(*file_status_file)(file_status *status, const struct file *file);
+enum file_type		(*file_status_type)(const file_status *status);
+
+void			(*file_status_debug_print)(const file_status *stat);
+
+u32			(*file_set_size)(const struct file *file, const u64 size);
 
 u32 wasm_system_user_is_admin(void)
 {
 	return getuid() == 0;
 }
 
-u32 wasm_path_is_relative(const kas_string *path)
+u32 wasm_utf8_path_is_relative(const utf8 path)
 {
-	kas_assert_string(path, "kas_strings should never be invalid!, use kas_string_empty().");
-
-	return (path->buf[0] == '/') ? 0 : 1;
+	u32 rel = 1;
+	if (path.len && path.buf[0] == '/')
+	{
+		rel = 0;
+	}
+	return rel;
 }
 
-struct kas_buffer wasm_file_dump(struct arena *mem, const kas_string *path)
+u32 wasm_cstr_path_is_relative(const char *path)
 {
-	const file_handle handle = open((char *) path->buf, O_RDONLY);
+	return (path[0] == '/') ? 0 : 1;
+}
+
+enum fs_error wasm_file_try_create(struct arena *mem, struct file *file, const char *filename, const struct file *dir, const u32 truncate)
+{
+	kas_assert(file->handle == FILE_HANDLE_INVALID);
+	file->handle = FILE_HANDLE_INVALID;
+		
+	enum fs_error err = FS_SUCCESS;
+	if (!cstr_path_is_relative(filename))
+	{
+		err = FS_PATH_INVALID;
+	}
+	else
+	{
+		file->handle = openat(dir->handle, filename, O_CREAT | (O_TRUNC * (!!truncate)) | O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP);
+		if (file->handle == FILE_HANDLE_INVALID)
+		{
+			switch (errno)
+			{
+				case EACCES: { err = FS_PERMISSION_DENIED; } break;
+				/* A directory component in pathname does not exist or is a dangling symbolic link */
+				case ENOENT: { err = FS_PATH_INVALID; } break;
+				case EEXIST: { err = FS_ALREADY_EXISTS; } break;
+				/* path is relative but dirfd != FDCWD nor a valid file descriptor */
+				case EBADF: 
+				case ENOTDIR: { err = FS_FILE_IS_NOT_DIRECTORY; } break;
+				default: { err = FS_ERROR_UNSPECIFIED; } break;
+			}
+		}
+	
+	}
+
+	if (err == FS_SUCCESS)
+	{
+		file_status status;
+		file_status_file(&status, file);
+		file->path = utf8_cstr(mem, filename);
+		file->type = file_status_type(&status);
+	}
+
+	return err;
+}
+
+enum fs_error wasm_file_try_open(struct arena *mem, struct file *file, const char *filename, const struct file *dir, const u32 writeable)
+{
+	kas_assert(file->handle == FILE_HANDLE_INVALID);
+	file->handle = FILE_HANDLE_INVALID;
+		
+	enum fs_error err = FS_SUCCESS;
+	if (!cstr_path_is_relative(filename))
+	{
+		err = FS_PATH_INVALID;
+	}
+	else
+	{
+		file->handle = openat(dir->handle, filename, (writeable) ? O_RDWR : O_RDONLY, S_IRUSR | S_IWUSR | S_IRGRP);
+		if (file->handle == FILE_HANDLE_INVALID)
+		{
+			switch (errno)
+			{
+				case EACCES: { err = FS_PERMISSION_DENIED; } break;
+				/* A directory component in pathname does not exist or is a dangling symbolic link */
+				case ENOENT: { err = FS_PATH_INVALID; } break;
+				/* path is relative but dirfd != FDCWD nor a valid file descriptor */
+				case EBADF: 
+				case ENOTDIR: { err = FS_FILE_IS_NOT_DIRECTORY; } break;
+				default: { err = FS_ERROR_UNSPECIFIED; } break;
+			}
+		}
+	
+	}
+
+	if (err == FS_SUCCESS)
+	{
+		file->path = utf8_cstr(mem, filename);
+		file->type = FILE_REGULAR;
+	}
+
+	return err;
+}
+
+enum fs_error wasm_directory_try_create(struct arena *mem, struct file *dir, const char *filename, const struct file *parent_dir)
+{	
+	kas_assert(dir->handle == FILE_HANDLE_INVALID);
+	dir->handle = FILE_HANDLE_INVALID;
+		
+	enum fs_error err = FS_SUCCESS;
+	if (!cstr_path_is_relative(filename))
+	{
+		err = FS_PATH_INVALID;
+	}
+	else
+	{
+		const mode_t mode = S_IRWXU | S_IRGRP | S_IROTH;
+		if (mkdirat(parent_dir->handle, filename, mode) == 0)
+		{
+			err = file_try_open(mem, dir, filename, parent_dir, FILE_READ);
+		}
+		else
+		{
+			switch (errno)
+			{
+				case EACCES: { err = FS_PERMISSION_DENIED; } break;
+				/* A directory component in pathname does not exist or is a dangling symbolic link */
+				case ENOENT: { err = FS_PATH_INVALID; } break;
+				case EEXIST: { err = FS_ALREADY_EXISTS; } break;
+				/* path is relative but dirfd != FDCWD nor a valid file descriptor */
+				case EBADF: 
+				case ENOTDIR: { err = FS_FILE_IS_NOT_DIRECTORY; } break;
+				default: { err = FS_ERROR_UNSPECIFIED; } break;
+					   
+			}
+		}
+	
+	}
+
+	return err;
+}
+
+enum fs_error wasm_file_try_create_at_cwd(struct arena *mem, struct file *file, const char *filename, const u32 truncate)
+{
+	const struct file cwd = 
+	{
+		.handle = AT_FDCWD,
+		.type = FILE_DIRECTORY,
+		.path = utf8_empty(),
+	};
+
+	return wasm_file_try_create(mem, file, filename, &cwd, truncate);
+}
+
+enum fs_error wasm_file_try_open_at_cwd(struct arena *mem, struct file *file, const char *filename, const u32 writeable)
+{
+	const struct file cwd = 
+	{
+		.handle = AT_FDCWD,
+		.type = FILE_DIRECTORY,
+		.path = utf8_empty(),
+	};
+
+	return wasm_file_try_open(mem, file, filename, &cwd, writeable);
+}
+
+enum fs_error wasm_directory_try_create_at_cwd(struct arena *mem, struct file *dir, const char *filename)
+{
+	const struct file cwd = 
+	{
+		.handle = AT_FDCWD,
+		.type = FILE_DIRECTORY,
+		.path = utf8_empty(),
+	};
+
+	return wasm_directory_try_create(mem, dir, filename, &cwd);
+}
+
+enum fs_error wasm_directory_try_open(struct arena *mem, struct file *dir, const char *filename, const struct file *parent_dir)
+{
+	return wasm_file_try_open(mem, dir, filename, parent_dir, 0);
+}
+
+enum fs_error wasm_directory_try_open_at_cwd(struct arena *mem, struct file *dir, const char *filename)
+{
+	return wasm_file_try_open_at_cwd(mem, dir, filename, 0);
+}
+
+struct kas_buffer wasm_file_dump(struct arena *mem, const char *path, const struct file *dir)
+{
+	const file_handle handle = openat(dir->handle, path, O_RDONLY);
 	if (handle == -1)
 	{
-		LOG_SYSTEM_ERROR(S_ERROR, 0);
-		return kas_buffer_empty();
+		LOG_SYSTEM_ERROR(S_ERROR);
+		return kas_buffer_empty;
 	}
 
 	
 	struct stat stat;
-	if (file_status_from_handle(&stat, handle) != KAS_FS_SUCCESS)
+	if (file_status_file(&stat, &(struct file ) { .handle = handle }) != FS_SUCCESS)
 	{
 		close(handle);
-		return kas_buffer_empty();	
+		return kas_buffer_empty;	
 	}
 
 	struct kas_buffer buf =
 	{
-			.size = (u64) stat.st_size,
-			.mem_left = (u64) stat.st_size,
+		.size = (u64) stat.st_size,
+		.mem_left = (u64) stat.st_size,
 	};
 
 	struct arena record;
 	if (mem)
 	{
 		record = *mem;
-		buf.data = arena_push(mem, NULL, (u64) stat.st_size);
+		buf.data = arena_push(mem, (u64) stat.st_size);
 	}
 	else
 	{
@@ -107,7 +288,7 @@ struct kas_buffer wasm_file_dump(struct arena *mem, const kas_string *path)
 	if (!buf.data)
 	{
 		close(handle);
-		return kas_buffer_empty();	
+		return kas_buffer_empty;	
 	}
 
 	u64 bytes_left = buf.size;
@@ -117,8 +298,8 @@ struct kas_buffer wasm_file_dump(struct arena *mem, const kas_string *path)
 		bytes_read_in_call = read(handle, buf.data + (buf.size - bytes_left), bytes_left);
 		if (bytes_read_in_call == -1)
 		{
-			LOG_SYSTEM_ERROR(S_ERROR, 0);
-			buf = kas_buffer_empty();
+			LOG_SYSTEM_ERROR(S_ERROR);
+			buf = kas_buffer_empty;
 			if (mem)
 			{
 				*mem = record;
@@ -134,54 +315,43 @@ struct kas_buffer wasm_file_dump(struct arena *mem, const kas_string *path)
 		
 	close(handle);
 	return buf;
-
 }
 
-file_handle wasm_file_open_for_reading(const kas_string *path)
+struct kas_buffer wasm_file_dump_at_cwd(struct arena *mem, const char *path)
 {
-	const file_handle fd = open((char *) path->buf, O_RDONLY);
-	if (fd == -1)
-	{
-		LOG_SYSTEM_ERROR(S_ERROR, 0);
-		return FILE_HANDLE_INVALID;
-	}
-
-	return fd;
+	const struct file dir = { .handle = AT_FDCWD };
+	return wasm_file_dump(mem, path, &dir);
 }
 
-u32 wasm_file_try_create_or_truncate(file_handle *handle, const kas_string *filename)
+u32 wasm_file_set_size(const struct file *file, const u64 size)
 {
-	kas_assert_string(filename, "kas_strings should never be invalid!, use kas_string_empty().");
-
-	*handle = openat(AT_FDCWD, (char *) filename->buf, O_CREAT | O_TRUNC | O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP);
-
-	if (*handle == -1)
+	u32 success = 1;
+	if (ftruncate(file->handle, size) == -1)
 	{
-		LOG_SYSTEM_ERROR(S_ERROR, 0);
-		return 0;
+		LOG_SYSTEM_ERROR(S_ERROR);
+		success = 0;
 	}
-	else
-	{
-		return 1;
-	}
+	return success;
 }
 
-void wasm_file_close(file_handle handle)
+void wasm_file_close(struct file *file)
 {
-	if (close(handle) == -1)
+	if (close(file->handle) == -1)
 	{
-		LOG_SYSTEM_ERROR(S_ERROR, 0);
+		LOG_SYSTEM_ERROR(S_ERROR);
 	}
+
+	*file = file_null();
 }
 
-u32 wasm_file_write_offset(file_handle handle, const u8 *buf, const u32 bufsize, const u64 offset)
+u64 wasm_file_write_offset(const struct file *file, const u8 *buf, const u64 bufsize, const u64 offset)
 {
 	if (!buf || bufsize == 0) { return 0; }
 
-	const off_t ret = lseek64(handle, (off_t) offset, SEEK_SET);
+	const off_t ret = lseek(file->handle, (off_t) offset, SEEK_SET);
 	if (ret == -1)
 	{
-		LOG_SYSTEM_ERROR(S_ERROR, 0);
+		LOG_SYSTEM_ERROR(S_ERROR);
 		return 0;
 	}
 
@@ -190,41 +360,10 @@ u32 wasm_file_write_offset(file_handle handle, const u8 *buf, const u32 bufsize,
 	ssize_t total = 0;
 	while (left)
 	{
-		count = write(handle, buf + total, left);
+		count = write(file->handle, buf + total, left);
 		if (count == -1)
 		{
-			LOG_SYSTEM_ERROR(S_ERROR, 0);
-			break;
-		}
-
-		total += count;
-		left -= count;
-	}
-
-	return total;
-
-}
-
-u32 wasm_file_write_append(file_handle handle, const u8 *buf, const u32 bufsize)
-{
-	if (!buf || bufsize == 0) { return 0; }
-
-	const off_t ret = lseek64(handle, 0, SEEK_END);
-	if (ret == -1)
-	{
-		LOG_SYSTEM_ERROR(S_ERROR, 0);
-		return 0;
-	}
-
-	ssize_t left = (ssize_t) bufsize;
-	ssize_t count = 0;
-	ssize_t total = 0;
-	while (left)
-	{
-		count = write(handle, buf + total, left);
-		if (count == -1)
-		{
-			LOG_SYSTEM_ERROR(S_ERROR, 0);
+			LOG_SYSTEM_ERROR(S_ERROR);
 			break;
 		}
 
@@ -235,30 +374,73 @@ u32 wasm_file_write_append(file_handle handle, const u8 *buf, const u32 bufsize)
 	return total;
 }
 
-void wasm_file_sync(file_handle handle)
+u64 wasm_file_write_append(const struct file *file, const u8 *buf, const u64 bufsize)
 {
-	fsync(handle);
+	if (!buf || bufsize == 0) { return 0; }
+
+	const off_t ret = lseek(file->handle, 0, SEEK_END);
+	if (ret == -1)
+	{
+		LOG_SYSTEM_ERROR(S_ERROR);
+		return 0;
+	}
+
+	ssize_t left = (ssize_t) bufsize;
+	ssize_t count = 0;
+	ssize_t total = 0;
+	while (left)
+	{
+		count = write(file->handle, buf + total, left);
+		if (count == -1)
+		{
+			LOG_SYSTEM_ERROR(S_ERROR);
+			break;
+		}
+
+		total += count;
+		left -= count;
+	}
+
+	return total;
 }
 
-void *wasm_file_memory_map(u64 *size, const file_handle handle, const u32 prot, const u32 flags)
+void wasm_file_sync(const struct file *file)
+{
+	fsync(file->handle);
+}
+
+void *wasm_file_memory_map(u64 *size, const struct file *file, const u32 prot, const u32 flags)
 {
 	*size = 0;
 	void *map = NULL;
 	struct stat stat;
-	if (file_status_from_handle(&stat, handle) == KAS_FS_SUCCESS)
+	if (file_status_file(&stat, file) == FS_SUCCESS)
 	{
 		*size = stat.st_size;
-		map = file_memory_map_partial(handle, stat.st_size, 0, prot, flags);
+		map = file_memory_map_partial(file, stat.st_size, 0, prot, flags);
 	}
 	return map;
 }
 
-void *wasm_file_memory_map_partial(const file_handle handle, const u64 length, const u64 offset, const u32 prot, const u32 flags)
+void *wasm_file_memory_map_partial(const struct file *file, const u64 length, const u64 offset, const u32 prot, const u32 flags)
 {
-	void *addr = mmap(NULL, length, prot, flags, handle, (off_t) offset);
+	struct stat stat;
+	if (file_status_file(&stat, file) != FS_SUCCESS)
+	{
+		LOG_SYSTEM_ERROR(S_ERROR);
+		return NULL;
+	}
+
+	if ((u64) stat.st_size < length + offset && !wasm_file_set_size(file, offset + length))
+	{
+		LOG_SYSTEM_ERROR(S_ERROR);
+		return NULL;
+	}
+
+	void *addr = mmap(NULL, length, prot, flags, file->handle, (off_t) offset);
 	if (addr == MAP_FAILED)
 	{
-		LOG_SYSTEM_ERROR(S_ERROR, 0);
+		LOG_SYSTEM_ERROR(S_ERROR);
 		addr = NULL;
 	}
 
@@ -269,7 +451,7 @@ void wasm_file_memory_unmap(void *addr, const u64 length)
 {
 	if (munmap(addr, length) == -1)
 	{
-		LOG_SYSTEM_ERROR(S_ERROR, 0);
+		LOG_SYSTEM_ERROR(S_ERROR);
 	}
 }
 
@@ -277,289 +459,145 @@ void wasm_file_memory_sync_unmap(void *addr, const u64 length)
 {
 	if (msync(addr, length, MS_SYNC) == -1)
 	{
-		LOG_SYSTEM_ERROR(S_ERROR, 0);
+		LOG_SYSTEM_ERROR(S_ERROR);
 	}
 
 	if (munmap(addr, length) == -1)
 	{
-		LOG_SYSTEM_ERROR(S_ERROR, 0);
+		LOG_SYSTEM_ERROR(S_ERROR);
 	}
 }
 
-void wasm_directory_print_tree(struct arena *tmp, const struct kas_directory *dir)
+utf8 wasm_cwd_get(struct arena *mem)
 {
-	struct arena record = *tmp;
-
-	u32 s_len = 0;
-	u64 r_size = 32;
-	u64 s_size = 256;
-	struct kas_string *dir_name_stack = arena_push(tmp, NULL, s_size * sizeof(struct kas_string));
-	kas_assert(dir_name_stack);
-	
-	DIR *root = fdopendir(dir->handle);
-	if (!root)
+	utf8 cwd =
 	{
-		*tmp = record;
-		LOG_SYSTEM_ERROR(S_WARNING, 0);
-		return;
+		.size = 256,
+	};
+
+	const u64 record = mem->mem_left;
+	cwd.buf = arena_push(mem, cwd.size);
+	while ((cwd.buf = (u8*) getcwd((char*) cwd.buf, cwd.size)) == NULL)
+	{
+		arena_pop_packed(mem, record - mem->mem_left);
+		cwd.size *= 2;	
+		if (errno != ENOMEM || cwd.size > mem->mem_left)
+		{
+			return utf8_empty();
+		}
+		cwd.buf = arena_push(mem, cwd.size);
 	}
 
-	const kas_string dot = KAS_COMPILE_TIME_STRING(".");
-	const kas_string dotdot = KAS_COMPILE_TIME_STRING("..");
-
-	kas_string cur_path = dir->relative_path;
-	DIR *cur_dir = root;
-	fprintf(stderr, "root of tree:\t%s\n", (char *) dir->relative_path.buf);
-	for (;;)
+	u64 offset = 0;
+	while (1)
 	{
-		errno = 0;
-		struct stat stat_buf;
-		struct dirent *ent;
-		/* thread-safe as long no threads read the same DIR *ptr. */
-		while ((ent = readdir(cur_dir)) != NULL)
+		const u32 codepoint = utf8_read_codepoint(&offset, &cwd, offset);
+		if (codepoint == '\0')
 		{
-			dir_name_stack[s_len] = kas_string_format(tmp, "%k/%s", &cur_path,  ent->d_name);
-			if (stat((char *) dir_name_stack[s_len].buf, &stat_buf) == -1)
-			{
-				fprintf(stderr, "%s\n", (char *) dir_name_stack[s_len].buf);
-				break;
-			}
-				
-			if (S_ISDIR(stat_buf.st_mode) 
-					&& !(ent->d_name[0] == '.' && ent->d_name[1] == '\0')
-					&& !(ent->d_name[0] == '.' && ent->d_name[1] == '.' && ent->d_name[2] == '\0')
-					)
-			{
-				/* Must keep one slot as tmp storage */
-				s_len += 1;
-				if (s_len == s_size)
-				{
-					errno = ENOMEM;
-					break;
-				}
-			}
-			else
-			{
-				fprintf(stderr, "%s\n", (char *) dir_name_stack[s_len].buf);
-			}
+			break;
 		}
-		
-		if (errno != 0)
+		cwd.len += 1;
+	}
+	return cwd;
+}
+
+enum fs_error wasm_cwd_set(struct arena *mem, const char *path)
+{
+	u32 ret = FS_SUCCESS;
+	if (chdir(path) == -1)
+	{
+		switch (errno)
 		{
-			LOG_SYSTEM_ERROR_CODE(S_ERROR, 0, errno);
-			closedir(cur_dir);
+			case EACCES:  { ret = FS_PERMISSION_DENIED; } break;
+			case ENOENT:  { ret = FS_PATH_INVALID; } break;
+			case ENOTDIR: { ret = FS_PATH_INVALID; } break;
+			default:      { ret = FS_ERROR_UNSPECIFIED; } break;
+		}
+	}
+	else
+	{
+		g_sys_env->cwd.path = wasm_cwd_get(mem);
+		g_sys_env->cwd.type = FILE_DIRECTORY;
+		g_sys_env->cwd.handle = AT_FDCWD;
+	}
+
+	return ret;
+}
+
+enum fs_error wasm_directory_push_entries(struct arena *mem, struct vector *vec, struct file *dir)
+{
+	u32 ret = FS_SUCCESS;
+	DIR *dir_stream = fdopendir(dir->handle);
+	if (dir_stream == NULL)
+	{
+		return FS_ERROR_UNSPECIFIED;
+	}
+
+	arena_push_record(mem);
+	const u32 vec_record = vec->next;
+	
+	file_status status;
+	struct dirent *ent;
+	while ((ent = readdir(dir_stream)) != NULL)
+	{
+		struct file *file = vector_push(vec).address;
+		file->path = utf8_cstr(mem, ent->d_name);
+		if (file->path.len == 0)
+		{
+			ret = FS_BUFFER_TO_SMALL;
 			break;
 		}
 
-		closedir(cur_dir);
-		if (s_len)
+		if (file_status_path(&status, ent->d_name, dir) != FS_SUCCESS)
 		{
-			s_len -= 1;
-			cur_path = dir_name_stack[s_len];
-			cur_dir = opendir((char *) cur_path.buf);
-			if (cur_dir)
-			{
-				fprintf(stderr, "%s\n", cur_path.buf);
-				continue;
-			}
-
-			LOG_SYSTEM_ERROR(S_ERROR, 0);
+			ret = FS_ERROR_UNSPECIFIED;
+			break;
 		}
 
-		break;
+		file->type = file_status_type(&status);
 	}
 
-	*tmp = record;
+	if (ret != FS_SUCCESS)
+	{
+		arena_pop_record(mem);
+		vec->next = vec_record;
+	}
+	closedir(dir_stream);
+	*dir = file_null();
+	return ret;
 }
 
-kas_string wasm_directory_current_path(struct arena *mem)
+enum fs_error wasm_file_status_file(file_status *status, const struct file *file)
 {
-	struct arena record = *mem;
-	u32 tmp_size = 256;
-	u8 *buf = arena_push_packed(mem, NULL, tmp_size);
-
-	while (!getcwd((char *) buf, tmp_size))
+	if (fstat(file->handle, status) == -1)
 	{
-		if (errno == ERANGE)
+		return FS_ERROR_UNSPECIFIED;
+	}
+
+	return FS_SUCCESS;
+}
+
+enum fs_error wasm_file_status_path(file_status *status, const char *path, const struct file *dir)
+{
+	enum fs_error err = FS_SUCCESS;
+	if (!cstr_path_is_relative(path))
+	{
+		err = FS_PATH_INVALID;
+	}
+	else
+	{
+		if (fstatat(dir->handle, path, status, 0) == -1)
 		{
-			LOG_MESSAGE(T_SYSTEM, S_WARNING, 0, "small buffer in %s, dubbling size to %u\n", __func__, 2*tmp_size);
-			arena_push_packed(mem, NULL, tmp_size);
-			tmp_size *= 2;
-			continue;
-		}
-		else
-		{
-			LOG_SYSTEM_ERROR(S_ERROR, 0);
-			*mem = record;
-			return kas_string_empty();
-		}
-	}
-
-	kas_string path;
-	path.buf = buf;
-	path.len = strlen((char *) buf);
-	path.size = path.len + 1;
-	arena_pop_packed(mem, tmp_size - path.size); 
-
-	return path;
-}
-
-kas_string wasm_directory_current_path_buffered(u8 *buf, const u32 bufsize)
-{
-	if (!getcwd((char *) buf, bufsize))
-	{
-		LOG_SYSTEM_ERROR(S_WARNING, 0);
-		return kas_string_empty();
-	}
-
-	kas_string path =
-	{
-		.buf = buf,
-		.len = strlen((char *) buf),
-		.size = bufsize,
-	};
-
-	return path;
-}
-
-enum kas_fs_error_type wasm_directory_get_current(struct kas_directory *dir, struct arena *mem)
-{
-	struct arena record = *mem;
-
-	dir->relative_path = directory_current_path(mem);
-	dir->handle = file_open_for_reading(&dir->relative_path);
-	if (dir->handle == FILE_HANDLE_INVALID)
-	{
-		*mem = record;
-		return KAS_FS_ERROR_UNSPECIFIED;
-	}
-
-	return KAS_FS_SUCCESS;
-}
-
-enum kas_fs_error_type wasm_directory_get_current_buffered(struct kas_directory *dir, u8 *buf, const u32 bufsize)
-{
-	dir->relative_path = directory_current_path_buffered(buf, bufsize);
-	if (dir->relative_path.len == 0)
-	{
-		dir->handle = FILE_HANDLE_INVALID;
-		return KAS_FS_BUFFER_TO_SMALL;
-	}
-
-	dir->handle = file_open_for_reading(&dir->relative_path);
-	return (dir->handle != FILE_HANDLE_INVALID)
-		? KAS_FS_SUCCESS
-		: KAS_FS_ERROR_UNSPECIFIED;
-}
-
-enum kas_fs_error_type wasm_directory_try_create_relative_to(struct kas_directory *dir, const struct kas_directory *relative, const kas_string *path)
-{
-	if (!wasm_path_is_relative(path))
-	{
-		LOG_MESSAGE(T_SYSTEM, S_WARNING, 0, "In function %s: path is not relative.\n", __func__);
-		return KAS_FS_PATH_INVALID;
-	}
-
-	const mode_t mode = S_IRWXU | S_IRGRP | S_IROTH;
-	const int fd = mkdirat(relative->handle, (char *) path->buf, mode);
-	if (fd == -1)
-	{
-		LOG_SYSTEM_ERROR(S_WARNING, 0);
-		if (errno == EEXIST)
-		{
-			return KAS_FS_ALREADY_EXISTS;
-		}	
-		else
-		{
-			return KAS_FS_ERROR_UNSPECIFIED;
+			LOG_SYSTEM_ERROR(S_ERROR);	
+			err = FS_ERROR_UNSPECIFIED;
 		}
 	}
 
-	dir->handle = fd;
-	dir->relative_path = *path;
-
-	return KAS_FS_SUCCESS;
+	return err;
 }
 
-enum kas_fs_error_type wasm_directory_try_remove(const struct kas_directory *dir)
+void wasm_file_status_debug_print(const file_status *stat)
 {
-	if (rmdir((char *) dir->relative_path.buf) == -1)
-	{
-		LOG_SYSTEM_ERROR(S_WARNING, 0);
-		if (errno == ENOTEMPTY || errno == EEXIST)
-		{
-			return KAS_FS_DIRECTORY_NOT_EMPTY;
-		}
-		else
-		{
-			return KAS_FS_ERROR_UNSPECIFIED;
-		}
-	}
-
-	return KAS_FS_SUCCESS;
-}
-
-enum kas_fs_error_type wasm_file_status_from_directory(file_status *status, const struct kas_directory *dir)
-{
-	if (fstat(dir->handle, status) == -1)
-
-	{
-		LOG_SYSTEM_ERROR(S_ERROR, 0);	
-		return KAS_FS_ERROR_UNSPECIFIED;
-	}
-
-	return KAS_FS_SUCCESS;
-}
-
-enum kas_fs_error_type wasm_file_status_from_handle(file_status *status, const file_handle handle)
-{
-	if (fstat(handle, status) == -1)
-	{
-		LOG_SYSTEM_ERROR(S_ERROR, 0);	
-		return KAS_FS_ERROR_UNSPECIFIED;
-	}
-
-	return KAS_FS_SUCCESS;
-}
-
-enum kas_fs_error_type wasm_file_status_from_path(file_status *status, const kas_string *path)
-{
-	if (stat((char *) path->buf, status) == -1)
-	{
-		LOG_SYSTEM_ERROR(S_ERROR, 0);	
-		return KAS_FS_ERROR_UNSPECIFIED;
-	}
-
-	return KAS_FS_SUCCESS;
-}
-
-void wasm_file_status_print(const file_status *stat)
-{
-       //struct stat {
-       //    dev_t      st_dev;      /* ID of device containing file */
-       //    ino_t      st_ino;      /* Inode number */
-       //    mode_t     st_mode;     /* File type and mode */
-       //    nlink_t    st_nlink;    /* Number of hard links */
-       //    uid_t      st_uid;      /* User ID of owner */
-       //    gid_t      st_gid;      /* Group ID of owner */
-       //    dev_t      st_rdev;     /* Device ID (if special file) */
-       //    off_t      st_size;     /* Total size, in bytes */
-       //    blksize_t  st_blksize;  /* Block size for filesystem I/O */
-       //    blkcnt_t   st_blocks;   /* Number of 512 B blocks allocated */
-
-       //    /* Since POSIX.1-2008, this structure supports nanosecond
-       //       precision for the following timestamp fields.
-       //       For the details before POSIX.1-2008, see VERSIONS. */
-
-       //    struct timespec  st_atim;  /* Time of last access */
-       //    struct timespec  st_mtim;  /* Time of last modification */
-       //    struct timespec  st_ctim;  /* Time of last status change */
-
-       //#define st_atime  st_atim.tv_sec  /* Backward compatibility */
-       //#define st_mtine  st_mtim.tv_sec
-       //#define st_ctime  st_ctim.tv_sec
-       //};
-       
 	switch (stat->st_mode & S_IFMT)
 	{
 		case S_IFREG: { fprintf(stderr, 	"regular file\n"); 	} break;
@@ -612,34 +650,58 @@ void wasm_file_status_print(const file_status *stat)
 	fprintf(stderr, "\tlast file status change: %s", ctime(&stat->st_ctime));
 }
 
+enum file_type wasm_file_status_type(const file_status *status)
+{
+	enum file_type type;
+	switch (status->st_mode & S_IFMT)
+	{
+		case S_IFREG: { type = FILE_REGULAR; 		} break;
+		case S_IFDIR: { type = FILE_DIRECTORY; 		} break;
+		default:      { type = FILE_UNRECOGNIZED;	} break;
+	}
+
+	return type;
+}
+
 void filesystem_init_func_ptrs(void)
 {
 	system_user_is_admin = &wasm_system_user_is_admin;
 
-	path_is_relative = &wasm_path_is_relative;
+	utf8_path_is_relative = &wasm_utf8_path_is_relative;
+	cstr_path_is_relative = &wasm_cstr_path_is_relative;
+
+	file_try_create = &wasm_file_try_create;
+	file_try_create_at_cwd = &wasm_file_try_create_at_cwd;
+	file_try_open = &wasm_file_try_open;
+	file_try_open_at_cwd = &wasm_file_try_open_at_cwd;
+
+	directory_try_create = &wasm_directory_try_create;
+	directory_try_create_at_cwd = &wasm_directory_try_create_at_cwd;
+	directory_try_open = &wasm_directory_try_open;
+	directory_try_open_at_cwd = &wasm_directory_try_open_at_cwd;
+	directory_push_entries = &wasm_directory_push_entries;
+
+	cwd_get = &wasm_cwd_get;
+	cwd_set = &wasm_cwd_set;
 
 	file_dump = &wasm_file_dump;
-	file_open_for_reading = &wasm_file_open_for_reading;
-	file_try_create_or_truncate = &wasm_file_try_create_or_truncate;
+	file_dump_at_cwd = &wasm_file_dump_at_cwd;
+
+	file_status_file = &wasm_file_status_file;
+        file_status_path = &wasm_file_status_path;
+	file_status_debug_print = &wasm_file_status_debug_print;
+	file_status_type = wasm_file_status_type;
+
 	file_close = &wasm_file_close;
+
 	file_write_offset = &wasm_file_write_offset;
 	file_write_append = &wasm_file_write_append;
 	file_sync = &wasm_file_sync;
+
 	file_memory_map = &wasm_file_memory_map;
 	file_memory_map_partial = &wasm_file_memory_map_partial;
 	file_memory_unmap = &wasm_file_memory_unmap;
 	file_memory_sync_unmap = &wasm_file_memory_sync_unmap;
 
-	directory_print_tree = &wasm_directory_print_tree;
-	directory_current_path = &wasm_directory_current_path;
-	directory_current_path_buffered = &wasm_directory_current_path_buffered;
-	directory_get_current = &wasm_directory_get_current;
-	directory_get_current_buffered = &wasm_directory_get_current_buffered;
-	directory_try_create_relative_to = &wasm_directory_try_create_relative_to;
-	directory_try_remove = &wasm_directory_try_remove;
-
-	file_status_from_directory = &wasm_file_status_from_directory;
-	file_status_from_handle = &wasm_file_status_from_handle;
-        file_status_from_path = &wasm_file_status_from_path;
-	file_status_print = &wasm_file_status_print;
+	file_set_size = &wasm_file_set_size;
 }
