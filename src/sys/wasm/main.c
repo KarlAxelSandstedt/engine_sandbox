@@ -48,10 +48,9 @@ static void main_loop(void)
 {
 	static u64 old_time = 0;
 	old_time = editor->ns;
+	editor->running = 0;
 	if (editor->running)
 	{
-		PROF_FRAME_MARK;
-
 		system_free_tagged_windows();
 
 		task_context_frame_clear();

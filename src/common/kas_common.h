@@ -28,6 +28,7 @@
 	#define PROF_ZONE_END		TracyCZoneEnd(ctx)
 	#define PROF_THREAD_NAMED(str)	TracyCSetThreadName(str)
 #else
+	#define PROF_FRAME_MARK		
 	#define	PROF_ZONE		
 	#define PROF_ZONE_NAMED(str)
 	#define PROF_ZONE_END	

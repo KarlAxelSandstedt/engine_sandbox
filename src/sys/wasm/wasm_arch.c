@@ -81,11 +81,16 @@ void virtual_memory_release(void *addr, const u64 size)
 	}
 }
 
+pid wasm_pid(void)
+{
+	return 0;
+}
+
 void os_arch_init_func_ptrs(void)
 {
 	kas_cpuid = NULL;
 	kas_cpuid_ex = NULL;
 	system_logical_core_count = &wasm_logical_core_count;
 	system_pagesize = &wasm_pagesize;
-	system_pid = NULL;
+	system_pid = &wasm_pid;
 }

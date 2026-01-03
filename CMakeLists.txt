@@ -19,6 +19,48 @@ set(LIB_PATH "${CMAKE_CURRENT_SOURCE_DIR}/lib")
 find_package(OpenGL REQUIRED)
 find_package(Threads QUIET)
 if (DEFINED EMSCRIPTEN)
+	add_link_options(--emrun)
+	# enable memory growth, no over commitment of memory when process requires more memory
+	#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -sALLOW_MEMORY_GROWTH=1 -sMEMORY_GROWTH_GEOMETRIC_STEP=0")
+	add_link_options(-sALLOW_MEMORY_GROWTH)
+	add_link_options(-sMEMORY_GROWTH_GEOMETRIC_STEP=0)
+
+	# enable simd => web assembly vector instructions
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx -msimd128")
+
+	# enable wasm workers
+	#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -sWASM_WORKERS=1")
+	#add_compile_options(-sWASM_WORKERS)
+	#add_link_options(-sWASM_WORKERS)
+
+	if (kas_debug)
+		add_compile_options(-W -Wall -Wno-switch -Wno-unused-parameter -Wno-unused-variable -Wno-unused-function)
+		# Add debug information and C<->wasm mapping
+		add_compile_options(-g)
+		add_link_options(-g -gsource-map)
+
+		#set WebGL2
+		add_link_options(-sMAX_WEBGL_VERSION=2)
+
+		# high overhead; check every memory reference?
+		add_link_options(-sASSERTIONS=2)
+		add_link_options(-sSTACK_OVERFLOW_CHECK=2)
+		add_link_options(-sSAFE_HEAP=1)
+	else ()
+		add_link_options(-sASSERTIONS=0)
+		# low overhead; end-of-frame checking?
+		add_link_options(-sSTACK_OVERFLOW_CHECK=1)
+	endif ()
+
+	if (apply_optimization_options)
+		add_compile_options(-O3)
+	else ()
+		add_compile_options(-O0)
+	endif ()	
+
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --embed-file=../assets@../assets")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --embed-file=../asset_components@../asset_components")
+
 	if (NOT Threads_FOUND)
 		set(Threads_FOUND TRUE)
         	set(CMAKE_THREAD_LIBS_INIT "-pthread")
@@ -31,7 +73,13 @@ if (DEFINED EMSCRIPTEN)
     	endif()
 	add_executable(${PROJECT_NAME} ${SRC_PATH}/sys/wasm/main.c)
 	set(CMAKE_EXECUTABLE_SUFFIX ".html")
-	add_link_options(--emrun)
+
+	add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+		COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:${PROJECT_NAME}>/src
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/src $<TARGET_FILE_DIR:${PROJECT_NAME}>/src
+		COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:${PROJECT_NAME}>/lib
+		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/lib $<TARGET_FILE_DIR:${PROJECT_NAME}>/lib
+	)
 else ()
 	if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
 		add_executable(${PROJECT_NAME} ${SRC_PATH}/sys/linux/main.c)
@@ -92,35 +140,10 @@ elseif (kas_test_performance)
 	target_link_libraries(${PROJECT_NAME} PRIVATE kas_test)
 endif ()
 
+#TODO: Move these things to start
 message(CHECK_START "Compiler")
 if (DEFINED EMSCRIPTEN)
 	message(CHECK_PASS "Emscripten")
-	# enable simd => web assembly vector instructions
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx -msimd128")
-
-	# enable wasm workers
-	#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -sWASM_WORKERS=1")
-	#add_compile_options(-sWASM_WORKERS)
-	#add_link_options(-sWASM_WORKERS)
-
-	if (kas_debug)
-		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0 -W -Wall -gsource-map -Wno-switch -Wno-unused-parameter -Wno-unused-variable -Wno-unused-function")
-		# high overhead; check every memory reference?
-		add_link_options(STACK_OVERFLOW_CHECK=2)
-		add_link_options(ASSERTIONS=2)
-	else ()
-		# low overhead; end-of-frame checking?
-		add_link_options(STACK_OVERFLOW_CHECK=1)
-	endif ()
-
-	if (apply_optimization_options)
-		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3")
-	endif ()	
-
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --embed-file=../assets@../assets")
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --embed-file=../asset_components@../asset_components")
-	# enable memory growth, no over commitment of memory when process requires more memory
-  	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -sALLOW_MEMORY_GROWTH=1 -sMEMORY_GROWTH_GEOMETRIC_STEP=0")
 elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
 	message(CHECK_PASS "MSVC")
 
@@ -165,7 +188,7 @@ add_subdirectory("${LIB_PATH}")
 
 if (CMAKE_BUILD_TYPE STREQUAL "Release")
 	option(TRACY_ENABLE "" OFF)
-else ()
+elseif (NOT DEFINED EMSCRIPTEN)
 	link_libraries(Tracy::TracyClient)
 	include_directories(tracy/public)
 	option(TRACY_ENABLE "" ON)

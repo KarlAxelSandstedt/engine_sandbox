@@ -95,7 +95,9 @@ void sdl3_wrapper_gl_functions_init(struct gl_functions *func)
 	func->glGetString = LOAD_PROC(glGetString);
 	func->glGetTexParameterfv = LOAD_PROC(glGetTexParameterfv);
 	func->glGetTexParameteriv = LOAD_PROC(glGetTexParameteriv);
+#ifdef GL_DEBUG
 	func->glDebugMessageCallback = LOAD_PROC(glDebugMessageCallback);
+#endif
 	func->glGenBuffers = LOAD_PROC(glGenBuffers);
 	func->glBindBuffer = LOAD_PROC(glBindBuffer);
 	func->glBufferData = LOAD_PROC(glBufferData);
@@ -112,7 +114,6 @@ void sdl3_wrapper_gl_functions_init(struct gl_functions *func)
 	func->glDisableVertexAttribArray = LOAD_PROC(glDisableVertexAttribArray);
 	func->glVertexAttribPointer = LOAD_PROC(glVertexAttribPointer);
 	func->glVertexAttribIPointer = LOAD_PROC(glVertexAttribIPointer);
-	func->glVertexAttribLPointer = LOAD_PROC(glVertexAttribLPointer);
 	func->glVertexAttribDivisor = LOAD_PROC(glVertexAttribDivisor);
 	func->glCreateShader = LOAD_PROC(glCreateShader);
 	func->glShaderSource = LOAD_PROC(glShaderSource);
@@ -171,7 +172,6 @@ void sdl3_wrapper_gl_functions_init(struct gl_functions *func)
 	func->glGetShaderInfoLog = LOAD_PROC(glGetShaderInfoLog);
 	func->glCullFace = LOAD_PROC(glCullFace);
 	func->glFrontFace = LOAD_PROC(glFrontFace);
-	func->glPolygonMode = LOAD_PROC(glPolygonMode);
 	func->glBlendEquation =  LOAD_PROC(glBlendEquation);
 	func->glBlendFunc = LOAD_PROC(glBlendFunc);
 	func->glBlendFuncSeparate = LOAD_PROC(glBlendFuncSeparate);
@@ -179,7 +179,7 @@ void sdl3_wrapper_gl_functions_init(struct gl_functions *func)
 	func->glIsEnabled = LOAD_PROC(glIsEnabled);
 	func->glGetProgramiv = LOAD_PROC(glGetProgramiv);
 	func->glGetProgramInfoLog = LOAD_PROC(glGetProgramInfoLog);
-#if defined(GL_DEBUG)
+#if GL_DEBUG
 	gl_debug_init();
 #endif
 }

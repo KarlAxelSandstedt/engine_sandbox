@@ -199,13 +199,6 @@ void kas_glViewport(GLint x, GLint y, GLsizei width, GLsizei height)
 	gl_state->func.glViewport(x, y, width, height);
 }
 
-void kas_glPolygonMode(GLenum face, GLenum mode)
-{
-	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
-	gl_state->func.glPolygonMode(face, mode);
-}
-
-
 void kas_glGenBuffers(GLsizei n, GLuint *buffers)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
@@ -300,12 +293,6 @@ void kas_glVertexAttribIPointer(GLuint index, GLint size, GLenum type, GLsizei s
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glVertexAttribIPointer(index, size, type, stride, pointer);
-}
-
-void kas_glVertexAttribLPointer(GLuint index, GLint size, GLenum type, GLsizei stride, const void *pointer)
-{
-	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
-	gl_state->func.glVertexAttribLPointer(index, size, type, stride, pointer);
 }
 
 void kas_glVertexAttribDivisor(GLuint index, GLuint divisor)

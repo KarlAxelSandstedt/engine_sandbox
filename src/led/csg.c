@@ -33,7 +33,7 @@ struct csg csg_alloc(void)
 	csg.brush_db = string_database_alloc(NULL, 32, 32, struct csg_brush, GROWABLE);
 	csg.instance_pool = pool_alloc(NULL, 32, struct csg_instance, GROWABLE);
 	csg.node_pool = pool_alloc(NULL, 32, struct csg_instance, GROWABLE);
-	csg.frame = arena_alloc(1024*1024*1024);
+	csg.frame = arena_alloc(1024*1024);
 	csg.brush_marked_list = dll_init(struct csg_brush);
 	csg.instance_marked_list = dll_init(struct csg_instance);
 	csg.instance_non_marked_list = dll_init(struct csg_instance);
