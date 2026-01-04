@@ -28,6 +28,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <sys/mman.h>
+#include <fcntl.h>
 #include <unistd.h>
 
 #include "kas_common.h"
@@ -48,7 +49,6 @@ static void main_loop(void)
 {
 	static u64 old_time = 0;
 	old_time = editor->ns;
-	editor->running = 0;
 	if (editor->running)
 	{
 		system_free_tagged_windows();

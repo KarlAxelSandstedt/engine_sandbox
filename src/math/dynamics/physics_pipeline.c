@@ -114,7 +114,7 @@ struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 init
 	pipeline.draw_bounding_box = 0;
 	pipeline.draw_dbvh = 0;
 	pipeline.draw_manifold = 0;
-	pipeline.draw_lines = 1;
+	pipeline.draw_lines = 0;
 
 	pipeline.debug_count = 0;
 	pipeline.debug = NULL;

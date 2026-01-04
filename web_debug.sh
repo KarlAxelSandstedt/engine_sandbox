@@ -15,6 +15,6 @@ emcmake cmake -S . -B build -Dkas_debug=ON -DCMAKE_BUILD_TYPE=Debug -G $CMAKE_GE
 cd build
 cmake --build . --parallel
 
-emrun --browser=firefox engine_sandbox.html
+emrun --browser=/usr/bin/brave-browser engine_sandbox.html
 #node engine_sandbox.js
 cd ..

@@ -131,9 +131,6 @@ typedef struct kas_thread 	kas_thread;
 #include <semaphore.h>
 typedef sem_t semaphore;
 
-//#include <emscripten/wasm_worker.h>
-//typedef emscripten_semaphore_t semaphore;
-
 #ifdef FORCE_SEQ_CST
 #define ATOMIC_RELAXED	__ATOMIC_SEQ_CST
 #define ATOMIC_ACQUIRE	__ATOMIC_SEQ_CST
@@ -237,9 +234,9 @@ typedef sem_t semaphore;
 
 /*** Some builtins (REQUIRES: (BMI, Bit Manipulation Instruction Set 1 >= year 2013)) ***/
 #define clz32(x)	((u32) __builtin_clz(x))  	/* count leading zeroes, NOTE: if x == 0, undefined! */
-#define clz64(x)	((u32) __builtin_clzl(x))	/* count leading zeroes long, NOTE: if x == 0, undefined! */
+#define clz64(x)	((u32) __builtin_clzll(x))	/* count leading zeroes long, NOTE: if x == 0, undefined! */
 #define ctz32(x)	((u32) __builtin_ctz(x))  	/* count trailing zeroes, NOTE: if x == 0, undefined! */
-#define ctz64(x)	((u32) __builtin_ctzl(x))	/* count trailing zeroes long, NOTE: if x == 0, undefined! */
+#define ctz64(x)	((u32) __builtin_ctzll(x))	/* count trailing zeroes long, NOTE: if x == 0, undefined! */
 
 
 #endif

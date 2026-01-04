@@ -1,6 +1,6 @@
 /*
 ==========================================================================
-    Copyright (C) 2025 Axel Sandstedt 
+    Copyright (C) 2025,2026 Axel Sandstedt 
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 
 struct fifo_spmc *fifo_spmc_init(struct arena *mem_persistent, const u32 max_entry_count)
 {
-	assert(max_entry_count > 0 && is_power_of_two(max_entry_count));
+	kas_assert(max_entry_count > 0 && is_power_of_two(max_entry_count));
 	struct fifo_spmc *q = NULL; 
 
 	q = arena_push(mem_persistent, sizeof(struct fifo_spmc));

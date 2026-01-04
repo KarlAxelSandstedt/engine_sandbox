@@ -1,6 +1,6 @@
 /*
 ==========================================================================
-    Copyright (C) 2025 Axel Sandstedt 
+    Copyright (C) 2025,2026 Axel Sandstedt 
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -22,7 +22,7 @@
 
 struct ticket_factory *ticket_factory_init(struct arena *mem, const u32 max_tickets)
 {
-	assert(max_tickets > 0 && is_power_of_two(max_tickets));
+	kas_assert(max_tickets > 0 && is_power_of_two(max_tickets));
 	struct ticket_factory *tf = arena_push(mem, sizeof(struct ticket_factory));
 
 	tf->max_tickets = max_tickets;

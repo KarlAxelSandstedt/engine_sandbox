@@ -26,8 +26,8 @@ struct r_scene *g_scene = NULL;
 struct r_scene *r_scene_alloc(void)
 {
 	struct r_scene *scene = malloc(sizeof(struct r_scene));
-	scene->mem_frame_arr[0] = arena_alloc(32*1024*1024);
-	scene->mem_frame_arr[1] = arena_alloc(32*1024*1024);
+	scene->mem_frame_arr[0] = arena_alloc(64*1024*1024);
+	scene->mem_frame_arr[1] = arena_alloc(64*1024*1024);
 	scene->mem_frame = scene->mem_frame_arr + 0;
 	scene->frame = 0;
 
@@ -382,6 +382,7 @@ void r_scene_generate_bucket_list(void)
 						0,
 						0,
 						0);
+				kas_assert_message(buf_constructor.last->local_size <= 10000000, "ID: %k", &instance->mesh->id);
 			} break;
 
 			default:

@@ -1,39 +1,39 @@
+#version 300 es
+
 /* Note: input sizes are in pixels */
 
 uniform vec2	resolution;
 
-attribute vec4	position_uv;		/* local:  corner pixel position[2], uv[2]  	*/
-attribute vec4	node_rect;		/* shared: center[2], size[2] 			*/
-attribute vec4	visible_rect;		/* shared: center[2], size[2] 			*/
-attribute vec4	background_color;	/* shared					*/
-attribute vec4	border_color;		/* shared					*/
-attribute vec4	sprite_color;		/* shared					*/
-attribute vec4	gradient_color; 	/* local:  gradient corner color 		*/
-attribute vec3	extra;			/* shared: border_size[1]
-					   local: corner_radius[1]
-					   shared: edge_softness[1] 			*/
-varying vec2 	uv;
-varying vec2 	n_rect_center;
-varying vec2 	v_rect_center;
-varying vec2 	n_rect_halfsize;
-varying vec2 	v_rect_halfsize;
-varying vec4 	bg_color;
-varying vec4 	br_color;
-varying vec4 	sp_color;
-varying vec4 	gr_color;
-varying	float 	border_size;
-varying	float 	corner_radius;
-varying	float 	edge_softness;
+in vec4 node_rect;		/* shared: center[2], size[2] 	*/
+in vec4 visible_rect;		/* shared: center[2], size[2] 	*/
+in vec4 uv_rect;		/* shared: center[2], size[2] 	*/
+in vec4 background_color;	/* shared			*/
+in vec4 border_color;		/* shared			*/
+in vec4 sprite_color;		/* shared			*/
+in vec3 extra;			/* shared: border_size[1]
+				   shared: corner_radius[1]
+				   shared: edge_softness[1] 	*/
+in mat4 gradient_color; 	/* shared                       */
+
+out vec2 	uv;
+out vec2 	n_rect_center;
+out vec2 	v_rect_center;
+out vec2 	n_rect_halfsize;
+out vec2 	v_rect_halfsize;
+out vec4 	bg_color;
+out vec4 	br_color;
+out vec4 	sp_color;
+out vec4 	gr_color;
+out float 	border_size;
+out float 	corner_radius;
+out float 	edge_softness;
+
+/* br - tr - tl - bl */
+const vec4 x_sign = vec4( 1.0, 1.0, -1.0, -1.0);
+const vec4 y_sign = vec4(-1.0, 1.0,  1.0, -1.0);
 
 void main()
 {
-	uv = position_uv.zw;
-/*
-	n_rect_center = 2.0*(node_rect.xy) / resolution - 1.0;
-	v_rect_center = 2.0*(visible_rect.xy) / resolution - 1.0;
-	n_rect_halfsize = 2.0*node_rect.zw / resolution;
-	v_rect_halfsize = 2.0*visible_rect.zw / resolution;
-*/
 	n_rect_center = node_rect.xy;
 	v_rect_center = visible_rect.xy;
 	n_rect_halfsize = node_rect.zw;
@@ -41,10 +41,12 @@ void main()
 	bg_color = background_color;
 	br_color = border_color;
 	sp_color = sprite_color;
-	gr_color = gradient_color;
 	border_size = extra.x;
 	corner_radius = extra.y;
 	edge_softness = extra.z;
 
-	gl_Position = vec4(2.0*(position_uv.xy / resolution) - 1.0, 0.0, 1.0);
+	vec2 _sign = vec2(x_sign[gl_VertexID], y_sign[gl_VertexID]);
+	uv = uv_rect.xy + _sign*uv_rect.zw;
+	gl_Position = vec4(2.0*((node_rect.xy + _sign*node_rect.zw) / resolution) - 1.0, 0.0, 1.0);
+	gr_color = gradient_color[gl_VertexID];
 }

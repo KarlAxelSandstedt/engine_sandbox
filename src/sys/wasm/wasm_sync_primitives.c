@@ -22,16 +22,13 @@
 #include "wasm_local.h"
 #include "sys_public.h"
 
-#define SEM_NOT_SHARED 0
-
-typedef sem_t semaphore;
-
 void semaphore_init(semaphore *sem, const u32 val)
 {
-	if (sem_init(sem, SEM_NOT_SHARED, val) == -1)
+	/* emscripten recommends "inter-process sharing" for thread safety? */
+	if (sem_init(sem, 1, val) == -1)
 	{
 		LOG_SYSTEM_ERROR(S_FATAL);
-		assert(0);
+		kas_assert(0);
 	}
 }
 
@@ -40,7 +37,7 @@ void semaphore_destroy(semaphore *sem)
 	if (sem_destroy(sem) == -1)
 	{
 		LOG_SYSTEM_ERROR(S_FATAL);
-		assert(0);
+		kas_assert(0);
 	}	
 }
 
@@ -49,7 +46,7 @@ void semaphore_post(semaphore *sem)
 	if (sem_post(sem) == -1)
 	{
 		LOG_SYSTEM_ERROR(S_FATAL);
-		assert(0);
+		kas_assert(0);
 	}
 }
 
@@ -61,7 +58,7 @@ u32 semaphore_wait(semaphore *sem)
 		if (errno == EINVAL)
 		{
 			LOG_SYSTEM_ERROR(S_FATAL);
-			assert(0);
+			kas_assert(0);
 		}	
 
 		success = 0;
@@ -78,7 +75,7 @@ u32 semaphore_trywait(semaphore *sem)
 		if (errno == EINVAL)
 		{
 			LOG_SYSTEM_ERROR(S_FATAL);
-			assert(0);
+			kas_assert(0);
 		}	
 
 		success = 0;
@@ -86,55 +83,3 @@ u32 semaphore_trywait(semaphore *sem)
 
 	return success;
 }
-
-//typedef emscripten_semaphore_t semaphore;
-//
-//void semaphore_init(semaphore *sem, const u32 val)
-//{
-//  	emscripten_semaphore_init(sem, (int) val);
-//	if (!sem)
-//	{
-//		log_string(T_SYSTEM, S_FATAL, "Failed to initialize emscripten_semaphore");
-//		fatal_cleanup_and_exit(0);
-//	}
-//}
-//
-//void semaphore_destroy(semaphore *sem)
-//{
-//	log_string(T_SYSTEM, S_WARNING, "emscripten has no semaphore destroy?");
-//}
-//
-//void semaphore_post(semaphore *sem)
-//{
-//	const u32 prev_val = emscripten_semaphore_release(sem, 1);
-//}
-//
-//u32 semaphore_wait(semaphore *sem)
-//{
-//	u32 success;
-//	if (emscripten_semaphore_waitinf_acquire(sem, 1) < 0)
-//	{
-//		success = 0;
-//	}
-//	else
-//	{
-//		success = 1;
-//	}
-//
-//	return success;
-//}
-//
-//u32 semaphore_trywait(semaphore *sem)
-//{
-//	u32 success;
-//	if (emscripten_semaphore_try_acquire(sem, 1) == -1)
-//	{
-//		success = 0;
-//	}
-//	else
-//	{
-//		success = 1;
-//	}
-//
-//	return success;
-//}

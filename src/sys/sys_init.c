@@ -68,7 +68,7 @@ void system_resources_init(struct arena *mem)
 	const u32 count_256B = 1024*4;
 	/* 1GB */
 	//const u32 count_1MB = 1024;
-	const u32 count_1MB = 16;
+	const u32 count_1MB = 64;
 
 	global_thread_block_allocators_alloc(count_256B, count_1MB);
 	system_graphics_init();

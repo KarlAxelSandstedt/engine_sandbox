@@ -17,6 +17,9 @@
 ==========================================================================
 */
 
+#if __OS__ == __WEB__
+#include <emscripten/console.h>
+#endif
 #include "log.h"
 #include "sys_public.h"
 
@@ -200,7 +203,11 @@ void log_write_message(const enum system_id system, const enum severity_id sever
 	utf8 formatted = utf8_format_buffered_variadic(&req_size, buf, LOG_MAX_MESSAGE_SIZE, format, args);
 	va_end(args);
 
+#if	__OS__ == __WEB__
+	utf8 str = utf8_format_buffered(msg->buf, LOG_MAX_MESSAGE_SIZE-1, "[%lu.%lu%lu%lus] %k %k - Thread %u: %k",
+#else
 	utf8 str = utf8_format_buffered(msg->buf, LOG_MAX_MESSAGE_SIZE-1, "[%lu.%lu%lu%lus] %k %k - Thread %u: %k\n",
+#endif
 		ms / 1000,
 		(ms / 100) % 10,
 		(ms / 10) % 10,
@@ -220,7 +227,6 @@ void log_write_message(const enum system_id system, const enum severity_id sever
 		return;
 	}
 #if	__OS__ == __WEB__
-#include <emscripten/console.h>
 	emscripten_out((char *) msg->buf);
 #elif __OS__ == __LINUX__
 	fprintf(stdout, "%s", msg->buf);

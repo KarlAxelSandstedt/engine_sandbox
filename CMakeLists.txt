@@ -26,21 +26,28 @@ if (DEFINED EMSCRIPTEN)
 	add_link_options(-sMEMORY_GROWTH_GEOMETRIC_STEP=0)
 
 	# enable simd => web assembly vector instructions
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx -msimd128")
+	#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx -msimd128")
 
-	# enable wasm workers
-	#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -sWASM_WORKERS=1")
-	#add_compile_options(-sWASM_WORKERS)
-	#add_link_options(-sWASM_WORKERS)
+	#set WebGL2
+	add_link_options(-sMAX_WEBGL_VERSION=2)
 
 	if (kas_debug)
 		add_compile_options(-W -Wall -Wno-switch -Wno-unused-parameter -Wno-unused-variable -Wno-unused-function)
+		#Enable pthreads
+		if (NOT Threads_FOUND)
+			set(Threads_FOUND TRUE)
+	        	set(CMAKE_HAVE_THREADS_LIBRARY 1)
+	        	set(CMAKE_USE_WIN32_THREADS_INIT 0)
+	        	set(CMAKE_USE_PTHREADS_INIT 1)
+	        	add_library(Threads::Threads INTERFACE IMPORTED)
+	    	endif()
+		add_compile_options(-pthread)
+		add_link_options(-pthread -sPTHREAD_POOL_SIZE=navigator.hardwareConcurrency)
+		#add_link_options(-pthread -sPTHREAD_POOL_SIZE=1 -sPROXY_TO_PTHREAD)
+
 		# Add debug information and C<->wasm mapping
 		add_compile_options(-g)
 		add_link_options(-g -gsource-map)
-
-		#set WebGL2
-		add_link_options(-sMAX_WEBGL_VERSION=2)
 
 		# high overhead; check every memory reference?
 		add_link_options(-sASSERTIONS=2)
@@ -61,16 +68,6 @@ if (DEFINED EMSCRIPTEN)
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --embed-file=../assets@../assets")
 	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --embed-file=../asset_components@../asset_components")
 
-	if (NOT Threads_FOUND)
-		set(Threads_FOUND TRUE)
-        	set(CMAKE_THREAD_LIBS_INIT "-pthread")
-        	set(CMAKE_HAVE_THREADS_LIBRARY 1)
-        	set(CMAKE_USE_WIN32_THREADS_INIT 0)
-        	set(CMAKE_USE_PTHREADS_INIT 1)
-        	add_library(Threads::Threads INTERFACE IMPORTED)
-        	target_compile_options(Threads::Threads INTERFACE -pthread)
-		target_link_options(Threads::Threads INTERFACE -pthread -s USE_PTHREADS=1 -s PTHREAD_POOL_SIZE=8 -s PROXY_TO_PTHREAD=1)
-    	endif()
 	add_executable(${PROJECT_NAME} ${SRC_PATH}/sys/wasm/main.c)
 	set(CMAKE_EXECUTABLE_SUFFIX ".html")
 
