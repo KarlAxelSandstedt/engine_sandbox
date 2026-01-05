@@ -17,6 +17,7 @@
 ==========================================================================
 */
 
+#define	_LARGEFILE64_SOURCE
 #include <dirent.h>
 #include <unistd.h>
 #include <sys/sysmacros.h>

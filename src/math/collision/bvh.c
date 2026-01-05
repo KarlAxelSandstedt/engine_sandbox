@@ -1,6 +1,6 @@
 /*
 ==========================================================================
-    Copyright (C) 2025 Axel Sandstedt 
+    Copyright (C) 2025,2026 Axel Sandstedt 
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -595,7 +595,10 @@ struct sbvh sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, c
 	arena_push_record(mem);
 	struct AABB *axis_bin_bbox[3];
 	u32 *axis_bin_tri_count[3];
-	u8 *centroid_bin_map = arena_push(mem, mesh->tri_count*sizeof(u8));
+	u8 *centroid_bin_map[3];
+	centroid_bin_map[0] = arena_push(mem, mesh->tri_count*sizeof(u8));
+	centroid_bin_map[1] = arena_push(mem, mesh->tri_count*sizeof(u8));
+	centroid_bin_map[2] = arena_push(mem, mesh->tri_count*sizeof(u8));
 	axis_bin_bbox[0] = arena_push(mem, bin_count*sizeof(struct AABB));
 	axis_bin_bbox[1] = arena_push(mem, bin_count*sizeof(struct AABB));
 	axis_bin_bbox[2] = arena_push(mem, bin_count*sizeof(struct AABB));
@@ -604,7 +607,7 @@ struct sbvh sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, c
 	axis_bin_tri_count[2] = arena_push(mem, bin_count*sizeof(u32));
 	struct allocation_array arr = arena_push_aligned_all(mem, sizeof(struct sbvh_iteration), 8);
 
-	if (!centroid_bin_map || !axis_bin_tri_count[2] || axis_bin_bbox[2] || !arr.len)
+	if (!centroid_bin_map[2] || !axis_bin_tri_count[2] || !axis_bin_bbox[2] || !arr.len)
 	{
 		success = 0;
 		goto end;
@@ -616,7 +619,7 @@ struct sbvh sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, c
 	{
 		struct slot slot = bt_node_add(&sbvh.tree);
 		struct sbvh_node *node = slot.address;
-		node->id = slot.index;
+		node->id = i;
 		node->bbox = bbox_triangle(
 				mesh->v[mesh->tri[i][0]],
 				mesh->v[mesh->tri[i][1]],
@@ -634,6 +637,7 @@ struct sbvh sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, c
 	u32 remaining = mesh->tri_count;
 	while (sc--)
 	{
+		fprintf(stderr, "(I,T) = (%u,%u)\n", processed, stack[sc].tri_count);
 		if (stack[sc].tri_count == 1)
 		{
 			processed += 1;
@@ -663,34 +667,41 @@ struct sbvh sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, c
 				axis_bin_tri_count[axis][bi] = 0;
 			}
 
-			for (u32 i = processed; i < stack[sc].tri_count; ++i)
+			for (u32 i = processed; i < processed + stack[sc].tri_count; ++i)
 			{
-				const f32 val = bbox_min[axis] - mesh->v[i][axis] / (bbox_max[axis] - bbox_min[axis]);
+				const u32 tri = leaf[i].id;
+				const f32 val = bin_count * (leaf[i].bbox.center[axis] - bbox_min[axis]) / (bbox_max[axis] - bbox_min[axis]);
 				const u8 bi = (u8) f32_clamp(val, 0.0f, bin_count - 0.01f);
-				centroid_bin_map[i] = bi;
+				centroid_bin_map[axis][tri] = bi;
 				axis_bin_tri_count[axis][bi] += 1;
 				axis_bin_bbox[axis][bi] = bbox_union(axis_bin_bbox[axis][bi], leaf[i].bbox);
+
+				kas_assert(axis_bin_bbox[axis][bi].center[0] - axis_bin_bbox[axis][bi].hw[0] - 0.001f <= leaf[i].bbox.center[0] - leaf[i].bbox.hw[0]);
+				kas_assert(axis_bin_bbox[axis][bi].center[0] + axis_bin_bbox[axis][bi].hw[0] + 0.001f >= leaf[i].bbox.center[0] + leaf[i].bbox.hw[0]);
+				kas_assert(axis_bin_bbox[axis][bi].center[1] - axis_bin_bbox[axis][bi].hw[1] - 0.001f <= leaf[i].bbox.center[1] - leaf[i].bbox.hw[1]);
+				kas_assert(axis_bin_bbox[axis][bi].center[1] + axis_bin_bbox[axis][bi].hw[1] + 0.001f >= leaf[i].bbox.center[1] + leaf[i].bbox.hw[1]);
+				kas_assert(axis_bin_bbox[axis][bi].center[2] - axis_bin_bbox[axis][bi].hw[2] - 0.001f <= leaf[i].bbox.center[2] - leaf[i].bbox.hw[2]);
+				kas_assert(axis_bin_bbox[axis][bi].center[2] + axis_bin_bbox[axis][bi].hw[2] + 0.001f >= leaf[i].bbox.center[2] + leaf[i].bbox.hw[2]);
 			}
 
 			struct AABB bbox_left = { 0 };
 			u32 left_count = 0;
-			u32 right_count = stack[sc].tri_count;
 			for (u32 split = 0; split < bin_count-1; ++split)
 			{
 				bbox_left = bbox_union(bbox_left, axis_bin_bbox[axis][split]);
 				left_count += axis_bin_tri_count[axis][split];
+				const u32 right_count = stack[sc].tri_count - left_count;
 				struct AABB bbox_right = axis_bin_bbox[axis][split+1];
 				for (u32 bi = split + 2; bi < bin_count; bi++)
 				{
 					bbox_right = bbox_union(bbox_right, axis_bin_bbox[axis][bi]);
-					right_count -= axis_bin_tri_count[axis][bi];
 				}
 
-				const f32 c_trav = 1.0f;
-				const f32 c_int = 1.5f;
+				const f32 cost_traversal = 1.0f;
+				const f32 cost_internal = 1.5f;
 				const f32 left_cost = left_count*bbox_sah(&bbox_left)/parent_sah;
 				const f32 right_cost = right_count*bbox_sah(&bbox_right)/parent_sah;
-				const f32 score = c_trav + c_int*(left_cost + right_cost);
+				const f32 score = cost_traversal + cost_internal*(left_cost + right_cost);
 				if (score < best_score)
 				{
 					best_score = score;
@@ -704,14 +715,31 @@ struct sbvh sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, c
 			}
 		}
 
+		/* (9) TODO: Handle multi-triangle leaves */
+		if (!best_left_count || !best_right_count)
+		{
+			kas_assert(0);
+		}
+
+
 		if (sc + 2 <= stack_size)
 		{
-			//TODO sort left-right ordering
-			u32 left = 0;
-			u32 right = stack[sc].tri_count-1;
+			u32 left = processed;
+			u32 right = processed + stack[sc].tri_count-1;
 			while (left < right)
 			{
-
+				const u32 tri = leaf[left].id;
+				if (centroid_bin_map[best_axis][tri] <= best_split)
+				{
+					left += 1;
+				}
+				else
+				{
+					struct sbvh_node tmp = leaf[right];
+					leaf[right] = leaf[left];
+					leaf[left] = tmp;
+					right -= 1;
+				}
 			}
 
 			stack[sc].bbox = best_bbox_right;
@@ -724,6 +752,7 @@ struct sbvh sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, c
 		}
 		else
 		{
+			PROF_ZONE_END;
 			success = 0;	
 			break;
 		}
@@ -734,7 +763,7 @@ struct sbvh sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, c
 end:
 	if (!success)
 	{
-		const u64 size_required = node_count_required*sizeof(struct sbvh_node) + mesh->tri_count*sizeof(u8) + 3*bin_count*(sizeof(struct AABB) + sizeof(u32));
+		const u64 size_required = node_count_required*sizeof(struct sbvh_node) + 3*mesh->tri_count*sizeof(u8) + 3*bin_count*(sizeof(struct AABB) + sizeof(u32));
 		log(T_SYSTEM, S_ERROR, "Failed to allocate bvh from triangle mesh, minimum size required: %lu\n", size_required);
 		sbvh = (struct sbvh) { 0 };
 	}

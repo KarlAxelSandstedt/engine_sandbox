@@ -49,9 +49,10 @@
 
 #define __WIN64__	3
 #define __LINUX__	4
+#define __WEB__		5
 
-#define __GCC__ 	5
-#define __MSVC__ 	6
+#define __GCC__ 	6
+#define __MSVC__ 	7
 
 /* OS api */
 #if defined(__linux__)

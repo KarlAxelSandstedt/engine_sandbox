@@ -989,7 +989,7 @@ void led_wall_smash_simulation_setup(struct led *led)
 	cmd_queue_submit(sys_win->cmd_queue, cmd_collision_tri_mesh_add_id);
 
 	struct arena mem = arena_alloc(1024*1024);
-	struct sbvh sbvh = sbvh_from_tri_mesh(&mem, map, 8);
+	struct sbvh sbvh = sbvh_from_tri_mesh(&mem, map, 16);
 
 	struct dcel *c_dsphere = arena_push(&sys_win->mem_persistent, sizeof(struct dcel));
 	*c_dsphere = dcel_convex_hull(&sys_win->mem_persistent, dsphere_vertices, dsphere_v_count, F32_EPSILON * 100.0f);

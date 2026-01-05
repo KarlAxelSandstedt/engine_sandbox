@@ -124,6 +124,10 @@ typedef int 		file_handle;
 
 void	filesystem_init_func_ptrs(void);
 
+/******************** linux_arch.c ********************/
+
+void 	os_arch_init_func_ptrs(void);
+
 /********************  linux_thread.c	********************/
 
 typedef pid_t			pid;
