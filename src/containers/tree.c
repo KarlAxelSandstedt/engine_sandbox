@@ -29,7 +29,7 @@ struct bt bt_alloc_internal(struct arena *mem, const u32 initial_length, const u
 		.left_offset = left_offset,
 		.right_offset = right_offset,
 		.heap_allocated = !mem,
-		.root = BT_NULL,
+		.root = POOL_NULL,
 		.pool = pool_alloc_internal(mem, initial_length, slot_size, pool_slot_offset, U64_MAX, growable),
 	};
 
@@ -52,4 +52,50 @@ void bt_flush(struct bt *tree)
 struct slot bt_node_add(struct bt *tree)
 {
 	return pool_add(&tree->pool);
+}
+
+struct slot bt_node_add_root(struct bt *tree)
+{
+	struct slot slot = pool_add(&tree->pool);
+	if (slot.index != POOL_NULL)
+	{
+		kas_assert(tree->root == POOL_NULL);
+		tree->root = slot.index;
+		u32 *parent = (u32 *) (((u8 *) slot.address) + tree->parent_offset);	
+		*parent = BT_PARENT_LEAF_MASK | POOL_NULL;
+	}
+	return slot;
+}
+
+
+void bt_node_add_children(struct bt *tree, struct slot *left, struct slot *right, const u32 parent)
+{
+	*left = pool_add(&tree->pool);
+	*right = pool_add(&tree->pool);
+
+	if (!right->address)
+	{
+		if (left->address)
+		{
+			pool_remove(&tree->pool, left->index);
+			*left = empty_slot;
+		}
+	}
+	else
+	{
+		u32 *bt_parent = (u32 *)(((u8 *) tree->pool.buf) + tree->pool.slot_size*parent + tree->parent_offset);	
+		u32 *bt_left   = (u32 *)(((u8 *) tree->pool.buf) + tree->pool.slot_size*parent + tree->left_offset);	
+		u32 *bt_right  = (u32 *)(((u8 *) tree->pool.buf) + tree->pool.slot_size*parent + tree->right_offset);	
+
+		kas_assert(*bt_parent & BT_PARENT_LEAF_MASK);
+		*bt_parent &= ~BT_PARENT_LEAF_MASK;
+		*bt_left = left->index;
+		*bt_right = right->index;
+
+		bt_parent = (u32 *)(((u8 *) left->address) + tree->parent_offset);	
+		*bt_parent = BT_PARENT_LEAF_MASK | parent;
+
+		bt_parent = (u32 *)(((u8 *) right->address) + tree->parent_offset);	
+		*bt_parent = BT_PARENT_LEAF_MASK | parent;
+	}
 }

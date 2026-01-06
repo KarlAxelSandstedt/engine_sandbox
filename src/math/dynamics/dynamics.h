@@ -701,6 +701,7 @@ struct physics_pipeline
 	struct dll		event_list;
 
 	struct dbvh 		dynamic_tree;
+	struct bvh		sbvh;
 
 	struct contact_database	c_db;
 	struct island_database 	is_db;
@@ -732,10 +733,12 @@ struct physics_pipeline
 
 	vec4				bounding_box_color;
 	vec4				dbvh_color;
+	vec4				sbvh_color;
 	vec4				manifold_color;
 
 	u32				draw_bounding_box;
 	u32				draw_dbvh;
+	u32				draw_sbvh;
 	u32				draw_manifold;
 	u32				draw_lines;
 };

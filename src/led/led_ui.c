@@ -859,6 +859,29 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 							ui_width(ui_size_pixel(24.0f, 1.0f))
 							node = ui_node_alloc_f(UI_DRAW_BORDER | UI_DRAW_BACKGROUND | UI_INTER_LEFT_CLICK, "###draw_1").address;
 							ui_pad();
+							ui_node_alloc_f(UI_DRAW_TEXT, "draw SBVT");
+							if (node->inter & UI_INTER_LEFT_CLICK)
+							{
+								led->physics.draw_sbvh = !led->physics.draw_sbvh;
+							}
+
+							if (led->physics.draw_sbvh)
+							{
+								vec4_set(node->background_color, 0.9f, 0.9f, 0.9f, 1.0f);
+							}
+
+							if (node->inter & UI_INTER_HOVER)
+							{
+								vec4_set(node->background_color, 0.3f, 0.3f, 0.4f, 1.0f);
+							}
+						}
+
+						ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
+						{
+							ui_pad();
+							ui_width(ui_size_pixel(24.0f, 1.0f))
+							node = ui_node_alloc_f(UI_DRAW_BORDER | UI_DRAW_BACKGROUND | UI_INTER_LEFT_CLICK, "###draw_2").address;
+							ui_pad();
 							ui_node_alloc_f(UI_DRAW_TEXT, "draw bounding boxes");
 							if (node->inter & UI_INTER_LEFT_CLICK)
 							{
@@ -880,7 +903,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 						{
 							ui_pad();
 							ui_width(ui_size_pixel(24.0f, 1.0f))
-							node = ui_node_alloc_f(UI_DRAW_BORDER | UI_DRAW_BACKGROUND | UI_INTER_LEFT_CLICK, "###draw_2").address;
+							node = ui_node_alloc_f(UI_DRAW_BORDER | UI_DRAW_BACKGROUND | UI_INTER_LEFT_CLICK, "###draw_3").address;
 							ui_pad();
 							ui_node_alloc_f(UI_DRAW_TEXT, "draw collision manifolds");
 							if (node->inter & UI_INTER_LEFT_CLICK)
@@ -903,7 +926,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 						{
 							ui_pad();
 							ui_width(ui_size_pixel(24.0f, 1.0f))
-							node = ui_node_alloc_f(UI_DRAW_BORDER | UI_DRAW_BACKGROUND | UI_INTER_LEFT_CLICK, "###draw_3").address;
+							node = ui_node_alloc_f(UI_DRAW_BORDER | UI_DRAW_BACKGROUND | UI_INTER_LEFT_CLICK, "###draw_4").address;
 							ui_pad();
 							ui_node_alloc_f(UI_DRAW_TEXT, "draw debug lines");
 							if (node->inter & UI_INTER_LEFT_CLICK)

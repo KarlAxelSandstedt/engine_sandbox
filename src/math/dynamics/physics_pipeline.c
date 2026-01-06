@@ -109,10 +109,12 @@ struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 init
 	vec4_set(pipeline.awake_color, 255.0f/256.0f, 36.0f/256.0f, 48.0f/256.0f, 0.7f);
 	vec4_set(pipeline.manifold_color, 0.6f, 0.6f, 0.9f, 1.0f);
 	vec4_set(pipeline.dbvh_color, 0.8f, 0.1f, 0.0f, 0.6f);
+	vec4_set(pipeline.sbvh_color, 0.1f, 0.8f, 0.0f, 0.6f);
 	vec4_set(pipeline.bounding_box_color, 0.8f, 0.1f, 0.6f, 1.0f);
 
 	pipeline.draw_bounding_box = 0;
 	pipeline.draw_dbvh = 0;
+	pipeline.draw_sbvh = 0;
 	pipeline.draw_manifold = 0;
 	pipeline.draw_lines = 0;
 

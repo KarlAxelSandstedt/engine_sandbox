@@ -30,9 +30,16 @@ bt
 Intrusive general binary tree for indexed structures. With general we mean that 
 we do not enforce a specific relation between parent and child indices, a property
 that can be exploited in certain tree based data structures.
+
+Since the internal allocator is a pool, we support 31bit indices, leaving the topmost bit free in parent, left 
+and right. We store as the highest bit in parent the boolean indicating whether or not it is a leaf. If the 
+bit is set, the node is a leaf. We do this so that bt_left, bt_right are left unused in leaves, and can be 
+used as arbitrary u32's storing external information.
 */
 
-#define BT_NULL		U32_MAX
+#define BT_PARENT_INDEX_MASK	0x7fffffff
+#define BT_PARENT_LEAF_MASK	0x80000000
+#define BT_IS_LEAF(node_addr)	((node_addr)->bt_parent & BT_PARENT_LEAF_MASK)
 #define	BT_SLOT_STATE	u32	bt_parent;	\
 			u32	bt_left;	\
 			u32	bt_right;	\
@@ -69,7 +76,12 @@ struct bt	bt_alloc_internal(struct arena *mem,
 void		bt_dealloc(struct bt *tree);
 /* flush / reset binary tree  */
 void 		bt_flush(struct bt *tree);
-/* allocate node. On Failure, return empty slot. */
+/* TODO remove. allocate node. On Failure, return empty slot. */
 struct slot 	bt_node_add(struct bt *tree);
+/* allocate and setup root node. On Failure, return empty slot. */
+struct slot 	bt_node_add_root(struct bt *tree);
+/* allocate and setup children at parent node. On Failure, return empty slots. */
+void 		bt_node_add_children(struct bt *tree, struct slot *left, struct slot *right, const u32 parent);
+
 
 #endif

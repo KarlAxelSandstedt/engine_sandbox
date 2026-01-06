@@ -178,20 +178,22 @@ bounding volume hierarchy
 
 #define BVH_NO_NODE			U32_MAX 
 
-struct sbvh_node
+struct bvh_node
 {
 	BT_SLOT_STATE;
 	struct AABB	bbox;
 	u32		id;
 };
 
-struct sbvh
+struct bvh
 {
 	struct bt	tree;
+	u32 *		tri;
+	u32		tri_count;
 };
 
 /* Return non-empty bvh on success. If mem != NULL, arena is used as allocator. */
-struct sbvh 	sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, const u32 bin_count);
+struct bvh 	sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, const u32 bin_count);
 
 
 
