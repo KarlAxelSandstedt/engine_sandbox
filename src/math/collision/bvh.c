@@ -620,7 +620,10 @@ struct bvh sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, co
 	 * bt_right = tri_count */
 	node->bt_left = 0;
 	node->bt_right = mesh->tri_count;
-	node->bbox = (struct AABB) { 0 };
+	node->bbox = bbox_triangle(
+				mesh->v[mesh->tri[0][0]],
+				mesh->v[mesh->tri[0][1]],
+				mesh->v[mesh->tri[0][2]]);
 	node_stack[0] = root.index;
 
 	for (u32 i = 0; i < mesh->tri_count; ++i)
@@ -632,7 +635,7 @@ struct bvh sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, co
 				mesh->v[mesh->tri[i][2]]);
 		node->bbox = bbox_union(node->bbox, bbox_tri[i]);
 	}
-
+	
 	/* Process triangles from left to right, depth-first. */
 	while (sc--)
 	{
@@ -663,7 +666,6 @@ struct bvh sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, co
 		{
 			for (u32 bi = 0; bi < bin_count; ++bi)
 			{
-				axis_bin_bbox[axis][bi] = (struct AABB) { 0 };
 				axis_bin_tri_count[axis][bi] = 0;
 			}
 
@@ -673,11 +675,13 @@ struct bvh sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, co
 				const f32 val = bin_count * (bbox_tri[tri].center[axis] - bbox_min[axis]) / (bbox_max[axis] - bbox_min[axis]);
 				const u8 bi = (u8) f32_clamp(val, 0.0f, bin_count - 0.01f);
 				centroid_bin_map[axis][tri] = bi;
+				axis_bin_bbox[axis][bi] = (axis_bin_tri_count[axis][bi] > 0)
+					? bbox_union(axis_bin_bbox[axis][bi], bbox_tri[tri])
+					: bbox_tri[tri];
 				axis_bin_tri_count[axis][bi] += 1;
-				axis_bin_bbox[axis][bi] = bbox_union(axis_bin_bbox[axis][bi], bbox_tri[tri]);
 			}
 
-			struct AABB bbox_left = { 0 };
+			struct AABB bbox_left = axis_bin_bbox[axis][0];
 			u32 left_count = 0;
 			for (u32 split = 0; split < bin_count-1; ++split)
 			{

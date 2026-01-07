@@ -403,7 +403,7 @@ void r_mesh_set_tri_mesh(struct arena *mem, struct r_mesh *mesh, const struct tr
 	//mesh->index_data = arena_push_memcpy(mem, (u32*) tri_mesh->tri, mesh->index_count*sizeof(u32));
 	mesh->local_stride = sizeof(vec3) + sizeof(vec4) + sizeof(vec3);
 
-	const vec4 color = { 0.5f, 0.5f, 0.8f, 1.0f };
+	const vec4 color = { 0.5f, 0.5f, 0.8f, 0.7f };
 
 	for (u32 t = 0; t < tri_mesh->tri_count; ++t)
 	{

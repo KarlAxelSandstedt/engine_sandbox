@@ -47,6 +47,7 @@ static struct r_mesh *debug_contact_manifold_segments_mesh(struct arena *mem, co
 	mesh->index_data = NULL;
 	mesh->vertex_count = vertex_count; 
 	mesh->vertex_data = vertex_data;
+	mesh->local_stride = L_COLOR_STRIDE;
 
 	for (u32 i = 0; i < cm_count; ++i)
 	{
@@ -124,6 +125,7 @@ static struct r_mesh *debug_contact_manifold_triangles_mesh(struct arena *mem, c
 	mesh->index_data = NULL;
 	mesh->vertex_count = 0; 
 	mesh->vertex_data = vertex_data;
+	mesh->local_stride = L_COLOR_STRIDE;
 
 	vec3 v[4];
 	u32 cm_triangles = 0;
@@ -214,6 +216,7 @@ static struct r_mesh *debug_lines_mesh(struct arena *mem, const struct physics_p
 	mesh->index_data = NULL;
 	mesh->vertex_count = vertex_count; 
 	mesh->vertex_data = vertex_data;
+	mesh->local_stride = L_COLOR_STRIDE;
 
 	u64 mem_left = mesh->vertex_count * L_COLOR_STRIDE;
 
@@ -254,6 +257,7 @@ static struct r_mesh *bounding_boxes_mesh(struct arena *mem, const struct physic
 	mesh->index_data = NULL;
 	mesh->vertex_count = vertex_count; 
 	mesh->vertex_data = vertex_data;
+	mesh->local_stride = L_COLOR_STRIDE;
 
 	u64 mem_left = mesh->vertex_count * L_COLOR_STRIDE;
 	struct rigid_body *body = NULL;
@@ -290,6 +294,7 @@ static struct r_mesh *dbvh_mesh(struct arena *mem, const struct dbvh *tree, cons
 	mesh->index_data = NULL;
 	mesh->vertex_count = vertex_count; 
 	mesh->vertex_data = vertex_data;
+	mesh->local_stride = L_COLOR_STRIDE;
 
 	arena_push_record(mem);
 	struct allocation_array arr = arena_push_aligned_all(mem, sizeof(u32), 4); 
@@ -350,6 +355,7 @@ static struct r_mesh *bvh_mesh(struct arena *mem, const struct bvh *bvh, const v
 	mesh->index_data = NULL;
 	mesh->vertex_count = vertex_count; 
 	mesh->vertex_data = vertex_data;
+	mesh->local_stride = L_COLOR_STRIDE;
 
 	arena_push_record(mem);
 	struct allocation_array arr = arena_push_aligned_all(mem, sizeof(u32), 4); 
@@ -358,9 +364,9 @@ static struct r_mesh *bvh_mesh(struct arena *mem, const struct bvh *bvh, const v
 	u32 i = bvh->tree.root;
 	u32 sc = U32_MAX;
 
-	u64 mem_left = mesh->vertex_count * L_COLOR_STRIDE;
 
 	const struct bvh_node *nodes = (struct bvh_node *) bvh->tree.pool.buf;
+	u64 mem_left = mesh->vertex_count * L_COLOR_STRIDE;
 	while (i != U32_MAX)
 	{
 		const u64 bytes_written = AABB_push_lines_buffered(vertex_data, mem_left, &nodes[i].bbox, color);
@@ -402,8 +408,8 @@ static void r_led_draw(const struct led *led)
 		if (slot.index != STRING_DATABASE_STUB_INDEX)
 		{
 			const u64 material = r_material_construct(PROGRAM_LIGHTNING, slot.index, TEXTURE_NONE);
-			const u64 depth = 0;
-			const u64 cmd = r_command_key(R_CMD_SCREEN_LAYER_GAME, 0, R_CMD_TRANSPARENCY_OPAQUE, material, R_CMD_PRIMITIVE_TRIANGLE, R_CMD_NON_INSTANCED, R_CMD_ARRAYS);
+			const u64 depth = 0x7fffff;
+			const u64 cmd = r_command_key(R_CMD_SCREEN_LAYER_GAME, 0, R_CMD_TRANSPARENCY_ADDITIVE, material, R_CMD_PRIMITIVE_TRIANGLE, R_CMD_NON_INSTANCED, R_CMD_ARRAYS);
 			struct r_instance *instance = r_instance_add_non_cached(cmd);
 			instance->type = R_INSTANCE_MESH;
 			instance->mesh = slot.address;
