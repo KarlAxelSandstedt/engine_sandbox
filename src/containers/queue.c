@@ -1,6 +1,6 @@
 /*
 ==========================================================================
-    Copyright (C) 2025 Axel Sandstedt 
+    Copyright (C) 2025,2026 Axel Sandstedt 
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -150,8 +150,9 @@ struct min_queue min_queue_new(struct arena *arena, const u32 initial_length, co
 {
 	kas_assert(initial_length);
 	kas_assert(!arena || !growable);
+	kas_static_assert(sizeof(u32f32) == 8);
 
-	struct min_queue queue;
+	struct min_queue_fixed queue;
 
 	if (arena)
 	{
@@ -247,3 +248,156 @@ void min_queue_flush(struct min_queue * const queue)
 {
 	pool_flush(&queue->object_pool);
 }
+
+static void min_queue_fixed_heapify_up(struct min_queue_fixed * const queue, u32 queue_index)
+{
+	u32 parent = parent_index(queue_index);
+
+	/* Continue until parent's priority is smaller than child or the root has been reached */
+	while (parent != U32_MAX && queue->element[queue_index].f32 < queue->element[parent].f32) 
+	{
+		const u32f32 tuple = queue->element[queue_index];
+		queue->element[queue_index] = queue->element[parent];
+		queue->element[parent] = tuple; 
+		queue_index = parent;
+		parent = parent_index(queue_index); 
+	}
+}
+
+static void queue_fixed_recursion_done(struct min_queue_fixed * const queue, const u32 queue_index, const u32 small_priority_index);
+static void queue_fixed_recursive_call(struct min_queue_fixed * const queue, const u32 queue_index, const u32 small_priority_index);
+
+void (*queue_fixed_func[2])(struct min_queue_fixed * const, const u32, const u32) = { &queue_fixed_recursion_done, &queue_fixed_recursive_call };
+
+static void min_queue_fixed_heapify_down(struct min_queue_fixed * const queue, const u32 queue_index)
+{
+	const u32 left = left_index(queue_index);
+	const u32 right = right_index(queue_index);
+	u32 smallest_priority_index = queue_index;
+
+	if (left < queue->count && queue->element[left].f32 < queue->element[smallest_priority_index].f32)
+		smallest_priority_index = left;
+	
+	if (right < queue->count && queue->element[right].f32 < queue->element[smallest_priority_index].f32)
+		smallest_priority_index = right;
+	
+	/* Child had smaller priority */
+	queue_func[ ((u32) queue_index - smallest_priority_index) >> 31 ](queue, queue_index, smallest_priority_index);
+}
+
+static void queue_recursion_done(struct min_queue_fixed * const queue, const u32 queue_index, const u32 small_priority_index)
+{
+	return;
+}
+
+static void queue_recursive_call(struct min_queue_fixed * const queue, const u32 queue_index, const u32 smallest_priority_index)
+{
+	min_queue_fixed_change_elements(queue, queue_index, smallest_priority_index);
+	min_queue_fixed_queueify_down(queue, smallest_priority_index);
+}
+
+
+struct min_queue_fixed min_queue_fixed_new(struct arena *mem, const u32 initial_length, const u32 growable)
+{
+	kas_assert(!growable || !mem);
+	if (!initial_length) { return (struct min_queue_fixed) { 0 } };
+
+	struct min_queue_fixed queue =
+	{
+		.count = 0,
+		.growable = growable,
+		.length = initial_length,	
+	};
+
+	if (mem)
+	{
+		queue->heap_allocated = 0;
+		queue->element = arena_push(mem, inital_length*sizeof(u32f32));
+	}
+	else
+	{
+		queue->heap_allocated = 1;
+		queue->element = malloc(inital_length*sizeof(u32f32));
+	}
+
+	if (queue.elements == NULL)
+	{
+		log_string(T_SYSTEM, S_FATAL, "Failed to allocate min_queue_fixed memory, exiting.");
+		fatal_cleanup_and_exit(kas_thread_self_tid());
+	}
+
+	return queue;
+}
+
+void min_queue_fixed_free(struct min_queue_fixed *queue)
+{
+	if (queue->heap_allocated)
+	{
+		free(queue->element);
+	}
+}
+
+void min_queue_fixed_flush(struct min_queue_fixed *queue)
+{
+	queue->count = 0;
+}
+
+void min_queue_fixed_print(FILE *log, const struct min_queue_fixed *queue)
+{
+	fprintf(log, "min queue_fixed %p: ", queue);
+	fprintf(log, "{ ");
+	for (u32 i = 0; i < queue->count; ++i)
+	{
+		fprintf(log, "(%u,%f), ", queue->element[i].u32, queue->element[i].f32);
+	}
+	fprintf(log, "}\n");
+
+
+}
+
+void min_queue_fixed_push(struct min_queue_fixed *queue, const u32 id, const f32 priority)
+{
+	if (queue->count == queue->length)
+	{
+		if (queue->growable)
+		{
+			queue->length *= 2;
+			queue->element = realloc(queue->element, queue->length*sizeof(u32f32));
+			if (queue->element == NULL)
+			{
+				log_string(T_SYSTEM, S_FATAL, "Failed to reallocate min_queue_fixed memory, exiting.");
+				fatal_cleanup_and_exit(kas_thread_self_tid());
+			}
+		}	
+		else
+		{
+			return;
+		}
+	}
+
+	const u32 i = queue->count;
+	queue->count += 1;
+	queue->elements[i].f32 = priority;
+	queue->elements[i].u32 = id;
+	min_queue_fixed_heapify_up(queue, i);
+}
+
+u32f32 min_queue_fixed_pop(struct min_queue_fixed *queue)
+{
+	kas_assert_string(queue->count > 0, "Heap should have elements to extract\n");
+	queue->count -= 1;
+
+	const u32f32 tuple = queue->elements[0];
+	queue->element[0] = queue->element[queue->count];
+	min_queue_fixed_heapify_down(queue, 0);
+
+	return tuple;
+}
+
+u32f32 	min_queue_fixed_peek(const struct min_queue_fixed *queue)
+{
+	kas_assert_string(queue->count > 0, "Heap should have elements to extract\n");
+	return queue->element[0];
+}
+
+

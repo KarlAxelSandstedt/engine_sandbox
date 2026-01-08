@@ -255,4 +255,12 @@ typedef enum box_corner
 	BOX_CORNER_COUNT
 } box_corner;
 
+typedef struct u32f32
+{
+	u32	u;
+	f32	f;
+};
+
+#define u32f32_inline(u_in, f_in)	(struct u32f32) { .u = u_in, .f = f_in }
+
 #endif

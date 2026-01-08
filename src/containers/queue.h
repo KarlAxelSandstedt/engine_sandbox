@@ -1,6 +1,6 @@
 /*
 ==========================================================================
-    Copyright (C) 2025 Axel Sandstedt 
+    Copyright (C) 2025,2026 Axel Sandstedt 
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -57,8 +57,7 @@ struct min_queue
 	u32			heap_allocated;
 };
 
-/* Allocate a new priority queue and set the priority of all objects to the largest possible priority, 
-   i.e. last position in the queue.*/
+/* Allocate a new priority queue. */
 struct min_queue	min_queue_new(struct arena *arena, const u32 initial_length, const u32 growable);
 /* Free a queue and all it's resources. */
 void 			min_queue_free(struct min_queue * const queue);
@@ -71,5 +70,35 @@ u32 			min_queue_extract_min(struct min_queue * const queue);
 void 			min_queue_decrease_priority(struct min_queue * const queue, const u32 object_index, const f32 priority);
 /* flush min_queue */
 void 			min_queue_flush(struct min_queue * const queue);
+
+/*
+min_queue_fixed
+===============
+Simplified min queue for the case when re-insertion of elements (changing the priority) isn't needed.
+*/
+
+struct min_queue_fixed 
+{
+	u32f32 *element;
+	u32 	count;
+	u32	length;
+	u32	growable;
+	u32 	heap_allocated;
+};
+
+/* Alocate a new priority queue */
+struct min_queue_fixed	min_queue_fixed_new(struct arena *mem, const u32 initial_length, const u32 growable);
+/* Free (if heap allocated) allocated memory */
+void 			min_queue_fixed_free(struct min_queue_fixed *queue);
+/* Flush queue resources */
+void			min_queue_fixed_flush(struct min_queue_fixed *queue);
+/* Debug print */
+void 			min_queue_fixed_print(FILE *log, const struct min_queue_fixed *queue);
+/* Push (id, priority) pair onto queue. */
+void 			min_queue_fixed_push(struct min_queue_fixed *queue, const u32 id, const f32 priority);
+/* pop minimum element */
+u32f32 			min_queue_fixed_pop(struct min_queue_fixed *heap);
+/* peek minimum element */
+u32f32 			min_queue_fixed_peek(const struct min_queue_fixed *heap);
 
 #endif
