@@ -1,6 +1,6 @@
 /*
 ==========================================================================
-    Copyright (C) 2025 Axel Sandstedt 
+    Copyright (C) 2025, 2026 Axel Sandstedt 
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -47,11 +47,28 @@ void bt_dealloc(struct bt *tree)
 void bt_flush(struct bt *tree)
 {
 	pool_flush(&tree->pool);
+	tree->root = POOL_NULL;
+}
+
+void bt_validate(const struct bt *tree)
+{
+	// TODO USE BIT_VECTORS, TMP ARENAS.... 
+	//TODO validate count
+	//TODO validate links 
+	//	1. child <-> parent	(leaf vs internal...)
+	//	2. each link goes to allocated slot
+	//	3. count number of nodes traversed, if nodes travered >= count, we have bad linking!
+	//	4. Keep a map of travered allocated slots, is should match up perfectly with slots allocated
 }
 
 struct slot bt_node_add(struct bt *tree)
 {
 	return pool_add(&tree->pool);
+}
+
+void bt_node_remove(struct bt *tree, const u32 index)
+{
+	pool_remove(&tree->pool, BT_PARENT_INDEX_MASK & index);
 }
 
 struct slot bt_node_add_root(struct bt *tree)
@@ -66,7 +83,6 @@ struct slot bt_node_add_root(struct bt *tree)
 	}
 	return slot;
 }
-
 
 void bt_node_add_children(struct bt *tree, struct slot *left, struct slot *right, const u32 parent)
 {
@@ -99,3 +115,19 @@ void bt_node_add_children(struct bt *tree, struct slot *left, struct slot *right
 		*bt_parent = BT_PARENT_LEAF_MASK | parent;
 	}
 }
+
+u32 bt_node_count(const struct bt *tree)
+{
+	kas_assert(tree->pool.count == 0 || (tree->pool_count & 0x1));
+	return tree->pool.count;
+}
+
+u32 bt_leaf_count(const struct bt *tree)
+{
+	kas_assert(tree->pool.count == 0 || (tree->pool_count & 0x1));
+	return (tree->pool.count)
+		? (tree->pool.count >> 1) + 1
+		: 0;
+}
+
+

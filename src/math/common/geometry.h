@@ -65,7 +65,7 @@ struct ray
 };
 
 /**
- * segment: geomtrical primitive; directional two point segment
+ * segment: geometrical primitive; directional two point segment
  * p0: segment start
  * p1: segment end 
  * dir: non-normalized direction vector
@@ -78,7 +78,7 @@ struct segment
 };
 
 /**
- * segment: geomtrical primitive
+ * segment: geometrical primitive
  * p0: segment start
  * p1: segment end 
  * dir: non-normalized direction vector
@@ -174,6 +174,8 @@ void		AABB_union(struct AABB *box_union, const struct AABB *a, const struct AABB
 u32 		AABB_test(const struct AABB *a, const struct AABB *b);
 /* Return 1 if a fully contains b, 0 otherwise  */
 u32 		AABB_contains(const struct AABB *a, const struct AABB *b);
+/* return t: smallest t >= 0 such that p = origin + t*dir is a point in the AABB volume, or F32_INF if no such t exist */
+f32 		AABB_raycast_parameter(const struct AABB *a, const struct ray *ray);
 /* If the ray hits aabb, return 1 and set intersection. otherwise return 0. */
 u32 		AABB_raycast(vec3 intersection, const struct AABB *aabb, const struct ray *ray);
 /* sets up vertex buffer to use with glDrawArrays. Returns number of bytes written. */
@@ -188,6 +190,13 @@ struct AABB	bbox_union(const struct AABB a, const struct AABB b);
 
 /* Return support of capsule in given direction. */
 void	capsule_support(vec3 support, const vec3 dir, const struct capsule *cap, mat3 rot, const vec3 pos);
+
+/********************************* triangle **********************************/
+
+/* return t: smallest t >= 0 such that p = origin + t*dir is a point on the triangle, or F32_INF if no such t exist */
+f32 	triangle_raycast_parameter(const vec3 a, const vec3 b, const vec3 c, const struct ray *ray);
+/* If the ray hits triangle, return 1 and set intersection. otherwise return 0. */
+u32 	triangle_raycast(vec3 intersection, const vec3 a, const vec3 b, const vec3 c, const struct ray *ray);
 
 /********************************** dcel ************************************/
 

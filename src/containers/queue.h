@@ -87,9 +87,11 @@ struct min_queue_fixed
 };
 
 /* Alocate a new priority queue */
-struct min_queue_fixed	min_queue_fixed_new(struct arena *mem, const u32 initial_length, const u32 growable);
+struct min_queue_fixed	min_queue_fixed_alloc(struct arena *mem, const u32 initial_length, const u32 growable);
+/* Alocate a new priority queue using whole arena */
+struct min_queue_fixed	min_queue_fixed_alloc_all(struct arena *mem);
 /* Free (if heap allocated) allocated memory */
-void 			min_queue_fixed_free(struct min_queue_fixed *queue);
+void 			min_queue_fixed_dealloc(struct min_queue_fixed *queue);
 /* Flush queue resources */
 void			min_queue_fixed_flush(struct min_queue_fixed *queue);
 /* Debug print */

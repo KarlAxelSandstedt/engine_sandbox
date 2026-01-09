@@ -700,7 +700,7 @@ struct physics_pipeline
 	struct pool		event_pool;
 	struct dll		event_list;
 
-	struct dbvh 		dynamic_tree;
+	struct bvh 		dynamic_tree;
 	struct bvh		sbvh;
 
 	struct contact_database	c_db;

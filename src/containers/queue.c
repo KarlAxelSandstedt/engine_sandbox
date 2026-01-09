@@ -297,7 +297,7 @@ static void queue_recursive_call(struct min_queue_fixed * const queue, const u32
 }
 
 
-struct min_queue_fixed min_queue_fixed_new(struct arena *mem, const u32 initial_length, const u32 growable)
+struct min_queue_fixed min_queue_fixed_alloc(struct arena *mem, const u32 initial_length, const u32 growable)
 {
 	kas_assert(!growable || !mem);
 	if (!initial_length) { return (struct min_queue_fixed) { 0 } };
@@ -329,7 +329,24 @@ struct min_queue_fixed min_queue_fixed_new(struct arena *mem, const u32 initial_
 	return queue;
 }
 
-void min_queue_fixed_free(struct min_queue_fixed *queue)
+struct min_queue_fixed min_queue_fixed_alloc_all(struct arena *mem)
+{
+	kas_assert(mem);
+
+	struct allocation_array arr = arena_push_aligned_all(mem, sizeof(u32f32), 4);
+	struct min_queue_fixed queue =
+	{
+		.count = 0,
+		.growable = 0,
+		.heap_allocated = 0,
+		.length = arr.len,	
+		.element = arr.addr,
+	};
+
+	return queue;
+}
+
+void min_queue_fixed_dealloc(struct min_queue_fixed *queue)
 {
 	if (queue->heap_allocated)
 	{
@@ -399,5 +416,3 @@ u32f32 	min_queue_fixed_peek(const struct min_queue_fixed *queue)
 	kas_assert_string(queue->count > 0, "Heap should have elements to extract\n");
 	return queue->element[0];
 }
-
-

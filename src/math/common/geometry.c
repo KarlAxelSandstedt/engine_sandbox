@@ -436,6 +436,21 @@ u32 AABB_contains(const struct AABB *a, const struct AABB *b)
 	return 1;
 }
 
+f32 AABB_raycast_parameter(const struct AABB *sph, const struct ray *ray)
+{
+
+}
+
+u32 AABB_raycast(vec3 intersection, const struct AABB *aabb, const struct ray *ray)
+{
+	const f32 t = AABB_raycast_parameter(sph, ray);
+	if (t < 0.0f || t == F32_INFINITY) { return 0; }
+
+	vec3_copy(intersection, ray->origin);
+	vec3_translate_scaled(intersection, ray->dir, t);
+	return 1;
+}
+
 u32 AABB_raycast(vec3 intersection, const struct AABB *aabb, const struct ray *ray)
 {
 	vec3 p, q;
@@ -1760,4 +1775,19 @@ struct AABB tri_mesh_bbox(const struct tri_mesh *mesh)
 	struct AABB bbox = { 0 };	
 	AABB_vertex(&bbox, mesh->v, mesh->v_count, 0.0f);	
 	return bbox;
+}
+
+f32 triangle_raycast_parameter(const vec3 a, const vec3 b, const vec3 c, const struct ray *ray)
+{
+
+}
+
+u32 triangle_raycast(vec3 intersection, const vec3 a, const vec3 b, const vec3 c, const struct ray *ray)
+{
+	const f32 t = triangle_raycast_parameter(a, b, c, ray);
+	if (t < 0.0f || t == F32_INFINITY) { return 0; }
+
+	vec3_copy(intersection, ray->origin);
+	vec3_translate_scaled(intersection, ray->dir, t);
+	return 1;
 }

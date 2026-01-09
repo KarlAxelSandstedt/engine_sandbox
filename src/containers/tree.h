@@ -1,6 +1,6 @@
 /*
 ==========================================================================
-    Copyright (C) 2025 Axel Sandstedt 
+    Copyright (C) 2025,2026 Axel Sandstedt 
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -37,9 +37,12 @@ bit is set, the node is a leaf. We do this so that bt_left, bt_right are left un
 used as arbitrary u32's storing external information.
 */
 
-#define BT_PARENT_INDEX_MASK	0x7fffffff
-#define BT_PARENT_LEAF_MASK	0x80000000
-#define BT_IS_LEAF(node_addr)	((node_addr)->bt_parent & BT_PARENT_LEAF_MASK)
+#define BT_PARENT_INDEX_MASK		0x7fffffff
+#define BT_PARENT_LEAF_MASK		0x80000000
+#define BT_SET_LEAF(node_addr)		(node_addr)->bt_parent |= BT_PARENT_LEAF_MASK;
+#define BT_IS_LEAF(node_addr)		((node_addr)->bt_parent & BT_PARENT_LEAF_MASK)
+#define BT_IS_ROOT(node_addr)		(((node_addr)->bt_parent & BT_PARENT_INDEX_MASK) == POOL_NULL)
+#define BT_IS_NOT_ROOT(node_addr)	(((node_addr)->bt_parent & BT_PARENT_INDEX_MASK) != POOL_NULL)
 #define	BT_SLOT_STATE	u32	bt_parent;	\
 			u32	bt_left;	\
 			u32	bt_right;	\
@@ -76,12 +79,20 @@ struct bt	bt_alloc_internal(struct arena *mem,
 void		bt_dealloc(struct bt *tree);
 /* flush / reset binary tree  */
 void 		bt_flush(struct bt *tree);
-/* TODO remove. allocate node. On Failure, return empty slot. */
+/* validate (assert correctness) tree state */
+void		bt_validate(const struct bt *tree);
+/* return allocated node. On Failure, return empty slot. */
 struct slot 	bt_node_add(struct bt *tree);
+/* remove non-connected node. (DOES NOT UPDATE TREE INTERNALS) */
+void		bt_node_remove(struct bt *tree, const u32 index);
 /* allocate and setup root node. On Failure, return empty slot. */
 struct slot 	bt_node_add_root(struct bt *tree);
 /* allocate and setup children at parent node. On Failure, return empty slots. */
 void 		bt_node_add_children(struct bt *tree, struct slot *left, struct slot *right, const u32 parent);
+/* return node count */
+u32		bt_node_count(const struct bt *tree);
+/* return leaf count */
+u32		bt_leaf_count(const struct bt *tree);
 
 
 #endif

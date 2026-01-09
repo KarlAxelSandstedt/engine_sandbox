@@ -95,7 +95,7 @@ struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 init
 	pipeline.margin_on = 1;
 	pipeline.margin = COLLISION_MARGIN_DEFAULT;
 
-	pipeline.dynamic_tree = dbvh_alloc(2*initial_size);
+	pipeline.dynamic_tree = dbvh_alloc(NULL, 2*initial_size, 1);
 
 	pipeline.c_db = c_db_alloc(mem, initial_size);
 	pipeline.is_db = is_db_alloc(mem, initial_size);
