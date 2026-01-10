@@ -150,7 +150,7 @@ struct min_queue min_queue_new(struct arena *arena, const u32 initial_length, co
 {
 	kas_assert(initial_length);
 	kas_assert(!arena || !growable);
-	kas_static_assert(sizeof(u32f32) == 8);
+	kas_static_assert(sizeof(u32f32) == 8, "");
 
 	struct min_queue_fixed queue;
 

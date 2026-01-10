@@ -199,6 +199,13 @@ typedef struct
 } intvi64;
 #define intvi64_inline(_low, _high) (intvi64) { .low = (_low), .high = (_high) }
 
+typedef struct
+{
+	u32	u;
+	f32	f;
+} u32f32;
+#define u32f32_inline(u_in, f_in)	(struct u32f32) { .u = u_in, .f = f_in }
+
 union reg
 {
 	u8	u8;
@@ -254,13 +261,5 @@ typedef enum box_corner
 	BOX_CORNER_BL = 3,
 	BOX_CORNER_COUNT
 } box_corner;
-
-typedef struct u32f32
-{
-	u32	u;
-	f32	f;
-};
-
-#define u32f32_inline(u_in, f_in)	(struct u32f32) { .u = u_in, .f = f_in }
 
 #endif

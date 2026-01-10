@@ -174,6 +174,8 @@ void		AABB_union(struct AABB *box_union, const struct AABB *a, const struct AABB
 u32 		AABB_test(const struct AABB *a, const struct AABB *b);
 /* Return 1 if a fully contains b, 0 otherwise  */
 u32 		AABB_contains(const struct AABB *a, const struct AABB *b);
+/* Return 1 if a (extended with given margin) fully contains b, 0 otherwise  */
+u32 		AABB_contains_margin(const struct AABB *a, const struct AABB *b, const f32 margin);
 /* return t: smallest t >= 0 such that p = origin + t*dir is a point in the AABB volume, or F32_INF if no such t exist */
 f32 		AABB_raycast_parameter(const struct AABB *a, const struct ray *ray);
 /* If the ray hits aabb, return 1 and set intersection. otherwise return 0. */

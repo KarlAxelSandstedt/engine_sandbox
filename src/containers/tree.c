@@ -50,15 +50,65 @@ void bt_flush(struct bt *tree)
 	tree->root = POOL_NULL;
 }
 
-void bt_validate(const struct bt *tree)
+void bt_validate(struct arena *tmp, const struct bt *tree)
 {
-	// TODO USE BIT_VECTORS, TMP ARENAS.... 
-	//TODO validate count
-	//TODO validate links 
-	//	1. child <-> parent	(leaf vs internal...)
-	//	2. each link goes to allocated slot
-	//	3. count number of nodes traversed, if nodes travered >= count, we have bad linking!
-	//	4. Keep a map of travered allocated slots, is should match up perfectly with slots allocated
+	if (tree->root == POOL_NULL)
+	{
+		kas_assert(0 == bt_node_count(tree));
+		return;
+	}
+
+
+	arena_push_record(tmp);
+	struct bit_vec traversed = bit_vec_alloc(&tmp1, tree->pool.length, 0, NON_GROWABLE);
+	struct allocation_array arr = arena_push_aligned_all(mem, sizeof(u32), 4);
+	u32 *stack = arr.addr;
+	stack[0] = tree->root;
+	u32 sc = 1;
+
+	u32 count = 0;
+	u32 leaf_count = 0;
+	while (sc--)
+	{
+		count += 1;
+		u8 *addr = pool_address(&tree->pool, stack[sc]);
+		u32 *alloc = (u32 *) (addr + tree->pool.slot_allocation_offset);
+		u32 *p = (u32 *) (addr + tree->parent_offset);
+		u32 *l = (u32 *) (addr + tree->left_offset);
+		u32 *r = (u32 *) (addr + tree->right_offset);
+
+		kas_assert((*alloc) >> 31);
+		kas_assert(bit_vec_get_bit(&traversed, stack[sc]) == 0);
+		bit_vec_set_bit(&traversed, stack[sc], 1);
+
+		if ((BT_PARENT_INDEX_MASK & (*p)) != POOL_NULL)
+		{
+			u8 *parent = pool_address(&tree->pool, BT_PARENT_INDEX_MASK & (*p));
+			u32 *p_alloc = (u32 *) (parent + tree->pool.slot_allocation_offset);
+			u32 *p_p = (u32 *) (parent + tree->parent_offset);
+			u32 *p_l = (u32 *) (parent + tree->left_offset);
+			u32 *p_r = (u32 *) (parent + tree->right_offset);
+
+			kas_assert((*p_alloc) >> 31);
+			kas_assert(!(BT_PARENT_LEAF_MASK & (*p_p)));
+			kas_assert(*p_l == stack[sc] || *p_r == stack[sc]);
+		}
+
+		if (BT_PARENT_LEAF_MASK & (*p))
+		{
+			leaf_count += 1;
+		}
+		else
+		{
+			stack[sc + 0] = *l;
+			stack[sc + 1] = *r;
+			sc += 2;
+		}
+	};
+
+	kas_assert(count == bt_node_count(tree));
+
+	arena_pop_record(tmp);
 }
 
 struct slot bt_node_add(struct bt *tree)

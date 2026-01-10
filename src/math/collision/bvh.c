@@ -492,8 +492,27 @@ u32 dbvh_raycast(struct arena *mem, const struct bvh *bvh, const struct ray *ray
 void bvh_validate(const struct bvh *bvh)
 {
 	bt_validate(&bvh->tree);
-	//TODO Check parent bbox >= child1, child2. 
-	//TODO 
+	if (bvh->tree.root == POOL_NULL) { return; }
+
+	const struct bvh_node *node = bvh->tree.pool.buf;
+	struct allocation_array arr = arena_push_aligned_all(mem, sizeof(u32), 4);
+	u32 *stack = arr.addr;
+	stack[0] = bvh->tree.root;
+	u32 sc = 1;
+	while (sc--)
+	{
+		if (!BT_IS_ROOT(node + stack[sc]))
+		{
+			const u32 parent = node[stack[sc]].bt_parent & BT_PARENT_INDEX_MASK;
+			kas_assert(AABB_contains_margin(&node[parent].bbox, &node[stack[sc]].bbox, 0.001f));
+		}
+
+		if (!BT_IS_LEAF(node + stack[sc]))
+		{
+			stack[sc + 0] = node[stack[sc]].bt_left;
+			stack[sc + 1] = node[stack[sc]].bt_right;
+		}
+	}
 }
 
 struct bvh sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, const u32 bin_count)

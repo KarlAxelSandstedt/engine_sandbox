@@ -80,7 +80,7 @@ void		bt_dealloc(struct bt *tree);
 /* flush / reset binary tree  */
 void 		bt_flush(struct bt *tree);
 /* validate (assert correctness) tree state */
-void		bt_validate(const struct bt *tree);
+void 		bt_validate(struct arena *tmp, const struct bt *tree);
 /* return allocated node. On Failure, return empty slot. */
 struct slot 	bt_node_add(struct bt *tree);
 /* remove non-connected node. (DOES NOT UPDATE TREE INTERNALS) */
