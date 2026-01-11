@@ -60,17 +60,17 @@ void bt_validate(struct arena *tmp, const struct bt *tree)
 
 
 	arena_push_record(tmp);
-	struct bit_vec traversed = bit_vec_alloc(&tmp1, tree->pool.length, 0, NON_GROWABLE);
-	struct allocation_array arr = arena_push_aligned_all(mem, sizeof(u32), 4);
+	struct bit_vec traversed = bit_vec_alloc(tmp, tree->pool.length, 0, NOT_GROWABLE);
+	struct allocation_array arr = arena_push_aligned_all(tmp, sizeof(u32), 4);
 	u32 *stack = arr.addr;
 	stack[0] = tree->root;
 	u32 sc = 1;
 
-	u32 count = 0;
+	u32 node_count = 0;
 	u32 leaf_count = 0;
 	while (sc--)
 	{
-		count += 1;
+		node_count += 1;
 		u8 *addr = pool_address(&tree->pool, stack[sc]);
 		u32 *alloc = (u32 *) (addr + tree->pool.slot_allocation_offset);
 		u32 *p = (u32 *) (addr + tree->parent_offset);
@@ -106,7 +106,10 @@ void bt_validate(struct arena *tmp, const struct bt *tree)
 		}
 	};
 
-	kas_assert(count == bt_node_count(tree));
+	const u32 actual_leaf_count = bt_leaf_count(tree);
+	const u32 actual_node_count = bt_node_count(tree);
+	kas_assert(leaf_count == actual_leaf_count);
+	kas_assert(node_count == actual_node_count);
 
 	arena_pop_record(tmp);
 }
@@ -154,7 +157,7 @@ void bt_node_add_children(struct bt *tree, struct slot *left, struct slot *right
 		u32 *bt_right  = (u32 *)(((u8 *) tree->pool.buf) + tree->pool.slot_size*parent + tree->right_offset);	
 
 		kas_assert(*bt_parent & BT_PARENT_LEAF_MASK);
-		*bt_parent &= ~BT_PARENT_LEAF_MASK;
+		*bt_parent &= BT_PARENT_INDEX_MASK;
 		*bt_left = left->index;
 		*bt_right = right->index;
 
@@ -168,13 +171,13 @@ void bt_node_add_children(struct bt *tree, struct slot *left, struct slot *right
 
 u32 bt_node_count(const struct bt *tree)
 {
-	kas_assert(tree->pool.count == 0 || (tree->pool_count & 0x1));
+	kas_assert(tree->pool.count == 0 || (tree->pool.count & 0x1));
 	return tree->pool.count;
 }
 
 u32 bt_leaf_count(const struct bt *tree)
 {
-	kas_assert(tree->pool.count == 0 || (tree->pool_count & 0x1));
+	kas_assert(tree->pool.count == 0 || (tree->pool.count & 0x1));
 	return (tree->pool.count)
 		? (tree->pool.count >> 1) + 1
 		: 0;

@@ -188,17 +188,19 @@ struct bvh
 {
 	struct bt		tree;
 	struct min_queue	cost_queue;	/* dynamic specific */
-	const tri_mesh *	mesh;		/* static specific */
+	const struct tri_mesh *	mesh;		/* static specific */
 	u32 *			tri;		/* static specific */
 	u32			tri_count;	/* static specific */
 	u32			heap_allocated;
 };
 
 /* free allocated resources */
-void 		bvh_free(struct dbvh *tree);
+void 		bvh_free(struct bvh *tree);
+/* validate (assert) internal coherence of bvh */
+void 		bvh_validate(struct arena *tmp, const struct bvh *bvh);
 /* Return non-empty bvh on success. If mem != NULL, arena is used as allocator. */
 struct bvh 	sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, const u32 bin_count);
-/* If mem == NULL, standard malloc is used */
+/* If mem == NULL, standard malloc is used. Return (index, ray hit parameter) on closest hit, or (U32_MAX, F32_INFINITY) on no hit */
 u32f32 		sbvh_raycast(struct arena *tmp, const struct bvh *bvh, const struct ray *ray);
 
 #define COST_QUEUE_INITIAL_COUNT 	64 
@@ -219,6 +221,6 @@ void 			dbvh_remove(struct bvh *bvh, const u32 index);
 /* Return overlapping ids ptr, set to NULL if no overlap. if overlap, count is set */
 struct dbvh_overlap *	dbvh_push_overlap_pairs(struct arena *mem, u32 *count, const struct bvh *bvh);
 /* push	id:s of leaves hit by raycast. returns number of hits. -1 == out of memory */
-u32			dbvh_raycast(struct arena *mem, const struct dbvh *tree, const struct ray *ray);
+u32			dbvh_raycast(struct arena *mem, const struct bvh *bvh, const struct ray *ray);
 
 #endif

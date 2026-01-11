@@ -150,7 +150,7 @@ void physics_pipeline_free(struct physics_pipeline *pipeline)
 		stack_visual_segment_free(&pipeline->debug[i].stack_segment);
 	}
 #endif
-	dbvh_free(&pipeline->dynamic_tree);
+	bvh_free(&pipeline->dynamic_tree);
 	c_db_free(&pipeline->c_db);
 	is_db_free(&pipeline->is_db);
 	pool_dealloc(&pipeline->body_pool);
@@ -324,8 +324,8 @@ static void internal_update_dynamic_tree(struct physics_pipeline *pipeline)
 			rigid_body_update_local_box(b, shape);
 			vec3_add(world_AABB.center, b->local_box.center, b->position);
 			vec3_copy(world_AABB.hw, b->local_box.hw);
-			const struct dbvh_node *node = pool_address(&pipeline->dynamic_tree.node_pool, b->proxy);
-			const struct AABB *proxy = &node->box;
+			const struct bvh_node *node = pool_address(&pipeline->dynamic_tree.tree.pool, b->proxy);
+			const struct AABB *proxy = &node->bbox;
 			if (!AABB_contains(proxy, &world_AABB))
 			{
 				world_AABB.hw[0] += b->margin;

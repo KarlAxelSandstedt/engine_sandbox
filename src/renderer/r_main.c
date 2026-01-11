@@ -275,67 +275,6 @@ end:
 	return mesh;
 }
 
-static struct r_mesh *dbvh_mesh(struct arena *mem, const struct dbvh *tree, const vec4 color)
-{
-	arena_push_record(mem);
-	const u32 vertex_count = 3*8*tree->node_pool.count;
- 	struct r_mesh *mesh = NULL;
-	struct r_mesh *tmp = arena_push(mem, sizeof(struct r_mesh));
-	u8 *vertex_data = arena_push(mem, vertex_count * L_COLOR_STRIDE);
-	if (!tmp || !vertex_data) 
-	{ 
-		goto end;
-	}
-	arena_remove_record(mem);
-
-	mesh = tmp;
-	mesh->index_count = 0;
-	mesh->index_max_used = 0;
-	mesh->index_data = NULL;
-	mesh->vertex_count = vertex_count; 
-	mesh->vertex_data = vertex_data;
-	mesh->local_stride = L_COLOR_STRIDE;
-
-	arena_push_record(mem);
-	struct allocation_array arr = arena_push_aligned_all(mem, sizeof(u32), 4); 
-	u32 *stack = arr.addr;
-
-	u32 i = tree->root;
-	u32 q = BVH_NO_NODE;
-
-	u64 mem_left = mesh->vertex_count * L_COLOR_STRIDE;
-
-	const struct dbvh_node *nodes = (struct dbvh_node *) tree->node_pool.buf;
-	while (i != BVH_NO_NODE)
-	{
-		const u64 bytes_written = AABB_push_lines_buffered(vertex_data, mem_left, &nodes[i].box, color);
-		vertex_data += bytes_written;
-		mem_left -= bytes_written;
-
-		if (nodes[i].left != BVH_NO_NODE)
-		{
-			if (q+1 == arr.len)
-			{
-				goto end;	
-			}
-			stack[++q] = nodes[i].right;
-			i = nodes[i].left;
-		}
-		else if (q != BVH_NO_NODE)
-		{
-			i = stack[q--];
-		}
-		else
-		{
-			i = BVH_NO_NODE;
-		}
-	}
-	kas_assert(mem_left == 0);
-end:
-	arena_pop_record(mem);
-	return mesh;
-}
-
 static struct r_mesh *bvh_mesh(struct arena *mem, const struct bvh *bvh, const vec4 color)
 {
 	arena_push_record(mem);
@@ -452,7 +391,7 @@ static void r_led_draw(const struct led *led)
 		const u64 material = r_material_construct(PROGRAM_COLOR, MESH_NONE, TEXTURE_NONE);
 		const u64 depth = 0x7fffff;
 		const u64 cmd = r_command_key(R_CMD_SCREEN_LAYER_GAME, depth, R_CMD_TRANSPARENCY_ADDITIVE, material, R_CMD_PRIMITIVE_LINE, R_CMD_NON_INSTANCED, R_CMD_ARRAYS);
-		struct r_mesh *mesh = dbvh_mesh(&g_r_core->frame, &led->physics.dynamic_tree, led->physics.dbvh_color);
+		struct r_mesh *mesh = bvh_mesh(&g_r_core->frame, &led->physics.dynamic_tree, led->physics.dbvh_color);
 		if (mesh)
 		{
 			struct r_instance *instance = r_instance_add_non_cached(cmd);
