@@ -1068,7 +1068,6 @@ void led_wall_smash_simulation_setup(struct led *led)
 	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_dsphere");
 	cmd_queue_submit(sys_win->cmd_queue, cmd_render_mesh_add_id);
 
-
 	vec3 sphere_translation = { -0.5, 0.5f + ramp_height, -ramp_length };
 	vec3 box_translation =  {-0.5f, 0.0f, -0.5f};
 	vec3 ramp_translation = {0.0f , ramp_width, -ramp_length};

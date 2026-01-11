@@ -169,6 +169,7 @@ u32 dbvh_insert(struct bvh *bvh, const u32 id, const struct AABB *bbox)
 		BT_SET_LEAF(nodes + leaf.index);
 		/* Store external id's in bt_left of leaves */
 		nodes[leaf.index].bt_left = id;
+		nodes[leaf.index].bbox = *bbox;
 	}
 	else
 	{
@@ -191,7 +192,6 @@ u32 dbvh_insert(struct bvh *bvh, const u32 id, const struct AABB *bbox)
 		f32 node_cost = 0.0f; 
 	
 		min_queue_insert(&bvh->cost_queue, node_cost, bvh->tree.root);
-		kas_assert(bvh->cost_queue.elements[0].priority == 0.0f);
 
 		u32 node;
 		f32 inherited_cost, cost;
@@ -251,7 +251,6 @@ u32 dbvh_insert(struct bvh *bvh, const u32 id, const struct AABB *bbox)
 		nodes[internal.index].bbox = bbox_union(nodes[leaf.index].bbox, nodes[best_index].bbox);
 		nodes[best_index].bt_parent = (nodes[best_index].bt_parent & BT_PARENT_LEAF_MASK) | internal.index;
 
-		//printf("parent: %i,%i,%i,%i\n", bvh->nodes[parent].parent, bvh->nodes[parent].id, bvh->nodes[parent].left, bvh->nodes[parent].right);
 		node = nodes[internal.index].bt_parent;
 		/* (3) Traverse from grandparent of leaf, refitting and rotating node up to the root */
 		while (node != POOL_NULL)
@@ -535,10 +534,9 @@ struct bvh sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, co
 
 	arena_push_record(mem);
 	const u32 max_node_count_required = 2*mesh->tri_count - 1;
-	struct bvh sbvh = 
+	struct bvh sbvh =
 	{
 		.tree = bt_alloc(mem, max_node_count_required, struct bvh_node, NOT_GROWABLE),
-		.cost_queue = (struct min_queue) { 0 },
 		.mesh = mesh,
 		.tri = arena_push(mem, mesh->tri_count*sizeof(u32)),
 		.tri_count = mesh->tri_count,
