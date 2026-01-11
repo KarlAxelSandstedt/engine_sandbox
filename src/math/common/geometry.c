@@ -448,112 +448,102 @@ u32 AABB_contains_margin(const struct AABB *a, const struct AABB *b, const f32 m
 
 	return 1;
 }
-
-f32 AABB_raycast_parameter(const struct AABB *sph, const struct ray *ray)
+	
+void AABB_raycast_parameter_ex_setup(vec3 multiplier, vec3u32 dir_sign_bit, const struct ray *ray)
 {
-	return 0.0f;
-//	vec3 p, q;
-//	vec3_sub(p, ray->origin, aabb->center);
-//	const vec3 sign = { f32_sign(p[0]), f32_sign(p[1]), f32_sign(p[2]) };
-//
-//	struct ray new_ray = ray_construct(p,  ray->dir);
-//
-//	vec3_abs_to(q, p);
-//	vec3_translate_scaled(q, aabb->hw, -1.0f);
-//	const u32 sx = f32_sign_bit(q[0]);
-//	const u32 sy = f32_sign_bit(q[1]);
-//	const u32 sz = f32_sign_bit(q[2]);
-//
-//	/* Check planes towards */
-//	if (sx + sy + sz == 3)
-//	{
-//		struct plane plane;
-//		vec3_set(plane.normal, f32_sign(new_ray.dir[0]), 0.0f, 0.0f);
-//		plane.signed_distance = aabb->hw[0];
-//		if (new_ray.dir[0] != 0.0f
-//			         && plane_raycast(intersection, &plane, &new_ray)
-//				 && (intersection[1] >= -aabb->hw[1] && intersection[1] <= aabb->hw[1])
-//				 && (intersection[2] >= -aabb->hw[2] && intersection[2] <= aabb->hw[2])
-//				)
-//		{
-//			vec3_translate(intersection, aabb->center);
-//			return 1;	
-//		}
-//
-//		vec3_set(plane.normal, 0.0f, f32_sign(new_ray.dir[1]), 0.0f);
-//		plane.signed_distance = aabb->hw[1];
-//		if (new_ray.dir[1] != 0.0f
-//				 && plane_raycast(intersection, &plane, &new_ray)
-//				 && (intersection[0] >= -aabb->hw[0] && intersection[0] <= aabb->hw[0])
-//				 && (intersection[2] >= -aabb->hw[2] && intersection[2] <= aabb->hw[2])
-//				)
-//		{
-//			vec3_translate(intersection, aabb->center);
-//			return 1;	
-//		}
-//
-//		vec3_set(plane.normal, 0.0f, 0.0f, f32_sign(new_ray.dir[2]));
-//		plane.signed_distance = aabb->hw[2];
-//		if (new_ray.dir[2] != 0.0f
-//				 && plane_raycast(intersection, &plane, &new_ray)
-//				 && (intersection[0] >= -aabb->hw[0] && intersection[0] <= aabb->hw[0])
-//				 && (intersection[1] >= -aabb->hw[1] && intersection[1] <= aabb->hw[1])
-//				)
-//		{
-//			vec3_translate(intersection, aabb->center);
-//			return 1;	
-//		}
-//
-//	}
-//	/* check planes against */
-//	else
-//	{
-//		struct plane plane;
-//		vec3_set(plane.normal, sign[0], 0.0f, 0.0f);
-//		plane.signed_distance = aabb->hw[0];
-//		if (sx == 0 && plane_raycast(intersection, &plane, &new_ray)
-//				 && (intersection[1] >= -aabb->hw[1] && intersection[1] <= aabb->hw[1])
-//				 && (intersection[2] >= -aabb->hw[2] && intersection[2] <= aabb->hw[2])
-//				)
-//		{
-//			vec3_translate(intersection, aabb->center);
-//			return 1;	
-//		}
-//
-//		vec3_set(plane.normal, 0.0f, sign[1], 0.0f);
-//		plane.signed_distance = aabb->hw[1];
-//		if (sy == 0 && plane_raycast(intersection, &plane, &new_ray)
-//				 && (intersection[0] >= -aabb->hw[0] && intersection[0] <= aabb->hw[0])
-//				 && (intersection[2] >= -aabb->hw[2] && intersection[2] <= aabb->hw[2])
-//				)
-//		{
-//			vec3_translate(intersection, aabb->center);
-//			return 1;	
-//		}
-//
-//		vec3_set(plane.normal, 0.0f, 0.0f, sign[2]);
-//		plane.signed_distance = aabb->hw[2];
-//		if (sz == 0 && plane_raycast(intersection, &plane, &new_ray)
-//				 && (intersection[0] >= -aabb->hw[0] && intersection[0] <= aabb->hw[0])
-//				 && (intersection[1] >= -aabb->hw[1] && intersection[1] <= aabb->hw[1])
-//				)
-//		{
-//			vec3_translate(intersection, aabb->center);
-//			return 1;	
-//		}
-//	}
-//
-//	return 0;
+	multiplier[0] = 1.0f / (ray->dir[0]);
+	multiplier[1] = 1.0f / (ray->dir[1]);
+	multiplier[2] = 1.0f / (ray->dir[2]);
+
+	dir_sign_bit[0] = (u32) f32_sign_bit(ray->dir[0]);
+	dir_sign_bit[1] = (u32) f32_sign_bit(ray->dir[1]);
+	dir_sign_bit[2] = (u32) f32_sign_bit(ray->dir[2]);
 }
 
-u32 AABB_raycast(vec3 intersection, const struct AABB *aabb, const struct ray *ray)
+/*
+	Quick Derivation: (For more information, see Christer Ericsson, Real-time collision detection ch 5.3)
+	X = P + tD 
+	Xn = dist
+
+	aabb axis aligned =>
+
+	find t such that 
+			Xn = dist
+		<=>	X[axis] * n[axis] = dist
+		<=>	(P[axis] + t*D[axis]) * n[axis] = dist
+		<=>	t = (dist - P[axis]*n[axis]) / (D[axis]*n[axis])	
+		<=>	t = (dist - P[axis]) / D[axis]				(we assume n[axis] == 1.0f always)
+
+		Note (1):
+	
+			If ray is perpendicular, do point_slab test of origin instead	
+
+		optimization (1):
+
+			1.0f / D[axis]*n[axis] precomputed.
+*/
+f32 AABB_raycast_parameter_ex(const struct AABB *aabb, const struct ray *ray, const vec3 multiplier, const vec3u32 dir_sign_bit)
 {
-	const f32 t = AABB_raycast_parameter(aabb, ray);
-	if (t < 0.0f || t == F32_INFINITY) { return 0; }
+	vec3 box_min, box_max;
+	vec3_sub(box_min, aabb->center, aabb->hw);
+	vec3_add(box_max, aabb->center, aabb->hw);
+
+	f32 t_min = 0.0f;
+	f32 t_max = F32_INFINITY;
+
+	for (u32 axis = 0; axis < 3; ++axis)
+	{
+		/* If parallel to slab, point_slab test */
+		if (f32_abs(ray->dir[axis]) < 10.0f * F32_EPSILON)
+		{
+			if (ray->origin[axis] < box_min[axis] || ray->origin[axis] > box_max[axis]) { return F32_INFINITY; }
+		}
+		else
+		{
+			const f32 t_1 = (box_min[axis] - ray->origin[axis]) * multiplier[axis];
+			const f32 t_2 = (box_max[axis] - ray->origin[axis]) * multiplier[axis];
+
+			/* if sign bit, we hit min_plane last, max_plane first => t_1 > t_2, else t_2 > t_1 */
+			const f32 t_min_axis = (1-dir_sign_bit[axis])*t_1 + dir_sign_bit[axis]*t_2;
+			const f32 t_max_axis = (1-dir_sign_bit[axis])*t_2 + dir_sign_bit[axis]*t_1;
+
+			t_max = f32_min(t_min, t_min_axis);
+			t_min = f32_max(t_max, t_max_axis);
+
+			if (t_min > t_max)
+			{
+				return F32_INFINITY;
+			}
+		}
+	}
+
+	return t_min;
+}
+
+f32 AABB_raycast_parameter(const struct AABB *aabb, const struct ray *ray)
+{
+	vec3 multiplier;
+       	vec3u32	dir_sign_bit;
+	AABB_raycast_parameter_ex_setup(multiplier, dir_sign_bit, ray);
+	return AABB_raycast_parameter_ex(aabb, ray, multiplier, dir_sign_bit);
+}
+
+u32 AABB_raycast_ex(vec3 intersection, const struct AABB *aabb, const struct ray *ray, const vec3 multiplier, const vec3u32 dir_sign_bit)
+{
+	const f32 t = AABB_raycast_parameter_ex(aabb, ray, multiplier, dir_sign_bit);
+	if (t == F32_INFINITY) { return 0; }
 
 	vec3_copy(intersection, ray->origin);
 	vec3_translate_scaled(intersection, ray->dir, t);
 	return 1;
+}
+
+u32 AABB_raycast(vec3 intersection, const struct AABB *aabb, const struct ray *ray)
+{
+	vec3 multiplier; 
+	vec3u32 dir_sign_bit;
+	AABB_raycast_parameter_ex_setup(multiplier, dir_sign_bit, ray);
+	return AABB_raycast_ex(intersection, aabb, ray, multiplier, dir_sign_bit);
 }
 
 u64 AABB_push_lines_buffered(u8 *buf, const u64 bufsize, const struct AABB *box, const vec4 color)

@@ -988,7 +988,19 @@ void led_wall_smash_simulation_setup(struct led *led)
 	sys_win->cmd_queue->regs[1].ptr = map;
 	cmd_queue_submit(sys_win->cmd_queue, cmd_collision_tri_mesh_add_id);
 
-	led->physics.sbvh = sbvh_from_tri_mesh(&led->mem_persistent, map, 16);
+	f32 best_cost = F32_INFINITY;
+	u32 best_bin_count = 8;
+	for (u32 i = 8; i < 16; ++i)
+	{
+		struct bvh bvh = sbvh_from_tri_mesh(&led->mem_persistent, map, i);
+		const f32 cost = bvh_cost(&bvh);
+		if (cost < best_cost)
+		{
+			best_cost = cost;
+			best_bin_count = i;
+		}
+	}
+	led->physics.sbvh = sbvh_from_tri_mesh(&led->mem_persistent, map, best_bin_count);
 
 	struct dcel *c_dsphere = arena_push(&sys_win->mem_persistent, sizeof(struct dcel));
 	*c_dsphere = dcel_convex_hull(&sys_win->mem_persistent, dsphere_vertices, dsphere_v_count, F32_EPSILON * 100.0f);

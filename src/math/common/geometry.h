@@ -176,16 +176,29 @@ u32 		AABB_test(const struct AABB *a, const struct AABB *b);
 u32 		AABB_contains(const struct AABB *a, const struct AABB *b);
 /* Return 1 if a (extended with given margin) fully contains b, 0 otherwise  */
 u32 		AABB_contains_margin(const struct AABB *a, const struct AABB *b, const f32 margin);
-/* return t: smallest t >= 0 such that p = origin + t*dir is a point in the AABB volume, or F32_INF if no such t exist */
-f32 		AABB_raycast_parameter(const struct AABB *a, const struct ray *ray);
-/* If the ray hits aabb, return 1 and set intersection. otherwise return 0. */
-u32 		AABB_raycast(vec3 intersection, const struct AABB *aabb, const struct ray *ray);
 /* sets up vertex buffer to use with glDrawArrays. Returns number of bytes written. */
 u64 		AABB_push_lines_buffered(u8 *buf, const u64 bufsize, const struct AABB *box, const vec4 color);
 /* return AABB bounding box of triangle */
 struct AABB	bbox_triangle(const vec3 p0, const vec3 p1, const vec3 p2);
 /* Return smallest AABB that contains both a and b  */
 struct AABB	bbox_union(const struct AABB a, const struct AABB b);
+
+
+/* AABB raycasting */
+
+/* Setup parameters for extended raycasting functions. */
+void 		AABB_raycast_parameter_ex_setup(vec3 multiplier, vec3u32 dir_sign_bit, const struct ray *ray);
+/* Extended AABB_raycast_parameter optimized for multiple raycasts against AABBs using same ray. 
+ * return t: smallest t >= 0 such that p = origin + t*dir is a point in the AABB volume, or F32_INF if no such t exist */
+f32 		AABB_raycast_parameter_ex(const struct AABB *aabb, const struct ray *ray, const vec3 multiplier, const vec3u32 dir_sign_bit);
+/* return t: smallest t >= 0 such that p = origin + t*dir is a point in the AABB volume, or F32_INF if no such t exist */
+f32 		AABB_raycast_parameter(const struct AABB *a, const struct ray *ray);
+/* Extended AABB_raycast, optimized for multiple raycasts against AABBs using same ray. 
+ * If the ray hits aabb, return 1 and set intersection. otherwise return 0. */
+u32 		AABB_raycast_ex(vec3 intersection, const struct AABB *aabb, const struct ray *ray, const vec3 multiplier, const vec3u32 dir_sign_bit);
+/* If the ray hits aabb, return 1 and set intersection. otherwise return 0. */
+u32 		AABB_raycast(vec3 intersection, const struct AABB *aabb, const struct ray *ray);
+
 
 
 /********************************* capsule **********************************/

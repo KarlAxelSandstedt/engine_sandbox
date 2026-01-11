@@ -198,6 +198,9 @@ struct bvh
 void 		bvh_free(struct bvh *tree);
 /* validate (assert) internal coherence of bvh */
 void 		bvh_validate(struct arena *tmp, const struct bvh *bvh);
+/* return total cost of bvh */
+f32 		bvh_cost(const struct bvh *bvh);
+
 /* Return non-empty bvh on success. If mem != NULL, arena is used as allocator. */
 struct bvh 	sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, const u32 bin_count);
 /* If mem == NULL, standard malloc is used. Return (index, ray hit parameter) on closest hit, or (U32_MAX, F32_INFINITY) on no hit */

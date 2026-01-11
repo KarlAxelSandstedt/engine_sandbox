@@ -23,6 +23,11 @@
 
 #include "collision.h"
 
+//TODO can play around with these
+#define COST_TRAVERSAL  1.0f	/* Overhead of internal node traversal (AABB testing of children) */
+#define COST_INTERNAL 	1.5f	/* Overhead of triangle intersection tests */
+
+
 struct bvh dbvh_alloc(struct arena *mem, const u32 initial_length, const u32 growable)
 {
 	kas_assert(!mem || !growable);
@@ -51,15 +56,43 @@ void bvh_free(struct bvh *bvh)
 	}
 }
 
+static f32 bbox_sah(const struct AABB *box)
+{
+	return box->hw[0]*(box->hw[1] + box->hw[2]) + box->hw[1]*box->hw[2];
+}
+
+static f32 bvh_cost_recursive(const struct bvh *bvh, const u32 index)
+{
+	f32 cost;
+	
+	const struct bvh_node *node = (struct bvh_node *) bvh->tree.pool.buf;
+	if (BT_IS_LEAF(node + index))
+	{
+		cost = node[index].bt_right * COST_INTERNAL;
+	}
+	else
+	{
+		const f32 cost_left = bvh_cost_recursive(bvh, node[index].bt_left);
+		const f32 cost_right = bvh_cost_recursive(bvh, node[index].bt_right);
+
+		const f32 probability_left = bbox_sah(&node[node[index].bt_left].bbox) /  bbox_sah(&node[index].bbox);
+		const f32 probability_right = bbox_sah(&node[node[index].bt_right].bbox) / bbox_sah(&node[index].bbox);
+
+		cost = COST_TRAVERSAL + probability_left*cost_left + probability_right*cost_right; 
+	}
+
+	return cost;
+}
+
+f32 bvh_cost(const struct bvh *bvh)
+{
+	return bvh_cost_recursive(bvh, bvh->tree.root);
+}
+
 void dbvh_flush(struct bvh *bvh)
 {
 	bt_flush(&bvh->tree);
 	min_queue_flush(&bvh->cost_queue);
-}
-
-static f32 bbox_sah(const struct AABB *box)
-{
-	return box->hw[0]*(box->hw[1] + box->hw[2]) + box->hw[1]*box->hw[2];
 }
 
 static void dbvh_internal_balance_node(struct bvh *bvh, const u32 node)
@@ -674,8 +707,8 @@ struct bvh sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, co
 					}
 				}
 
-				const f32 cost_traversal = 1.0f;
-				const f32 cost_internal = 1.5f;
+				const f32 cost_traversal = COST_TRAVERSAL;
+				const f32 cost_internal = COST_INTERNAL;
 				const f32 left_cost = left_count*bbox_sah(&bbox_left)/parent_sah;
 				const f32 right_cost = right_count*bbox_sah(&bbox_right)/parent_sah;
 				const f32 score = cost_traversal + cost_internal*(left_cost + right_cost);
@@ -774,7 +807,11 @@ u32f32 sbvh_raycast(struct arena *tmp, const struct bvh *bvh, const struct ray *
 	if (bt_node_count(&bvh->tree) == 0) { goto end; }
 
 	const struct bvh_node *node = (struct bvh_node *) bvh->tree.pool.buf;
-	const f32 root_hit_param = AABB_raycast_parameter(&node[bvh->tree.root].bbox, ray);
+
+	vec3 multiplier;
+	vec3u32 dir_sign_bit;
+	AABB_raycast_parameter_ex_setup(multiplier, dir_sign_bit, ray);
+	const f32 root_hit_param = AABB_raycast_parameter_ex(&node[bvh->tree.root].bbox, ray, multiplier, dir_sign_bit);
 	if (root_hit_param == F32_INFINITY) { goto end; }
 
 	arena_push_record(tmp);
@@ -812,8 +849,8 @@ u32f32 sbvh_raycast(struct arena *tmp, const struct bvh *bvh, const struct ray *
 		}
 		else
 		{
-			const f32 distance_left = AABB_raycast_parameter(&node[node[tuple.u].bt_left].bbox, ray);
-			const f32 distance_right = AABB_raycast_parameter(&node[node[tuple.u].bt_right].bbox, ray);
+			const f32 distance_left = AABB_raycast_parameter_ex(&node[node[tuple.u].bt_left].bbox, ray, multiplier, dir_sign_bit);
+			const f32 distance_right = AABB_raycast_parameter_ex(&node[node[tuple.u].bt_right].bbox, ray, multiplier, dir_sign_bit);
 
 			if (distance_left < F32_INFINITY)
 			{
