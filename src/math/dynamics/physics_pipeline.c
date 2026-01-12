@@ -903,40 +903,38 @@ void physics_pipeline_tick(struct physics_pipeline *pipeline)
 	PROF_ZONE_END;
 }
 
-f32 physics_pipeline_raycast_parameter(struct arena *mem_tmp, struct slot *slot, const struct physics_pipeline *pipeline, const struct ray *ray)
+u32f32 physics_pipeline_raycast_parameter(struct arena *mem_tmp, const struct physics_pipeline *pipeline, const struct ray *ray)
 {
 	arena_push_record(mem_tmp);
 
-	const i32 *proxies_hit = (i32 *) mem_tmp->stack_ptr;
-	const u32 proxy_count = dbvh_raycast(mem_tmp, &pipeline->dynamic_tree, ray);
-
-	f32 t_best = F32_INFINITY;
-	if (proxy_count == 0) 
-	{ 
-		goto physics_pipeline_raycast_parameter_cleanup;
-	}
-
-	f32 t;
-	for (u32 i = 0; i < proxy_count; ++i)
+	struct bvh_raycast_info info = bvh_raycast_init(mem_tmp, &pipeline->dynamic_tree, ray);
+	while (info.hit_queue.count)
 	{
-		struct rigid_body *body = pool_address(&pipeline->body_pool, proxies_hit[i]);
-		t = body_raycast_parameter(pipeline, body, ray);
-		if (t < t_best)
+		const u32f32 tuple = min_queue_fixed_pop(&info.hit_queue);
+		if (info.hit.f < tuple.f)
 		{
-			t_best = t;
-			slot->index = proxies_hit[i];
-			slot->address = body;
+			break;	
+		}
+
+		if (BT_IS_LEAF(info.node + tuple.u))
+		{
+			const u32 bi = info.node[tuple.u].bt_left;
+			const struct rigid_body *body = (struct rigid_body *) pipeline->body_pool.buf + bi;
+			const f32 t = body_raycast_parameter(pipeline, body, ray);
+			if (t < info.hit.f)
+			{
+				info.hit = u32f32_inline(bi, t);
+			}
+		}
+		else
+		{
+			bvh_raycast_test_and_push_children(&info, tuple);
 		}
 	}
 
-physics_pipeline_raycast_parameter_cleanup:
 	arena_pop_record(mem_tmp);
-	return t_best;
-}
 
-u32 physics_pipeline_raycast(struct arena *mem_tmp, struct slot *slot, const struct physics_pipeline *pipeline, const struct ray *ray)
-{
-	return (physics_pipeline_raycast_parameter(mem_tmp, slot, pipeline, ray) != F32_INFINITY) ? 1 : 0;
+	return info.hit;
 }
 
 struct physics_event *physics_pipeline_event_push(struct physics_pipeline *pipeline)

@@ -507,8 +507,9 @@ f32 AABB_raycast_parameter_ex(const struct AABB *aabb, const struct ray *ray, co
 			const f32 t_min_axis = (1-dir_sign_bit[axis])*t_1 + dir_sign_bit[axis]*t_2;
 			const f32 t_max_axis = (1-dir_sign_bit[axis])*t_2 + dir_sign_bit[axis]*t_1;
 
-			t_max = f32_min(t_min, t_min_axis);
-			t_min = f32_max(t_max, t_max_axis);
+			kas_assert(t_min_axis <= t_max_axis);
+			t_min = f32_max(t_min, t_min_axis);
+			t_max = f32_min(t_max, t_max_axis);
 
 			if (t_min > t_max)
 			{

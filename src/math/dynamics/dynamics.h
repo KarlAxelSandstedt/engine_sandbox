@@ -759,10 +759,8 @@ struct slot		physics_pipeline_rigid_body_alloc(struct physics_pipeline *pipeline
 void			physics_pipeline_rigid_body_tag_for_removal(struct physics_pipeline *pipeline, const u32 handle);
 /* validate and assert internal state of physics pipeline */
 void			physics_pipeline_validate(const struct physics_pipeline *pipeline);
-/* return 0 if no hit, 1 if hit. If 1, set hit_index to the body's pipeline handle. */
-u32 			physics_pipeline_raycast(struct arena *mem_tmp, struct slot *slot, const struct physics_pipeline *pipeline, const struct ray *ray);
-/* return, IF hit, parameter t of ray at first collision. Otherwise return F32_INFINITY */
-f32 			physics_pipeline_raycast_parameter(struct arena *mem_tmp, struct slot *slot, const struct physics_pipeline *pipeline, const struct ray *ray);
+/* If hit, return parameter (body,t) of ray at first collision. Otherwise return (U32_MAX, F32_INFINITY) */
+u32f32 			physics_pipeline_raycast_parameter(struct arena *mem_tmp, const struct physics_pipeline *pipeline, const struct ray *ray);
 /* enable sleeping in pipeline */
 void 			physics_pipeline_enable_sleeping(struct physics_pipeline *pipeline);
 /* disable sleeping in pipeline */

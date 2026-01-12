@@ -116,7 +116,7 @@ void 		frustum_projection_plane_world_space(vec3 bottom_left, vec3 upper_right, 
 void 		frustum_projection_plane_camera_space(vec3 bottom_left, vec3 upper_right, const struct r_camera *cam);
 
 /* maps window pixel to position in world */
-void 		window_space_to_world_space(vec3 world_pixel, const vec2u32 pixel, const vec2u32 win_size, const struct r_camera *cam);
+void 		window_space_to_world_space(vec3 world_pixel, const vec2 pixel, const vec2 win_size, const struct r_camera *cam);
 
 /************************************** Draw Command Key Layout and Macros ***************************************/
 

@@ -204,7 +204,7 @@ typedef struct
 	u32	u;
 	f32	f;
 } u32f32;
-#define u32f32_inline(u_in, f_in)	(struct u32f32) { .u = u_in, .f = f_in }
+#define u32f32_inline(u_in, f_in)	(u32f32) { .u = u_in, .f = f_in }
 
 union reg
 {

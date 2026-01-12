@@ -479,52 +479,6 @@ struct dbvh_overlap *dbvh_push_overlap_pairs(struct arena *mem, u32 *count, cons
 	return (*count) ? overlaps : NULL;
 }
 
-u32 dbvh_raycast(struct arena *mem, const struct bvh *bvh, const struct ray *ray)
-{
-	if (bt_node_count(&bvh->tree) == 0) { return 0; }
-
-	const struct bvh_node *node = (struct bvh_node *) bvh->tree.pool.buf;
-	u32 *hits = arena_push_packed(mem, bt_leaf_count(&bvh->tree) * sizeof(u32));
-	struct arena record = *mem;
-	u32 *stack = arena_push_packed(mem, bt_leaf_count(&bvh->tree) * sizeof(u32));
-
-	vec3 tmp;
-	u32 i = bvh->tree.root;
-	u32 s_len = 0;
-	u32 h_len = 0;
-
-	while (1)
-	{
-		kas_assert(i < bvh->tree.pool.count);
-
-		if (AABB_raycast(tmp, &node[i].bbox, ray))
-		{
-			if (!BT_IS_LEAF(node + i))
-			{
-				stack[s_len++] = node[i].bt_left;
-				i = node[i].bt_left;
-				continue;
-			}
-			else
-			{
-				
-				hits[h_len++] = node[i].bt_left;
-			}
-		}
-
-
-		if (s_len == 0)
-		{
-			break;
-		}
-
-		i = stack[--s_len];
-	}
-
-	*mem = record;
-	return h_len;
-}
-
 void bvh_validate(struct arena *tmp, const struct bvh *bvh)
 {
 	arena_push_record(tmp);
@@ -800,30 +754,70 @@ end:
 	return sbvh;
 }
 
+struct bvh_raycast_info bvh_raycast_init(struct arena *mem, const struct bvh *bvh, const struct ray *ray)
+{
+	struct bvh_raycast_info info =
+	{
+		.hit = u32f32_inline(U32_MAX, F32_INFINITY),
+		.node = (struct bvh_node *) bvh->tree.pool.buf,
+		.ray = ray,
+		.bvh = bvh,
+	};
+
+	if (bt_node_count(&bvh->tree)) 
+	{
+		AABB_raycast_parameter_ex_setup(info.multiplier, info.dir_sign_bit, info.ray);
+		const f32 root_hit_param = AABB_raycast_parameter_ex(&info.node[info.bvh->tree.root].bbox, info.ray, info.multiplier, info.dir_sign_bit);
+		if (root_hit_param < F32_INFINITY) 
+		{
+			info.hit_queue = min_queue_fixed_alloc_all(mem);
+			min_queue_fixed_push(&info.hit_queue, bvh->tree.root, root_hit_param);
+		}
+	}
+
+	return info;
+}
+
+void bvh_raycast_test_and_push_children(struct bvh_raycast_info *info, const u32f32 popped_tuple)
+{
+	const struct bvh_node *node = info->node;
+	const f32 distance_left = AABB_raycast_parameter_ex(&node[node[popped_tuple.u].bt_left].bbox, info->ray, info->multiplier, info->dir_sign_bit);
+	const f32 distance_right = AABB_raycast_parameter_ex(&node[node[popped_tuple.u].bt_right].bbox, info->ray, info->multiplier, info->dir_sign_bit);
+
+	if (distance_left < F32_INFINITY)
+	{
+		min_queue_fixed_push(&info->hit_queue, info->node[popped_tuple.u].bt_left, distance_left);
+	}
+
+	if (distance_right < F32_INFINITY)
+	{
+		if (info->hit_queue.count == info->hit_queue.length)
+		{
+			log_string(T_SYSTEM, S_FATAL, "distance queue in bvh_raycast OOM, aborting");
+			fatal_cleanup_and_exit(kas_thread_self_tid());
+		}
+		min_queue_fixed_push(&info->hit_queue, info->node[popped_tuple.u].bt_right, distance_right);
+	}
+}
+
 u32f32 sbvh_raycast(struct arena *tmp, const struct bvh *bvh, const struct ray *ray)
 {
 	PROF_ZONE;
-	u32f32 hit = { .u = U32_MAX, .f = F32_INFINITY };
-	if (bt_node_count(&bvh->tree) == 0) { goto end; }
-
-	const struct bvh_node *node = (struct bvh_node *) bvh->tree.pool.buf;
-
-	vec3 multiplier;
-	vec3u32 dir_sign_bit;
-	AABB_raycast_parameter_ex_setup(multiplier, dir_sign_bit, ray);
-	const f32 root_hit_param = AABB_raycast_parameter_ex(&node[bvh->tree.root].bbox, ray, multiplier, dir_sign_bit);
-	if (root_hit_param == F32_INFINITY) { goto end; }
-
 	arena_push_record(tmp);
-	struct min_queue_fixed hit_queue = min_queue_fixed_alloc_all(tmp);
-	min_queue_fixed_push(&hit_queue, bvh->tree.root, root_hit_param);
-	while (hit_queue.count)
+
+	struct bvh_raycast_info info = bvh_raycast_init(tmp, bvh, ray);
+	while (info.hit_queue.count)
 	{
-		const u32f32 tuple = min_queue_fixed_pop(&hit_queue);
-		if (BT_IS_LEAF(node + tuple.u))
+		const u32f32 tuple = min_queue_fixed_pop(&info.hit_queue);
+		if (info.hit.f < tuple.f)
 		{
-			const u32 tri_first = node[tuple.u].bt_left;
-			const u32 tri_last = tri_first + node[tuple.u].bt_right - 1;
+			break;	
+		}
+
+		if (BT_IS_LEAF(info.node + tuple.u))
+		{
+			const u32 tri_first = info.node[tuple.u].bt_left;
+			const u32 tri_last = tri_first + info.node[tuple.u].bt_right - 1;
 			for (u32 i = tri_first; i <= tri_last; ++i)
 			{
 				const f32 distance = triangle_raycast_parameter(
@@ -831,45 +825,20 @@ u32f32 sbvh_raycast(struct arena *tmp, const struct bvh *bvh, const struct ray *
 						bvh->mesh->v[bvh->mesh->tri[i][1]],
 						bvh->mesh->v[bvh->mesh->tri[i][2]],
 						ray);
-				if (distance < hit.f)
+				if (distance < info.hit.f)
 				{
-					hit.f = distance;
-					hit.u = i;
+					info.hit = u32f32_inline(i, distance);
 				}
-			}
-
-			/* Since bvh children may overlap, we must consider the case when the ray originates
-			 * from multiple leaves. In that case, we get multiple bounding boxes with the same 
-			 * ray distance, which forces us to search all of them in one of them contains a potential
-			 * first hit.  */
-			if (hit.u != U32_MAX && (hit_queue.count == 0 || tuple.f < min_queue_fixed_peek(&hit_queue).f))
-			{
-				break;	
 			}
 		}
 		else
 		{
-			const f32 distance_left = AABB_raycast_parameter_ex(&node[node[tuple.u].bt_left].bbox, ray, multiplier, dir_sign_bit);
-			const f32 distance_right = AABB_raycast_parameter_ex(&node[node[tuple.u].bt_right].bbox, ray, multiplier, dir_sign_bit);
-
-			if (distance_left < F32_INFINITY)
-			{
-				min_queue_fixed_push(&hit_queue, node[tuple.u].bt_left, distance_left);
-			}
-
-			if (distance_right < F32_INFINITY)
-			{
-				if (hit_queue.count == hit_queue.length)
-				{
-					log_string(T_SYSTEM, S_FATAL, "distance queue in sbvh_raycast OOM, aborting");
-					fatal_cleanup_and_exit(kas_thread_self_tid());
-				}
-				min_queue_fixed_push(&hit_queue, node[tuple.u].bt_right, distance_right);
-			}
+			bvh_raycast_test_and_push_children(&info, tuple);
 		}
 	}
+
 	arena_pop_record(tmp);
-end:
+
 	PROF_ZONE_END;
-	return hit;
+	return info.hit;
 }

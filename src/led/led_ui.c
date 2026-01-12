@@ -484,6 +484,34 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 				ui_parent(slot.index)
 				{
 					struct ui_node *node = slot.address;
+					if (node->inter & UI_INTER_HOVER)
+					{
+						vec3 dir; 
+						const vec2 cursor_viewport_position =
+						{
+							g_ui->inter.cursor_position[0] - node->pixel_position[0],
+							g_ui->inter.cursor_position[1] - node->pixel_position[1],
+						};
+						window_space_to_world_space(dir, cursor_viewport_position, node->pixel_size, &led->cam);
+						vec3_translate_scaled(dir, led->cam.position, -1.0f);
+						vec3_mul_constant(dir, 1.0f / vec3_length(dir));
+						const struct ray ray = ray_construct(led->cam.position, dir);
+						const u32f32 hit = physics_pipeline_raycast_parameter(g_ui->mem_frame, &led->physics, &ray);
+						if (hit.f < F32_INFINITY)
+						{
+							const struct rigid_body *body = pool_address(&led->physics.body_pool, hit.u);	
+							const struct led_node *entity = pool_address(&led->node_pool, body->entity);
+							const char *body_id = cstr_utf8(g_ui->mem_frame, entity->id);
+
+
+							ui_fixed_x(g_ui->inter.cursor_position[0])
+							ui_fixed_y(g_ui->inter.cursor_position[1])
+							ui_width(ui_size_text(128.0f, 1.0f))
+							ui_height(ui_size_pixel(24.0f, 1.0f))
+							ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW | UI_DRAW_BORDER | UI_DRAW_BACKGROUND | UI_SKIP_HOVER_SEARCH, "%k##%u", &entity->id, body->entity);
+						}
+					}
+
 					if (node->inter & UI_INTER_FOCUS)
 					{	
 						const vec2 pos = 

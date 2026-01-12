@@ -176,8 +176,6 @@ bounding volume hierarchy
 =========================
 */
 
-#define BVH_NO_NODE			U32_MAX 
-
 struct bvh_node
 {
 	BT_SLOT_STATE;
@@ -203,11 +201,10 @@ f32 		bvh_cost(const struct bvh *bvh);
 
 /* Return non-empty bvh on success. If mem != NULL, arena is used as allocator. */
 struct bvh 	sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, const u32 bin_count);
-/* If mem == NULL, standard malloc is used. Return (index, ray hit parameter) on closest hit, or (U32_MAX, F32_INFINITY) on no hit */
-u32f32 		sbvh_raycast(struct arena *tmp, const struct bvh *bvh, const struct ray *ray);
 
 #define COST_QUEUE_INITIAL_COUNT 	64 
 
+//TODO remove
 struct dbvh_overlap
 {
 	u32 id1;
@@ -224,6 +221,58 @@ void 			dbvh_remove(struct bvh *bvh, const u32 index);
 /* Return overlapping ids ptr, set to NULL if no overlap. if overlap, count is set */
 struct dbvh_overlap *	dbvh_push_overlap_pairs(struct arena *mem, u32 *count, const struct bvh *bvh);
 /* push	id:s of leaves hit by raycast. returns number of hits. -1 == out of memory */
-u32			dbvh_raycast(struct arena *mem, const struct bvh *bvh, const struct ray *ray);
+
+/*
+bvh raycasting
+==============
+To implement raycast using external primitives, one can use the following code:
+
+	arena_push_record(mem);
+
+	struct bvh_raycast_info info = bvh_raycast_init(mem, bvh, ray);
+	while (info.hit_queue.count)
+	{
+		const u32f32 tuple = min_queue_fixed_pop(&info.hit_queue);
+		if (info.hit.f < tuple.f)
+		{
+			break;	
+		}
+
+		if (BT_IS_LEAF(info.node + tuple.u))
+		{
+			//TODO: Here you implement raycasting against your external primitive.
+			const f32 t = external_primitive_raycast(...);
+			if (t < info.hit.f)
+			{
+				info.hit = u32f32_inline(tuple.u, t);
+			}
+		}
+		else
+		{
+			bvh_raycast_test_and_push_children(&info, tuple);
+		}
+	}
+
+	arena_pop_record(mem);
+*/
+struct bvh_raycast_info
+{
+	u32f32			hit;
+	vec3 			multiplier;
+	vec3u32 		dir_sign_bit;
+	struct min_queue_fixed	hit_queue;
+	const struct ray *	ray;
+	const struct bvh *	bvh;
+	const struct bvh_node *	node;
+};
+
+/* Initiate raycast information */
+struct bvh_raycast_info	bvh_raycast_init(struct arena *mem, const struct bvh *bvh, const struct ray *ray);
+/* test Raycasting against child nodes and push hit children onto queue */
+void 			bvh_raycast_test_and_push_children(struct bvh_raycast_info *info, const u32f32 popped_tuple);
+/* Return (index, ray hit parameter) on closest hit, or (U32_MAX, F32_INFINITY) on no hit */
+u32f32 			sbvh_raycast(struct arena *tmp, const struct bvh *bvh, const struct ray *ray);
+
+
 
 #endif
