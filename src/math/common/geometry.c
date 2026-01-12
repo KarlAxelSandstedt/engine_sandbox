@@ -1777,17 +1777,83 @@ struct AABB tri_mesh_bbox(const struct tri_mesh *mesh)
 	return bbox;
 }
 
-f32 triangle_raycast_parameter(const vec3 a, const vec3 b, const vec3 c, const struct ray *ray)
+f32 triangle_raycast_parameter(const struct tri_mesh *mesh, const u32 tri, const struct ray *ray)
 {
-	return 0.0f;
+	vec3 intersection;
+	f32 t = F32_INFINITY;
+	if (triangle_raycast(intersection, mesh, tri, ray))
+	{
+		t = ray_point_closest_point_parameter(ray, intersection);
+	}
+	return t;
 }
 
-u32 triangle_raycast(vec3 intersection, const vec3 a, const vec3 b, const vec3 c, const struct ray *ray)
+u32 triangle_raycast(vec3 intersection, const struct tri_mesh *mesh, const u32 tri, const struct ray *ray)
 {
-	const f32 t = triangle_raycast_parameter(a, b, c, ray);
-	if (t < 0.0f || t == F32_INFINITY) { return 0; }
+	/* TODO(Optimization): 
+	 * By precomputation and extending our tri_mesh structure, we can avoid these branches;
+	 * so if it becomes relevant, we need to precompute the edge sorting or something...  
+	 */
+	/* canonicalize edges: We require consistency between triangles sharing edges; if the 
+	 * test determining which side of the edge the ray intersects the triangle planes are
+	 * not done in the same way, we may miss collision with both triangles despite hitting
+	 * one of them. See (Real Time Collision Detection, 5.3.4 and 11.3.3) for algorithm and
+	 * robustness discussion. */
 
-	vec3_copy(intersection, ray->origin);
-	vec3_translate_scaled(intersection, ray->dir, t);
+	//TODO what if ray is parallel to plane
+
+	vec3 edge_sign, p0, p1, p2, c;
+	vec3_sub(p0, mesh->v[mesh->tri[tri][0]], ray->origin);
+	vec3_sub(p1, mesh->v[mesh->tri[tri][1]], ray->origin);
+	vec3_sub(p2, mesh->v[mesh->tri[tri][2]], ray->origin);
+
+	f32 u;
+	if (mesh->tri[tri][0] < mesh->tri[tri][1])
+	{
+		vec3_cross(c, p1, p0);
+		u = vec3_dot(ray->dir, c);
+	}
+	else
+	{
+		vec3_cross(c, p0, p1);
+		u = -vec3_dot(ray->dir, c);
+	}
+	if (u < 0.0f) { return 0; }
+
+	f32 v;
+	if (mesh->tri[tri][1] < mesh->tri[tri][2])
+	{
+		vec3_cross(c, p2, p1);
+		v = vec3_dot(ray->dir, c);
+	}
+	else
+	{
+		vec3_cross(c, p1, p2);
+		v = -vec3_dot(ray->dir, c);
+	}
+	if (v < 0.0f) { return 0; }
+
+	f32 w;
+	if (mesh->tri[tri][2] < mesh->tri[tri][0])
+	{
+		vec3_cross(c, p0, p2);
+		w = vec3_dot(ray->dir, c);
+	}
+	else
+	{
+		vec3_cross(c, p2, p0);
+		w = -vec3_dot(ray->dir, c);
+	}
+	if (w < 0.0f) { return 0; }
+
+	const f32 denom = 1.0f / (u + v + w);
+	u *= denom;
+	v *= denom;
+	w *= 1.0f - u - v;
+
+	vec3_scale(intersection, mesh->v[mesh->tri[tri][0]], v);
+	vec3_translate_scaled(intersection, mesh->v[mesh->tri[tri][1]], w);
+	vec3_translate_scaled(intersection, mesh->v[mesh->tri[tri][2]], u);
+
 	return 1;
 }

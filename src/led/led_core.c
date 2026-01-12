@@ -982,7 +982,7 @@ void led_wall_smash_simulation_setup(struct led *led)
 	sys_win->cmd_queue->regs[1].ptr = c_ramp;
 	cmd_queue_submit(sys_win->cmd_queue, cmd_collision_dcel_add_id);
 
-	struct tri_mesh *map = arena_push(sys_win->ui->mem_frame, sizeof(struct tri_mesh));
+	struct tri_mesh *map = arena_push(&led->mem_persistent, sizeof(struct tri_mesh));
 	*map = tri_mesh_perlin_noise(&led->mem_persistent, 64, 100.0f);
 	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_map");
 	sys_win->cmd_queue->regs[1].ptr = map;
@@ -999,6 +999,7 @@ void led_wall_smash_simulation_setup(struct led *led)
 			best_cost = cost;
 			best_bin_count = i;
 		}
+		arena_pop_record(&led->mem_persistent);
 	}
 	led->physics.sbvh = sbvh_from_tri_mesh(&led->mem_persistent, map, best_bin_count);
 

@@ -820,11 +820,7 @@ u32f32 sbvh_raycast(struct arena *tmp, const struct bvh *bvh, const struct ray *
 			const u32 tri_last = tri_first + info.node[tuple.u].bt_right - 1;
 			for (u32 i = tri_first; i <= tri_last; ++i)
 			{
-				const f32 distance = triangle_raycast_parameter(
-						bvh->mesh->v[bvh->mesh->tri[i][0]],
-						bvh->mesh->v[bvh->mesh->tri[i][1]],
-						bvh->mesh->v[bvh->mesh->tri[i][2]],
-						ray);
+				const f32 distance = triangle_raycast_parameter(bvh->mesh, i, ray);
 				if (distance < info.hit.f)
 				{
 					info.hit = u32f32_inline(i, distance);

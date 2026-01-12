@@ -199,21 +199,12 @@ u32 		AABB_raycast_ex(vec3 intersection, const struct AABB *aabb, const struct r
 /* If the ray hits aabb, return 1 and set intersection. otherwise return 0. */
 u32 		AABB_raycast(vec3 intersection, const struct AABB *aabb, const struct ray *ray);
 
-
-
 /********************************* capsule **********************************/
 
 /* Return support of capsule in given direction. */
 void	capsule_support(vec3 support, const vec3 dir, const struct capsule *cap, mat3 rot, const vec3 pos);
 
-/********************************* triangle **********************************/
-
-/* return t: smallest t >= 0 such that p = origin + t*dir is a point on the triangle, or F32_INF if no such t exist */
-f32 	triangle_raycast_parameter(const vec3 a, const vec3 b, const vec3 c, const struct ray *ray);
-/* If the ray hits triangle, return 1 and set intersection. otherwise return 0. */
-u32 	triangle_raycast(vec3 intersection, const vec3 a, const vec3 b, const vec3 c, const struct ray *ray);
-
-/********************************** dcel ************************************/
+/********************************* tri_mesh **********************************/
 
 /*
  * triangle mesh (CCW) - set of ungrouped triangles.
@@ -227,6 +218,12 @@ struct tri_mesh
 };
 
 struct AABB	tri_mesh_bbox(const struct tri_mesh *mesh);
+
+/* return t: smallest t >= 0 such that p = origin + t*dir is a point on the triangle, or F32_INF if no such t exist */
+f32 	triangle_raycast_parameter(const struct tri_mesh *mesh, const u32 tri, const struct ray *ray);
+/* If the ray hits triangle, return 1 and set intersection. otherwise return 0. */
+u32 	triangle_raycast(vec3 intersection, const struct tri_mesh *mesh, const u32 tri, const struct ray *ray);
+
 
 /********************************** dcel ************************************/
 
