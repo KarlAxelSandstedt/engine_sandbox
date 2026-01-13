@@ -590,7 +590,6 @@ struct bvh sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, co
 		node = pool_address(&sbvh.tree.pool, node_stack[sc]);
 		const u32 tri_first = node->bt_left;
 		const u32 tri_count = node->bt_right;
-		//fprintf(stderr, "(I,T) = (%u,%u)\n", tri_first, tri_first + tri_count - 1);
 		if (tri_count == 1)
 		{
 			continue;
@@ -820,7 +819,7 @@ u32f32 sbvh_raycast(struct arena *tmp, const struct bvh *bvh, const struct ray *
 			const u32 tri_last = tri_first + info.node[tuple.u].bt_right - 1;
 			for (u32 i = tri_first; i <= tri_last; ++i)
 			{
-				const f32 distance = triangle_raycast_parameter(bvh->mesh, i, ray);
+				const f32 distance = triangle_raycast_parameter(bvh->mesh, bvh->tri[i], ray);
 				if (distance < info.hit.f)
 				{
 					info.hit = u32f32_inline(i, distance);

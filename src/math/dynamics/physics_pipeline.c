@@ -937,7 +937,7 @@ u32f32 physics_pipeline_raycast_parameter(struct arena *mem_tmp, const struct ph
 	const u32f32 hit = sbvh_raycast(mem_tmp, &pipeline->sbvh, ray);
 	if (hit.f < F32_INFINITY)
 	{
-		fprintf(stderr, "tri_hit: %u\n", hit.u);
+		//fprintf(stderr, "tri_hit: %u\n", hit.u);
 	}
 
 	return info.hit;

@@ -1800,9 +1800,13 @@ u32 triangle_raycast(vec3 intersection, const struct tri_mesh *mesh, const u32 t
 	 * one of them. See (Real Time Collision Detection, 5.3.4 and 11.3.3) for algorithm and
 	 * robustness discussion. */
 
-	//TODO what if ray is parallel to plane
+	vec3 p0, p1, p2, c;
 
-	vec3 edge_sign, p0, p1, p2, c;
+	vec3_sub(p0, mesh->v[mesh->tri[tri][1]],mesh->v[mesh->tri[tri][0]]);
+	vec3_sub(p1, mesh->v[mesh->tri[tri][2]],mesh->v[mesh->tri[tri][0]]);
+	vec3_cross(p2, p0, p1);
+	kas_assert(p2[1] > 0.0f);
+
 	vec3_sub(p0, mesh->v[mesh->tri[tri][0]], ray->origin);
 	vec3_sub(p1, mesh->v[mesh->tri[tri][1]], ray->origin);
 	vec3_sub(p2, mesh->v[mesh->tri[tri][2]], ray->origin);
@@ -1846,14 +1850,22 @@ u32 triangle_raycast(vec3 intersection, const struct tri_mesh *mesh, const u32 t
 	}
 	if (w < 0.0f) { return 0; }
 
-	const f32 denom = 1.0f / (u + v + w);
-	u *= denom;
-	v *= denom;
-	w *= 1.0f - u - v;
+	/* TODO: Prob bad, we can go back to this later */
+	if (u + v + w < 100.0f * F32_EPSILON)
+	{
+		vec3_copy(intersection, ray->origin);
+	}
+	else
+	{
+		const f32 denom = 1.0f / (u + v + w);
+		u *= denom;
+		v *= denom;
+		w *= 1.0f - u - v;
 
-	vec3_scale(intersection, mesh->v[mesh->tri[tri][0]], v);
-	vec3_translate_scaled(intersection, mesh->v[mesh->tri[tri][1]], w);
-	vec3_translate_scaled(intersection, mesh->v[mesh->tri[tri][2]], u);
+		vec3_scale(intersection, mesh->v[mesh->tri[tri][0]], v);
+		vec3_translate_scaled(intersection, mesh->v[mesh->tri[tri][1]], w);
+		vec3_translate_scaled(intersection, mesh->v[mesh->tri[tri][2]], u);
+	}
 
 	return 1;
 }
