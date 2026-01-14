@@ -411,6 +411,24 @@ void AABB_union(struct AABB *box_union, const struct AABB *a, const struct AABB 
 	vec3_add(box_union->center, box_union->hw, min);
 }
 
+void AABB_rotate(struct AABB *dst, const struct AABB *src, mat3 rotation)
+{
+	/*
+	 * Since we may pick any sign for hw[k], and the support point in any direction for an AABB is
+	 * one of its corners, we derive new hw as hw_new[k] = vec3_abs(rot.row[k])*hw_old;
+	 */
+
+	const vec3 x = { f32_abs(rotation[0][0]), f32_abs(rotation[1][0]), f32_abs(rotation[2][0]), };
+	const vec3 y = { f32_abs(rotation[0][1]), f32_abs(rotation[1][1]), f32_abs(rotation[2][1]), };
+	const vec3 z = { f32_abs(rotation[0][2]), f32_abs(rotation[1][2]), f32_abs(rotation[2][2]), };
+
+	dst->hw[0] = vec3_dot(x, src->hw);
+	dst->hw[1] = vec3_dot(y, src->hw);
+	dst->hw[2] = vec3_dot(z, src->hw);
+
+	vec3_copy(dst->center, src->center);
+}
+
 u32 AABB_test(const struct AABB *a, const struct AABB *b)
 {
 	if (b->center[0] - b->hw[0] - (a->center[0] + a->hw[0]) > 0.0f 
@@ -1777,18 +1795,18 @@ struct AABB tri_mesh_bbox(const struct tri_mesh *mesh)
 	return bbox;
 }
 
-f32 triangle_raycast_parameter(const struct tri_mesh *mesh, const u32 tri, const struct ray *ray)
+f32 tri_ccw_raycast_parameter(const struct tri_mesh *mesh, const u32 tri, const struct ray *ray)
 {
 	vec3 intersection;
 	f32 t = F32_INFINITY;
-	if (triangle_raycast(intersection, mesh, tri, ray))
+	if (tri_ccw_raycast(intersection, mesh, tri, ray))
 	{
 		t = ray_point_closest_point_parameter(ray, intersection);
 	}
 	return t;
 }
 
-u32 triangle_raycast(vec3 intersection, const struct tri_mesh *mesh, const u32 tri, const struct ray *ray)
+u32 tri_ccw_raycast(vec3 intersection, const struct tri_mesh *mesh, const u32 tri, const struct ray *ray)
 {
 	/* TODO(Optimization): 
 	 * By precomputation and extending our tri_mesh structure, we can avoid these branches;

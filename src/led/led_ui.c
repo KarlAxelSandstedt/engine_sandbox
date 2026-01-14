@@ -650,6 +650,13 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 								ui_height(ui_size_pixel(24.0f, 1.0f))
 								ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, "type: CONVEX HULL");
 							} break;
+			
+							case COLLISION_SHAPE_TRI_MESH:
+							{
+								ui_height(ui_size_pixel(24.0f, 1.0f))
+								ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, "type: TRIANGLE MESH");
+							} break;
+
 						}
 
 						ui_pad_fill();

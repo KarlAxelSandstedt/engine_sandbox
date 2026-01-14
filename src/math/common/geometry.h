@@ -170,6 +170,8 @@ u32 		plane_raycast(vec3 intersection, const struct plane *plane, const struct r
 void		AABB_vertex(struct AABB *dst, const vec3ptr v, const u32 v_count, const f32 margin);
 /* Return smallest AABB that contains both a and b  */
 void		AABB_union(struct AABB *box_union, const struct AABB *a, const struct AABB *b);
+/* Return AABB of rotated AABB. */
+void		AABB_rotate(struct AABB *dst, const struct AABB *src, mat3 rotation);
 /* Return 1 if a and b intersect, 0 otherwise  */
 u32 		AABB_test(const struct AABB *a, const struct AABB *b);
 /* Return 1 if a fully contains b, 0 otherwise  */
@@ -178,10 +180,12 @@ u32 		AABB_contains(const struct AABB *a, const struct AABB *b);
 u32 		AABB_contains_margin(const struct AABB *a, const struct AABB *b, const f32 margin);
 /* sets up vertex buffer to use with glDrawArrays. Returns number of bytes written. */
 u64 		AABB_push_lines_buffered(u8 *buf, const u64 bufsize, const struct AABB *box, const vec4 color);
+
 /* return AABB bounding box of triangle */
 struct AABB	bbox_triangle(const vec3 p0, const vec3 p1, const vec3 p2);
 /* Return smallest AABB that contains both a and b  */
 struct AABB	bbox_union(const struct AABB a, const struct AABB b);
+
 
 
 /* AABB raycasting */
@@ -220,9 +224,15 @@ struct tri_mesh
 struct AABB	tri_mesh_bbox(const struct tri_mesh *mesh);
 
 /* return t: smallest t >= 0 such that p = origin + t*dir is a point on the triangle, or F32_INF if no such t exist */
-f32 	triangle_raycast_parameter(const struct tri_mesh *mesh, const u32 tri, const struct ray *ray);
-/* If the ray hits triangle, return 1 and set intersection. otherwise return 0. */
-u32 	triangle_raycast(vec3 intersection, const struct tri_mesh *mesh, const u32 tri, const struct ray *ray);
+f32 	tri_ccw_raycast_parameter(const struct tri_mesh *mesh, const u32 tri, const struct ray *ray);
+/* If the ray hits triangle (ccw), return 1 and set intersection. otherwise return 0. */
+u32 	tri_ccw_raycast(vec3 intersection, const struct tri_mesh *mesh, const u32 tri, const struct ray *ray);
+
+/* get normal of ccw triangle */
+void 	tri_ccw_normal(vec3 normal, const vec3 p0, const vec3 p1, const vec3 p2);
+/* get direction of ccw triangle */
+void 	tri_ccw_direction(vec3 dir, const vec3 p0, const vec3 p1, const vec3 p2);
+
 
 
 /********************************** dcel ************************************/
@@ -293,12 +303,5 @@ void 		dcel_assert_topology(struct dcel *dcel);
 /* Return: support of vertex set given the direction, and supporting vertex index */
 u32 	vertex_support(vec3 support, const vec3 dir, const vec3ptr v, const u32 v_count);
 void 	vertex_centroid(vec3 centroid, const vec3ptr vs, const u32 n);
-
-/********************************* triangle operations ***********************************/
-
-/* get normal of ccw triangle */
-void 	tri_ccw_normal(vec3 normal, const vec3 p0, const vec3 p1, const vec3 p2);
-/* get direction of ccw triangle */
-void 	tri_ccw_direction(vec3 dir, const vec3 p0, const vec3 p1, const vec3 p2);
 
 #endif

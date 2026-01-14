@@ -35,8 +35,6 @@ struct bvh dbvh_alloc(struct arena *mem, const u32 initial_length, const u32 gro
 	{
 		.tree = bt_alloc(mem, initial_length, struct bvh_node, growable),
 		.cost_queue = min_queue_new(NULL, COST_QUEUE_INITIAL_COUNT, growable),
-		.tri = NULL,
-		.tri_count = 0,
 		.heap_allocated = !mem,	
 	};
 
@@ -49,10 +47,6 @@ void bvh_free(struct bvh *bvh)
 	{
 		bt_dealloc(&bvh->tree);
 		min_queue_free(&bvh->cost_queue);
-		if (bvh->tri)
-		{
-			free(bvh->tri);
-		}
 	}
 }
 
@@ -509,25 +503,29 @@ void bvh_validate(struct arena *tmp, const struct bvh *bvh)
 	arena_pop_record(tmp);
 }
 
-struct bvh sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, const u32 bin_count)
+struct tri_mesh_bvh tri_mesh_bvh_construct(struct arena *mem, const struct tri_mesh *mesh, const u32 bin_count)
 {
 	kas_assert(bin_count);
 	if (!mesh->tri_count)
 	{
-		return (struct bvh) { 0 };
+		return (struct tri_mesh_bvh) { 0 };
 	}
 
 	PROF_ZONE;
 
 	arena_push_record(mem);
 	const u32 max_node_count_required = 2*mesh->tri_count - 1;
-	struct bvh sbvh =
+
+	struct tri_mesh_bvh mesh_bvh = 
 	{
-		.tree = bt_alloc(mem, max_node_count_required, struct bvh_node, NOT_GROWABLE),
 		.mesh = mesh,
+		.bvh = 
+		{ 
+			.tree = bt_alloc(mem, max_node_count_required, struct bvh_node, NOT_GROWABLE),
+			.heap_allocated = 0,
+		},
 		.tri = arena_push(mem, mesh->tri_count*sizeof(u32)),
 		.tri_count = mesh->tri_count,
-		.heap_allocated = 0,
 	};
 
 	arena_push_record(mem);
@@ -547,8 +545,8 @@ struct bvh sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, co
 	struct allocation_array arr = arena_push_aligned_all(mem, sizeof(u32), 4);
 
 	u32 success = 1;
-	if (!sbvh.tree.pool.length 
-			|| !sbvh.tri 
+	if (!mesh_bvh.bvh.tree.pool.length 
+			|| !mesh_bvh.tri 
 			|| !centroid_bin_map[2] 
 			|| !axis_bin_tri_count[2] 
 			|| !axis_bin_bbox[2] 
@@ -562,7 +560,7 @@ struct bvh sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, co
 	u32 *node_stack = arr.addr;	
 	u32 node_stack_size = arr.len;
 	u32 sc = 1;
-	struct slot root = bt_node_add_root(&sbvh.tree);
+	struct slot root = bt_node_add_root(&mesh_bvh.bvh.tree);
 	struct bvh_node *node = root.address;
 	/* bt_left = tri_first,
 	 * bt_right = tri_count */
@@ -576,7 +574,7 @@ struct bvh sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, co
 
 	for (u32 i = 0; i < mesh->tri_count; ++i)
 	{
-		sbvh.tri[i] = i;
+		mesh_bvh.tri[i] = i;
 		bbox_tri[i] = bbox_triangle(
 				mesh->v[mesh->tri[i][0]],
 				mesh->v[mesh->tri[i][1]],
@@ -587,7 +585,7 @@ struct bvh sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, co
 	/* Process triangles from left to right, depth-first. */
 	while (sc--)
 	{
-		node = pool_address(&sbvh.tree.pool, node_stack[sc]);
+		node = pool_address(&mesh_bvh.bvh.tree.pool, node_stack[sc]);
 		const u32 tri_first = node->bt_left;
 		const u32 tri_count = node->bt_right;
 		if (tri_count == 1)
@@ -595,7 +593,7 @@ struct bvh sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, co
 			continue;
 		}
 
-		PROF_ZONE_NAMED("sbvh construction iteration");
+		PROF_ZONE_NAMED("mesh_bvh.bvh construction iteration");
 		vec3 bbox_min, bbox_max;
 		vec3_add(bbox_max, node->bbox.center, node->bbox.hw);
 		vec3_sub(bbox_min, node->bbox.center, node->bbox.hw);
@@ -617,7 +615,7 @@ struct bvh sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, co
 
 			for (u32 i = tri_first; i < tri_first + tri_count; ++i)
 			{
-				const u32 tri = sbvh.tri[i];
+				const u32 tri = mesh_bvh.tri[i];
 				const f32 val = bin_count * (bbox_tri[tri].center[axis] - bbox_min[axis]) / (bbox_max[axis] - bbox_min[axis]);
 				const u8 bi = (u8) f32_clamp(val, 0.0f, bin_count - 0.01f);
 				centroid_bin_map[axis][tri] = bi;
@@ -686,22 +684,22 @@ struct bvh sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, co
 				u32 right = tri_first + tri_count - 1;
 				while (left < right)
 				{
-					const u32 tri = sbvh.tri[left];
+					const u32 tri = mesh_bvh.tri[left];
 					if (centroid_bin_map[best_axis][tri] <= best_split)
 					{
 						left += 1;
 					}
 					else
 					{
-						sbvh.tri[left] = sbvh.tri[right];
-						sbvh.tri[right] = tri;
+						mesh_bvh.tri[left] = mesh_bvh.tri[right];
+						mesh_bvh.tri[right] = tri;
 						right -= 1;
 					}
 				}
 
 
 				struct slot slot_left, slot_right;
-				bt_node_add_children(&sbvh.tree, &slot_left, &slot_right, node_stack[sc]);
+				bt_node_add_children(&mesh_bvh.bvh.tree, &slot_left, &slot_right, node_stack[sc]);
 				kas_assert(slot_left.address && slot_right.address);
 
 				struct bvh_node *child_left = slot_left.address;
@@ -744,13 +742,13 @@ end:
 			+ 3*mesh->tri_count*sizeof(u8) 
 			+ 3*bin_count*(sizeof(struct AABB) + sizeof(u32));
 		log(T_SYSTEM, S_ERROR, "Failed to allocate bvh from triangle mesh, minimum size required: %lu\n", size_required);
-		sbvh = (struct bvh) { 0 };
+		mesh_bvh = (struct tri_mesh_bvh) { 0 };
 	}
 
-	bvh_validate(mem, &sbvh);
+	bvh_validate(mem, &mesh_bvh.bvh);
 
 	PROF_ZONE_END;
-	return sbvh;
+	return mesh_bvh;
 }
 
 struct bvh_raycast_info bvh_raycast_init(struct arena *mem, const struct bvh *bvh, const struct ray *ray)
@@ -799,11 +797,12 @@ void bvh_raycast_test_and_push_children(struct bvh_raycast_info *info, const u32
 	}
 }
 
-u32f32 sbvh_raycast(struct arena *tmp, const struct bvh *bvh, const struct ray *ray)
+u32f32 tri_mesh_bvh_raycast(struct arena *tmp, const struct tri_mesh_bvh *mesh_bvh, const struct ray *ray)
 {
 	PROF_ZONE;
 	arena_push_record(tmp);
 
+	const struct bvh *bvh = &mesh_bvh->bvh;
 	struct bvh_raycast_info info = bvh_raycast_init(tmp, bvh, ray);
 	while (info.hit_queue.count)
 	{
@@ -819,7 +818,7 @@ u32f32 sbvh_raycast(struct arena *tmp, const struct bvh *bvh, const struct ray *
 			const u32 tri_last = tri_first + info.node[tuple.u].bt_right - 1;
 			for (u32 i = tri_first; i <= tri_last; ++i)
 			{
-				const f32 distance = triangle_raycast_parameter(bvh->mesh, bvh->tri[i], ray);
+				const f32 distance = tri_ccw_raycast_parameter(mesh_bvh->mesh, mesh_bvh->tri[i], ray);
 				if (distance < info.hit.f)
 				{
 					info.hit = u32f32_inline(i, distance);

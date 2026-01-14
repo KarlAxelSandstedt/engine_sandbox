@@ -382,7 +382,6 @@ static void r_led_draw(const struct led *led)
 
 		const u64 command = r_command_key(R_CMD_SCREEN_LAYER_GAME, depth, transparency, material, R_CMD_PRIMITIVE_TRIANGLE, R_CMD_INSTANCED, R_CMD_ELEMENTS);
 		r_instance_add(index, command);
-
 	}
 	hierarchy_index_iterator_release(&it);
 
@@ -402,16 +401,16 @@ static void r_led_draw(const struct led *led)
 
 	if (led->physics.draw_sbvh)
 	{
-		const u64 material = r_material_construct(PROGRAM_COLOR, MESH_NONE, TEXTURE_NONE);
-		const u64 depth = 0x7fffff;
-		const u64 cmd = r_command_key(R_CMD_SCREEN_LAYER_GAME, depth, R_CMD_TRANSPARENCY_ADDITIVE, material, R_CMD_PRIMITIVE_LINE, R_CMD_NON_INSTANCED, R_CMD_ARRAYS);
-		struct r_mesh *mesh = bvh_mesh(&g_r_core->frame, &led->physics.sbvh, led->physics.sbvh_color);
-		if (mesh)
-		{
-			struct r_instance *instance = r_instance_add_non_cached(cmd);
-			instance->type = R_INSTANCE_MESH;
-			instance->mesh = mesh;
-		}
+		//const u64 material = r_material_construct(PROGRAM_COLOR, MESH_NONE, TEXTURE_NONE);
+		//const u64 depth = 0x7fffff;
+		//const u64 cmd = r_command_key(R_CMD_SCREEN_LAYER_GAME, depth, R_CMD_TRANSPARENCY_ADDITIVE, material, R_CMD_PRIMITIVE_LINE, R_CMD_NON_INSTANCED, R_CMD_ARRAYS);
+		//struct r_mesh *mesh = bvh_mesh(&g_r_core->frame, &led->physics.sbvh, led->physics.sbvh_color);
+		//if (mesh)
+		//{
+		//	struct r_instance *instance = r_instance_add_non_cached(cmd);
+		//	instance->type = R_INSTANCE_MESH;
+		//	instance->mesh = mesh;
+		//}
 	}
 
 	if (led->physics.draw_bounding_box)

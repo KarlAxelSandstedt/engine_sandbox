@@ -1,6 +1,6 @@
 /*
 ==========================================================================
-    Copyright (C) 2025 Axel Sandstedt 
+    Copyright (C) 2025,2026 Axel Sandstedt 
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ void cmd_led_node_set_proxy3d(void);
 
 void cmd_collision_shape_add(void);
 void cmd_collision_shape_remove(void);
-void cmd_collision_tri_mesh_add(void);
+void cmd_collision_tri_mesh_bvh_add(void);
 void cmd_collision_dcel_add(void);
 void cmd_collision_box_add(void);
 void cmd_collision_sphere_add(void);
@@ -70,7 +70,7 @@ u32 cmd_collision_box_add_id;
 u32 cmd_collision_dcel_add_id;
 u32 cmd_collision_sphere_add_id;
 u32 cmd_collision_capsule_add_id;
-u32 cmd_collision_tri_mesh_add_id;
+u32 cmd_collision_tri_mesh_bvh_add_id;
 
 void led_core_init_commands(void)
 {
@@ -97,7 +97,7 @@ void led_core_init_commands(void)
 	cmd_collision_dcel_add_id = cmd_function_register(utf8_inline("collision_dcel_add"), 2, &cmd_collision_dcel_add).index;
 	cmd_collision_sphere_add_id = cmd_function_register(utf8_inline("collision_sphere_add"), 2, &cmd_collision_sphere_add).index;
 	cmd_collision_capsule_add_id = cmd_function_register(utf8_inline("collision_capsule_add"), 3, &cmd_collision_capsule_add).index;
-	cmd_collision_tri_mesh_add_id = cmd_function_register(utf8_inline("collision_tri_mesh_add"), 2, &cmd_collision_tri_mesh_add).index;
+	cmd_collision_tri_mesh_bvh_add_id = cmd_function_register(utf8_inline("collision_tri_mesh_bvh_add"), 2, &cmd_collision_tri_mesh_bvh_add).index;
 	cmd_collision_shape_remove_id = cmd_function_register(utf8_inline("collision_shape_remove"), 1, &cmd_collision_shape_remove).index;
 }
 
@@ -203,16 +203,16 @@ void cmd_collision_dcel_add(void)
 	}
 }
 
-void cmd_collision_tri_mesh_add(void)
+void cmd_collision_tri_mesh_bvh_add(void)
 {
-	struct tri_mesh *tri_mesh = g_queue->cmd_exec->arg[1].ptr;
-	if (tri_mesh->v_count)
+	struct tri_mesh_bvh *mesh_bvh = g_queue->cmd_exec->arg[1].ptr;
+	if (mesh_bvh->mesh->v_count && bt_node_count(&mesh_bvh->bvh.tree))
 	{
 		struct collision_shape shape =
 		{
 			.id = g_queue->cmd_exec->arg[0].utf8,
 			.type = COLLISION_SHAPE_TRI_MESH,
-			.tri_mesh = *tri_mesh, 
+			.mesh_bvh = *mesh_bvh, 
 			.center_of_mass_localized = 1,
 		};
 
@@ -318,7 +318,7 @@ struct slot led_collision_shape_add(struct led *led, const struct collision_shap
 
 				case COLLISION_SHAPE_TRI_MESH: 
 				{ 
-					new_shape->tri_mesh = shape->tri_mesh; 
+					new_shape->mesh_bvh = shape->mesh_bvh; 
 				} break;
 			};
 		}
@@ -392,7 +392,7 @@ struct slot led_render_mesh_add(struct led *led, const utf8 id, const utf8 shape
 				case COLLISION_SHAPE_SPHERE: { r_mesh_set_sphere(&sys_win->mem_persistent, mesh, s->sphere.radius, 12); } break;
 				case COLLISION_SHAPE_CAPSULE: { kas_assert(0); } break;
 				case COLLISION_SHAPE_CONVEX_HULL: { r_mesh_set_hull(&sys_win->mem_persistent, mesh, &s->hull); } break;
-				case COLLISION_SHAPE_TRI_MESH: { r_mesh_set_tri_mesh(&sys_win->mem_persistent, mesh, &s->tri_mesh); } break;
+				case COLLISION_SHAPE_TRI_MESH: { r_mesh_set_tri_mesh(&sys_win->mem_persistent, mesh, s->mesh_bvh.mesh); } break;
 			}
 		}
 	}
@@ -899,6 +899,14 @@ static struct tri_mesh tri_mesh_perlin_noise(struct arena *mem_persistent, const
 
 	arena_free_1MB(&tmp);
 
+	struct AABB bbox = tri_mesh_bbox(&mesh);
+	vec3 local_origin;
+	vec3_scale(local_origin, bbox.center, -1.0f);
+	for (u32 i = 0; i < mesh.v_count; ++i)
+	{
+		vec3_translate(mesh.v[i], local_origin);
+	}
+
 	return mesh;
 }
 
@@ -982,18 +990,22 @@ void led_wall_smash_simulation_setup(struct led *led)
 	sys_win->cmd_queue->regs[1].ptr = c_ramp;
 	cmd_queue_submit(sys_win->cmd_queue, cmd_collision_dcel_add_id);
 
+	struct dcel *c_dsphere = arena_push(&sys_win->mem_persistent, sizeof(struct dcel));
+	*c_dsphere = dcel_convex_hull(&sys_win->mem_persistent, dsphere_vertices, dsphere_v_count, F32_EPSILON * 100.0f);
+	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_dsphere");
+	sys_win->cmd_queue->regs[1].ptr = c_dsphere;
+	cmd_queue_submit(sys_win->cmd_queue, cmd_collision_dcel_add_id);
+
 	struct tri_mesh *map = arena_push(&led->mem_persistent, sizeof(struct tri_mesh));
 	*map = tri_mesh_perlin_noise(&led->mem_persistent, 64, 100.0f);
-	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_map");
-	sys_win->cmd_queue->regs[1].ptr = map;
-	cmd_queue_submit(sys_win->cmd_queue, cmd_collision_tri_mesh_add_id);
-
+	struct tri_mesh_bvh *mesh_bvh = arena_push(&led->mem_persistent, sizeof(struct tri_mesh_bvh));
 	f32 best_cost = F32_INFINITY;
 	u32 best_bin_count = 8;
 	for (u32 i = 8; i < 16; ++i)
 	{
-		struct bvh bvh = sbvh_from_tri_mesh(&led->mem_persistent, map, i);
-		const f32 cost = bvh_cost(&bvh);
+		arena_push_record(&led->mem_persistent);
+		*mesh_bvh = tri_mesh_bvh_construct(&led->mem_persistent, map, i);
+		const f32 cost = bvh_cost(&mesh_bvh->bvh);
 		if (cost < best_cost)
 		{
 			best_cost = cost;
@@ -1001,13 +1013,18 @@ void led_wall_smash_simulation_setup(struct led *led)
 		}
 		arena_pop_record(&led->mem_persistent);
 	}
-	led->physics.sbvh = sbvh_from_tri_mesh(&led->mem_persistent, map, best_bin_count);
+	*mesh_bvh = tri_mesh_bvh_construct(&led->mem_persistent, map, best_bin_count);
+	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_map");
+	sys_win->cmd_queue->regs[1].ptr = mesh_bvh;
+	cmd_queue_submit(sys_win->cmd_queue, cmd_collision_tri_mesh_bvh_add_id);
 
-	struct dcel *c_dsphere = arena_push(&sys_win->mem_persistent, sizeof(struct dcel));
-	*c_dsphere = dcel_convex_hull(&sys_win->mem_persistent, dsphere_vertices, dsphere_v_count, F32_EPSILON * 100.0f);
-	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_dsphere");
-	sys_win->cmd_queue->regs[1].ptr = c_dsphere;
-	cmd_queue_submit(sys_win->cmd_queue, cmd_collision_dcel_add_id);
+	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rb_map");
+	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_map");
+	sys_win->cmd_queue->regs[2].f32 = 1.0f;
+	sys_win->cmd_queue->regs[3].f32 = 0.0f;
+	sys_win->cmd_queue->regs[4].f32 = floor_friction;
+	sys_win->cmd_queue->regs[5].u64 = 0;
+	cmd_queue_submit(sys_win->cmd_queue, cmd_rb_prefab_add_id);
 
 	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rb_floor");
 	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "c_floor");
@@ -1088,18 +1105,37 @@ void led_wall_smash_simulation_setup(struct led *led)
 	vec3 box_base_translation = { 0.0f, floor_translation[1] + 1.0f, floor_translation[2] / 2.0f};
 	vec3 dsphere_base_translation = { -15.0f, floor_translation[1] + 1.0f, floor_translation[2] / 2.0f + 20.0f};
 
-	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "led_floor");
+	//sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "led_floor");
+	//cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_add_id);
+	//sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "led_floor");
+	//sys_win->cmd_queue->regs[1].f32 = floor_translation[0];
+	//sys_win->cmd_queue->regs[2].f32 = floor_translation[1];
+	//sys_win->cmd_queue->regs[3].f32 = floor_translation[2];
+	//cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_position_id);
+	//sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "led_floor");
+	//sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rb_floor");
+	//cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_rb_prefab_id);
+	//sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "led_floor");
+	//sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rm_floor");
+	//sys_win->cmd_queue->regs[2].f32 = floor_color[0];
+	//sys_win->cmd_queue->regs[3].f32 = floor_color[1];
+	//sys_win->cmd_queue->regs[4].f32 = floor_color[2];
+	//sys_win->cmd_queue->regs[5].f32 = floor_color[3];
+	//sys_win->cmd_queue->regs[6].f32 = 1.0f;
+	//cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_proxy3d_id);
+	
+	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "led_map");
 	cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_add_id);
-	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "led_floor");
-	sys_win->cmd_queue->regs[1].f32 = floor_translation[0];
-	sys_win->cmd_queue->regs[2].f32 = floor_translation[1];
-	sys_win->cmd_queue->regs[3].f32 = floor_translation[2];
+	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "led_map");
+	sys_win->cmd_queue->regs[1].f32 = 0.0f;
+	sys_win->cmd_queue->regs[2].f32 = -20.0f;
+	sys_win->cmd_queue->regs[3].f32 = 0.0f;
 	cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_position_id);
-	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "led_floor");
-	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rb_floor");
+	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "led_map");
+	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rb_map");
 	cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_rb_prefab_id);
-	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "led_floor");
-	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rm_floor");
+	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "led_map");
+	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rm_map");
 	sys_win->cmd_queue->regs[2].f32 = floor_color[0];
 	sys_win->cmd_queue->regs[3].f32 = floor_color[1];
 	sys_win->cmd_queue->regs[4].f32 = floor_color[2];
@@ -1634,7 +1670,6 @@ static void led_engine_run(struct led *led)
 
 void led_core(struct led *led)
 {
-	//TODO fix 
 	static u32 once = 1;
 	struct system_window *sys_win = system_window_address(g_editor->window);
 	if (once && sys_win)

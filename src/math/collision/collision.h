@@ -33,6 +33,115 @@
 #define COLLISION_DEFAULT_MARGIN	(100.0f * F32_EPSILON)
 #define COLLISION_POINT_DIST_SQ		(10000.0f * F32_EPSILON)
 
+/*
+bounding volume hierarchy
+=========================
+*/
+
+struct bvh_node
+{
+	BT_SLOT_STATE;
+	struct AABB	bbox;
+};
+
+struct bvh
+{
+	struct bt		tree;
+	struct min_queue	cost_queue;	/* dynamic specific */
+	u32			heap_allocated;
+};
+
+/* free allocated resources */
+void 		bvh_free(struct bvh *tree);
+/* validate (assert) internal coherence of bvh */
+void 		bvh_validate(struct arena *tmp, const struct bvh *bvh);
+/* return total cost of bvh */
+f32 		bvh_cost(const struct bvh *bvh);
+
+#define COST_QUEUE_INITIAL_COUNT 	64 
+
+//TODO remove
+struct dbvh_overlap
+{
+	u32 id1;
+	u32 id2;	
+};
+
+struct bvh		dbvh_alloc(struct arena *mem, const u32 initial_length, const u32 growable);
+/* flush / reset the hierarchy  */
+void 			dbvh_flush(struct bvh *bvh);
+/* id is an integer identifier from the outside, return index of added value */
+u32 			dbvh_insert(struct bvh *bvh, const u32 id, const struct AABB *bbox);
+/* remove leaf corresponding to index from tree */
+void 			dbvh_remove(struct bvh *bvh, const u32 index);
+/* Return overlapping ids ptr, set to NULL if no overlap. if overlap, count is set */
+struct dbvh_overlap *	dbvh_push_overlap_pairs(struct arena *mem, u32 *count, const struct bvh *bvh);
+/* push	id:s of leaves hit by raycast. returns number of hits. -1 == out of memory */
+
+struct tri_mesh_bvh
+{
+	const struct tri_mesh *	mesh;		
+	struct bvh		bvh;
+	u32 *			tri;		
+	u32			tri_count;	
+};
+
+/* Return non-empty tri_mesh_bvh on success. */
+struct tri_mesh_bvh 	tri_mesh_bvh_construct(struct arena *mem, const struct tri_mesh *mesh, const u32 bin_count);
+/* Return (index, ray hit parameter) on closest hit, or (U32_MAX, F32_INFINITY) on no hit */
+u32f32 			tri_mesh_bvh_raycast(struct arena *tmp, const struct tri_mesh_bvh *mesh_bvh, const struct ray *ray);
+
+
+/*
+bvh raycasting
+==============
+To implement raycast using external primitives, one can use the following code:
+
+	arena_push_record(mem);
+
+	struct bvh_raycast_info info = bvh_raycast_init(mem, bvh, ray);
+	while (info.hit_queue.count)
+	{
+		const u32f32 tuple = min_queue_fixed_pop(&info.hit_queue);
+		if (info.hit.f < tuple.f)
+		{
+			break;	
+		}
+
+		if (BT_IS_LEAF(info.node + tuple.u))
+		{
+			//TODO: Here you implement raycasting against your external primitive.
+			const f32 t = external_primitive_raycast(...);
+			if (t < info.hit.f)
+			{
+				info.hit = u32f32_inline(tuple.u, t);
+			}
+		}
+		else
+		{
+			bvh_raycast_test_and_push_children(&info, tuple);
+		}
+	}
+
+	arena_pop_record(mem);
+*/
+struct bvh_raycast_info
+{
+	u32f32			hit;
+	vec3 			multiplier;
+	vec3u32 		dir_sign_bit;
+	struct min_queue_fixed	hit_queue;
+	const struct ray *	ray;
+	const struct bvh *	bvh;
+	const struct bvh_node *	node;
+};
+
+/* Initiate raycast information */
+struct bvh_raycast_info	bvh_raycast_init(struct arena *mem, const struct bvh *bvh, const struct ray *ray);
+/* test Raycasting against child nodes and push hit children onto queue */
+void 			bvh_raycast_test_and_push_children(struct bvh_raycast_info *info, const u32f32 popped_tuple);
+
+
 /********************************** COLLISION DEBUG **********************************/
 
 typedef struct visual_segment
@@ -71,7 +180,7 @@ enum collision_shape_type
 	COLLISION_SHAPE_SPHERE,
 	COLLISION_SHAPE_CAPSULE,
 	COLLISION_SHAPE_CONVEX_HULL,
-	COLLISION_SHAPE_TRI_MESH,	/* Should be used static environment */
+	COLLISION_SHAPE_TRI_MESH,	
 	COLLISION_SHAPE_COUNT,
 };
 
@@ -79,13 +188,13 @@ struct collision_shape
 {
 	STRING_DATABASE_SLOT_STATE;
 	u32 			center_of_mass_localized; /* Has the shape translated its vertices into COM space? */
-	enum	collision_shape_type type;
+	enum collision_shape_type type;
 	union
 	{
-		struct sphere 	sphere;
-		struct capsule 	capsule;
-		struct dcel	hull;
-		struct tri_mesh tri_mesh;
+		struct sphere 		sphere;
+		struct capsule 		capsule;
+		struct dcel		hull;
+		struct tri_mesh_bvh 	mesh_bvh;
 	};
 };
 
@@ -170,109 +279,5 @@ u32 	body_body_contact_manifold(struct arena *tmp, struct collision_result *resu
 f32 	body_raycast_parameter(const struct physics_pipeline *pipeline, const struct rigid_body *b, const struct ray *ray);
 /* Return 1 if ray hit body, 0 otherwise. If hit, we return the closest intersection point */
 u32 	body_raycast(vec3 intersection, const struct physics_pipeline *pipeline, const struct rigid_body *b, const struct ray *ray);
-
-/*
-bounding volume hierarchy
-=========================
-*/
-
-struct bvh_node
-{
-	BT_SLOT_STATE;
-	struct AABB	bbox;
-};
-
-struct bvh
-{
-	struct bt		tree;
-	struct min_queue	cost_queue;	/* dynamic specific */
-	const struct tri_mesh *	mesh;		/* static specific */
-	u32 *			tri;		/* static specific */
-	u32			tri_count;	/* static specific */
-	u32			heap_allocated;
-};
-
-/* free allocated resources */
-void 		bvh_free(struct bvh *tree);
-/* validate (assert) internal coherence of bvh */
-void 		bvh_validate(struct arena *tmp, const struct bvh *bvh);
-/* return total cost of bvh */
-f32 		bvh_cost(const struct bvh *bvh);
-
-/* Return non-empty bvh on success. If mem != NULL, arena is used as allocator. */
-struct bvh 	sbvh_from_tri_mesh(struct arena *mem, const struct tri_mesh *mesh, const u32 bin_count);
-
-#define COST_QUEUE_INITIAL_COUNT 	64 
-
-//TODO remove
-struct dbvh_overlap
-{
-	u32 id1;
-	u32 id2;	
-};
-
-struct bvh		dbvh_alloc(struct arena *mem, const u32 initial_length, const u32 growable);
-/* flush / reset the hierarchy  */
-void 			dbvh_flush(struct bvh *bvh);
-/* id is an integer identifier from the outside, return index of added value */
-u32 			dbvh_insert(struct bvh *bvh, const u32 id, const struct AABB *bbox);
-/* remove leaf corresponding to index from tree */
-void 			dbvh_remove(struct bvh *bvh, const u32 index);
-/* Return overlapping ids ptr, set to NULL if no overlap. if overlap, count is set */
-struct dbvh_overlap *	dbvh_push_overlap_pairs(struct arena *mem, u32 *count, const struct bvh *bvh);
-/* push	id:s of leaves hit by raycast. returns number of hits. -1 == out of memory */
-
-/*
-bvh raycasting
-==============
-To implement raycast using external primitives, one can use the following code:
-
-	arena_push_record(mem);
-
-	struct bvh_raycast_info info = bvh_raycast_init(mem, bvh, ray);
-	while (info.hit_queue.count)
-	{
-		const u32f32 tuple = min_queue_fixed_pop(&info.hit_queue);
-		if (info.hit.f < tuple.f)
-		{
-			break;	
-		}
-
-		if (BT_IS_LEAF(info.node + tuple.u))
-		{
-			//TODO: Here you implement raycasting against your external primitive.
-			const f32 t = external_primitive_raycast(...);
-			if (t < info.hit.f)
-			{
-				info.hit = u32f32_inline(tuple.u, t);
-			}
-		}
-		else
-		{
-			bvh_raycast_test_and_push_children(&info, tuple);
-		}
-	}
-
-	arena_pop_record(mem);
-*/
-struct bvh_raycast_info
-{
-	u32f32			hit;
-	vec3 			multiplier;
-	vec3u32 		dir_sign_bit;
-	struct min_queue_fixed	hit_queue;
-	const struct ray *	ray;
-	const struct bvh *	bvh;
-	const struct bvh_node *	node;
-};
-
-/* Initiate raycast information */
-struct bvh_raycast_info	bvh_raycast_init(struct arena *mem, const struct bvh *bvh, const struct ray *ray);
-/* test Raycasting against child nodes and push hit children onto queue */
-void 			bvh_raycast_test_and_push_children(struct bvh_raycast_info *info, const u32f32 popped_tuple);
-/* Return (index, ray hit parameter) on closest hit, or (U32_MAX, F32_INFINITY) on no hit */
-u32f32 			sbvh_raycast(struct arena *tmp, const struct bvh *bvh, const struct ray *ray);
-
-
 
 #endif

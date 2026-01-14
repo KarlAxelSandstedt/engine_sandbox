@@ -1,6 +1,6 @@
 /*
 ==========================================================================
-    Copyright (C) 2025 Axel Sandstedt 
+    Copyright (C) 2025, 2026 Axel Sandstedt 
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -250,6 +250,15 @@ static void rigid_body_update_local_box(struct rigid_body *body, const struct co
 			f32_max(-v[2], v[2]));
 		vec3_add_constant(max, shape->capsule.radius);
 		vec3_negative_to(min, max);
+	}
+	else if (body->shape_type == COLLISION_SHAPE_TRI_MESH)
+	{
+		const struct bvh_node *node = (struct bvh_node *) shape->mesh_bvh.bvh.tree.pool.buf;
+		struct AABB bbox; 
+		AABB_rotate(&bbox, &node[shape->mesh_bvh.bvh.tree.root].bbox, rot);
+
+		vec3_sub(min, bbox.center, bbox.hw);
+		vec3_add(max, bbox.center, bbox.hw);
 	}
 
 	vec3_sub(body->local_box.hw, max, min);
@@ -933,12 +942,6 @@ u32f32 physics_pipeline_raycast_parameter(struct arena *mem_tmp, const struct ph
 	}
 
 	arena_pop_record(mem_tmp);
-
-	const u32f32 hit = sbvh_raycast(mem_tmp, &pipeline->sbvh, ray);
-	if (hit.f < F32_INFINITY)
-	{
-		//fprintf(stderr, "tri_hit: %u\n", hit.u);
-	}
 
 	return info.hit;
 }
