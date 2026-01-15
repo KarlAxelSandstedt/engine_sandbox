@@ -823,7 +823,8 @@ u32f32 tri_mesh_bvh_raycast(struct arena *tmp, const struct tri_mesh_bvh *mesh_b
 				const f32 distance = tri_ccw_raycast_parameter(mesh_bvh->mesh, mesh_bvh->tri[i], ray);
 				if (distance < info.hit.f)
 				{
-					info.hit = u32f32_inline(i, distance);
+					info.hit = u32f32_inline(mesh_bvh->tri[i], distance);
+					fprintf(stderr, "%u\n", mesh_bvh->tri[i]);
 				}
 			}
 		}
