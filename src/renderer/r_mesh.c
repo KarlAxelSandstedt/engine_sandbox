@@ -399,9 +399,7 @@ void r_mesh_set_tri_mesh(struct arena *mem, struct r_mesh *mesh, const struct tr
 	mesh->vertex_data = mem->stack_ptr;
 	mesh->index_count = 0;
 	mesh->index_data = NULL;
-	//mesh->index_count = 3*tri_mesh->tri_count;
-	//mesh->index_data = arena_push_memcpy(mem, (u32*) tri_mesh->tri, mesh->index_count*sizeof(u32));
-	mesh->local_stride = sizeof(vec3) + sizeof(vec4) + sizeof(vec3);
+	mesh->local_stride = sizeof(vec3) /* + sizeof(vec4) */ + sizeof(vec3);
 
 	const vec4 color = { 0.5f, 0.5f, 0.8f, 0.7f };
 
@@ -414,13 +412,13 @@ void r_mesh_set_tri_mesh(struct arena *mem, struct r_mesh *mesh, const struct tr
 				tri_mesh->v[tri_mesh->tri[t][2]]);
 
 		arena_push_packed_memcpy(mem, tri_mesh->v[tri_mesh->tri[t][0]], sizeof(vec3));
-		arena_push_packed_memcpy(mem, color, sizeof(vec4));
+		//arena_push_packed_memcpy(mem, color, sizeof(vec4));
 		arena_push_packed_memcpy(mem, normal, sizeof(vec3));
 		arena_push_packed_memcpy(mem, tri_mesh->v[tri_mesh->tri[t][1]], sizeof(vec3));
-		arena_push_packed_memcpy(mem, color, sizeof(vec4));
+		//arena_push_packed_memcpy(mem, color, sizeof(vec4));
 		arena_push_packed_memcpy(mem, normal, sizeof(vec3));
 		arena_push_packed_memcpy(mem, tri_mesh->v[tri_mesh->tri[t][2]], sizeof(vec3));
-		arena_push_packed_memcpy(mem, color, sizeof(vec4));
+		//arena_push_packed_memcpy(mem, color, sizeof(vec4));
 		arena_push_packed_memcpy(mem, normal, sizeof(vec3));
 	}
 

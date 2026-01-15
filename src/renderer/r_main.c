@@ -341,19 +341,19 @@ static void r_led_draw(const struct led *led)
 {
 	PROF_ZONE;
 
-	{
-		struct slot slot = string_database_lookup(&led->render_mesh_db, utf8_inline("rm_map"));
-		kas_assert(slot.index != STRING_DATABASE_STUB_INDEX);
-		if (slot.index != STRING_DATABASE_STUB_INDEX)
-		{
-			const u64 material = r_material_construct(PROGRAM_LIGHTNING, slot.index, TEXTURE_NONE);
-			const u64 depth = 0x7fffff;
-			const u64 cmd = r_command_key(R_CMD_SCREEN_LAYER_GAME, 0, R_CMD_TRANSPARENCY_ADDITIVE, material, R_CMD_PRIMITIVE_TRIANGLE, R_CMD_NON_INSTANCED, R_CMD_ARRAYS);
-			struct r_instance *instance = r_instance_add_non_cached(cmd);
-			instance->type = R_INSTANCE_MESH;
-			instance->mesh = slot.address;
-		}
-	}
+	//{
+	//	struct slot slot = string_database_lookup(&led->render_mesh_db, utf8_inline("rm_map"));
+	//	kas_assert(slot.index != STRING_DATABASE_STUB_INDEX);
+	//	if (slot.index != STRING_DATABASE_STUB_INDEX)
+	//	{
+	//		const u64 material = r_material_construct(PROGRAM_LIGHTNING, slot.index, TEXTURE_NONE);
+	//		const u64 depth = 0x7fffff;
+	//		const u64 cmd = r_command_key(R_CMD_SCREEN_LAYER_GAME, 0, R_CMD_TRANSPARENCY_ADDITIVE, material, R_CMD_PRIMITIVE_TRIANGLE, R_CMD_NON_INSTANCED, R_CMD_ARRAYS);
+	//		struct r_instance *instance = r_instance_add_non_cached(cmd);
+	//		instance->type = R_INSTANCE_MESH;
+	//		instance->mesh = slot.address;
+	//	}
+	//}
 
 	const u32 depth_exponent = 1 + f32_exponent_bits(led->cam.fz_far);
 	kas_assert(depth_exponent >= 23);
@@ -379,8 +379,11 @@ static void r_led_draw(const struct led *led)
 			: R_CMD_TRANSPARENCY_ADDITIVE;
 
 		const u64 material = r_material_construct(PROGRAM_PROXY3D, proxy->mesh, TEXTURE_NONE);
-
-		const u64 command = r_command_key(R_CMD_SCREEN_LAYER_GAME, depth, transparency, material, R_CMD_PRIMITIVE_TRIANGLE, R_CMD_INSTANCED, R_CMD_ELEMENTS);
+		const struct r_mesh *r_mesh = string_database_address(&led->render_mesh_db, proxy->mesh);
+		const u64 command = (r_mesh->index_data)
+			? r_command_key(R_CMD_SCREEN_LAYER_GAME, depth, transparency, material, R_CMD_PRIMITIVE_TRIANGLE, R_CMD_INSTANCED, R_CMD_ELEMENTS)
+			: r_command_key(R_CMD_SCREEN_LAYER_GAME, depth, transparency, material, R_CMD_PRIMITIVE_TRIANGLE, R_CMD_INSTANCED, R_CMD_ARRAYS);
+		
 		r_instance_add(index, command);
 	}
 	hierarchy_index_iterator_release(&it);
@@ -625,12 +628,25 @@ static void r_scene_render(const struct led *led, const u32 window)
 
 			if (!b->elements)
 			{
-					kas_assert(!b->instanced);
 					//fprintf(stderr, "\t\tDrawing Array: buf[%u], vbuf[%lu]\n", 
 					//		i,
 					//		buf->local_size);
 
+				if (!b->instanced)
+				{
 					kas_glDrawArrays(mode, 0, buf->local_size / g_r_core->program[program].local_stride);
+				}
+				else
+				{
+					kas_glGenBuffers(1, &buf->shared_vbo);
+					kas_glBindBuffer(GL_ARRAY_BUFFER, buf->shared_vbo);
+					kas_glBufferData(GL_ARRAY_BUFFER, buf->shared_size, buf->shared_data, GL_STATIC_DRAW);
+					g_r_core->program[program].buffer_shared_layout_setter();
+
+					kas_glDrawArraysInstanced(mode, 0, buf->local_size / g_r_core->program[program].local_stride, buf->instance_count);
+					kas_glDeleteBuffers(1, &buf->shared_vbo);
+
+				}
 			}
 			else
 			{

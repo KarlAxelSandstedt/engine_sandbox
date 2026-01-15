@@ -939,6 +939,7 @@ void led_wall_smash_simulation_setup(struct led *led)
 	const vec4 floor_color = { 0.8f, 0.6f, 0.6f,                            alpha2 };
 	const vec4 ramp_color = { 165.0f/256.0f, 242.0f/256.0f, 243.0f/256.0f,  alpha2 };
 	const vec4 sphere_color = { 0.2f, 0.9f, 0.5f,                             alpha1 };
+	const vec4 map_color = { 0.5f, 0.5f, 0.8f, 0.7f };
 
 	const f32 box_side = 1.0f;
 	struct AABB box_aabb = { .center = { 0.0f, 0.0f, 0.0f }, .hw = { box_side / 2.0f, box_side / 4.0f, box_side / 2.0f} };
@@ -1136,10 +1137,10 @@ void led_wall_smash_simulation_setup(struct led *led)
 	cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_rb_prefab_id);
 	sys_win->cmd_queue->regs[0].utf8 = utf8_cstr(sys_win->ui->mem_frame, "led_map");
 	sys_win->cmd_queue->regs[1].utf8 = utf8_cstr(sys_win->ui->mem_frame, "rm_map");
-	sys_win->cmd_queue->regs[2].f32 = floor_color[0];
-	sys_win->cmd_queue->regs[3].f32 = floor_color[1];
-	sys_win->cmd_queue->regs[4].f32 = floor_color[2];
-	sys_win->cmd_queue->regs[5].f32 = floor_color[3];
+	sys_win->cmd_queue->regs[2].f32 = map_color[0];
+	sys_win->cmd_queue->regs[3].f32 = map_color[1];
+	sys_win->cmd_queue->regs[4].f32 = map_color[2];
+	sys_win->cmd_queue->regs[5].f32 = map_color[3];
 	sys_win->cmd_queue->regs[6].f32 = 1.0f;
 	cmd_queue_submit(sys_win->cmd_queue, cmd_led_node_set_proxy3d_id);
 
@@ -1701,6 +1702,4 @@ void led_core(struct led *led)
 	{
 		led->ns_engine_paused += led->ns_delta;
 	}
-
-	//TODO: led_draw();
 }

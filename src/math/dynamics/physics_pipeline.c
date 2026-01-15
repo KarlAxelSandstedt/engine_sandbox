@@ -299,9 +299,20 @@ struct slot physics_pipeline_rigid_body_alloc(struct physics_pipeline *pipeline,
 	rigid_body_update_local_box(body, shape);
 	struct AABB proxy;
 	vec3_add(proxy.center, body->local_box.center, body->position);
-	vec3_set(proxy.hw, body->local_box.hw[0] + body->margin,
+	if (body->shape_type == COLLISION_SHAPE_TRI_MESH)
+	{
+		vec3_set(proxy.hw, 
+			body->local_box.hw[0],
+			body->local_box.hw[1],
+			body->local_box.hw[2]);
+	}
+	else
+	{
+		vec3_set(proxy.hw, 
+			body->local_box.hw[0] + body->margin,
 			body->local_box.hw[1] + body->margin,
 			body->local_box.hw[2] + body->margin);
+	}
 	body->proxy = dbvh_insert(&pipeline->dynamic_tree, slot.index, &proxy);
 
 	body->first_contact_index = NLL_NULL;
