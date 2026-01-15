@@ -581,6 +581,8 @@ struct tri_mesh_bvh tri_mesh_bvh_construct(struct arena *mem, const struct tri_m
 				mesh->v[mesh->tri[i][2]]);
 		node->bbox = bbox_union(node->bbox, bbox_tri[i]);
 	}
+
+	kas_assert_string(vec3_length(node->bbox.center) < 0.0001f, "Center should most likely be 0.0, so the root box center defines a local origin!");
 	
 	/* Process triangles from left to right, depth-first. */
 	while (sc--)

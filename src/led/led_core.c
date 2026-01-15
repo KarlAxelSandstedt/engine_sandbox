@@ -1397,6 +1397,21 @@ static void led_engine_init(struct led *led)
 		if (node->flags & LED_PHYSICS)
 		{
 			struct rigid_body_prefab *prefab = string_database_address(&led->rb_prefab_db, node->rb_prefab);
+			if (utf8_equivalence(prefab->id, utf8_inline("rb_map")))
+			{
+				vec3 axis = { 0.6f, 1.0f, 0.6f };
+				vec3_mul_constant(axis, 1.0f / f32_sqrt(vec3_length(axis)));
+				const f32 angle = MM_PI_F / 16.0f;
+				axis_angle_to_quaternion(node->rotation, axis, angle);
+				vec3 linear_velocity = { 0.0f, 0.0f, 0.0f};
+				vec3 angular_velocity = { 0.0f, 0.0f, 0.0f};
+				r_proxy3d_set_linear_speculation(node->position
+						, node->rotation
+						, linear_velocity
+						, angular_velocity
+						, led->ns 
+						, node->proxy);
+			}
 			physics_pipeline_rigid_body_alloc(&led->physics, prefab, node->position, node->rotation, i);
 		}
 	}

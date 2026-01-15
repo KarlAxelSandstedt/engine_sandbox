@@ -180,6 +180,8 @@ u32 		AABB_contains(const struct AABB *a, const struct AABB *b);
 u32 		AABB_contains_margin(const struct AABB *a, const struct AABB *b, const f32 margin);
 /* sets up vertex buffer to use with glDrawArrays. Returns number of bytes written. */
 u64 		AABB_push_lines_buffered(u8 *buf, const u64 bufsize, const struct AABB *box, const vec4 color);
+/* sets up vertex buffer to use with glDrawArrays. Returns number of bytes written. */
+u64 		AABB_transform_push_lines_buffered(u8 *buf, const u64 bufsize, const struct AABB *box, const vec3 translation, mat3 rotation, const vec4 color);
 
 /* return AABB bounding box of triangle */
 struct AABB	bbox_triangle(const vec3 p0, const vec3 p1, const vec3 p2);

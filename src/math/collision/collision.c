@@ -999,6 +999,24 @@ static f32 hull_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeli
 	return f32_sqrt(dist_sq);
 }
 
+static f32 tri_mesh_bvh_sphere_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+{
+	kas_assert_string(0, "implement");
+	return 0.0f;
+}
+
+static f32 tri_mesh_bvh_capsule_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+{
+	kas_assert_string(0, "implement");
+	return 0.0f;
+}
+
+static f32 tri_mesh_bvh_hull_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+{
+	kas_assert_string(0, "implement");
+	return 0.0f;
+}
+
 /********************************** INTERSECTION TESTS **********************************/
 
 static u32 sphere_test(const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
@@ -1058,6 +1076,24 @@ static u32 hull_test(const struct physics_pipeline *pipeline, const struct rigid
 {
 	vec3 c1, c2;
 	return hull_distance(c1, c2, pipeline, b1, b2, margin) == 0.0f;
+}
+
+static u32 tri_mesh_bvh_sphere_test(const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+{
+	vec3 c1, c2;
+	return tri_mesh_bvh_sphere_distance(c1, c2, pipeline, b1, b2, margin) == 0.0f;
+}
+
+static u32 tri_mesh_bvh_capsule_test(const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+{
+	vec3 c1, c2;
+	return tri_mesh_bvh_capsule_distance(c1, c2, pipeline, b1, b2, margin) == 0.0f;
+}
+
+static u32 tri_mesh_bvh_hull_test(const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+{
+	vec3 c1, c2;
+	return tri_mesh_bvh_hull_distance(c1, c2, pipeline, b1, b2, margin) == 0.0f;
 }
 
 /********************************** CONTACT MANIFOLD METHODS **********************************/
@@ -2243,6 +2279,24 @@ sat_cleanup:
 	return colliding;
 }
 
+static u32 tri_mesh_bvh_sphere_contact(struct arena *tmp, struct collision_result *result, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+{
+	result->type = COLLISION_NONE;
+	return 0;
+}
+
+static u32 tri_mesh_bvh_capsule_contact(struct arena *tmp, struct collision_result *result, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+{
+	result->type = COLLISION_NONE;
+	return 0;
+}
+
+static u32 tri_mesh_bvh_hull_contact(struct arena *tmp, struct collision_result *result, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
+{
+	result->type = COLLISION_NONE;
+	return 0;
+}
+
 /********************************** RAYCAST **********************************/
 
 f32 _sphere_raycast_parameter(const struct physics_pipeline *pipeline, const struct rigid_body *b, const struct ray *ray)
@@ -2308,30 +2362,48 @@ f32 hull_raycast_parameter(const struct physics_pipeline *pipeline, const struct
 	return t_best;
 }
 
+f32 tri_mesh_bvh_raycast_parameter(const struct physics_pipeline *pipeline, const struct rigid_body *b, const struct ray *ray)
+{
+	//TODO should cache frame/longer lived data (obviously true for tri_mesh_bvh...)
+	quat inv_quat;
+	mat3 inv_rot;
+	vec3 tmp;
+	quat_inv(inv_quat, b->rotation);
+	quat_to_mat3(inv_rot, inv_quat);
+
+	const struct tri_mesh_bvh *mesh_bvh = &((struct collision_shape *) string_database_address(pipeline->shape_db, b->shape_handle))->mesh_bvh;
+	struct ray rotated_ray;
+	vec3_sub(tmp, ray->origin, b->position);
+	mat3_vec_mul(rotated_ray.origin, inv_rot, tmp);
+	mat3_vec_mul(rotated_ray.dir, inv_rot, ray->dir);
+
+	return tri_mesh_bvh_raycast((struct arena *) &pipeline->frame, mesh_bvh, &rotated_ray).f;
+}
+
 /********************************** LOOKUP TABLES FOR SHAPES **********************************/
 
 u32 (*shape_tests[COLLISION_SHAPE_COUNT][COLLISION_SHAPE_COUNT])(const struct physics_pipeline *, const struct rigid_body *, const struct rigid_body *, const f32 margin) =
 {
-	{ sphere_test, 		0, 			0, 		0, },
-	{ capsule_sphere_test,	capsule_test, 		0, 		0, },
-	{ hull_sphere_test, 	hull_capsule_test,	hull_test,	0, },
-	{ 0, 			0, 			0, 		0, },
+	{ sphere_test, 			0, 				0, 				0, },
+	{ capsule_sphere_test,		capsule_test, 			0, 				0, },
+	{ hull_sphere_test, 		hull_capsule_test,		hull_test,			0, },
+	{ tri_mesh_bvh_sphere_test, 	tri_mesh_bvh_capsule_test, 	tri_mesh_bvh_hull_test,		0, },
 };
 
 f32 (*distance_methods[COLLISION_SHAPE_COUNT][COLLISION_SHAPE_COUNT])(vec3 c1, vec3 c2, const struct physics_pipeline *, const struct rigid_body *, const struct rigid_body *, const f32) =
 {
-	{ sphere_distance,	 	0,			0, 		0, },
-	{ capsule_sphere_distance,	capsule_distance, 	0, 		0, },
-	{ hull_sphere_distance, 	hull_capsule_distance, 	hull_distance,	0, },
-	{ 0, 				0, 			0,		0, },
+	{ sphere_distance,	 	0,				0, 				0, },
+	{ capsule_sphere_distance,	capsule_distance, 		0, 				0, },
+	{ hull_sphere_distance, 	hull_capsule_distance, 		hull_distance,			0, },
+	{ tri_mesh_bvh_sphere_distance,	tri_mesh_bvh_capsule_distance, 	tri_mesh_bvh_hull_distance,	0, },
 };
 
 u32 (*contact_methods[COLLISION_SHAPE_COUNT][COLLISION_SHAPE_COUNT])(struct arena *, struct collision_result *, const struct physics_pipeline *, const struct rigid_body *, const struct rigid_body *, const f32) =
 {
-	{ sphere_contact,	 	0, 			0,		0, },
-	{ capsule_sphere_contact, 	capsule_contact,	0, 		0, },
-	{ hull_sphere_contact, 	  	hull_capsule_contact,	hull_contact, 	0, },
-	{ 0, 			  	0,			0, 		0, },
+	{ sphere_contact,	 	0, 				0,				0, },
+	{ capsule_sphere_contact, 	capsule_contact,		0, 				0, },
+	{ hull_sphere_contact, 	  	hull_capsule_contact,		hull_contact, 			0, },
+	{ tri_mesh_bvh_sphere_contact,	tri_mesh_bvh_capsule_contact, 	tri_mesh_bvh_hull_contact,	0, },
 };
 
 f32 (*shape_raycast_parameter_methods[COLLISION_SHAPE_COUNT])(const struct physics_pipeline *, const struct rigid_body *, const struct ray *) =
@@ -2339,7 +2411,7 @@ f32 (*shape_raycast_parameter_methods[COLLISION_SHAPE_COUNT])(const struct physi
 	_sphere_raycast_parameter,
 	capsule_raycast_parameter,
 	hull_raycast_parameter,
-	0,
+	tri_mesh_bvh_raycast_parameter,
 };
 
 u32 body_body_test(const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)

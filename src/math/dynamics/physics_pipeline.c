@@ -256,9 +256,10 @@ static void rigid_body_update_local_box(struct rigid_body *body, const struct co
 		const struct bvh_node *node = (struct bvh_node *) shape->mesh_bvh.bvh.tree.pool.buf;
 		struct AABB bbox; 
 		AABB_rotate(&bbox, &node[shape->mesh_bvh.bvh.tree.root].bbox, rot);
-
-		vec3_sub(min, bbox.center, bbox.hw);
-		vec3_add(max, bbox.center, bbox.hw);
+		//vec3_sub(min, bbox.center, bbox.hw);
+		//vec3_add(max, bbox.center, bbox.hw);
+		vec3_scale(min, bbox.hw, -1.0f);
+		vec3_scale(max, bbox.hw, 1.0f);
 	}
 
 	vec3_sub(body->local_box.hw, max, min);
@@ -301,6 +302,8 @@ struct slot physics_pipeline_rigid_body_alloc(struct physics_pipeline *pipeline,
 	vec3_add(proxy.center, body->local_box.center, body->position);
 	if (body->shape_type == COLLISION_SHAPE_TRI_MESH)
 	{
+		vec3_print("center", body->local_box.center);
+		vec3_print("center", body->position);
 		vec3_set(proxy.hw, 
 			body->local_box.hw[0],
 			body->local_box.hw[1],

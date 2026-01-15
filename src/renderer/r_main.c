@@ -275,8 +275,11 @@ end:
 	return mesh;
 }
 
-static struct r_mesh *bvh_mesh(struct arena *mem, const struct bvh *bvh, const vec4 color)
+static struct r_mesh *bvh_mesh(struct arena *mem, const struct bvh *bvh, const vec3 translation, const quat rotation, const vec4 color)
 {
+	mat3 rot;
+	quat_to_mat3(rot, rotation);
+
 	arena_push_record(mem);
 	const u32 vertex_count = 3*8*bvh->tree.pool.count;
  	struct r_mesh *mesh = NULL;
@@ -308,7 +311,7 @@ static struct r_mesh *bvh_mesh(struct arena *mem, const struct bvh *bvh, const v
 	u64 mem_left = mesh->vertex_count * L_COLOR_STRIDE;
 	while (i != U32_MAX)
 	{
-		const u64 bytes_written = AABB_push_lines_buffered(vertex_data, mem_left, &nodes[i].bbox, color);
+		const u64 bytes_written = AABB_transform_push_lines_buffered(vertex_data, mem_left, &nodes[i].bbox, translation, rot, color);
 		vertex_data += bytes_written;
 		mem_left -= bytes_written;
 
@@ -393,7 +396,12 @@ static void r_led_draw(const struct led *led)
 		const u64 material = r_material_construct(PROGRAM_COLOR, MESH_NONE, TEXTURE_NONE);
 		const u64 depth = 0x7fffff;
 		const u64 cmd = r_command_key(R_CMD_SCREEN_LAYER_GAME, depth, R_CMD_TRANSPARENCY_ADDITIVE, material, R_CMD_PRIMITIVE_LINE, R_CMD_NON_INSTANCED, R_CMD_ARRAYS);
-		struct r_mesh *mesh = bvh_mesh(&g_r_core->frame, &led->physics.dynamic_tree, led->physics.dbvh_color);
+		quat rotation;
+		const vec3 translation = { 0 };
+		vec3 axis = { 0.0f, 1.0f, 0.0f };
+		const f32 angle = 0.0f;
+		axis_angle_to_quaternion(rotation, axis, angle);
+		struct r_mesh *mesh = bvh_mesh(&g_r_core->frame, &led->physics.dynamic_tree, translation, rotation, led->physics.dbvh_color);
 		if (mesh)
 		{
 			struct r_instance *instance = r_instance_add_non_cached(cmd);
@@ -404,16 +412,29 @@ static void r_led_draw(const struct led *led)
 
 	if (led->physics.draw_sbvh)
 	{
-		//const u64 material = r_material_construct(PROGRAM_COLOR, MESH_NONE, TEXTURE_NONE);
-		//const u64 depth = 0x7fffff;
-		//const u64 cmd = r_command_key(R_CMD_SCREEN_LAYER_GAME, depth, R_CMD_TRANSPARENCY_ADDITIVE, material, R_CMD_PRIMITIVE_LINE, R_CMD_NON_INSTANCED, R_CMD_ARRAYS);
-		//struct r_mesh *mesh = bvh_mesh(&g_r_core->frame, &led->physics.sbvh, led->physics.sbvh_color);
-		//if (mesh)
-		//{
-		//	struct r_instance *instance = r_instance_add_non_cached(cmd);
-		//	instance->type = R_INSTANCE_MESH;
-		//	instance->mesh = mesh;
-		//}
+
+		const u64 material = r_material_construct(PROGRAM_COLOR, MESH_NONE, TEXTURE_NONE);
+		const u64 depth = 0x7fffff;
+		const u64 cmd = r_command_key(R_CMD_SCREEN_LAYER_GAME, depth, R_CMD_TRANSPARENCY_ADDITIVE, material, R_CMD_PRIMITIVE_LINE, R_CMD_NON_INSTANCED, R_CMD_ARRAYS);
+		struct rigid_body *body = NULL;
+		for (u32 i = led->physics.body_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(body))
+		{
+			body = pool_address(&led->physics.body_pool, i);
+			if (body->shape_type != COLLISION_SHAPE_TRI_MESH)
+			{
+				continue;
+			}
+
+			const struct collision_shape *shape = string_database_address(led->physics.shape_db, body->shape_handle);
+			struct r_mesh *mesh = bvh_mesh(&g_r_core->frame, &shape->mesh_bvh.bvh, body->position, body->rotation, led->physics.sbvh_color);
+			if (mesh)
+			{
+				struct r_instance *instance = r_instance_add_non_cached(cmd);
+				instance->type = R_INSTANCE_MESH;
+				instance->mesh = mesh;
+			}
+		}
+
 	}
 
 	if (led->physics.draw_bounding_box)

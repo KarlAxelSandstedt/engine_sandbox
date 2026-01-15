@@ -616,6 +616,67 @@ u64 AABB_push_lines_buffered(u8 *buf, const u64 bufsize, const struct AABB *box,
 	return bytes_written;
 }
 
+u64 AABB_transform_push_lines_buffered(u8 *buf, const u64 bufsize, const struct AABB *box, const vec3 translation, mat3 rotation, const vec4 color)
+{
+	const u64 bytes_written = 3*8*(sizeof(vec3)+sizeof(vec4));
+	if (bufsize < bytes_written)
+	{
+		return 0;
+	}
+
+	vec3 end;
+	vec3_sub(end, box->center, box->hw);
+
+	f32 *v = (f32*) buf;
+	vec3_set(v+7*0, end[0], 		   end[1], 		     end[2]);
+	vec3_set(v+7*1, end[0] + 2.0f*box->hw[0], end[1], 		     end[2]);
+	vec3_set(v+7*2, end[0], 		   end[1], 		     end[2]);
+	vec3_set(v+7*3, end[0], 		   end[1] + 2.0f*box->hw[1], end[2]);
+	vec3_set(v+7*4, end[0], 		   end[1], 		     end[2]);
+	vec3_set(v+7*5, end[0], 		   end[1], 	             end[2] + 2.0f*box->hw[2]);
+
+	vec3_set(v+7*6, end[0] + 2.0f*box->hw[0], end[1], 		     end[2]);
+	vec3_set(v+7*7, end[0] + 2.0f*box->hw[0], end[1] + 2.0f*box->hw[1], end[2]);
+	vec3_set(v+7*8, end[0] + 2.0f*box->hw[0], end[1], 		     end[2]);
+	vec3_set(v+7*9, end[0] + 2.0f*box->hw[0], end[1]                  , end[2] + 2.0f*box->hw[2]);
+
+	vec3_set(v+7*10, end[0], 		   end[1] + 2.0f*box->hw[1], end[2]);
+	vec3_set(v+7*11, end[0], 		   end[1] + 2.0f*box->hw[1], end[2] + 2.0f*box->hw[2]);
+	vec3_set(v+7*12, end[0], 		   end[1] + 2.0f*box->hw[1], end[2]);
+	vec3_set(v+7*13, end[0] + 2.0f*box->hw[0], end[1] + 2.0f*box->hw[1], end[2]);
+
+	vec3_set(v+7*14, end[0], 		   end[1], 	             end[2] + 2.0f*box->hw[2]);
+	vec3_set(v+7*15, end[0], 		   end[1] + 2.0f*box->hw[1], end[2] + 2.0f*box->hw[2]);
+	vec3_set(v+7*16, end[0], 		   end[1], 	             end[2] + 2.0f*box->hw[2]);
+	vec3_set(v+7*17, end[0] + 2.0f*box->hw[0], end[1], 	             end[2] + 2.0f*box->hw[2]);
+
+	vec3_set(v+7*18, end[0] + 2.0f*box->hw[0], end[1] + 2.0f*box->hw[1], end[2]);
+	vec3_set(v+7*19, end[0] + 2.0f*box->hw[0], end[1] + 2.0f*box->hw[1], end[2] + 2.0f*box->hw[2]);
+
+	vec3_set(v+7*20, end[0], 		   end[1] + 2.0f*box->hw[1], end[2] + 2.0f*box->hw[2]);
+	vec3_set(v+7*21, end[0] + 2.0f*box->hw[0], end[1] + 2.0f*box->hw[1], end[2] + 2.0f*box->hw[2]);
+
+	vec3_set(v+7*22, end[0] + 2.0f*box->hw[0], end[1], 	             end[2] + 2.0f*box->hw[2]);
+	vec3_set(v+7*23, end[0] + 2.0f*box->hw[0], end[1] + 2.0f*box->hw[1], end[2] + 2.0f*box->hw[2]);
+
+	for (u32 i = 0; i < 24; ++i)
+	{
+		vec3 tmp1, tmp2;
+		//vec3_sub(tmp1, v + 7*i, box->center);
+		//mat3_vec_mul(tmp2, rotation, tmp1);
+		//vec3_add(v + 7*i, tmp2, box->center);
+		//vec3_translate(v + 7*i, translation);
+
+		mat3_vec_mul(tmp1, rotation, v + 7*i);
+		vec3_add(v + 7*i, tmp1, translation);
+
+
+		vec4_copy(v + 7*i + 3, color);
+	}
+
+	return bytes_written;
+}
+
 struct AABB bbox_triangle(const vec3 p0, const vec3 p1, const vec3 p2)
 {
 	struct AABB bbox;
