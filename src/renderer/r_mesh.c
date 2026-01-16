@@ -173,7 +173,6 @@ void r_mesh_set_sphere(struct arena *mem, struct r_mesh *mesh, const f32 radius,
 
 	u32 max_used = 0;
 	const vec3 translation = { 0.0f, 0.0f, 0.0f };
-	//internal_r_mesh_set_sphere(&max_used, vertex_data, index_data, radius, translation, refinement, color);
 	internal_r_mesh_set_sphere(&max_used, vertex_data, index_data, radius, translation, refinement);
 
 	mesh->index_max_used = max_used;

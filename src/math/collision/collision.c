@@ -2281,18 +2281,82 @@ sat_cleanup:
 
 static u32 tri_mesh_bvh_sphere_contact(struct arena *tmp, struct collision_result *result, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
+	kas_assert(b1->shape_type == COLLISION_SHAPE_TRI_MESH);
+	kas_assert(b2->shape_type == COLLISION_SHAPE_SPHERE);
+
+	struct tri_mesh_bvh *mesh_bvh = &((struct collision_shape *) string_database_address(pipeline->shape_db, b1->shape_handle))->mesh_bvh;
+	struct sphere *sph = &((struct collision_shape *) string_database_address(pipeline->shape_db, b2->shape_handle))->sphere;
+
+	struct AABB bbox_transform;
+	vec3_sub(bbox_transform.center, b2->position, b1->position);
+	vec3_set(bbox_transform.hw, sph->radius, sph->radius, sph->radius);
+
+	arena_push_record(tmp);
+
+	const struct bvh *bvh = &mesh_bvh->bvh;
+	const struct bvh_node *node = (struct bvh_node *) bvh->tree.pool.buf;
+	struct allocation_array arr = arena_push_aligned_all(tmp, sizeof(struct bvh_node *), sizeof(struct bvh_node *));
+	const struct bvh_node **node_stack = arr.addr;
+
+	if (arr.len == 0)
+	{
+		log(T_SYSTEM, S_FATAL, "Out of memory in %s\n", __func__);
+		fatal_cleanup_and_exit(kas_thread_self_tid());
+	}
+
+	u32 sc = 0;
+	if (AABB_test(&bbox_transform, &node[bvh->tree.root].bbox))
+	{
+		node_stack[sc++] = node + bvh->tree.root;
+	}
+
+	while (sc--)
+	{
+		if (BT_IS_LEAF(node_stack[sc]))
+		{
+			fprintf(stderr, "sphere hits triangle bbox\n");	
+		}
+		else
+		{
+			const struct bvh_node *left = node + node_stack[sc]->bt_left;
+			const struct bvh_node *right = node + node_stack[sc]->bt_right;
+			if (AABB_test(&bbox_transform, &right->bbox))
+			{
+				node_stack[sc++] = right;
+			}
+
+			if (AABB_test(&bbox_transform, &left->bbox))
+			{
+				if (sc >= arr.len)
+				{
+					log(T_SYSTEM, S_FATAL, "Out of memory in %s\n", __func__);
+					fatal_cleanup_and_exit(kas_thread_self_tid());
+				}
+				node_stack[sc++] = left;
+			}
+		}
+	}
+
+	arena_pop_record(tmp);
+
 	result->type = COLLISION_NONE;
 	return 0;
 }
 
 static u32 tri_mesh_bvh_capsule_contact(struct arena *tmp, struct collision_result *result, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
+	kas_assert(b1->shape_type == COLLISION_SHAPE_TRI_MESH);
+	kas_assert(b2->shape_type == COLLISION_SHAPE_CAPSULE);
+
 	result->type = COLLISION_NONE;
 	return 0;
 }
 
 static u32 tri_mesh_bvh_hull_contact(struct arena *tmp, struct collision_result *result, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
+	kas_assert(b1->shape_type == COLLISION_SHAPE_TRI_MESH);
+	kas_assert(b2->shape_type == COLLISION_SHAPE_CONVEX_HULL);
+
 	result->type = COLLISION_NONE;
 	return 0;
 }

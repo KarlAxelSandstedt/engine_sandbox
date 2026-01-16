@@ -627,22 +627,38 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 							{
 								ui_height(ui_size_pixel(24.0f, 1.0f))
 								ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, "type: CAPSULE");
-								ui_height(ui_size_pixel(24.0f*3, 1.0f))
+
+								ui_pad();
+
+								ui_height(ui_size_pixel(24.0f, 1.0f))
 								ui_child_layout_axis(AXIS_2_X)
 								ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
 								{
 									ui_width(ui_size_pixel(64.0f, 1.0f))
-									ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, "vector: ###cap_rad");
-									ui_child_layout_axis(AXIS_2_Y)
-									ui_height(ui_size_perc(1.0f))
+									ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, "height: ###cap_height");
 									ui_width(ui_size_perc(1.0f))
-									ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
-									{
-										shape->capsule.radius = ui_field_f32_f(shape->capsule.radius, intv_inline(0.0125f, 100.0f), "%f###cap_rad", shape->capsule.radius);
-										shape->capsule.half_height = ui_field_f32_f(shape->capsule.half_height, intv_inline(0.0125f, 100.0f), "%f###cap_height", shape->capsule.half_height);
+									shape->capsule.half_height = ui_field_f32_f(shape->capsule.half_height, intv_inline(0.0125f, 100.0f), "%f###cap_height_in", shape->capsule.half_height);
+									//ui_child_layout_axis(AXIS_2_Y)
+									//ui_height(ui_size_perc(1.0f))
+									//ui_width(ui_size_perc(1.0f))
+									//ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
+									//{
+									//	shape->capsule.radius = ui_field_f32_f(shape->capsule.radius, intv_inline(0.0125f, 100.0f), "%f###cap_rad", shape->capsule.radius);
+									//	shape->capsule.half_height = ui_field_f32_f(shape->capsule.half_height, intv_inline(0.0125f, 100.0f), "%f###cap_height", shape->capsule.half_height);
 
-									}
+									//}
 								}
+
+								ui_height(ui_size_pixel(24.0f, 1.0f))
+								ui_child_layout_axis(AXIS_2_X)
+								ui_parent(ui_node_alloc_non_hashed(UI_FLAG_NONE).index)
+								{
+									ui_width(ui_size_pixel(64.0f, 1.0f))
+									ui_node_alloc_f(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, "radius: ###cap_rad");
+									ui_width(ui_size_perc(1.0f))
+									shape->capsule.radius = ui_field_f32_f(shape->capsule.radius, intv_inline(0.0125f, 100.0f), "%f###cap_rad_in", shape->capsule.radius);
+								}
+
 							} break;
 
 							case COLLISION_SHAPE_CONVEX_HULL:
