@@ -445,7 +445,7 @@ void 		r_mesh_set_stub_box(struct r_mesh *mesh_stub);
 /* setup mesh from sphere parameters */
 void 		r_mesh_set_sphere(struct arena *mem, struct r_mesh *mesh, const f32 radius, const u32 refinement);
 /* setup mesh from capsule parameters */
-void 		r_mesh_set_capsule(struct arena *mem, struct r_mesh *mesh, const vec3 p1, const f32 radius, const quat rotation, const u32 refinement);
+void 		r_mesh_set_capsule(struct arena *mem, struct r_mesh *mesh, const f32 half_height, const f32 radius, const u32 refinement);
 /* setup mesh from collison hull */
 void 		r_mesh_set_hull(struct arena *mem, struct r_mesh *mesh, const struct dcel *hull);
 /* setup mesh from tri mesh */

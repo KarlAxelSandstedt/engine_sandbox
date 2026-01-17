@@ -183,135 +183,72 @@ void r_mesh_set_sphere(struct arena *mem, struct r_mesh *mesh, const f32 radius,
 	mesh->local_stride = vertex_size;
 }
 
-void r_mesh_set_capsule(struct arena *mem, struct r_mesh *mesh, const vec3 p1, const f32 radius, const quat rotation, const u32 refinement)
+void r_mesh_set_capsule(struct arena *mem, struct r_mesh *mesh, const f32 half_height, const f32 radius, const u32 refinement)
 {
-	kas_assert(refinement >= 3);
+	kas_assert(refinement >= 2);
+	kas_assert(half_height > 0.0f && radius > 0.0f);
 
-	const f32 half_length = vec3_length(p1);
+	const u32 n_long_slice = 2*refinement;
+	const u32 n_lat_cap_slice = refinement;
+	//TODO
+	const u32 n_lat_cyl_slice = refinement;
+	
+	struct allocation_array arr = arena_push_aligned_all(mem, sizeof(vec3), 4);
+	vec3ptr v = arr.addr;
 
-	const u32 points_per_strip = 2 * refinement;
-	const u32 num_strips = refinement;
-	const f32 inc_angle = MM_PI_F / refinement;
-
-	const u32 vertex_count = 2*(2 + (num_strips - 1) * points_per_strip) + 2*refinement;
-	const u64 vertex_size = sizeof(vec3) /*+ sizeof(vec4)*/ + sizeof(vec3);
-	u8 *vertex_data = arena_push(mem, vertex_count * vertex_size);
-
-	const u32 index_count = 2*(2 * 3 * points_per_strip + (num_strips-1-1) * points_per_strip * 6) + 3*2*(refinement-2) + 6*refinement;
-	u32 *index_data = arena_push(mem, index_count * sizeof(u32));
-
-	u32 off_i = 0; 
-	u64 offset = 0;
-	const u64 p_offset = 0;
-	//const u64 c_offset = sizeof(vec3);
-	const u64 n_offset = sizeof(vec3) /*+ sizeof(vec4)*/;
-
-	mat3 rot;
-	quat_to_mat3(rot, rotation);
-
-	vec3 p, tmp;
-	vec3_copy(p, p1);
-	u32 max_used;
-	//internal_r_mesh_set_sphere(&max_used, vertex_data + offset, index_data + off_i, radius, p, refinement, color);
-	internal_r_mesh_set_sphere(&max_used, vertex_data + offset, index_data + off_i, radius, p, refinement);
-	off_i = (2 * points_per_strip + (num_strips-1-1) * points_per_strip * 6);
-	offset += (2 + (num_strips - 1) * points_per_strip) * (sizeof(vec3) + sizeof(vec4) + sizeof(vec3));
-
-	quat cyl_rot; 
-	vec3 v, v_rot, cross, n = { 0.0f, 1.0f, 0.0f }; 
-	if (p[0] != 0.0f || p[2] != 0.0f)
+	//TODO
+	const u32 n = 2*n_lat_cap_slice*n_long_slice + n_lat_cyl_slice*n_long_slice + 2;
+	if (arr.len < n)
 	{
-		vec3_cross(cross, p, n);
-		vec3_mul_constant(cross, 1.0f/vec3_length(cross));
-		const f32 theta = f32_acos(vec3_dot(n, p) / half_length);
-		unit_axis_angle_to_quaternion(cyl_rot, cross, -theta);
-		quat_to_mat3(rot, cyl_rot);
-	}
-
-	vec3_negative(p);
-	//internal_r_mesh_set_sphere(&max_used, vertex_data + offset, index_data + off_i, radius, p, refinement, color);
-	internal_r_mesh_set_sphere(&max_used, vertex_data + offset, index_data + off_i, radius, p, refinement);
-	max_used = 2*max_used + 1;
-	off_i = 2*off_i;
-	offset = 2*offset;
-	vec3_negative(p);
-
-	const f32 angle_inc = MM_PI_2_F / refinement;
-	v[1] = half_length;
-	for (u32 i = 0; i < refinement; ++i)
-	{
-		v[0] = f32_cos(angle_inc * i) * radius;
-		v[2] = f32_sin(angle_inc * i) * radius;
-		mat3_vec_mul(v_rot, rot, v);
-
-		vec3_normalize(n, p);
-		vec3_scale(tmp, n, vec3_dot(v_rot, n));
-		vec3_sub(n, v_rot, tmp);
-		vec3_mul_constant(n, 1.0f/vec3_length(n));
-
-		memcpy(vertex_data + offset + p_offset, v_rot, sizeof(vec3));
-		//memcpy(vertex_data + offset + c_offset, color, sizeof(vec4));
-		memcpy(vertex_data + offset + n_offset, n, sizeof(vec3));
-		//offset += sizeof(vec3) + sizeof(vec4) + sizeof(vec3);
-		offset += sizeof(vec3) + sizeof(vec3);
-	}
-		
-	v[1] = -half_length;
-	for (u32 i = 0; i < refinement; ++i)
-	{
-		v[0] = f32_cos(angle_inc * i) * radius;
-		v[2] = f32_sin(angle_inc * i) * radius;
-		mat3_vec_mul(v_rot, rot, v);
-
-		vec3_normalize(n, p);
-		vec3_scale(tmp, n, vec3_dot(v_rot, n));
-		vec3_sub(n, v_rot, tmp);
-		vec3_mul_constant(n, 1.0f/vec3_length(n));
-
-		memcpy(vertex_data + offset + p_offset, v_rot, sizeof(vec3));
-		//memcpy(vertex_data + offset + c_offset, color, sizeof(vec4));
-		memcpy(vertex_data + offset + n_offset, n, sizeof(vec3));
-		//offset += sizeof(vec3) + sizeof(vec4) + sizeof(vec3);
-		offset += sizeof(vec3) + sizeof(vec3);
-	}
-
-
-	u32 index = max_used+1;
-	for (u32 i = 2; i < refinement; ++i)
-	{
-		index_data[off_i++] = index;
-		index_data[off_i++] = index+i;
-		index_data[off_i++] = index+i-1;
+		arena_pop_packed(mem, arr.mem_pushed);
+		r_mesh_set_stub_box(mesh);
+		return;
 	}
 	
-	index += refinement;
-	for (u32 i = 2; i < refinement; ++i)
+	u32 vi = 0;
+	vec3_set(v[vi++], 0.0f, -half_height, 0.0f);
+	vec3_set(v[vi++], 0.0f, half_height, 0.0f);
+
+	for (u32 i = 0; i < n_lat_cap_slice; ++i)
 	{
-		index_data[off_i++] = index;
-		index_data[off_i++] = index+i-1;
-		index_data[off_i++] = index+i;
+		const f32 theta = (i + 1)*(MM_PI_F / 2.0f) / n_lat_cap_slice;
+		const f32 ring_radius = radius * f32_sin(theta);
+		const f32 y = -half_height - radius * f32_cos(theta);
+		for (u32 j = 0; j < n_long_slice; ++j)
+		{
+			const f32 phi = j * 2.0f * MM_PI_F / n_long_slice;
+			vec3_set(v[vi++], 
+				ring_radius * f32_cos(phi),
+				y,
+				ring_radius * f32_sin(phi));
+
+			vec3_set(v[vi++], 
+				ring_radius * f32_cos(phi),
+				-y,
+				ring_radius * f32_sin(phi));
+		}
 	}
 
-
-	u32 indices[6];
-	for (u32 i = 0; i < refinement; ++i)
+	for (u32 i = 0; i < n_lat_cyl_slice; ++i)
 	{
-		index_data[off_i++] = index + i;
-		index_data[off_i++] = index + i - refinement;
-		index_data[off_i++] = index + ((i+1) % refinement) - refinement;
-		index_data[off_i++] = index + i;
-		index_data[off_i++] = index + ((i+1) % refinement) - refinement;
-		index_data[off_i++] = index + ((i+1) % refinement);
+		const f32 y = -half_height + i*half_height / n_lat_cyl_slice;
+		for (u32 j = 0; j < n_long_slice; ++j)
+		{
+			const f32 phi = j * 2.0f * MM_PI_F / n_long_slice;
+			vec3_set(v[vi++], 
+				radius * f32_cos(phi),
+				y,
+				radius * f32_sin(phi));
+		}
 	}
 
-	max_used += 2 * refinement;
+	kas_assert(vi == n);
+	arena_pop_packed(mem, (arr.len - vi) * sizeof(vec3));
 
-	mesh->index_max_used = max_used;
-	mesh->index_count = index_count;
-	mesh->index_data = index_data;
-	mesh->vertex_count = vertex_count;
-	mesh->vertex_data = (void *) vertex_data;
-	mesh->local_stride = vertex_size;
+	struct arena tmp = arena_alloc_1MB();
+	struct dcel dcel = dcel_convex_hull(&tmp, v, vi, 100.0f * F32_EPSILON);
+	r_mesh_set_hull(mem, mesh, &dcel);
+	arena_free_1MB(&tmp);
 }
 
 void r_mesh_set_hull(struct arena *mem, struct r_mesh *mesh, const struct dcel *hull)

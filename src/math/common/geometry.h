@@ -275,7 +275,7 @@ struct dcel 	dcel_box_stub(void);
 /* return arena allocated dcel box with given half widths */
 struct dcel 	dcel_box(struct arena *mem, const vec3 hw);
 /* return arena allocated dcel convex hull of input points. On failure, an empty dcel is returned. */
-struct dcel dcel_convex_hull(struct arena *mem, const vec3ptr v, const u32 v_count, const f32 tol);
+struct dcel 	dcel_convex_hull(struct arena *mem, const vec3ptr v, const u32 v_count, const f32 tol);
 /* Return support of dcel in given direction, and return supporting vertex index */
 u32		dcel_support(vec3 support, const vec3 dir, const struct dcel *hull, mat3 rot, const vec3 pos);
 

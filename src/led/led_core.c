@@ -390,7 +390,7 @@ struct slot led_render_mesh_add(struct led *led, const utf8 id, const utf8 shape
 			switch (s->type)
 			{
 				case COLLISION_SHAPE_SPHERE: { r_mesh_set_sphere(&sys_win->mem_persistent, mesh, s->sphere.radius, 12); } break;
-				case COLLISION_SHAPE_CAPSULE: { kas_assert(0); } break;
+				case COLLISION_SHAPE_CAPSULE: { r_mesh_set_capsule(&sys_win->mem_persistent, mesh, s->capsule.half_height, s->capsule.radius, 16); } break;
 				case COLLISION_SHAPE_CONVEX_HULL: { r_mesh_set_hull(&sys_win->mem_persistent, mesh, &s->hull); } break;
 				case COLLISION_SHAPE_TRI_MESH: { r_mesh_set_tri_mesh(&sys_win->mem_persistent, mesh, s->mesh_bvh.mesh); } break;
 			}
