@@ -102,7 +102,7 @@ void serial_block_allocator_test_256B(void *null)
 	}
 }
 
-void *block_allocator_stress_test_256B(void *void_input)
+void block_allocator_stress_test_256B(void *void_input)
 {
 	struct block_allocator_stress_input *input = void_input;
 	struct list_node *head = NULL;
@@ -131,11 +131,9 @@ void *block_allocator_stress_test_256B(void *void_input)
 			head = tmp;
 		}
 	}
-
-	return NULL;
 }
 
-void *block_allocator_stress_test_1MB(void *void_input)
+void block_allocator_stress_test_1MB(void *void_input)
 {
 	struct block_allocator_stress_input *input = void_input;
 
@@ -169,11 +167,9 @@ void *block_allocator_stress_test_1MB(void *void_input)
 			head = tmp;
 		}
 	}
-
-	return NULL;
 }
 
-void *malloc_stress_test(void *void_input)
+void malloc_stress_test(void *void_input)
 {
 	struct block_allocator_stress_input *input = void_input;
 
@@ -203,8 +199,6 @@ void *malloc_stress_test(void *void_input)
 			head = tmp;
 		}
 	}
-
-	return NULL;
 }
 
 struct serial_test allocator_serial_test[] =

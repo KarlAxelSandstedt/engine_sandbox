@@ -101,14 +101,12 @@ static void run_suite(struct suite *suite, struct test_environment *env, const u
 			(long long unsigned int) suite->unit_test_count + suite->repetition_test_count); }
 }
 
-void *test_caller(void *task_input)
+void test_caller(void *task_input)
 {
 	struct task *t_ctx = task_input;
 	struct performance_test_caller_input *input = t_ctx->input;
 	while (!atomic_load_acq_32(input->a_barrier));
 	input->test(input->args);
-
-	return NULL;
 }
 
 static void run_performance_suite(struct performance_suite *suite)
@@ -236,8 +234,9 @@ void test_main(void)
 	run_suite(hierarchy_index_suite, &env, 1);
 	//run_suite(math_suite, &env, 1);
 #elif defined(KAS_TEST_PERFORMANCE)
-	run_performance_suite(allocator_performance_suite);
-	run_performance_suite(rng_performance_suite);
-	run_performance_suite(serialize_performance_suite);
+	run_performance_suite(hash_performance_suite);
+	//run_performance_suite(rng_performance_suite);
+	//run_performance_suite(allocator_performance_suite);
+	//run_performance_suite(serialize_performance_suite);
 #endif
 }

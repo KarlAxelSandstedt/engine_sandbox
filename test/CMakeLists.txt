@@ -10,6 +10,7 @@ add_library(kas_test
 	test_string.c
 	test_serialize.c
 	test_allocator.c
+	test_hash.c
 	test_rng.c)
 
 target_link_libraries(kas_test PRIVATE 
@@ -19,6 +20,7 @@ target_link_libraries(kas_test PRIVATE
 	kas_string
 	serialize
 	dtoa
+	xxHash
 	) 
 
 target_include_directories(kas_test INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})

@@ -116,8 +116,9 @@ void rt_end_time(struct repetition_tester *tester);
 void rt_print_statistics(const struct repetition_tester *tester, FILE *file);
 
 
-extern struct performance_suite *serialize_performance_suite;
+extern struct performance_suite *hash_performance_suite;
 extern struct performance_suite *rng_performance_suite;
+extern struct performance_suite *serialize_performance_suite;
 extern struct performance_suite *allocator_performance_suite;
 
 struct serial_test
