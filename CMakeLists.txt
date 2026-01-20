@@ -1,50 +1,66 @@
 cmake_minimum_required(VERSION 3.14.3)
 
-project(engine_sandbox)
+project(Dreamscape)
 set(CPACK_PACKAGE_MAJOR "0")
 set(CPACK_PACKAGE_MINOR "1")
 set(CPACK_PACKAGE_PATCH "2")
 set(CPACK_PACKAGE_VERSION "${CPACK_PACKAGE_MAJOR}.${CPACK_PACKAGE_MINOR}.${CPACK_PACKAGE_PATCH}")
+add_compile_definitions(DS_VERSION_CSTR="${CPACK_PACKAGE_VERSION}")
 
+
+option(DS_OPTIMIZE "DS_OPTIMIZE enables compiler optimization flags in the library. Defaults 
+		    to OFF." 
+		OFF)
+option(DS_DEBUG "DS_DEBUG builds the library with debug information. Furthermore, it turns on
+	         general debug macros such as ds_Assert, ds_Breakpoint(cond) by defining. 
+		 Defaults to ON."
+		ON)
+option(DS_ASAN "DS_ASAN builds the library with Asan address sanitizing. If the user wishes to
+		use Asan, the user should compile his or her code with Asan, AND set DS_ASAN;
+		this is important as it enabled custom address poisoning code for both public
+		and internal APIs. Defaults to OFF. Since sanitizing is costly, it is
+		recommended to also set DS_OPTIMIZE to ON."
+		OFF)
+
+#TODO remove, consider using DS_DEBUG instead, or if required, add DS_DEV
 if (NOT CMAKE_BUILD_TYPE STREQUAL "Release")
 	add_compile_definitions(KAS_DEV)
 endif()
-add_compile_definitions(KAS_EXECUTABLE_CSTR="${PROJECT_NAME}")
-add_compile_definitions(KAS_VERSION_CSTR="${CPACK_PACKAGE_VERSION}")
+
+#TODO How do we expose library testing for the user, (Or developer)?
+#     For both the developer and the user, we want to expose the interative
+#     porting process: both the user and the developer is interested in what
+#     progressively more coupled sub-system is not working as expected, and
+#     this should be exposed in some form or another.
+set(TEST_PATH "${CMAKE_CURRENT_SOURCE_DIR}/test")
+#if (kas_test_correctness)
+#	add_compile_definitions(KAS_TEST_CORRECTNESS)
+#	add_subdirectory("${TEST_PATH}")
+#	target_link_libraries(${PROJECT_NAME} PUBLIC kas_test)
+#elseif (kas_test_performance)
+#	add_compile_definitions(KAS_TEST_PERFORMANCE)
+#	add_subdirectory("${TEST_PATH}")
+#	target_link_libraries(${PROJECT_NAME} PUBLIC kas_test)
+#endif ()
+
+
 
 set(SRC_PATH "${CMAKE_CURRENT_SOURCE_DIR}/src")
-set(TEST_PATH "${CMAKE_CURRENT_SOURCE_DIR}/test")
 set(LIB_PATH "${CMAKE_CURRENT_SOURCE_DIR}/lib")
 
 find_package(OpenGL REQUIRED)
-find_package(Threads QUIET)
+find_package(Threads REQUIRED)
+
+
+#TODO: all these add_(compile,link,definition) should instead be target_add(dsFramework::Base PUBLIC () )
+#	so we propagate all things ONLY WITHIN OUR LIBRARY. In the end, the exposed things to the user
+#	should be some macros such as DS_DEBUG, so that any user of our library also gets the asserts,
+#	breakpoints and so on.
 if (DEFINED EMSCRIPTEN)
-	add_link_options(--emrun)
-	# enable memory growth, no over commitment of memory when process requires more memory
-	#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -sALLOW_MEMORY_GROWTH=1 -sMEMORY_GROWTH_GEOMETRIC_STEP=0")
-	add_link_options(-sALLOW_MEMORY_GROWTH)
-	add_link_options(-sMEMORY_GROWTH_GEOMETRIC_STEP=0)
 
-	# enable simd => web assembly vector instructions
-	#set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mavx -msimd128")
-
-	#set WebGL2
-	add_link_options(-sMAX_WEBGL_VERSION=2)
-
-	if (kas_debug)
+	if (DS_DEBUG)
+		add_compile_definitions(DS_DEBUG)
 		add_compile_options(-W -Wall -Wno-switch -Wno-unused-parameter -Wno-unused-variable -Wno-unused-function)
-		#Enable pthreads
-		if (NOT Threads_FOUND)
-			set(Threads_FOUND TRUE)
-	        	set(CMAKE_HAVE_THREADS_LIBRARY 1)
-	        	set(CMAKE_USE_WIN32_THREADS_INIT 0)
-	        	set(CMAKE_USE_PTHREADS_INIT 1)
-	        	add_library(Threads::Threads INTERFACE IMPORTED)
-	    	endif()
-		add_compile_options(-pthread)
-		add_link_options(-pthread -sPTHREAD_POOL_SIZE=navigator.hardwareConcurrency)
-		#add_link_options(-pthread -sPTHREAD_POOL_SIZE=1 -sPROXY_TO_PTHREAD)
-
 		# Add debug information and C<->wasm mapping
 		add_compile_options(-g)
 		add_link_options(-g -gsource-map)
@@ -57,139 +73,59 @@ if (DEFINED EMSCRIPTEN)
 		add_link_options(-sASSERTIONS=0)
 		# low overhead; end-of-frame checking?
 		add_link_options(-sSTACK_OVERFLOW_CHECK=1)
-	endif ()
+	endif()
 
-	if (apply_optimization_options)
+	if (DS_OPTIMIZE)
+		add_compile_options(-O3)
+	else ()
+		add_compile_options(-O0)
+	endif ()	
+	
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+
+	if (DS_DEBUG)
+		add_compile_definitions(DS_DEBUG)
+		add_compile_options(-gdwarf -W -Wall -Wextra)
+	endif()
+
+	if (DS_OPTIMIZE)
 		add_compile_options(-O3)
 	else ()
 		add_compile_options(-O0)
 	endif ()	
 
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --embed-file=../assets@../assets")
-	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} --embed-file=../asset_components@../asset_components")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -rdynamic")
 
-	add_executable(${PROJECT_NAME} ${SRC_PATH}/sys/wasm/main.c)
-	set(CMAKE_EXECUTABLE_SUFFIX ".html")
+	# avoids x87 fp-instructions entirely (extended precision bad for consistency)
+	add_compile_options(-mfpmath=sse)
 
-	add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:${PROJECT_NAME}>/src
-		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/src $<TARGET_FILE_DIR:${PROJECT_NAME}>/src
-		COMMAND ${CMAKE_COMMAND} -E make_directory $<TARGET_FILE_DIR:${PROJECT_NAME}>/lib
-		COMMAND ${CMAKE_COMMAND} -E copy_directory ${CMAKE_SOURCE_DIR}/lib $<TARGET_FILE_DIR:${PROJECT_NAME}>/lib
-	)
-else ()
-	if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-		add_executable(${PROJECT_NAME} ${SRC_PATH}/sys/linux/main.c)
-	elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-		add_executable(${PROJECT_NAME} WIN32 ${SRC_PATH}/sys/windows/WinMain.c)
-	endif ()
-	
-	##### Sanitizing Options #####
-	#option(thread_sanitizer "thread_sanitizer" OFF)
-	#option(address_sanitizer "address_sanitizer" OFF)
-	
-	if (thread_sanitizer)
-		set(apply_optimization_options ON)
-		set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -fsanitize=thread -fno-omit-frame-pointer")
-		link_libraries(tsan)
-		#add_compile_options(-fsanitize=thread -fno-omit-frame-pointer)
-		add_compile_definitions(KAS_TSAN)
-	endif ()
-	
-	if (address_sanitizer)
-		set(apply_optimization_options ON)
-		target_compile_options(${PROJECT_NAME} PRIVATE -fsanitize=address -fno-omit-frame-pointer)
-		target_link_options(${PROJECT_NAME} PRIVATE -fsanitize=address -fno-omit-frame-pointer -static-libasan)
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 
-		#set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -fsanitize=address -fno-omit-frame-pointer")
-		#link_libraries(asan)
-		##add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
-		add_compile_definitions(KAS_ASAN)
-	endif ()
-	
-	if (undefined_behaviour_sanitizer)
-		set(apply_optimization_options ON)
-		set(CMAKE_C_FLAGS  "${CMAKE_C_FLAGS} -fsanitize=undefined")
-		link_libraries(ubsan)
-		#add_compile_options(-fsanitize=undefined)
-		add_compile_definitions(KAS_UBSAN)
+	if (DS_DEBUG)
+		add_compile_definitions(DS_DEBUG)
+		add_compile_options(/Od /Zi)
 	endif ()
 
-	unset(thread_sanitizer CACHE)
-	unset(address_sanitizer CACHE)
-	unset(undefined_behaviour_sanitizer CACHE)
-endif()
-
-if (kas_debug)
-	add_compile_definitions(KAS_DEBUG)
-else ()
-	#target_compile_definitions(SDL3-shared CMAKE_BUILD_TYPE=Release)
-endif ()
-
-#TODO: Move these things to start
-message(CHECK_START "Compiler")
-if (DEFINED EMSCRIPTEN)
-	message(CHECK_PASS "Emscripten")
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
-	message(CHECK_PASS "MSVC")
+	if (DS_OPTIMIZE)
+		add_compile_options(/O2)
+	endif ()	
 
 	# avoids x87 fp-instructions entirely (extended precision bad for consistency)
 	add_compile_options(/arch:SSE2)
 
 	#parallel compilation
 	add_compile_options(/MP)
-
-	if (kas_debug)
-		add_compile_options(/Od /Zi)
-	endif ()
-
-	if (apply_optimization_options)
-		add_compile_options(/O2)
-	endif ()
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-	message(CHECK_PASS "GCC")
-
-	# avoids x87 fp-instructions entirely (extended precision bad for consistency)
-	add_compile_options(-mfpmath=sse)
-
-  	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -rdynamic")
-
-	if (kas_debug)
-		add_compile_options(-W -Wall -gdwarf -Wno-switch -Wno-unused-parameter -Wno-unused-variable -Wno-unused-function)
-	endif ()
-
-	if (apply_optimization_options)
-		add_compile_options(-O3)
-	endif ()
-else ()
-	message(CHECK_FAIL "Unrecognized Compiler")
 endif ()
 
-if (kas_test_correctness)
-	add_compile_definitions(KAS_TEST_CORRECTNESS)
-	add_subdirectory("${TEST_PATH}")
-	target_link_libraries(${PROJECT_NAME} PRIVATE kas_test)
-elseif (kas_test_performance)
-	add_compile_definitions(KAS_TEST_PERFORMANCE)
-	add_subdirectory("${TEST_PATH}")
-	target_link_libraries(${PROJECT_NAME} PRIVATE kas_test)
-endif ()
-
-unset(kas_debug CACHE)
-unset(kas_test_correctness CACHE)
-unset(kas_test_performance CACHE)
-unset(apply_optimization_options CACHE)
-
+add_library(${PROJECT_NAME} INTERFACE)
 add_subdirectory("${LIB_PATH}")
 
-if (CMAKE_BUILD_TYPE STREQUAL "Release")
-	option(TRACY_ENABLE "" OFF)
-elseif (NOT DEFINED EMSCRIPTEN)
+#TODO: link to base, so it propagates WITHIN LIBRARY but nowhere else
+if (TRACY_ENABLE)
 	link_libraries(Tracy::TracyClient)
 	include_directories(tracy/public)
-	option(TRACY_ENABLE "" ON)
-	add_compile_definitions(KAS_PROFILE)
-endif()
+	add_compile_definitions(DS_PROFILE)
+endif ()
 
 add_subdirectory("${SRC_PATH}/misc")
 add_subdirectory("${SRC_PATH}/misc/ui")
@@ -208,7 +144,7 @@ link_libraries(kas_common)
 link_libraries(log)
 
 target_link_libraries(${PROJECT_NAME}
-	PRIVATE
+	PUBLIC
 		system_graphics
 		renderer
 		asset_system
@@ -216,7 +152,7 @@ target_link_libraries(${PROJECT_NAME}
 	)
 if (DEFINED EMSCRIPTEN)
 	add_subdirectory(${SRC_PATH}/sys/wasm)
-	target_link_libraries(${PROJECT_NAME} PRIVATE wasm_interface)
+	target_link_libraries(${PROJECT_NAME} PUBLIC wasm_interface)
 	#target_include_directories(${PROJECT_NAME}
 	#	PRIVATE
 	#		"${LIB_PATH}"
@@ -238,10 +174,10 @@ if (DEFINED EMSCRIPTEN)
 	#)
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
 	add_subdirectory(${SRC_PATH}/sys/linux)
-	target_link_libraries(${PROJECT_NAME} PRIVATE linux_interface)
+	target_link_libraries(${PROJECT_NAME} PUBLIC linux_interface)
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 	add_subdirectory(${SRC_PATH}/sys/windows)
-	target_link_libraries(${PROJECT_NAME} PRIVATE windows_interface bcrypt)
+	target_link_libraries(${PROJECT_NAME} PUBLIC windows_interface bcrypt)
 
 	# DLLs must be in same folder as exe? Not as on linux where we have rpath and such...
 	add_custom_command(

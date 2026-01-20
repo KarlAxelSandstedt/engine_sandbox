@@ -7,6 +7,7 @@ Installing on Windows
 Installing on Linux 
 Compiling on Windows
 Compiling on Linux
+CMake Library Options
 License
 
 
@@ -70,11 +71,51 @@ address_sanitize.sh:
 Instrument and compile the code with runtime memory error checking. Also 
 enables manual memory poisoning debugging tools in the codebase.
 
-threaed_sanitize.sh:
+thread_sanitize.sh:
 Instrument and compile the code with data race checking.
 
 undefined_behaviour_sanitize.sh:
 Instrument and compile the code with undefined behaviour runtime checks.
+
+
+CMake Library Usage and Options
+===============================
+
+The library exposes multiple compilation options, both from itself, and from its 
+dependencies. The options are:
+
+
+option(DS_OPTIMIZE "Optimization Flags" OFF):
+
+	DS_OPTIMIZE enables compiler optimization flags in the library. Defaults to 
+	OFF.
+
+option(DS_DEBUG "Enable Debug information and assertions, ds_Assert, ..." ON):
+
+	DS_DEBUG builds the library with debug information. Furthermore, it turns on
+	general debug macros such as ds_Assert, Breakpoint(condition). Defaults to ON.
+
+option(DS_ASAN "Compile the library with Asan, and enable custom poisoning code" OFF):
+
+	DS_ASAN builds the library with Asan address sanitizing. If the user wishes to
+	use Asan, the user should compile his or her code with Asan, AND set DS_ASAN;
+	this is important as it enabled custom address poisoning code for both public
+	and internal APIs. Defaults to OFF. Since sanitizing is costly, it is
+	recommended to also set DS_OPTIMIZE to ON.
+
+option(DS_ASAN "Compile the library with Asan, and enable custom poisoning code" OFF):
+
+	DS_ASAN builds the library with Asan address sanitizing. If the user wishes to
+	use Asan, the user should compile his or her code with Asan, AND set DS_ASAN;
+	this is important as it enabled custom address poisoning code for both public
+	and internal APIs. Defaults to OFF. Since sanitizing is costly, it is
+	recommended to also set DS_OPTIMIZE to ON.
+
+option(TRACY_ENABLE)
+
+	TRACY_ENABLE turns the Tracy Profiler on or off depending on the set value;
+	If the option is set, the library profiles itself using Tracy. Furthermore,
+	it enables the profiling API.
 
 
 License
