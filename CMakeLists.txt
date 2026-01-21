@@ -5,8 +5,6 @@ set(CPACK_PACKAGE_MAJOR "0")
 set(CPACK_PACKAGE_MINOR "1")
 set(CPACK_PACKAGE_PATCH "2")
 set(CPACK_PACKAGE_VERSION "${CPACK_PACKAGE_MAJOR}.${CPACK_PACKAGE_MINOR}.${CPACK_PACKAGE_PATCH}")
-add_compile_definitions(DS_VERSION_CSTR="${CPACK_PACKAGE_VERSION}")
-
 
 option(DS_OPTIMIZE "DS_OPTIMIZE enables compiler optimization flags in the library. Defaults 
 		    to OFF." 
@@ -22,44 +20,15 @@ option(DS_ASAN "DS_ASAN builds the library with Asan address sanitizing. If the 
 		recommended to also set DS_OPTIMIZE to ON."
 		OFF)
 
-#TODO remove, consider using DS_DEBUG instead, or if required, add DS_DEV
-if (NOT CMAKE_BUILD_TYPE STREQUAL "Release")
-	add_compile_definitions(KAS_DEV)
-endif()
-
-#TODO How do we expose library testing for the user, (Or developer)?
-#     For both the developer and the user, we want to expose the interative
-#     porting process: both the user and the developer is interested in what
-#     progressively more coupled sub-system is not working as expected, and
-#     this should be exposed in some form or another.
-set(TEST_PATH "${CMAKE_CURRENT_SOURCE_DIR}/test")
-#if (kas_test_correctness)
-#	add_compile_definitions(KAS_TEST_CORRECTNESS)
-#	add_subdirectory("${TEST_PATH}")
-#	target_link_libraries(${PROJECT_NAME} PUBLIC kas_test)
-#elseif (kas_test_performance)
-#	add_compile_definitions(KAS_TEST_PERFORMANCE)
-#	add_subdirectory("${TEST_PATH}")
-#	target_link_libraries(${PROJECT_NAME} PUBLIC kas_test)
-#endif ()
-
-
-
+set(INCLUDE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(SRC_PATH "${CMAKE_CURRENT_SOURCE_DIR}/src")
 set(LIB_PATH "${CMAKE_CURRENT_SOURCE_DIR}/lib")
 
 find_package(OpenGL REQUIRED)
 find_package(Threads REQUIRED)
 
-
-#TODO: all these add_(compile,link,definition) should instead be target_add(dsFramework::Base PUBLIC () )
-#	so we propagate all things ONLY WITHIN OUR LIBRARY. In the end, the exposed things to the user
-#	should be some macros such as DS_DEBUG, so that any user of our library also gets the asserts,
-#	breakpoints and so on.
 if (DEFINED EMSCRIPTEN)
-
 	if (DS_DEBUG)
-		add_compile_definitions(DS_DEBUG)
 		add_compile_options(-W -Wall -Wno-switch -Wno-unused-parameter -Wno-unused-variable -Wno-unused-function)
 		# Add debug information and C<->wasm mapping
 		add_compile_options(-g)
@@ -84,7 +53,6 @@ if (DEFINED EMSCRIPTEN)
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
 
 	if (DS_DEBUG)
-		add_compile_definitions(DS_DEBUG)
 		add_compile_options(-gdwarf -W -Wall -Wextra)
 	endif()
 
@@ -115,17 +83,51 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 
 	#parallel compilation
 	add_compile_options(/MP)
+
 endif ()
 
-add_library(${PROJECT_NAME} INTERFACE)
+add_subdirectory("${SRC_PATH}/base")
 add_subdirectory("${LIB_PATH}")
 
+add_library(${PROJECT_NAME} INTERFACE)
+add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
+
+target_link_libraries(${PROJECT_NAME} INTERFACE "${PROJECT_NAME}::Base")
+target_include_directories(${PROJECT_NAME} INTERFACE "include")
+
+#TODO remove, consider using DS_DEBUG instead, or if required, add DS_DEV
+if (NOT CMAKE_BUILD_TYPE STREQUAL "Release")
+	add_compile_definitions(KAS_DEV)
+endif()
+
+#TODO How do we expose library testing for the user, (Or developer)?
+#     For both the developer and the user, we want to expose the interative
+#     porting process: both the user and the developer is interested in what
+#     progressively more coupled sub-system is not working as expected, and
+#     this should be exposed in some form or another.
+set(TEST_PATH "${CMAKE_CURRENT_SOURCE_DIR}/test")
+#if (kas_test_correctness)
+#	add_compile_definitions(KAS_TEST_CORRECTNESS)
+#	add_subdirectory("${TEST_PATH}")
+#	target_link_libraries(${PROJECT_NAME} PUBLIC kas_test)
+#elseif (kas_test_performance)
+#	add_compile_definitions(KAS_TEST_PERFORMANCE)
+#	add_subdirectory("${TEST_PATH}")
+#	target_link_libraries(${PROJECT_NAME} PUBLIC kas_test)
+#endif ()
+
+#TODO: all these add_(compile,link,definition) should instead be target_add(dsFramework::Base PUBLIC () )
+#	so we propagate all things ONLY WITHIN OUR LIBRARY. In the end, the exposed things to the user
+#	should be some macros such as DS_DEBUG, so that any user of our library also gets the asserts,
+#	breakpoints and so on.
+
+
 #TODO: link to base, so it propagates WITHIN LIBRARY but nowhere else
-if (TRACY_ENABLE)
-	link_libraries(Tracy::TracyClient)
-	include_directories(tracy/public)
-	add_compile_definitions(DS_PROFILE)
-endif ()
+#if (TRACY_ENABLE)
+#	link_libraries(Tracy::TracyClient)
+#	include_directories(tracy/public)
+#	add_compile_definitions(DS_PROFILE)
+#endif ()
 
 add_subdirectory("${SRC_PATH}/misc")
 add_subdirectory("${SRC_PATH}/misc/ui")
@@ -144,7 +146,7 @@ link_libraries(kas_common)
 link_libraries(log)
 
 target_link_libraries(${PROJECT_NAME}
-	PUBLIC
+	INTERFACE
 		system_graphics
 		renderer
 		asset_system
@@ -174,10 +176,10 @@ if (DEFINED EMSCRIPTEN)
 	#)
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
 	add_subdirectory(${SRC_PATH}/sys/linux)
-	target_link_libraries(${PROJECT_NAME} PUBLIC linux_interface)
+	target_link_libraries(${PROJECT_NAME} INTERFACE inux_interface)
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 	add_subdirectory(${SRC_PATH}/sys/windows)
-	target_link_libraries(${PROJECT_NAME} PUBLIC windows_interface bcrypt)
+	target_link_libraries(${PROJECT_NAME} INTERFACE windows_interface bcrypt)
 
 	# DLLs must be in same folder as exe? Not as on linux where we have rpath and such...
 	add_custom_command(
