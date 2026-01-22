@@ -20,7 +20,7 @@
 #ifndef __SYS_GL_H__
 #define __SYS_GL_H__
 
-#include "kas_common.h"
+#include "ds_common.h"
 
 #if __OS__ == __WIN64__ || __OS__ == __LINUX__
 #include "GL/glcorearb.h"

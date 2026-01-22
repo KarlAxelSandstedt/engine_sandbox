@@ -28,7 +28,7 @@ f32 ui_field_f32(const f32 value, const intv range, const utf8 formatted)
 	struct ui_node *node = slot.address;
 
 	f32 ret = value;
-	if (node->input.focused && g_ui->inter.key_pressed[KAS_ENTER])
+	if (node->input.focused && g_ui->inter.key_pressed[DS_ENTER])
 	{
 		const f32 parse_value = f32_utf32(g_ui->mem_frame, node->input.text);
 		if (!f32_test_nan(parse_value))
@@ -51,7 +51,7 @@ u64 ui_field_u64(const u64 value, const intvu64 range, const utf8 formatted)
 	struct ui_node *node = slot.address;
 
 	u64 ret = value;
-	if ((node->inter & UI_INTER_FOCUS) && g_ui->inter.key_pressed[KAS_ENTER])
+	if ((node->inter & UI_INTER_FOCUS) && g_ui->inter.key_pressed[DS_ENTER])
 	{
 		struct parse_retval parse = u64_utf32(node->input.text);
 		if (parse.op_result != PARSE_STRING_INVALID) 
@@ -81,7 +81,7 @@ i64 ui_field_i64(const i64 value, const intvi64 range, const utf8 formatted)
 	struct ui_node *node = slot.address;
 
 	i64 ret = value;
-	if ((node->inter & UI_INTER_FOCUS) && g_ui->inter.key_pressed[KAS_ENTER])
+	if ((node->inter & UI_INTER_FOCUS) && g_ui->inter.key_pressed[DS_ENTER])
 	{
 		struct parse_retval parse = i64_utf32(node->input.text);
 		if (parse.op_result != PARSE_STRING_INVALID) 
@@ -112,7 +112,7 @@ utf8 ui_field_utf8(const utf8 formatted)
 	struct ui_node *node = slot.address;
 
 	utf8 ret = utf8_empty();
-	if ((node->inter & UI_INTER_FOCUS) && g_ui->inter.key_clicked[KAS_ENTER])
+	if ((node->inter & UI_INTER_FOCUS) && g_ui->inter.key_clicked[DS_ENTER])
 	{
 		ret = utf8_utf32(g_ui->mem_frame, node->input.text);
 		cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_disable \"%k\"", &node->id);
@@ -585,14 +585,14 @@ void ui_timeline_row_pop(struct timeline_config *config)
 	struct timeline_row_config *row_config = config->row + config->row_pushed;
 	if (ui_node_top()->inter & UI_INTER_DRAG)
 	{
-		if (!g_ui->inter.key_pressed[KAS_CTRL])
+		if (!g_ui->inter.key_pressed[DS_CTRL])
 		{
 			const f32 depth_offset = f32_max(-row_config->depth_visible.low, g_ui->inter.cursor_delta[1] / config->task_height);
 			row_config->depth_visible.low += depth_offset;
 			row_config->depth_visible.high += depth_offset;
 		}
 
-		cmd_submit_f(g_ui->mem_frame, "timeline_drag %p %li %li %u", config, (i64) g_ui->inter.cursor_delta[0], (i64) g_ui->inter.cursor_delta[1], g_ui->inter.key_pressed[KAS_CTRL]);
+		cmd_submit_f(g_ui->mem_frame, "timeline_drag %p %li %li %u", config, (i64) g_ui->inter.cursor_delta[0], (i64) g_ui->inter.cursor_delta[1], g_ui->inter.key_pressed[DS_CTRL]);
 	}
 	
 	ui_text_align_x_pop();
@@ -655,7 +655,7 @@ void ui_cmd_console(struct cmd_console *console, const char *fmt, ...)
 	slot = ui_text_input(&console->prompt, utf32_utf8(g_ui->mem_frame, utf8_inline("Command Line...")), id);
 	line = slot.address;
 
-	if ((line->inter & UI_INTER_FOCUS) && g_ui->inter.key_clicked[KAS_ENTER])
+	if ((line->inter & UI_INTER_FOCUS) && g_ui->inter.key_clicked[DS_ENTER])
 	{
 		cmd_submit_utf8(utf8_utf32(g_ui->mem_frame, console->prompt.text));
 		cmd_submit_f(g_ui->mem_frame, "ui_text_input_flush \"%k\"", &line->id);
@@ -720,7 +720,7 @@ void ui_popup_build(void)
 						cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_enable \"%k\" %p", &line->id, popup->prompt);
 					}
 
-					if ((line->inter & UI_INTER_FOCUS) && g_ui->inter.key_clicked[KAS_ENTER] && popup->state != UI_POPUP_STATE_PENDING_VERIFICATION)
+					if ((line->inter & UI_INTER_FOCUS) && g_ui->inter.key_clicked[DS_ENTER] && popup->state != UI_POPUP_STATE_PENDING_VERIFICATION)
 					{
 						cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_disable \"%k\"", &line->id);
 						*popup->input = utf8_utf32_buffered(popup->input->buf, popup->input->size, popup->prompt->text);
@@ -865,7 +865,7 @@ void ui_popup_choice(struct ui_popup *popup, const utf8 description, const utf8 
 
 void ui_text_op(void)
 {
-	const enum kas_keycode key = g_queue->cmd_exec->arg[0].u32;
+	const enum ds_keycode key = g_queue->cmd_exec->arg[0].u32;
 	const u32 mod = g_queue->cmd_exec->arg[1].u32;
 	const utf8 replace = g_queue->cmd_exec->arg[2].utf8;
 
@@ -910,7 +910,7 @@ void ui_text_op(void)
 	{
 		switch (key)
 		{
-			case KAS_LEFT:
+			case DS_LEFT:
 			{
 				if (op.cursor_new)
 				{
@@ -933,7 +933,7 @@ void ui_text_op(void)
 				}
 			} break;
 
-			case KAS_RIGHT:
+			case DS_RIGHT:
 			{
 				if (op.cursor_new < edit->len)
 				{
@@ -957,7 +957,7 @@ void ui_text_op(void)
 
 			} break;
 
-			case KAS_BACKSPACE:
+			case DS_BACKSPACE:
 			{
 				if (op.low == op.high)
 				{
@@ -980,7 +980,7 @@ void ui_text_op(void)
 				op.mark_new = op.low;
 			} break;
 
-			case KAS_DELETE:
+			case DS_DELETE:
 			{
 				if (op.low == op.high)
 				{
@@ -1002,7 +1002,7 @@ void ui_text_op(void)
 				op.mark_new = op.low;
 			} break;
 
-			case KAS_HOME:
+			case DS_HOME:
 			{
 				op.cursor_new = 0;
 				op.low = 0;
@@ -1013,7 +1013,7 @@ void ui_text_op(void)
 				}
 			} break;
 
-			case KAS_END:
+			case DS_END:
 			{
 				op.cursor_new = edit->len;
 				op.low = 0;
@@ -1024,14 +1024,14 @@ void ui_text_op(void)
 				}
 			} break;
 
-			case KAS_C:
+			case DS_C:
 			{
 				op.str_copy = (utf32) { .buf = edit->buf + op.low, .len = op.high - op.low, .max_len = op.high - op.low };
 				op.low = 0;
 				op.high = 0;
 			} break;
 
-			case KAS_X:
+			case DS_X:
 			{
 				op.str_copy = (utf32) { .buf = edit->buf + op.low, .len = op.high - op.low, .max_len = op.high - op.low };
 				op.cursor_new = op.low;

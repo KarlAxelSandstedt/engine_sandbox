@@ -17,10 +17,10 @@
 ==========================================================================
 */
 
-#ifndef __KAS_RANDOM_H__
-#define __KAS_RANDOM_H__
+#ifndef __DS_RANDOM_H__
+#define __DS_RANDOM_H__
 
-#include "kas_common.h"
+#include "ds_common.h"
 
 /*************************** THREAD-SAFE RNG API ***************************/
 

@@ -54,11 +54,11 @@ void r_camera_debug_print(const struct r_camera *cam)
 
 struct r_camera r_camera_init(const vec3 position, const vec3 direction, const f32 fz_near, const f32 fz_far, const f32 aspect_ratio, const f32 fov_x)
 {
-	kas_assert(fov_x > 0.0f && fov_x < MM_PI_F);
-	kas_assert(fz_near > 0.0f);
-	kas_assert(fz_far > fz_near);
-	kas_assert(aspect_ratio > 0);
-	kas_assert(vec3_length(direction) > 0.0f);
+	ds_assert(fov_x > 0.0f && fov_x < MM_PI_F);
+	ds_assert(fz_near > 0.0f);
+	ds_assert(fz_far > fz_near);
+	ds_assert(aspect_ratio > 0);
+	ds_assert(vec3_length(direction) > 0.0f);
 	
 	struct r_camera cam = 
 	{
@@ -134,10 +134,10 @@ void r_camera_construct(struct r_camera *cam,
 	       	const f32 aspect_ratio,
 	       	const f32 fov_x)
 {
-	kas_assert(fov_x > 0.0f && fov_x < MM_PI_F);
-	kas_assert(fz_near > 0.0f);
-	kas_assert(fz_far > fz_near);
-	kas_assert(aspect_ratio > 0);
+	ds_assert(fov_x > 0.0f && fov_x < MM_PI_F);
+	ds_assert(fz_near > 0.0f);
+	ds_assert(fz_far > fz_near);
+	ds_assert(aspect_ratio > 0);
 	
 	vec3_copy(cam->position, position);
 	vec3_copy(cam->left, left);

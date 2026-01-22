@@ -98,7 +98,7 @@ static void internal_r_command_merge(struct r_command *r_cmd, struct r_command *
 	memcpy(r_cmd + left, tmp + left, count * sizeof(struct r_command));
 }
 
-#ifdef KAS_DEBUG
+#ifdef DS_DEBUG
 
 void r_scene_assert_cmd_sorted(void)
 {
@@ -114,7 +114,7 @@ void r_scene_assert_cmd_sorted(void)
 		}
 	}
 
-	kas_assert_string(sorted, "r_scene assertion failed: draw commands not sorted");
+	ds_assert_string(sorted, "r_scene assertion failed: draw commands not sorted");
 }
 
 void r_scene_assert_instance_cmd_bijection(void)
@@ -123,8 +123,8 @@ void r_scene_assert_instance_cmd_bijection(void)
 	{
 		struct r_command *cmd = g_scene->cmd_frame + i;
 		struct r_instance *instance = array_list_intrusive_address(g_scene->instance_list, cmd->instance);
-		kas_assert(instance->header.allocated);
-		kas_assert(((u64) instance->cmd - (u64) cmd) == 0);
+		ds_assert(instance->header.allocated);
+		ds_assert(((u64) instance->cmd - (u64) cmd) == 0);
 	}
 }
 
@@ -267,7 +267,7 @@ void r_buffer_constructor_buffer_alloc(struct r_buffer_constructor *constructor,
 
 void r_buffer_constructor_buffer_add_size(struct r_buffer_constructor *constructor, const u64 local_size, const u64 shared_size, const u32 instance_count, const u32 index_count)
 {
-	kas_assert(constructor->count);
+	ds_assert(constructor->count);
 	constructor->last->local_size += local_size;
 	constructor->last->shared_size += shared_size;
 	constructor->last->instance_count += instance_count;
@@ -285,7 +285,7 @@ struct r_buffer **r_buffer_constructor_finish(struct r_buffer_constructor *const
 		{
 			array[i++] = buf;
 		}
-		kas_assert(i == constructor->count);
+		ds_assert(i == constructor->count);
 		array[i-1]->c_h = c_h;
 	}
 
@@ -336,7 +336,7 @@ void r_scene_generate_bucket_list(void)
 			begin_new_bucket = 0;
 			b->c_h = i-1;
 			b->next = arena_push(g_scene->mem_frame, sizeof(struct r_bucket));
-			kas_assert(b->next);
+			ds_assert(b->next);
 			b = b->next;
 			b->next = NULL;
 			b->c_l = i;
@@ -382,12 +382,12 @@ void r_scene_generate_bucket_list(void)
 						0,
 						0,
 						0);
-				kas_assert_message(buf_constructor.last->local_size <= 10000000, "ID: %k", &instance->mesh->id);
+				ds_assert_message(buf_constructor.last->local_size <= 10000000, "ID: %k", &instance->mesh->id);
 			} break;
 
 			default:
 			{
-				kas_assert_string(0, "unexpected r_instance type in generate_bucket\n");
+				ds_assert_string(0, "unexpected r_instance type in generate_bucket\n");
 			} break;
 		}
 	}
@@ -589,8 +589,8 @@ static void r_scene_bucket_generate_draw_data(struct r_bucket *b)
 							global_offset[1] = f32_round(global_offset[1]);
 
 							struct text_line *line = sel->layout->line;
-							kas_assert(sel->layout->line_count == 1);
-							kas_assert(sel->high <= line->glyph_count + 1);
+							ds_assert(sel->layout->line_count == 1);
+							ds_assert(sel->high <= line->glyph_count + 1);
 
 							const struct font_glyph *glyph = glyph_lookup(n->font, (u32) ' ');
 							f32 height = n->font->linespace;
@@ -729,7 +729,7 @@ static void r_scene_bucket_generate_draw_data(struct r_bucket *b)
 
 			default:
 			{
-				kas_assert_string(0, "Unimplemented instance type in draw call generation");
+				ds_assert_string(0, "Unimplemented instance type in draw call generation");
 			} break;
 		}
 	}
@@ -822,21 +822,21 @@ struct r_instance *r_instance_add_non_cached(const u64 cmd)
 
 u64 r_material_construct(const u64 program, const u64 mesh, const u64 texture)
 {
-	kas_assert(program <= (MATERIAL_PROGRAM_MASK >> MATERIAL_PROGRAM_LOW_BIT));
-	kas_assert(texture <= (MATERIAL_TEXTURE_MASK >> MATERIAL_TEXTURE_LOW_BIT));
+	ds_assert(program <= (MATERIAL_PROGRAM_MASK >> MATERIAL_PROGRAM_LOW_BIT));
+	ds_assert(texture <= (MATERIAL_TEXTURE_MASK >> MATERIAL_TEXTURE_LOW_BIT));
 
 	return (program << MATERIAL_PROGRAM_LOW_BIT) | (mesh << MATERIAL_MESH_LOW_BIT) | (texture << MATERIAL_TEXTURE_LOW_BIT);
 }
 
 u64 r_command_key(const u64 screen, const u64 depth, const u64 transparency, const u64 material, const u64 primitive, const u64 instanced, const u64 elements)
 {
-	kas_assert(screen <= (((u64) 1 << R_CMD_SCREEN_LAYER_BITS) - (u64) 1));
-	kas_assert(depth <= (((u64) 1 << R_CMD_DEPTH_BITS) - (u64) 1));
-	kas_assert(transparency <= (((u64) 1 << R_CMD_TRANSPARENCY_BITS) - (u64) 1));
-	kas_assert(material <= (((u64) 1 << R_CMD_MATERIAL_BITS) - (u64) 1));
-	kas_assert(primitive <= (((u64) 1 << R_CMD_PRIMITIVE_BITS) - (u64) 1));
-	kas_assert(instanced <= (((u64) 1 << R_CMD_INSTANCED_BITS) - (u64) 1));
-	kas_assert(elements <= (((u64) 1 << R_CMD_ELEMENTS_BITS) - (u64) 1));
+	ds_assert(screen <= (((u64) 1 << R_CMD_SCREEN_LAYER_BITS) - (u64) 1));
+	ds_assert(depth <= (((u64) 1 << R_CMD_DEPTH_BITS) - (u64) 1));
+	ds_assert(transparency <= (((u64) 1 << R_CMD_TRANSPARENCY_BITS) - (u64) 1));
+	ds_assert(material <= (((u64) 1 << R_CMD_MATERIAL_BITS) - (u64) 1));
+	ds_assert(primitive <= (((u64) 1 << R_CMD_PRIMITIVE_BITS) - (u64) 1));
+	ds_assert(instanced <= (((u64) 1 << R_CMD_INSTANCED_BITS) - (u64) 1));
+	ds_assert(elements <= (((u64) 1 << R_CMD_ELEMENTS_BITS) - (u64) 1));
 
 	return ((u64) screen << R_CMD_SCREEN_LAYER_LOW_BIT)		
 	      	| ((u64) depth << R_CMD_DEPTH_LOW_BIT)			

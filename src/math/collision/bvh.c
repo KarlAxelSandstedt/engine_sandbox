@@ -30,7 +30,7 @@
 
 struct bvh dbvh_alloc(struct arena *mem, const u32 initial_length, const u32 growable)
 {
-	kas_assert(!mem || !growable);
+	ds_assert(!mem || !growable);
 	struct bvh bvh =
 	{
 		.tree = bt_alloc(mem, initial_length, struct bvh_node, growable),
@@ -297,7 +297,7 @@ u32 dbvh_insert(struct bvh *bvh, const u32 id, const struct AABB *bbox)
 void dbvh_remove(struct bvh *bvh, const u32 index)
 {
 	struct bvh_node *nodes = (struct bvh_node *) bvh->tree.pool.buf;
-	kas_assert(BT_IS_LEAF(nodes + index));
+	ds_assert(BT_IS_LEAF(nodes + index));
 
 	u32 parent = nodes[index].bt_parent & BT_PARENT_INDEX_MASK;
 	if (parent == POOL_NULL)
@@ -394,7 +394,7 @@ u32 dbvh_internal_push_subtree_overlap_pairs(struct arena *mem, struct dbvh_over
 				if (q+1 >= stack_len)
 				{
 					log_string(T_PHYSICS, S_FATAL, "out-of-memory in arena based stack, increase arena size!");		
-					fatal_cleanup_and_exit(kas_thread_self_tid());
+					fatal_cleanup_and_exit(ds_thread_self_tid());
 				}
 				continue;
 			}
@@ -445,7 +445,7 @@ struct dbvh_overlap *dbvh_push_overlap_pairs(struct arena *mem, u32 *count, cons
 			if (q >= arr1.len)
 			{
 				log_string(T_PHYSICS, S_FATAL, "out-of-memory in arena based stack, increase arena size!");		
-				fatal_cleanup_and_exit(kas_thread_self_tid());
+				fatal_cleanup_and_exit(ds_thread_self_tid());
 			}
 		}
 
@@ -490,7 +490,7 @@ void bvh_validate(struct arena *tmp, const struct bvh *bvh)
 		if (!BT_IS_ROOT(node + i))
 		{
 			const u32 parent = node[i].bt_parent & BT_PARENT_INDEX_MASK;
-			kas_assert(AABB_contains_margin(&node[parent].bbox, &node[i].bbox, 0.001f));
+			ds_assert(AABB_contains_margin(&node[parent].bbox, &node[i].bbox, 0.001f));
 		}
 
 		if (!BT_IS_LEAF(node + stack[sc]))
@@ -505,7 +505,7 @@ void bvh_validate(struct arena *tmp, const struct bvh *bvh)
 
 struct tri_mesh_bvh tri_mesh_bvh_construct(struct arena *mem, const struct tri_mesh *mesh, const u32 bin_count)
 {
-	kas_assert(bin_count);
+	ds_assert(bin_count);
 	if (!mesh->tri_count)
 	{
 		return (struct tri_mesh_bvh) { 0 };
@@ -582,7 +582,7 @@ struct tri_mesh_bvh tri_mesh_bvh_construct(struct arena *mem, const struct tri_m
 		node->bbox = bbox_union(node->bbox, bbox_tri[i]);
 	}
 
-	kas_assert_string(vec3_length(node->bbox.center) < 0.0001f, "Center should most likely be 0.0, so the root box center defines a local origin!");
+	ds_assert_string(vec3_length(node->bbox.center) < 0.0001f, "Center should most likely be 0.0, so the root box center defines a local origin!");
 	
 	/* Process triangles from left to right, depth-first. */
 	while (sc--)
@@ -702,7 +702,7 @@ struct tri_mesh_bvh tri_mesh_bvh_construct(struct arena *mem, const struct tri_m
 
 				struct slot slot_left, slot_right;
 				bt_node_add_children(&mesh_bvh.bvh.tree, &slot_left, &slot_right, node_stack[sc]);
-				kas_assert(slot_left.address && slot_right.address);
+				ds_assert(slot_left.address && slot_right.address);
 
 				struct bvh_node *child_left = slot_left.address;
 				struct bvh_node *child_right = slot_right.address;
@@ -793,7 +793,7 @@ void bvh_raycast_test_and_push_children(struct bvh_raycast_info *info, const u32
 		if (info->hit_queue.count == info->hit_queue.length)
 		{
 			log_string(T_SYSTEM, S_FATAL, "distance queue in bvh_raycast OOM, aborting");
-			fatal_cleanup_and_exit(kas_thread_self_tid());
+			fatal_cleanup_and_exit(ds_thread_self_tid());
 		}
 		min_queue_fixed_push(&info->hit_queue, info->node[popped_tuple.u].bt_right, distance_right);
 	}

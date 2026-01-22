@@ -17,17 +17,17 @@
 ==========================================================================
 */
 
-#ifndef __KAS_DYNAMICS_H__
-#define __KAS_DYNAMICS_H__
+#ifndef __DS_DYNAMICS_H__
+#define __DS_DYNAMICS_H__
 
-#include "kas_common.h"
+#include "ds_common.h"
 #include "allocator.h"
 #include "list.h"
 #include "collision.h"
 #include "hash_map.h"
 #include "bit_vector.h"
 #include "array_list.h"
-#include "kas_math.h"
+#include "ds_math.h"
 
 struct rigid_body;
 struct physics_pipeline;
@@ -253,7 +253,7 @@ struct island
 	u32 body_count;
 	u32 contact_count;
 
-#ifdef KAS_PHYSICS_DEBUG
+#ifdef DS_PHYSICS_DEBUG
 	vec4 color;
 #endif
 };
@@ -277,7 +277,7 @@ struct island_database
 	u32 possible_splits_count;
 };
 
-#ifdef KAS_PHYSICS_DEBUG
+#ifdef DS_PHYSICS_DEBUG
 #define IS_DB_VALIDATE(pipeline)	is_db_validate((pipeline)
 #else
 #define IS_DB_VALIDATE(pipeline)	
@@ -596,7 +596,7 @@ void 	prefab_statics_setup(struct rigid_body_prefab *prefab, struct collision_sh
 		__physics_debug_event->island = island_index;						\
 	}
 
-#ifdef KAS_PHYSICS_DEBUG
+#ifdef DS_PHYSICS_DEBUG
 
 #define	PHYSICS_EVENT_BODY_NEW(pipeline, body)			PHYSICS_EVENT_BODY(pipeline, PHYSICS_EVENT_BODY_NEW, body)
 #define	PHYSICS_EVENT_BODY_REMOVED(pipeline, body)		PHYSICS_EVENT_BODY(pipeline, PHYSICS_EVENT_BODY_REMOVED, body)
@@ -765,7 +765,7 @@ void 			physics_pipeline_enable_sleeping(struct physics_pipeline *pipeline);
 /* disable sleeping in pipeline */
 void 			physics_pipeline_disable_sleeping(struct physics_pipeline *pipeline);
 
-#ifdef KAS_PHYSICS_DEBUG
+#ifdef DS_PHYSICS_DEBUG
 #define PHYSICS_PIPELINE_VALIDATE(pipeline)	physics_pipeline_validate(pipeline)
 #else
 #define PHYSICS_PIPELINE_VALIDATE(pipeline)	

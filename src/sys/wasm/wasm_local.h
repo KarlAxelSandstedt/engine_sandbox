@@ -25,7 +25,7 @@
 
 #include <time.h>
 #include <errno.h>
-#include "kas_common.h"
+#include "ds_common.h"
 #include "sys_common.h"
 #include "wasm_public.h"
 #include "log.h"
@@ -36,9 +36,9 @@
 
 //#include <setjmp.h>
 
-struct kas_thread
+struct ds_thread
 {
-	void		(*start)(kas_thread *);	/* beginning of execution for thread */
+	void		(*start)(ds_thread *);	/* beginning of execution for thread */
 	void 		*args;			/* thread arguments */
 	void 		*ret;			/* adress to returned value, if any */
 	void		*stack;			/* adress to mprotected page at bottom of stack (top == stack + size + pagesize) */

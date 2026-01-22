@@ -240,100 +240,100 @@ struct gl_texture_unit
 	u32	gl_tx_cube_map_index;	/* index 0 is reserved for no texture (as opengl expects)  */
 };
 
-GLboolean	kas_glIsEnabled(GLenum cap);
-void 		kas_glGetIntegerv(GLenum pname, GLint *data);
-const GLubyte * kas_glGetString(GLenum name);
-void		kas_glGetTexParameterfv(GLenum target, GLenum pname, GLfloat *params);
-void		kas_glGetTexParameteriv(GLenum target, GLenum pname, GLint *params);
+GLboolean	ds_glIsEnabled(GLenum cap);
+void 		ds_glGetIntegerv(GLenum pname, GLint *data);
+const GLubyte * ds_glGetString(GLenum name);
+void		ds_glGetTexParameterfv(GLenum target, GLenum pname, GLfloat *params);
+void		ds_glGetTexParameteriv(GLenum target, GLenum pname, GLint *params);
 
-void		kas_glClear(GLbitfield mask);
-void		kas_glClearColor(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
+void		ds_glClear(GLbitfield mask);
+void		ds_glClearColor(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha);
 
-void		kas_glViewport(GLint x, GLint y, GLsizei width, GLsizei height);
-void		kas_glPolygonMode(GLenum face, GLenum mode);
+void		ds_glViewport(GLint x, GLint y, GLsizei width, GLsizei height);
+void		ds_glPolygonMode(GLenum face, GLenum mode);
 
-void 	kas_glGenBuffers(GLsizei n, GLuint *buffers);
-void 	kas_glBindBuffer(GLenum target, GLuint buffer);
-void 	kas_glBufferData(GLenum target, GLsizeiptr size, const void *data, GLenum usage);
-void 	kas_glBufferSubData(GLenum target, GLintptr offset, GLsizeiptr size,  const void *data);
-void 	kas_glDeleteBuffers(GLsizei n, const GLuint *buffers);
+void 	ds_glGenBuffers(GLsizei n, GLuint *buffers);
+void 	ds_glBindBuffer(GLenum target, GLuint buffer);
+void 	ds_glBufferData(GLenum target, GLsizeiptr size, const void *data, GLenum usage);
+void 	ds_glBufferSubData(GLenum target, GLintptr offset, GLsizeiptr size,  const void *data);
+void 	ds_glDeleteBuffers(GLsizei n, const GLuint *buffers);
 
-GLuint 	kas_glCreateProgram(void);
-void 	kas_glLinkProgram(GLuint program);
-void 	kas_glUseProgram(GLuint program);
-void 	kas_glDeleteProgram(GLuint program);
-void	kas_glGetProgramiv(GLuint program, GLenum pname, GLint *params);
-void	kas_glGetProgramInfoLog(GLuint program, GLsizei bufSize, GLsizei *length, GLchar *infoLog);
+GLuint 	ds_glCreateProgram(void);
+void 	ds_glLinkProgram(GLuint program);
+void 	ds_glUseProgram(GLuint program);
+void 	ds_glDeleteProgram(GLuint program);
+void	ds_glGetProgramiv(GLuint program, GLenum pname, GLint *params);
+void	ds_glGetProgramInfoLog(GLuint program, GLsizei bufSize, GLsizei *length, GLchar *infoLog);
 
-void 	kas_glDrawArrays(GLenum mode, GLint first, GLsizei count);
-void 	kas_glDrawElements(GLenum mode, GLsizei count, GLenum type, const void *indices);
-void 	kas_glDrawArraysInstanced(GLenum mode, GLint first, GLint count, GLsizei primcount);
-void 	kas_glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const void *indices, GLsizei primcount);
+void 	ds_glDrawArrays(GLenum mode, GLint first, GLsizei count);
+void 	ds_glDrawElements(GLenum mode, GLsizei count, GLenum type, const void *indices);
+void 	ds_glDrawArraysInstanced(GLenum mode, GLint first, GLint count, GLsizei primcount);
+void 	ds_glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const void *indices, GLsizei primcount);
 
-void 	kas_glGenVertexArrays(GLsizei n, GLuint *arrays);
-void 	kas_glDeleteVertexArrays(GLsizei n, const GLuint *arrays);
-void 	kas_glBindVertexArray(GLuint array);
+void 	ds_glGenVertexArrays(GLsizei n, GLuint *arrays);
+void 	ds_glDeleteVertexArrays(GLsizei n, const GLuint *arrays);
+void 	ds_glBindVertexArray(GLuint array);
 
-void 	kas_glEnableVertexAttribArray(GLuint index);
-void 	kas_glDisableVertexAttribArray(GLuint index);
-void 	kas_glVertexAttribPointer(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *pointer);
-void 	kas_glVertexAttribIPointer(GLuint index, GLint size, GLenum type, GLsizei stride, const void *pointer);
-void 	kas_glVertexAttribLPointer(GLuint index, GLint size, GLenum type, GLsizei stride, const void *pointer);
-void	kas_glVertexAttribDivisor(GLuint index, GLuint divisor);
+void 	ds_glEnableVertexAttribArray(GLuint index);
+void 	ds_glDisableVertexAttribArray(GLuint index);
+void 	ds_glVertexAttribPointer(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *pointer);
+void 	ds_glVertexAttribIPointer(GLuint index, GLint size, GLenum type, GLsizei stride, const void *pointer);
+void 	ds_glVertexAttribLPointer(GLuint index, GLint size, GLenum type, GLsizei stride, const void *pointer);
+void	ds_glVertexAttribDivisor(GLuint index, GLuint divisor);
 
-GLuint	kas_glGetUniformLocation(GLuint program, const GLchar *name);
-void	kas_glUniform1f(GLint location, GLfloat v0);
-void	kas_glUniform2f(GLint location, GLfloat v0, GLfloat v1);
-void	kas_glUniform3f(GLint location, GLfloat v0, GLfloat v1, GLfloat v2);
-void	kas_glUniform4f(GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3);
-void	kas_glUniform1i(GLint location, GLint v0);
-void	kas_glUniform2i(GLint location, GLint v0, GLint v1);
-void	kas_glUniform3i(GLint location, GLint v0, GLint v1, GLint v2);
-void	kas_glUniform4i(GLint location, GLint v0, GLint v1, GLint v2, GLint v3);
-void	kas_glUniform1ui(GLint location, GLuint v0);
-void	kas_glUniform2ui(GLint location, GLuint v0, GLuint v1);
-void	kas_glUniform3ui(GLint location, GLuint v0, GLuint v1, GLuint v2);
-void	kas_glUniform4ui(GLint location, GLuint v0, GLuint v1, GLuint v2, GLuint v3);
-void	kas_glUniform1fv(GLint location, GLsizei count, const GLfloat *value);
-void	kas_glUniform2fv(GLint location, GLsizei count, const GLfloat *value);
-void	kas_glUniform3fv(GLint location, GLsizei count, const GLfloat *value);
-void	kas_glUniform4fv(GLint location, GLsizei count, const GLfloat *value);
-void	kas_glUniform1iv(GLint location, GLsizei count, const GLint *value);
-void	kas_glUniform2iv(GLint location, GLsizei count, const GLint *value);
-void	kas_glUniform3iv(GLint location, GLsizei count, const GLint *value);
-void	kas_glUniform4iv(GLint location, GLsizei count, const GLint *value);
-void	kas_glUniform1uiv(GLint location, GLsizei count, const GLuint *value);
-void	kas_glUniform2uiv(GLint location, GLsizei count, const GLuint *value);
-void	kas_glUniform3uiv(GLint location, GLsizei count, const GLuint *value);
-void	kas_glUniform4uiv(GLint location, GLsizei count, const GLuint *value);
-void	kas_glUniformMatrix2fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
-void	kas_glUniformMatrix3fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
-void	kas_glUniformMatrix4fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
+GLuint	ds_glGetUniformLocation(GLuint program, const GLchar *name);
+void	ds_glUniform1f(GLint location, GLfloat v0);
+void	ds_glUniform2f(GLint location, GLfloat v0, GLfloat v1);
+void	ds_glUniform3f(GLint location, GLfloat v0, GLfloat v1, GLfloat v2);
+void	ds_glUniform4f(GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3);
+void	ds_glUniform1i(GLint location, GLint v0);
+void	ds_glUniform2i(GLint location, GLint v0, GLint v1);
+void	ds_glUniform3i(GLint location, GLint v0, GLint v1, GLint v2);
+void	ds_glUniform4i(GLint location, GLint v0, GLint v1, GLint v2, GLint v3);
+void	ds_glUniform1ui(GLint location, GLuint v0);
+void	ds_glUniform2ui(GLint location, GLuint v0, GLuint v1);
+void	ds_glUniform3ui(GLint location, GLuint v0, GLuint v1, GLuint v2);
+void	ds_glUniform4ui(GLint location, GLuint v0, GLuint v1, GLuint v2, GLuint v3);
+void	ds_glUniform1fv(GLint location, GLsizei count, const GLfloat *value);
+void	ds_glUniform2fv(GLint location, GLsizei count, const GLfloat *value);
+void	ds_glUniform3fv(GLint location, GLsizei count, const GLfloat *value);
+void	ds_glUniform4fv(GLint location, GLsizei count, const GLfloat *value);
+void	ds_glUniform1iv(GLint location, GLsizei count, const GLint *value);
+void	ds_glUniform2iv(GLint location, GLsizei count, const GLint *value);
+void	ds_glUniform3iv(GLint location, GLsizei count, const GLint *value);
+void	ds_glUniform4iv(GLint location, GLsizei count, const GLint *value);
+void	ds_glUniform1uiv(GLint location, GLsizei count, const GLuint *value);
+void	ds_glUniform2uiv(GLint location, GLsizei count, const GLuint *value);
+void	ds_glUniform3uiv(GLint location, GLsizei count, const GLuint *value);
+void	ds_glUniform4uiv(GLint location, GLsizei count, const GLuint *value);
+void	ds_glUniformMatrix2fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
+void	ds_glUniformMatrix3fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
+void	ds_glUniformMatrix4fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
 
 /* gles2 wrappers with state checks to reduce / get statistics on calls */
-void 	kas_glEnableBlending(void);
-void 	kas_glDisableBlending(void);
-void 	kas_glBlendEquation(const GLenum eq);
-void 	kas_glBlendEquationSeparate(const GLenum eq_rgb, const GLenum eq_a);
-void 	kas_glBlendFunc(const GLenum sfactor, const GLenum dfactor);
-void 	kas_glBlendFuncSeparate(const GLenum srcRGB, const GLenum dstRGB, const GLenum srcAlpha, const GLenum dstAlpha);
+void 	ds_glEnableBlending(void);
+void 	ds_glDisableBlending(void);
+void 	ds_glBlendEquation(const GLenum eq);
+void 	ds_glBlendEquationSeparate(const GLenum eq_rgb, const GLenum eq_a);
+void 	ds_glBlendFunc(const GLenum sfactor, const GLenum dfactor);
+void 	ds_glBlendFuncSeparate(const GLenum srcRGB, const GLenum dstRGB, const GLenum srcAlpha, const GLenum dstAlpha);
 
-void 	kas_glEnableFaceCulling(void);
-void 	kas_glDisableFaceCulling(void);
-void 	kas_glCullFace(const GLenum mode);
-void 	kas_glFrontFace(const GLenum mode);
+void 	ds_glEnableFaceCulling(void);
+void 	ds_glDisableFaceCulling(void);
+void 	ds_glCullFace(const GLenum mode);
+void 	ds_glFrontFace(const GLenum mode);
 
-void 	kas_glEnableDepthTesting(void);
-void 	kas_glDisableDepthTesting(void);
+void 	ds_glEnableDepthTesting(void);
+void 	ds_glDisableDepthTesting(void);
 
 /* Note: These functions work exactly how gles2 expects them too, but in reality we are getting back and using 
  * texture indices, which under the hood gets translated to actual opengl texture names. This is done so that 
  * we can do some internal book-keeping state of buffers and opengl.
  */
-void 	kas_glGenTextures(const GLsizei count, GLuint tx[]);
-void 	kas_glDeleteTextures(const GLsizei count, const GLuint tx[]);
-void 	kas_glBindTexture(const GLenum target, const GLuint tx);
-void 	kas_glTexImage2D(const GLenum target,
+void 	ds_glGenTextures(const GLsizei count, GLuint tx[]);
+void 	ds_glDeleteTextures(const GLsizei count, const GLuint tx[]);
+void 	ds_glBindTexture(const GLenum target, const GLuint tx);
+void 	ds_glTexImage2D(const GLenum target,
 		      const GLint level,
 		      const GLint internalformat,
 		      const GLsizei width,
@@ -342,23 +342,23 @@ void 	kas_glTexImage2D(const GLenum target,
 		      const GLenum format,
 		      const GLenum type,
 		      const void *data);
-void 	kas_glTexParameteri(const GLenum target, const GLenum pname, const GLint param);
-void 	kas_glTexParameterf(const GLenum target, const GLenum pname, const GLfloat param);
-void 	kas_glTexParameteriv(const GLenum target, const GLenum pname, const GLint *params);
-void 	kas_glTexParameterfv(const GLenum target, const GLenum pname, const GLfloat *params);
-void 	kas_glActiveTexture(const GLenum tx_unit);
-void	kas_glGenerateMipmap(GLenum target);
+void 	ds_glTexParameteri(const GLenum target, const GLenum pname, const GLint param);
+void 	ds_glTexParameterf(const GLenum target, const GLenum pname, const GLfloat param);
+void 	ds_glTexParameteriv(const GLenum target, const GLenum pname, const GLint *params);
+void 	ds_glTexParameterfv(const GLenum target, const GLenum pname, const GLfloat *params);
+void 	ds_glActiveTexture(const GLenum tx_unit);
+void	ds_glGenerateMipmap(GLenum target);
 
-void	kas_glGetShaderiv(GLuint shader, GLenum pname, GLint *params);
-void	kas_glGetShaderInfoLog(GLuint shader, GLsizei bufSize, GLsizei *length, GLchar *infoLog);
-GLuint 	kas_glCreateShader(GLenum type);
-void 	kas_glShaderSource(GLuint shader, GLsizei count, const GLchar **string, const GLint *length);
-void 	kas_glCompileShader(GLuint shader);
-void 	kas_glAttachShader(GLuint program, GLuint shader);
-void 	kas_glDetachShader(GLuint program, GLuint shader);
-void 	kas_glDeleteShader(GLuint shader);
+void	ds_glGetShaderiv(GLuint shader, GLenum pname, GLint *params);
+void	ds_glGetShaderInfoLog(GLuint shader, GLsizei bufSize, GLsizei *length, GLchar *infoLog);
+GLuint 	ds_glCreateShader(GLenum type);
+void 	ds_glShaderSource(GLuint shader, GLsizei count, const GLchar **string, const GLint *length);
+void 	ds_glCompileShader(GLuint shader);
+void 	ds_glAttachShader(GLuint program, GLuint shader);
+void 	ds_glDetachShader(GLuint program, GLuint shader);
+void 	ds_glDeleteShader(GLuint shader);
 
-#ifdef KAS_GL_DEBUG
+#ifdef DS_GL_DEBUG
 
 /* TODO Verify that gl_state actually represents the true opengl state machine */
 void gl_state_assert(void);

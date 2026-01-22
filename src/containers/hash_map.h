@@ -17,10 +17,10 @@
 ==========================================================================
 */
 
-#ifndef __KAS_HASH_MAP_H__
-#define __KAS_HASH_MAP_H__
+#ifndef __DS_HASH_MAP_H__
+#define __DS_HASH_MAP_H__
 
-#include "kas_common.h"
+#include "ds_common.h"
 #include "serialize.h"
 #include "allocator.h"
 

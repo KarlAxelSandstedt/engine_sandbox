@@ -21,27 +21,27 @@
 
 void r_proxy3d_buffer_local_layout_setter(void)
 {
-	kas_glEnableVertexAttribArray(3);
-	kas_glEnableVertexAttribArray(4);
+	ds_glEnableVertexAttribArray(3);
+	ds_glEnableVertexAttribArray(4);
 
-	kas_glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, L_PROXY3D_STRIDE, (void *) L_PROXY3D_POSITION_OFFSET);
-	kas_glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, L_PROXY3D_STRIDE, (void *) L_PROXY3D_NORMAL_OFFSET);
+	ds_glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, L_PROXY3D_STRIDE, (void *) L_PROXY3D_POSITION_OFFSET);
+	ds_glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, L_PROXY3D_STRIDE, (void *) L_PROXY3D_NORMAL_OFFSET);
 }
 
 void r_proxy3d_buffer_shared_layout_setter(void)
 {
 
-	kas_glEnableVertexAttribArray(0);
-	kas_glEnableVertexAttribArray(1);
-	kas_glEnableVertexAttribArray(2);
+	ds_glEnableVertexAttribArray(0);
+	ds_glEnableVertexAttribArray(1);
+	ds_glEnableVertexAttribArray(2);
 
-	kas_glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, S_PROXY3D_STRIDE, (void *) S_PROXY3D_TRANSLATION_BLEND_OFFSET);
-	kas_glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, S_PROXY3D_STRIDE, (void *) S_PROXY3D_ROTATION_OFFSET);
-	kas_glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, S_PROXY3D_STRIDE, (void *) S_PROXY3D_COLOR_OFFSET);
+	ds_glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, S_PROXY3D_STRIDE, (void *) S_PROXY3D_TRANSLATION_BLEND_OFFSET);
+	ds_glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, S_PROXY3D_STRIDE, (void *) S_PROXY3D_ROTATION_OFFSET);
+	ds_glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, S_PROXY3D_STRIDE, (void *) S_PROXY3D_COLOR_OFFSET);
 
-	kas_glVertexAttribDivisor(0, 1);
-	kas_glVertexAttribDivisor(1, 1);
-	kas_glVertexAttribDivisor(2, 1);
+	ds_glVertexAttribDivisor(0, 1);
+	ds_glVertexAttribDivisor(1, 1);
+	ds_glVertexAttribDivisor(2, 1);
 }
 
 void r_proxy3d_set_linear_speculation(const vec3 position, const quat rotation, const vec3 linear_velocity, const vec3 angular_velocity, const u64 ns_time, const u32 proxy_index)

@@ -29,18 +29,18 @@
 #include <sys/random.h>
 #include <unistd.h>
 
-#include "kas_common.h"
+#include "ds_common.h"
 #include "linux_local.h"
 #include "memory.h"
-#include "kas_string.h"
+#include "ds_string.h"
 #include "sys_public.h"
 #include "asset_public.h"
 #include "r_public.h"
 #include "led_public.h"
 #include "ui_public.h"
-#include "kas_random.h"
+#include "ds_random.h"
 
-#if defined(KAS_TEST_CORRECTNESS) || defined(KAS_TEST_PERFORMANCE)
+#if defined(DS_TEST_CORRECTNESS) || defined(DS_TEST_PERFORMANCE)
 #include "test_public.h"
 #endif
 
@@ -48,7 +48,7 @@ const char * const main_str = "main";
 
 int main(int argc, char *argv[])
 {	
-#if defined(KAS_TEST_CORRECTNESS)
+#if defined(DS_TEST_CORRECTNESS)
 	u64 seed[4] = { 6712394175642371735lu, 15709062239796375561lu, 2231484769219996854lu, 779317575278281131lu };
 #else
 	u64 seed[4];
@@ -66,7 +66,7 @@ int main(int argc, char *argv[])
 	cmd_alloc();
 	ui_init_global_state();
 	asset_database_init(&mem_persistent);
-#if defined(KAS_TEST_CORRECTNESS) || defined(KAS_TEST_PERFORMANCE)
+#if defined(DS_TEST_CORRECTNESS) || defined(DS_TEST_PERFORMANCE)
 	test_main();
 #else
 	struct led *editor = led_alloc();

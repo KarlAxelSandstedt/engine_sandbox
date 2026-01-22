@@ -24,9 +24,9 @@
 #include <sys/stat.h>
 #include <sys/mman.h>
 
-#include "kas_common.h"
+#include "ds_common.h"
 #include "allocator.h"
-#include "kas_string.h"
+#include "ds_string.h"
 
 /******************** linux memory utils  ********************/
 
@@ -49,12 +49,12 @@
 #define breakpoint(condition) if (!(condition)) { } else { asm ("int3; nop"); }
 #endif 
 
-#define kas_static_assert(assertion, str)	_Static_assert(assertion, str)
+#define ds_static_assert(assertion, str)	_Static_assert(assertion, str)
 
-#ifdef KAS_ASSERT_DEBUG
-#define kas_assert(assertion)			_kas_assert(assertion, __FILE__, __LINE__, __func__)
-#define kas_assert_string(assertion, cstr)	_kas_assert_string(assertion, __FILE__, __LINE__, __func__, cstr) 
-#define kas_assert_message(assertion, msg, ...)	_kas_assert_message(assertion, __FILE__, __LINE__, __func__, msg, __VA_ARGS__)
+#ifdef DS_ASSERT_DEBUG
+#define ds_assert(assertion)			_kas_assert(assertion, __FILE__, __LINE__, __func__)
+#define ds_assert_string(assertion, cstr)	_kas_assert_string(assertion, __FILE__, __LINE__, __func__, cstr) 
+#define ds_assert_message(assertion, msg, ...)	_kas_assert_message(assertion, __FILE__, __LINE__, __func__, msg, __VA_ARGS__)
 
 #define _kas_assert(assertion, file, line, func)							\
 	if (assertion) { }										\
@@ -83,9 +83,9 @@
 	}
 
 #else
-#define kas_assert(assertion)
-#define kas_assert_string(assertion, str)
-#define kas_assert_message(assertion, msg, ...)
+#define ds_assert(assertion)
+#define ds_assert_string(assertion, str)
+#define ds_assert_message(assertion, msg, ...)
 #define _kas_assert(assertion, file, line, func)
 #define _kas_assert_string(assertion, file, line, func, str)
 #define _kas_assert_message(assertion, file, line, func, str, ...)
@@ -132,7 +132,7 @@ void 	os_arch_init_func_ptrs(void);
 
 typedef pid_t			pid;
 typedef pid_t			tid;
-typedef struct kas_thread 	kas_thread;
+typedef struct ds_thread 	ds_thread;
 
 /********************  linux_sync_primitives.c	********************/
 

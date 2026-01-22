@@ -20,13 +20,13 @@
 #ifndef __UI_PUBLIC_H__
 #define __UI_PUBLIC_H__
 
-#include "kas_common.h"
-#include "kas_math.h"
+#include "ds_common.h"
+#include "ds_math.h"
 #include "allocator.h"
 #include "asset_public.h"
 #include "array_list.h"
 #include "hierarchy_index.h"
-#include "kas_vector.h"
+#include "ds_vector.h"
 #include "list.h"
 
 #define UI_SCOPE(PUSH, POP)	for (i32 __i = ((PUSH), 0); __i < 1; ++__i, (POP))
@@ -461,9 +461,9 @@ struct ui_interaction
 	vec2 	cursor_position;    /* window bottom left = (0.0f, 0.0f) */
 
 	/* keyboard state */
-	u32 	key_clicked[KAS_KEY_COUNT];	/* frame : Was key clicked this frame? [KAS_KEYCODE_COUNT] 	*/
-	u32 	key_released[KAS_KEY_COUNT];	/* frame : Was key clicked this frame? [KAS_KEYCODE_COUNT] 	*/
-	u32 	key_pressed[KAS_KEY_COUNT];	/* persistent : Is key currently pressed? [KAS_KEYCODE_COUNT] 	*/
+	u32 	key_clicked[DS_KEY_COUNT];	/* frame : Was key clicked this frame? [DS_KEYCODE_COUNT] 	*/
+	u32 	key_released[DS_KEY_COUNT];	/* frame : Was key clicked this frame? [DS_KEYCODE_COUNT] 	*/
+	u32 	key_pressed[DS_KEY_COUNT];	/* persistent : Is key currently pressed? [DS_KEYCODE_COUNT] 	*/
 
 	/* mouse state */
 	u64	ns_double_click;

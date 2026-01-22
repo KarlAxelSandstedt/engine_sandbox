@@ -23,8 +23,8 @@
 #include "wasm_local.h"
 #include "sys_public.h"
 
-void 		(*kas_cpuid)(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, const u32 function);
-void 		(*kas_cpuid_ex)(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, const u32 function, const u32 subfunction);
+void 		(*ds_cpuid)(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, const u32 function);
+void 		(*ds_cpuid_ex)(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, const u32 function, const u32 subfunction);
 u32  		(*system_logical_core_count)(void);
 u64  		(*system_pagesize)(void);
 pid		(*system_pid)(void);
@@ -88,8 +88,8 @@ pid wasm_pid(void)
 
 void os_arch_init_func_ptrs(void)
 {
-	kas_cpuid = NULL;
-	kas_cpuid_ex = NULL;
+	ds_cpuid = NULL;
+	ds_cpuid_ex = NULL;
 	system_logical_core_count = &wasm_logical_core_count;
 	system_pagesize = &wasm_pagesize;
 	system_pid = &wasm_pid;

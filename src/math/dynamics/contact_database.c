@@ -22,13 +22,13 @@
 
 u32 c_db_index_in_previous_contact_node(struct nll *net, void **prev_node, const void *cur_node, const u32 cur_index)
 {
-	kas_assert(cur_index <= 1);
+	ds_assert(cur_index <= 1);
 	const struct contact *c = cur_node;
 	const u32 body = (1-cur_index) * CONTACT_KEY_TO_BODY_0(c->key) + cur_index * CONTACT_KEY_TO_BODY_1(c->key);
 	
 	*prev_node = nll_address(net, c->nll_prev[cur_index]);
 	const u64 key = ((struct contact *) *prev_node)->key;
-	kas_assert(c->nll_prev[cur_index] == NLL_NULL || body == CONTACT_KEY_TO_BODY_0(key) || body == CONTACT_KEY_TO_BODY_1(key));
+	ds_assert(c->nll_prev[cur_index] == NLL_NULL || body == CONTACT_KEY_TO_BODY_0(key) || body == CONTACT_KEY_TO_BODY_1(key));
 	return (body == CONTACT_KEY_TO_BODY_0(key))
 		? 0
 		: 1;
@@ -36,13 +36,13 @@ u32 c_db_index_in_previous_contact_node(struct nll *net, void **prev_node, const
 
 u32 c_db_index_in_next_contact_node(struct nll *net, void **next_node, const void *cur_node, const u32 cur_index)
 {
-	kas_assert(cur_index <= 1);
+	ds_assert(cur_index <= 1);
 	const struct contact *c = cur_node;
 	const u32 body = (1-cur_index) * CONTACT_KEY_TO_BODY_0(c->key) + cur_index * CONTACT_KEY_TO_BODY_1(c->key);
 	
 	*next_node = nll_address(net, c->nll_next[cur_index]);
 	const u64 key = ((struct contact *) *next_node)->key;
-	kas_assert(c->nll_next[cur_index] == NLL_NULL || body == CONTACT_KEY_TO_BODY_0(key) || body == CONTACT_KEY_TO_BODY_1(key));
+	ds_assert(c->nll_next[cur_index] == NLL_NULL || body == CONTACT_KEY_TO_BODY_0(key) || body == CONTACT_KEY_TO_BODY_1(key));
 	return (body == CONTACT_KEY_TO_BODY_0(key))
 		? 0
 		: 1;
@@ -51,7 +51,7 @@ u32 c_db_index_in_next_contact_node(struct nll *net, void **next_node, const voi
 struct contact_database c_db_alloc(struct arena *mem_persistent, const u32 size)
 {
 	struct contact_database c_db = { 0 };
-	kas_assert(is_power_of_two(size));
+	ds_assert(is_power_of_two(size));
 
 	c_db.sat_cache_list = dll_init(struct sat_cache);
 	c_db.sat_cache_map = hash_map_alloc(NULL, size, size, GROWABLE);
@@ -90,7 +90,7 @@ void c_db_validate(const struct physics_pipeline *pipeline)
 		if (bit_vec_get_bit(&pipeline->c_db.contacts_persistent_usage, i))
 		{
 			const struct contact *c = nll_address(&pipeline->c_db.contact_net, (u32) i);
-			kas_assert(POOL_SLOT_ALLOCATED(c));
+			ds_assert(POOL_SLOT_ALLOCATED(c));
 
 			//fprintf(stderr, "contact[%lu] (next[0], next[1], prev[0], prev[1]) : (%u,%u,%u,%u)\n",
 			//	       i,
@@ -115,22 +115,22 @@ void c_db_validate(const struct physics_pipeline *pipeline)
 				}
 
 				const struct contact *tmp = nll_address(&pipeline->c_db.contact_net, k);
-				kas_assert(POOL_SLOT_ALLOCATED(tmp));
+				ds_assert(POOL_SLOT_ALLOCATED(tmp));
 				if (CONTACT_KEY_TO_BODY_0(tmp->key) == c->cm.i1)
 				{
-					kas_assert(prev == tmp->nll_prev[0]);
+					ds_assert(prev == tmp->nll_prev[0]);
 					prev = k;
 					k = tmp->nll_next[0];
 				}
 				else
 				{
-					kas_assert(CONTACT_KEY_TO_BODY_1(tmp->key) == c->cm.i1);
-					kas_assert(prev == tmp->nll_prev[1]);
+					ds_assert(CONTACT_KEY_TO_BODY_1(tmp->key) == c->cm.i1);
+					ds_assert(prev == tmp->nll_prev[1]);
 					prev = k;
 					k = tmp->nll_next[1];
 				}
 			}
-			kas_assert(found);
+			ds_assert(found);
  
 			prev = NLL_NULL;
 			k = b2->first_contact_index;
@@ -144,29 +144,29 @@ void c_db_validate(const struct physics_pipeline *pipeline)
 				}
 
 				const struct contact *tmp = nll_address(&pipeline->c_db.contact_net, k);
-				kas_assert(POOL_SLOT_ALLOCATED(tmp));
+				ds_assert(POOL_SLOT_ALLOCATED(tmp));
 				if (CONTACT_KEY_TO_BODY_0(tmp->key) == c->cm.i2)
 				{
-					kas_assert(prev == tmp->nll_prev[0]);
+					ds_assert(prev == tmp->nll_prev[0]);
 					prev = k;
 					k = tmp->nll_next[0];
 				}
 				else
 				{
-					kas_assert(prev == tmp->nll_prev[1]);
-					kas_assert(CONTACT_KEY_TO_BODY_1(tmp->key) == c->cm.i2);
+					ds_assert(prev == tmp->nll_prev[1]);
+					ds_assert(CONTACT_KEY_TO_BODY_1(tmp->key) == c->cm.i2);
 					prev = k;
 					k = tmp->nll_next[1];
 				}
 			}
-			kas_assert(found);
+			ds_assert(found);
 		}
 	}
 }
 
 void c_db_update_persistent_contacts_usage(struct contact_database *c_db)
 {
-	kas_assert(c_db->contacts_persistent_usage.block_count == c_db->contacts_frame_usage.block_count);
+	ds_assert(c_db->contacts_persistent_usage.block_count == c_db->contacts_frame_usage.block_count);
 	for (u64 i = 0; i < c_db->contacts_frame_usage.block_count; ++i)
 	{
 		c_db->contacts_persistent_usage.bits[i] = c_db->contacts_frame_usage.bits[i];	
@@ -229,15 +229,15 @@ struct contact *c_db_add_contact(struct physics_pipeline *pipeline, const struct
 	struct rigid_body *body2 = pool_address(&pipeline->body_pool, b2);
 
 	const u64 key = key_gen_u32_u32(b1, b2);
-	kas_assert(b1 == CONTACT_KEY_TO_BODY_0(key));
-	kas_assert(b2 == CONTACT_KEY_TO_BODY_1(key));
+	ds_assert(b1 == CONTACT_KEY_TO_BODY_0(key));
+	ds_assert(b2 == CONTACT_KEY_TO_BODY_1(key));
 	const u32 index = c_db_lookup_contact_index(&pipeline->c_db, b1, b2);
 
 	if (index == NLL_NULL)
 	{
 		/* smaller valued body owns slot 0, larger valued body owns slot 1 in node header */
-		kas_assert(POOL_SLOT_ALLOCATED(body1));
-		kas_assert(POOL_SLOT_ALLOCATED(body2));
+		ds_assert(POOL_SLOT_ALLOCATED(body1));
+		ds_assert(POOL_SLOT_ALLOCATED(body2));
 		struct contact cpy =
 		{
 			.cm = *cm,
@@ -340,7 +340,7 @@ u32 *c_db_remove_static_contacts_and_store_affected_islands(struct arena *mem, u
 	*count = 0;
 
 	struct rigid_body *body = pool_address(&pipeline->body_pool, static_index);
-	kas_assert(body->island_index == ISLAND_STATIC);
+	ds_assert(body->island_index == ISLAND_STATIC);
 	u32 ci = body->first_contact_index;
 	body->first_contact_index = NLL_NULL;
 	while (ci != NLL_NULL)
@@ -441,7 +441,7 @@ void sat_cache_add(struct contact_database *c_db, const struct sat_cache *sat_ca
 {
 	const u32 b0 = CONTACT_KEY_TO_BODY_0(sat_cache->key);
 	const u32 b1 = CONTACT_KEY_TO_BODY_1(sat_cache->key);
-	kas_assert(sat_cache_lookup(c_db, b0, b1) == NULL);
+	ds_assert(sat_cache_lookup(c_db, b0, b1) == NULL);
 
 	//breakpoint(b0 == 62 && b1 == 66);
 	struct slot slot = pool_add(&c_db->sat_cache_pool);
@@ -456,7 +456,7 @@ void sat_cache_add(struct contact_database *c_db, const struct sat_cache *sat_ca
 
 struct sat_cache *sat_cache_lookup(const struct contact_database *c_db, const u32 b1, const u32 b2)
 {
-	kas_assert(b1 < b2);
+	ds_assert(b1 < b2);
 	const u64 key = key_gen_u32_u32(b1, b2);
 	struct sat_cache *ret = NULL;
 	for (u32 i = hash_map_first(c_db->sat_cache_map, (u32) key); i != HASH_NULL; i = hash_map_next(c_db->sat_cache_map, i))

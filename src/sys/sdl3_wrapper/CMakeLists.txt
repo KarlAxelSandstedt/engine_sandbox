@@ -11,10 +11,10 @@ add_library(sdl3_wrapper STATIC
 target_include_directories(sdl3_wrapper INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(sdl3_wrapper 
 	PUBLIC 
-		kas_common 
+		ds_common 
 		system_common
 	       	containers 
-		kas_string
+		ds_string
 	PRIVATE
 		system_gl
 )

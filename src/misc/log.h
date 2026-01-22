@@ -17,17 +17,17 @@
 ==========================================================================
 */
 
-#ifndef __KAS_LOG_H__
-#define __KAS_LOG_H__
+#ifndef __DS_LOG_H__
+#define __DS_LOG_H__
 
-#include "kas_common.h"
+#include "ds_common.h"
 
 #define LOG_MAX_MESSAGES		512
 #define LOG_MAX_MESSAGE_SIZE 		512
 
 #include <stdarg.h>
 #include "allocator.h"
-#include "kas_string.h"
+#include "ds_string.h"
 
 void 	log_init(struct arena *mem, const char *filepath);
 void 	log_shutdown();
@@ -38,7 +38,7 @@ void 	log_shutdown();
  */
 void 	log_write_message(const enum system_id system, const enum severity_id severity, const char *format, ... );
 
-#ifdef KAS_LOG
+#ifdef DS_LOG
 
 #define log_string(system, severity, msg, ...)		log_write_message(system, severity, msg)
 #define log(system, severity, msg, ...)			log_write_message(system, severity, msg, __VA_ARGS__)

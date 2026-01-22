@@ -1,4 +1,4 @@
-#include "kas_random.h"
+#include "ds_random.h"
 #include "sys_public.h"
 
 /* xoshiro_256** */
@@ -38,8 +38,8 @@ void g_xoshiro_256_init(const u64 seed[4])
 	g_xoshiro_256[3] = seed[3];
 }
 
-kas_thread_local u64 thread_xoshiro_256[4];
-kas_thread_local u64 thread_pushed_state[4];
+ds_thread_local u64 thread_xoshiro_256[4];
+ds_thread_local u64 thread_pushed_state[4];
 
 void rng_push_state(void)
 {
@@ -78,7 +78,7 @@ inline u64 rng_u64(void)
 
 u64 rng_u64_range(const u64 min, const u64 max)
 {
-	kas_assert(min <= max);
+	ds_assert(min <= max);
 	const u64 r = rng_u64();
 	const u64 interval = max-min+1;
 	return (interval == 0) ? r : (r % interval) + min;
@@ -91,7 +91,7 @@ f32 rng_f32_normalized(void)
 
 f32 rng_f32_range(const f32 min, const f32 max)
 {
-	kas_assert(min <= max);
+	ds_assert(min <= max);
 	return rng_f32_normalized() * (max-min) + min;
 }
 

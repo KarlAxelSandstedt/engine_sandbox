@@ -24,7 +24,7 @@
 /* Add new body to island */
 static void is_db_internal_add_body_to_island(struct physics_pipeline *pipeline, struct island *is, const u32 body)
 {
-	kas_assert(is->body_first != ISLAND_NULL && is->body_last != ISLAND_NULL);
+	ds_assert(is->body_first != ISLAND_NULL && is->body_last != ISLAND_NULL);
 
 	const u32 is_index = (u32) array_list_index(pipeline->is_db.islands, is);
 
@@ -203,7 +203,7 @@ void is_db_validate(const struct physics_pipeline *pipeline)
 				}	
 			}
 			
-			kas_assert(count == is->body_count && "Body count of island should be equal to the number of bodies mapped to the island");
+			ds_assert(count == is->body_count && "Body count of island should be equal to the number of bodies mapped to the island");
 	 
 			/* 2. verify body-island map  == island.bodies */
 			u32 list_length = 0; 
@@ -213,17 +213,17 @@ void is_db_validate(const struct physics_pipeline *pipeline)
 				list_length += 1;
 				entry = array_list_address(is_db->island_body_lists, index);
 				const struct rigid_body *b = pool_address(&pipeline->body_pool, entry->index);
-				kas_assert(b->island_index == is_index && POOL_SLOT_ALLOCATED(b));
+				ds_assert(b->island_index == is_index && POOL_SLOT_ALLOCATED(b));
 			}
-			kas_assert(list_length == is->body_count);
+			ds_assert(list_length == is->body_count);
 
 			/* 3. if island no contacts, assert body.contacts == NULL */
 			if (is->contact_count == 0)
 			{
-				kas_assert(is->body_count == 1);
+				ds_assert(is->body_count == 1);
 				entry = array_list_address(is_db->island_body_lists, is->body_first);
 				struct rigid_body *body = pool_address(&pipeline->body_pool, entry->index);
-				kas_assert(body && body->first_contact_index == NLL_NULL);
+				ds_assert(body && body->first_contact_index == NLL_NULL);
 			}
 			else
 			{
@@ -240,12 +240,12 @@ void is_db_validate(const struct physics_pipeline *pipeline)
 					struct contact *c = nll_address(&c_db->contact_net, entry->index);
 					const struct rigid_body *b1 = pool_address(&pipeline->body_pool, c->cm.i1);
 					const struct rigid_body *b2 = pool_address(&pipeline->body_pool, c->cm.i2);
-					kas_assert(POOL_SLOT_ALLOCATED(c));
-					kas_assert(c != NULL);
-					kas_assert((b1->island_index == is_index) || (b1->island_index == ISLAND_STATIC));
-					kas_assert((b2->island_index == is_index) || (b2->island_index == ISLAND_STATIC));
+					ds_assert(POOL_SLOT_ALLOCATED(c));
+					ds_assert(c != NULL);
+					ds_assert((b1->island_index == is_index) || (b1->island_index == ISLAND_STATIC));
+					ds_assert((b2->island_index == is_index) || (b2->island_index == ISLAND_STATIC));
 				}
-				kas_assert(list_length == is->contact_count);
+				ds_assert(list_length == is->contact_count);
 			}
 		}
 		base += 64;
@@ -258,7 +258,7 @@ void is_db_validate(const struct physics_pipeline *pipeline)
 		if (POOL_SLOT_ALLOCATED(body) && body->island_index != ISLAND_NULL && body->island_index != ISLAND_STATIC)
 		{
 			const u32 island_valid = bit_vec_get_bit(&is_db->island_usage, body->island_index);
-			kas_assert(island_valid == 1);
+			ds_assert(island_valid == 1);
 		}
 	}
 }
@@ -284,13 +284,13 @@ void is_db_release_unused_splits_memory(struct arena *mem_frame, struct island_d
 void is_db_tag_for_splitting(struct physics_pipeline *pipeline, const u32 body)
 {
 	const struct rigid_body *b = pool_address(&pipeline->body_pool, body);
-	kas_assert(b->island_index != U32_MAX);
+	ds_assert(b->island_index != U32_MAX);
 
 	const u32 is_index = b->island_index;
 	struct island *is = array_list_address(pipeline->is_db.islands, is_index);
 	if (!(is->flags & ISLAND_SPLIT))
 	{
-		kas_assert(pipeline->is_db.possible_splits_count < pipeline->is_db.islands->length);
+		ds_assert(pipeline->is_db.possible_splits_count < pipeline->is_db.islands->length);
 		is->flags |= ISLAND_SPLIT;
 		pipeline->is_db.possible_splits[pipeline->is_db.possible_splits_count++] = is_index;
 	}
@@ -314,8 +314,8 @@ void is_db_merge_islands(struct physics_pipeline *pipeline, const u32 ci, const 
 	if (expand == merge)
 	{
 		struct island *is = array_list_address(pipeline->is_db.islands, expand);
-		kas_assert(is->contact_count != 0);
-		kas_assert(is->contact_last != ISLAND_NULL);
+		ds_assert(is->contact_count != 0);
+		ds_assert(is->contact_last != ISLAND_NULL);
 
 		new_contact->next = is->contact_first;
 		is->contact_first = new_index;
@@ -331,7 +331,7 @@ void is_db_merge_islands(struct physics_pipeline *pipeline, const u32 ci, const 
 		{
 			const u32 island_sleep_interrupted = 1 - ISLAND_AWAKE_BIT(is_merge)*ISLAND_AWAKE_BIT(is_expand)
 						+ ISLAND_TRY_SLEEP_BIT(is_merge) + ISLAND_TRY_SLEEP_BIT(is_expand);
-			kas_assert(!(ISLAND_AWAKE_BIT(is_merge) == 0 && ISLAND_AWAKE_BIT(is_expand) == 0));
+			ds_assert(!(ISLAND_AWAKE_BIT(is_merge) == 0 && ISLAND_AWAKE_BIT(is_expand) == 0));
 			if (island_sleep_interrupted)
 			{
 				if (!ISLAND_AWAKE_BIT(is_expand))
@@ -356,13 +356,13 @@ void is_db_merge_islands(struct physics_pipeline *pipeline, const u32 ci, const 
 		if (is_merge->contact_count > 0)
 		{
 			link = array_list_address(pipeline->is_db.island_contact_lists, is_expand->contact_last);
-			kas_assert(link->next == ISLAND_NULL);
+			ds_assert(link->next == ISLAND_NULL);
 			link->next = is_merge->contact_first;
 			is_expand->contact_last = is_merge->contact_last;
 		}
 
 		link = array_list_address(pipeline->is_db.island_body_lists, is_expand->body_last);
-		kas_assert(link->next == ISLAND_NULL);
+		ds_assert(link->next == ISLAND_NULL);
 		link->next = is_merge->body_first;
 		is_expand->body_last = is_merge->body_last;
 
@@ -425,7 +425,7 @@ void is_db_island_remove(struct physics_pipeline *pipeline, struct island *islan
 
 void is_db_island_remove_body_resources(struct physics_pipeline *pipeline, const u32 island_index, const u32 body)
 {
-	kas_assert(bit_vec_get_bit(&pipeline->is_db.island_usage, island_index));
+	ds_assert(bit_vec_get_bit(&pipeline->is_db.island_usage, island_index));
 
 	struct island *island = array_list_address(pipeline->is_db.islands, island_index);
 	struct is_index_entry *entry = NULL;
@@ -492,16 +492,16 @@ void is_db_island_remove_body_resources(struct physics_pipeline *pipeline, const
 		prev = entry;
 		i = entry->next;
 	}
-	kas_assert(i != ISLAND_NULL);
+	ds_assert(i != ISLAND_NULL);
 
 	if (island->body_count == 0)
 	{
-		kas_assert(island->contact_first == ISLAND_NULL);
-		kas_assert(island->body_first == ISLAND_NULL);
-		kas_assert(island->contact_last == ISLAND_NULL);
-		kas_assert(island->body_last == ISLAND_NULL);
-		kas_assert(island->contact_count == 0);
-		kas_assert(island->body_count == 0);
+		ds_assert(island->contact_first == ISLAND_NULL);
+		ds_assert(island->body_first == ISLAND_NULL);
+		ds_assert(island->contact_last == ISLAND_NULL);
+		ds_assert(island->body_last == ISLAND_NULL);
+		ds_assert(island->contact_count == 0);
+		ds_assert(island->body_count == 0);
 		array_list_remove_index(pipeline->is_db.islands, island_index);
 		bit_vec_set_bit(&pipeline->is_db.island_usage, island_index, 0);
 		PHYSICS_EVENT_ISLAND_REMOVED(pipeline, island_index);
@@ -514,7 +514,7 @@ void is_db_split_island(struct arena *mem_tmp, struct physics_pipeline *pipeline
 
 	struct island *split = array_list_address(pipeline->is_db.islands, island_to_split);
 	//is_db_print_island(stderr, &pipeline->is_db, &pipeline->c_db, island_to_split, "SPLIT");
-	kas_assert(split->contact_count > 0);
+	ds_assert(split->contact_count > 0);
 	u32 sc = 0;
 	u32 *body_stack = arena_push(mem_tmp, split->body_count * sizeof(u32));
 
@@ -540,7 +540,7 @@ void is_db_split_island(struct arena *mem_tmp, struct physics_pipeline *pipeline
 			{
 				b = pool_address(&pipeline->body_pool, body);
 				u32 ci = b->first_contact_index;
-				kas_assert(ci == NLL_NULL ||
+				ds_assert(ci == NLL_NULL ||
 					((body == CONTACT_KEY_TO_BODY_0(((struct contact *) nll_address(&pipeline->c_db.contact_net, ci))->key)) 
 					 && ((struct contact *) nll_address(&pipeline->c_db.contact_net, ci))->nll_prev[0] == NLL_NULL) ||
 					((body == CONTACT_KEY_TO_BODY_1(((struct contact *) nll_address(&pipeline->c_db.contact_net, ci))->key)) 
@@ -548,7 +548,7 @@ void is_db_split_island(struct arena *mem_tmp, struct physics_pipeline *pipeline
 				while (ci != NLL_NULL)
 				{
 					const struct contact *c = nll_address(&pipeline->c_db.contact_net, ci);
-					kas_assert(ci >= pipeline->c_db.contacts_frame_usage.bit_count ||  bit_vec_get_bit(&pipeline->c_db.contacts_frame_usage, ci) == 1)
+					ds_assert(ci >= pipeline->c_db.contacts_frame_usage.bit_count ||  bit_vec_get_bit(&pipeline->c_db.contacts_frame_usage, ci) == 1)
 					
 					const u32 neighbour_index = (body == c->cm.i1) ? c->cm.i2 : c->cm.i1;
 					b = pool_address(&pipeline->body_pool, neighbour_index);
@@ -560,7 +560,7 @@ void is_db_split_island(struct arena *mem_tmp, struct physics_pipeline *pipeline
 						/* TODO: Make Thread-Safe */
 						is_db_internal_add_body_to_island(pipeline, new_island, neighbour_index);
 						body_stack[sc++] = neighbour_index;
-						kas_assert(sc < split->body_count);
+						ds_assert(sc < split->body_count);
 					}
 					
 					ci = (body == CONTACT_KEY_TO_BODY_0(c->key))
@@ -589,7 +589,7 @@ void is_db_split_island(struct arena *mem_tmp, struct physics_pipeline *pipeline
 		if (index >= pipeline->c_db.contacts_frame_usage.bit_count || bit_vec_get_bit(&pipeline->c_db.contacts_frame_usage, index) == 1)
 		{
 			const struct contact *c = nll_address(&pipeline->c_db.contact_net, index);
-			kas_assert(POOL_SLOT_ALLOCATED(c));
+			ds_assert(POOL_SLOT_ALLOCATED(c));
 			const struct rigid_body *b1 = pool_address(&pipeline->body_pool, c->cm.i1);
 			const struct rigid_body *b2 = pool_address(&pipeline->body_pool, c->cm.i2);
 			const u32 island1 = b1->island_index;

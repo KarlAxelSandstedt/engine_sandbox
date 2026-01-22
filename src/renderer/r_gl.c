@@ -32,7 +32,7 @@ struct pool g_binding_pool = { 0 };
 u32 			tx_in_use = 0;	/* number of texture names currently allocated (glGen*, glDel*) */
 struct array_list *	tx_list = NULL;
 
-#ifdef KAS_GL_DEBUG
+#ifdef DS_GL_DEBUG
 
 static void gl_state_assert_blending(void)
 {
@@ -47,13 +47,13 @@ static void gl_state_assert_blending(void)
 	gl_state->func.glGetIntegerv(GL_BLEND_DST_RGB,   &func_d_rgb);
 	gl_state->func.glGetIntegerv(GL_BLEND_DST_ALPHA, &func_d_a);
 
-	kas_assert(gl_state->blend == gl_state->func.glIsEnabled(GL_BLEND));
-	kas_assert((GLint) gl_state->eq_rgb == eq_rgb);
-	kas_assert((GLint) gl_state->eq_a == eq_a);
-	kas_assert((GLint) gl_state->func_s_rgb == func_s_rgb);
-	kas_assert((GLint) gl_state->func_s_a == func_s_a);
-	kas_assert((GLint) gl_state->func_d_rgb == func_d_rgb);
-	kas_assert((GLint) gl_state->func_d_a == func_d_a);
+	ds_assert(gl_state->blend == gl_state->func.glIsEnabled(GL_BLEND));
+	ds_assert((GLint) gl_state->eq_rgb == eq_rgb);
+	ds_assert((GLint) gl_state->eq_a == eq_a);
+	ds_assert((GLint) gl_state->func_s_rgb == func_s_rgb);
+	ds_assert((GLint) gl_state->func_s_a == func_s_a);
+	ds_assert((GLint) gl_state->func_d_rgb == func_d_rgb);
+	ds_assert((GLint) gl_state->func_d_a == func_d_a);
 }
 
 static void gl_state_assert_culling(void)
@@ -63,9 +63,9 @@ static void gl_state_assert_culling(void)
 	gl_state->func.glGetIntegerv(GL_CULL_FACE_MODE, &cull_mode);
 	gl_state->func.glGetIntegerv(GL_FRONT_FACE, &face_front);
 
-	kas_assert(gl_state->cull_face == gl_state->func.glIsEnabled(GL_CULL_FACE));
-	kas_assert((GLint) gl_state->cull_mode == cull_mode);
-	kas_assert((GLint) gl_state->face_front == face_front);
+	ds_assert(gl_state->cull_face == gl_state->func.glIsEnabled(GL_CULL_FACE));
+	ds_assert((GLint) gl_state->cull_mode == cull_mode);
+	ds_assert((GLint) gl_state->face_front == face_front);
 }
 
 static void gl_state_assert_texture_unit(void)
@@ -73,7 +73,7 @@ static void gl_state_assert_texture_unit(void)
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	GLint tx_unit_active;
 	gl_state->func.glGetIntegerv(GL_ACTIVE_TEXTURE, (GLint *) &tx_unit_active);
-	kas_assert((GLint) gl_state->tx_unit_active == (tx_unit_active - GL_TEXTURE0));
+	ds_assert((GLint) gl_state->tx_unit_active == (tx_unit_active - GL_TEXTURE0));
 
 	for (GLuint i = 0; i < g_gl_limits->tx_unit_count; ++i)
 	{
@@ -88,16 +88,16 @@ static void gl_state_assert_texture_unit(void)
 			for (u32 k = tx->binding_list.first; k != DLL_NULL; k = binding->dll_next)
 			{
  				binding = pool_address(&g_binding_pool, k);
-				kas_assert(binding->header.allocated);
+				ds_assert(binding->header.allocated);
 				if (binding->context == g_gl_state)
 				{
-					kas_assert(binding->tx_unit == i);
+					ds_assert(binding->tx_unit == i);
 					break;
 				}
 			}
 		}
 
-		kas_glActiveTexture(GL_TEXTURE0 + i);
+		ds_glActiveTexture(GL_TEXTURE0 + i);
 
 		GLint tx_2d, tx_cube, wrap_s, wrap_t, mag_filter, min_filter;
 		if (tx1 != 0)
@@ -109,11 +109,11 @@ static void gl_state_assert_texture_unit(void)
 			gl_state->func.glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, &wrap_s);
 			gl_state->func.glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, &wrap_t);
 
-			kas_assert((GLint) tx->name == tx_2d);
-			kas_assert(tx->wrap_s == wrap_s);
-			kas_assert(tx->wrap_t == wrap_t);
-			kas_assert(tx->mag_filter == mag_filter);
-			kas_assert(tx->min_filter == min_filter);
+			ds_assert((GLint) tx->name == tx_2d);
+			ds_assert(tx->wrap_s == wrap_s);
+			ds_assert(tx->wrap_t == wrap_t);
+			ds_assert(tx->mag_filter == mag_filter);
+			ds_assert(tx->min_filter == min_filter);
 		}
 
 		if (tx2 != 0)
@@ -125,11 +125,11 @@ static void gl_state_assert_texture_unit(void)
 			gl_state->func.glGetTexParameteriv(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, &wrap_s);
 			gl_state->func.glGetTexParameteriv(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, &wrap_t);
 
-			kas_assert((GLint) tx->name == tx_cube);
-			kas_assert(tx->wrap_s == wrap_s);
-			kas_assert(tx->wrap_t == wrap_t);
-			kas_assert(tx->mag_filter == mag_filter);
-			kas_assert(tx->min_filter == min_filter);
+			ds_assert((GLint) tx->name == tx_cube);
+			ds_assert(tx->wrap_s == wrap_s);
+			ds_assert(tx->wrap_t == wrap_t);
+			ds_assert(tx->mag_filter == mag_filter);
+			ds_assert(tx->min_filter == min_filter);
 		}
 	}
 
@@ -145,325 +145,325 @@ void gl_state_assert(void)
 
 #endif
 
-static void kas_glEnable(GLenum cap)
+static void ds_glEnable(GLenum cap)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glEnable(cap);
 }
 
-static void kas_glDisable(GLenum cap)
+static void ds_glDisable(GLenum cap)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glDisable(cap);
 }
 
-void kas_glGetTexParameterfv(GLenum target, GLenum pname, GLfloat *params)
+void ds_glGetTexParameterfv(GLenum target, GLenum pname, GLfloat *params)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glGetTexParameterfv(target, pname, params);
 }
 
-void kas_glGetTexParameteriv(GLenum target, GLenum pname, GLint *params)
+void ds_glGetTexParameteriv(GLenum target, GLenum pname, GLint *params)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glGetTexParameteriv(target, pname, params);
 }
 
-void kas_glGetIntegerv(GLenum pname, GLint *data)
+void ds_glGetIntegerv(GLenum pname, GLint *data)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glGetIntegerv(pname, data);
 }
 
-const GLubyte *kas_glGetString(GLenum name)
+const GLubyte *ds_glGetString(GLenum name)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	return gl_state->func.glGetString(name);
 }
 
-void kas_glClear(GLbitfield mask)
+void ds_glClear(GLbitfield mask)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glClear(mask);
 }
 
-void kas_glClearColor(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha)
+void ds_glClearColor(GLclampf red, GLclampf green, GLclampf blue, GLclampf alpha)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glClearColor(red, green, blue, alpha);
 }
 
-void kas_glViewport(GLint x, GLint y, GLsizei width, GLsizei height)
+void ds_glViewport(GLint x, GLint y, GLsizei width, GLsizei height)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glViewport(x, y, width, height);
 }
 
-void kas_glGenBuffers(GLsizei n, GLuint *buffers)
+void ds_glGenBuffers(GLsizei n, GLuint *buffers)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glGenBuffers(n, buffers);
 }
 
-void kas_glBindBuffer(GLenum target, GLuint buffer)
+void ds_glBindBuffer(GLenum target, GLuint buffer)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glBindBuffer(target, buffer);
 }
 
-void kas_glBufferData(GLenum target, GLsizeiptr size, const void *data, GLenum usage)
+void ds_glBufferData(GLenum target, GLsizeiptr size, const void *data, GLenum usage)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glBufferData(target, size, data, usage);
 }
 
-void kas_glBufferSubData(GLenum target, GLintptr offset, GLsizeiptr size,  const void *data)
+void ds_glBufferSubData(GLenum target, GLintptr offset, GLsizeiptr size,  const void *data)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glBufferSubData(target, offset, size, data);
 }
 
-void kas_glDeleteBuffers(GLsizei n, const GLuint *buffers)
+void ds_glDeleteBuffers(GLsizei n, const GLuint *buffers)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glDeleteBuffers(n, buffers);
 }
 
-void kas_glDrawArrays(GLenum mode, GLint first, GLsizei count)
+void ds_glDrawArrays(GLenum mode, GLint first, GLsizei count)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glDrawArrays(mode, first, count);
 }
 
-void kas_glDrawElements(GLenum mode, GLsizei count, GLenum type, const void *indices)
+void ds_glDrawElements(GLenum mode, GLsizei count, GLenum type, const void *indices)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glDrawElements(mode, count, type, indices);
 }
 
-void kas_glDrawArraysInstanced(GLenum mode, GLint first, GLint count, GLsizei primcount)
+void ds_glDrawArraysInstanced(GLenum mode, GLint first, GLint count, GLsizei primcount)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glDrawArraysInstanced(mode, first, count, primcount);
 }
 
-void kas_glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const void *indices, GLsizei primcount)
+void ds_glDrawElementsInstanced(GLenum mode, GLsizei count, GLenum type, const void *indices, GLsizei primcount)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glDrawElementsInstanced(mode, count, type, indices, primcount);
 }
 
-void kas_glGenVertexArrays(GLsizei n, GLuint *arrays)
+void ds_glGenVertexArrays(GLsizei n, GLuint *arrays)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glGenVertexArrays(n, arrays);
 }
 
-void kas_glDeleteVertexArrays(GLsizei n, const GLuint *arrays)
+void ds_glDeleteVertexArrays(GLsizei n, const GLuint *arrays)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glDeleteVertexArrays(n, arrays);
 }
 
-void kas_glBindVertexArray(GLuint array)
+void ds_glBindVertexArray(GLuint array)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glBindVertexArray(array);
 }
 
-void kas_glEnableVertexAttribArray(GLuint index)
+void ds_glEnableVertexAttribArray(GLuint index)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glEnableVertexAttribArray(index);
 }
 
-void kas_glDisableVertexAttribArray(GLuint index)
+void ds_glDisableVertexAttribArray(GLuint index)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glDisableVertexAttribArray(index);
 }
 
-void kas_glVertexAttribPointer(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *pointer)
+void ds_glVertexAttribPointer(GLuint index, GLint size, GLenum type, GLboolean normalized, GLsizei stride, const void *pointer)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glVertexAttribPointer(index, size, type, normalized, stride, pointer);
 }
 
-void kas_glVertexAttribIPointer(GLuint index, GLint size, GLenum type, GLsizei stride, const void *pointer)
+void ds_glVertexAttribIPointer(GLuint index, GLint size, GLenum type, GLsizei stride, const void *pointer)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glVertexAttribIPointer(index, size, type, stride, pointer);
 }
 
-void kas_glVertexAttribDivisor(GLuint index, GLuint divisor)
+void ds_glVertexAttribDivisor(GLuint index, GLuint divisor)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glVertexAttribDivisor(index, divisor);
 }
 
-GLuint kas_glGetUniformLocation(GLuint program, const GLchar *name)
+GLuint ds_glGetUniformLocation(GLuint program, const GLchar *name)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	return gl_state->func.glGetUniformLocation(program, name);
 }
 
-void kas_glUniform1f(GLint location, GLfloat v0)
+void ds_glUniform1f(GLint location, GLfloat v0)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glUniform1f(location, v0);
 }
 
-void kas_glUniform2f(GLint location, GLfloat v0, GLfloat v1)
+void ds_glUniform2f(GLint location, GLfloat v0, GLfloat v1)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glUniform2f(location, v0, v1);
 }
 
-void kas_glUniform3f(GLint location, GLfloat v0, GLfloat v1, GLfloat v2)
+void ds_glUniform3f(GLint location, GLfloat v0, GLfloat v1, GLfloat v2)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glUniform3f(location, v0, v1, v2);
 }
 
-void kas_glUniform4f(GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3)
+void ds_glUniform4f(GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glUniform4f(location, v0, v1, v2, v3);
 }
 
-void kas_glUniform1i(GLint location, GLint v0)
+void ds_glUniform1i(GLint location, GLint v0)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glUniform1i(location, v0);
 }
 
-void kas_glUniform2i(GLint location, GLint v0, GLint v1)
+void ds_glUniform2i(GLint location, GLint v0, GLint v1)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glUniform2i(location, v0, v1);
 }
 
-void kas_glUniform3i(GLint location, GLint v0, GLint v1, GLint v2)
+void ds_glUniform3i(GLint location, GLint v0, GLint v1, GLint v2)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glUniform3i(location, v0, v1, v2);
 }
 
-void kas_glUniform4i(GLint location, GLint v0, GLint v1, GLint v2, GLint v3)
+void ds_glUniform4i(GLint location, GLint v0, GLint v1, GLint v2, GLint v3)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glUniform4i(location, v0, v1, v2, v3);
 }
 
-void kas_glUniform1ui(GLint location, GLuint v0)
+void ds_glUniform1ui(GLint location, GLuint v0)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glUniform1ui(location, v0);
 }
 
-void kas_glUniform2ui(GLint location, GLuint v0, GLuint v1)
+void ds_glUniform2ui(GLint location, GLuint v0, GLuint v1)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glUniform2ui(location, v0, v1);
 }
 
-void kas_glUniform3ui(GLint location, GLuint v0, GLuint v1, GLuint v2)
+void ds_glUniform3ui(GLint location, GLuint v0, GLuint v1, GLuint v2)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glUniform3ui(location, v0, v1, v2);
 }
 
-void kas_glUniform4ui(GLint location, GLuint v0, GLuint v1, GLuint v2, GLuint v3)
+void ds_glUniform4ui(GLint location, GLuint v0, GLuint v1, GLuint v2, GLuint v3)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glUniform4ui(location, v0, v1, v2, v3);
 }
 
-void kas_glUniform1fv(GLint location, GLsizei count, const GLfloat *value)
+void ds_glUniform1fv(GLint location, GLsizei count, const GLfloat *value)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glUniform1fv(location, count, value);
 }
 
-void kas_glUniform2fv(GLint location, GLsizei count, const GLfloat *value)
+void ds_glUniform2fv(GLint location, GLsizei count, const GLfloat *value)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glUniform2fv(location, count, value);
 }
 
-void kas_glUniform3fv(GLint location, GLsizei count, const GLfloat *value)
+void ds_glUniform3fv(GLint location, GLsizei count, const GLfloat *value)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glUniform3fv(location, count, value);
 }
 
-void kas_glUniform4fv(GLint location, GLsizei count, const GLfloat *value)
+void ds_glUniform4fv(GLint location, GLsizei count, const GLfloat *value)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glUniform4fv(location, count, value);
 }
 
-void kas_glUniform1iv(GLint location, GLsizei count, const GLint *value)
+void ds_glUniform1iv(GLint location, GLsizei count, const GLint *value)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glUniform1iv(location, count, value);
 }
 
-void kas_glUniform2iv(GLint location, GLsizei count, const GLint *value)
+void ds_glUniform2iv(GLint location, GLsizei count, const GLint *value)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glUniform2iv(location, count, value);
 }
 
-void kas_glUniform3iv(GLint location, GLsizei count, const GLint *value)
+void ds_glUniform3iv(GLint location, GLsizei count, const GLint *value)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glUniform3iv(location, count, value);
 }
 
-void kas_glUniform4iv(GLint location, GLsizei count, const GLint *value)
+void ds_glUniform4iv(GLint location, GLsizei count, const GLint *value)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glUniform4iv(location, count, value);
 }
 
-void kas_glUniform1uiv(GLint location, GLsizei count, const GLuint *value)
+void ds_glUniform1uiv(GLint location, GLsizei count, const GLuint *value)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glUniform1uiv(location, count, value);
 }
 
-void kas_glUniform2uiv(GLint location, GLsizei count, const GLuint *value)
+void ds_glUniform2uiv(GLint location, GLsizei count, const GLuint *value)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glUniform2uiv(location, count, value);
 }
 
-void kas_glUniform3uiv(GLint location, GLsizei count, const GLuint *value)
+void ds_glUniform3uiv(GLint location, GLsizei count, const GLuint *value)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glUniform3uiv(location, count, value);
 }
 
-void kas_glUniform4uiv(GLint location, GLsizei count, const GLuint *value)
+void ds_glUniform4uiv(GLint location, GLsizei count, const GLuint *value)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glUniform4uiv(location, count, value);
 }
 
-void kas_glUniformMatrix2fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value)
+void ds_glUniformMatrix2fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glUniformMatrix2fv(location, count, transpose, value);
 }
 
-void kas_glUniformMatrix3fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value)
+void ds_glUniformMatrix3fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glUniformMatrix3fv(location, count, transpose, value);
 }
 
-void kas_glUniformMatrix4fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value)
+void ds_glUniformMatrix4fv(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glUniformMatrix4fv(location, count, transpose, value);
@@ -483,68 +483,68 @@ static struct gl_texture *internal_tx_unit_get_texture_target(const GLenum targe
 	}
 	else
 	{
-		kas_assert(target == GL_TEXTURE_CUBE_MAP);
+		ds_assert(target == GL_TEXTURE_CUBE_MAP);
 		tx = array_list_address(tx_list, gl_state->tx_unit[unit].gl_tx_cube_map_index);
 	}
 
 	return tx;
 }
 
-GLboolean kas_glIsEnabled(GLenum cap)
+GLboolean ds_glIsEnabled(GLenum cap)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	return gl_state->func.glIsEnabled(cap);
 }
 
-void kas_glGetShaderiv(GLuint shader, GLenum pname, GLint *params)
+void ds_glGetShaderiv(GLuint shader, GLenum pname, GLint *params)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glGetShaderiv(shader, pname, params);
 }
 
-void kas_glGetShaderInfoLog(GLuint shader, GLsizei bufSize, GLsizei *length, GLchar *infoLog)
+void ds_glGetShaderInfoLog(GLuint shader, GLsizei bufSize, GLsizei *length, GLchar *infoLog)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glGetShaderInfoLog(shader, bufSize, length, infoLog);
 }
 
-GLuint kas_glCreateShader(GLenum type)
+GLuint ds_glCreateShader(GLenum type)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	return gl_state->func.glCreateShader(type);
 }
 
-void kas_glShaderSource(GLuint shader, GLsizei count, const GLchar **string, const GLint *length)
+void ds_glShaderSource(GLuint shader, GLsizei count, const GLchar **string, const GLint *length)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glShaderSource(shader, count, string, length);
 }
 
-void kas_glCompileShader(GLuint shader)
+void ds_glCompileShader(GLuint shader)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glCompileShader(shader);
 }
 
-void kas_glAttachShader(GLuint program, GLuint shader)
+void ds_glAttachShader(GLuint program, GLuint shader)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glAttachShader(program, shader);
 }
 
-void kas_glDetachShader(GLuint program, GLuint shader)
+void ds_glDetachShader(GLuint program, GLuint shader)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glDetachShader(program, shader);
 }
 
-void kas_glDeleteShader(GLuint shader)
+void ds_glDeleteShader(GLuint shader)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glDeleteShader(shader);
 }
 
-void kas_glDisableBlending(void)
+void ds_glDisableBlending(void)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	if (gl_state->blend)
@@ -554,7 +554,7 @@ void kas_glDisableBlending(void)
 	}
 }
 
-void kas_glEnableBlending(void)
+void ds_glEnableBlending(void)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	if (!gl_state->blend)
@@ -564,7 +564,7 @@ void kas_glEnableBlending(void)
 	}
 }
 
-void kas_glBlendEquation(const GLenum eq)
+void ds_glBlendEquation(const GLenum eq)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	if (gl_state->eq_rgb != eq || gl_state->eq_a != eq)
@@ -575,7 +575,7 @@ void kas_glBlendEquation(const GLenum eq)
 	}
 }
 
-void kas_glBlendEquationSeparate(const GLenum eq_rgb, const GLenum eq_a)
+void ds_glBlendEquationSeparate(const GLenum eq_rgb, const GLenum eq_a)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	if (gl_state->eq_rgb != eq_rgb || gl_state->eq_a != eq_a)
@@ -586,7 +586,7 @@ void kas_glBlendEquationSeparate(const GLenum eq_rgb, const GLenum eq_a)
 	}
 }
 
-void kas_glBlendFunc(const GLenum sfactor, const GLenum dfactor)
+void ds_glBlendFunc(const GLenum sfactor, const GLenum dfactor)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	if (gl_state->func_s_rgb != sfactor
@@ -602,7 +602,7 @@ void kas_glBlendFunc(const GLenum sfactor, const GLenum dfactor)
 	}
 }
 
-void kas_glBlendFuncSeparate(const GLenum srcRGB, const GLenum dstRGB, const GLenum srcAlpha, const GLenum dstAlpha)
+void ds_glBlendFuncSeparate(const GLenum srcRGB, const GLenum dstRGB, const GLenum srcAlpha, const GLenum dstAlpha)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	if (gl_state->func_s_rgb != srcRGB
@@ -618,7 +618,7 @@ void kas_glBlendFuncSeparate(const GLenum srcRGB, const GLenum dstRGB, const GLe
 	}
 }
 
-void kas_glEnableFaceCulling(void)
+void ds_glEnableFaceCulling(void)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	if (!gl_state->cull_face)
@@ -628,7 +628,7 @@ void kas_glEnableFaceCulling(void)
 	}
 }
 
-void kas_glDisableFaceCulling(void)
+void ds_glDisableFaceCulling(void)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	if (gl_state->cull_face)
@@ -638,7 +638,7 @@ void kas_glDisableFaceCulling(void)
 	}
 }
 
-void kas_glCullFace(const GLenum mode)
+void ds_glCullFace(const GLenum mode)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	if (gl_state->cull_mode != mode)
@@ -648,7 +648,7 @@ void kas_glCullFace(const GLenum mode)
 	}
 }
 
-void kas_glFrontFace(const GLenum mode)
+void ds_glFrontFace(const GLenum mode)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	if (gl_state->face_front != mode)
@@ -658,7 +658,7 @@ void kas_glFrontFace(const GLenum mode)
 	}
 }
 
-void kas_glActiveTexture(const GLenum tx_unit)
+void ds_glActiveTexture(const GLenum tx_unit)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	const GLuint i = (tx_unit - GL_TEXTURE0);
@@ -669,13 +669,13 @@ void kas_glActiveTexture(const GLenum tx_unit)
 	}
 }
 
-void kas_glGenerateMipmap(GLenum target)
+void ds_glGenerateMipmap(GLenum target)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glGenerateMipmap(target);
 }
 
-void kas_glGenTextures(const GLsizei count, GLuint tx[])
+void ds_glGenTextures(const GLsizei count, GLuint tx[])
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	GLsizei i = 0;
@@ -700,7 +700,7 @@ void kas_glGenTextures(const GLsizei count, GLuint tx[])
 	}
 }
 
-void kas_glDeleteTextures(const GLsizei count, const GLuint tx[])
+void ds_glDeleteTextures(const GLsizei count, const GLuint tx[])
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	for (GLsizei i = 0; i < count; ++i)
@@ -713,14 +713,14 @@ void kas_glDeleteTextures(const GLsizei count, const GLuint tx[])
 			{
 				binding = pool_address(&g_binding_pool, k);
 				struct gl_state *local_state = array_list_intrusive_address(g_gl_state_list, binding->context);
-				kas_assert(binding->tx_unit < g_gl_limits->tx_unit_count);
+				ds_assert(binding->tx_unit < g_gl_limits->tx_unit_count);
 				if (local_state->tx_unit[binding->tx_unit].gl_tx_2d_index == tx[i])
 				{
 					local_state->tx_unit[binding->tx_unit].gl_tx_2d_index = 0;
 				}
 				else	
 				{
-					kas_assert(local_state->tx_unit[binding->tx_unit].gl_tx_cube_map_index == tx[i]);
+					ds_assert(local_state->tx_unit[binding->tx_unit].gl_tx_cube_map_index == tx[i]);
 					local_state->tx_unit[binding->tx_unit].gl_tx_cube_map_index = 0;
 				}
 				local_state->tx_unit[binding->tx_unit].binding = DLL_NULL;
@@ -732,7 +732,7 @@ void kas_glDeleteTextures(const GLsizei count, const GLuint tx[])
 	}
 }
 
-void kas_glBindTexture(const GLenum target, const GLuint tx)
+void ds_glBindTexture(const GLenum target, const GLuint tx)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	struct gl_texture_unit *unit = gl_state->tx_unit + gl_state->tx_unit_active;
@@ -740,7 +740,7 @@ void kas_glBindTexture(const GLenum target, const GLuint tx)
 	GLuint prev_tx;
 	if (target == GL_TEXTURE_2D)
 	{
-		kas_assert_string(tx == 0 || unit->gl_tx_cube_map_index != tx, "While it is may be possible  \
+		ds_assert_string(tx == 0 || unit->gl_tx_cube_map_index != tx, "While it is may be possible  \
 								to bind a texture to several *different* type of \
 								targets, you are probably doing something fucky  \
 								wucky by mistake.\n");
@@ -749,8 +749,8 @@ void kas_glBindTexture(const GLenum target, const GLuint tx)
 	}
 	else
 	{
-		kas_assert(target == GL_TEXTURE_CUBE_MAP);
-		kas_assert_string(tx == 0 || unit->gl_tx_2d_index != tx,       "While it is may be possible \
+		ds_assert(target == GL_TEXTURE_CUBE_MAP);
+		ds_assert_string(tx == 0 || unit->gl_tx_2d_index != tx,       "While it is may be possible \
 								to bind a texture to several *different* type of \
 								targets, you are probably doing something fucky  \
 								wucky by mistake.\n");
@@ -835,7 +835,7 @@ void kas_glBindTexture(const GLenum target, const GLuint tx)
 	//breakpoint(1);
 }
 
-void kas_glTexImage2D(const GLenum target,
+void ds_glTexImage2D(const GLenum target,
 		      const GLint level,
 		      const GLint internalformat,
 		      const GLsizei width,
@@ -863,7 +863,7 @@ void kas_glTexImage2D(const GLenum target,
 	}
 	else
 	{
-		kas_assert(target == GL_TEXTURE_CUBE_MAP);
+		ds_assert(target == GL_TEXTURE_CUBE_MAP);
 		max_size = g_gl_limits->max_cube_map_tx_size;
 	}
 
@@ -877,7 +877,7 @@ void kas_glTexImage2D(const GLenum target,
 	}
 }
 
-void kas_glTexParameteri(const GLenum target, const GLenum pname, const GLint param)
+void ds_glTexParameteri(const GLenum target, const GLenum pname, const GLint param)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	struct gl_texture *tx = internal_tx_unit_get_texture_target(target);
@@ -888,13 +888,13 @@ void kas_glTexParameteri(const GLenum target, const GLenum pname, const GLint pa
 		case GL_TEXTURE_MIN_FILTER: { tx->min_filter = param; } break;
 		case GL_TEXTURE_WRAP_S:	    { tx->wrap_s = param; } break;
 		case GL_TEXTURE_WRAP_T:	    { tx->wrap_t = param; } break;
-		default: 		    { kas_assert(0); }; break;
+		default: 		    { ds_assert(0); }; break;
 	}
 
 	gl_state->func.glTexParameteri(target, pname, param);
 }
 
-void kas_glTexParameterf(const GLenum target, const GLenum pname, const GLfloat param)
+void ds_glTexParameterf(const GLenum target, const GLenum pname, const GLfloat param)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	struct gl_texture *tx = internal_tx_unit_get_texture_target(target);
@@ -905,39 +905,39 @@ void kas_glTexParameterf(const GLenum target, const GLenum pname, const GLfloat 
 		case GL_TEXTURE_MIN_FILTER: { tx->min_filter = param; } break;
 		case GL_TEXTURE_WRAP_S:	    { tx->wrap_s = param; } break;
 		case GL_TEXTURE_WRAP_T:	    { tx->wrap_t = param; } break;
-		default: 		    { kas_assert(0); }; break;
+		default: 		    { ds_assert(0); }; break;
 	}
 
 	gl_state->func.glTexParameterf(target, pname, param);
 }
 
-void kas_glTexParameteriv(const GLenum target, const GLenum pname, const GLint *params)
+void ds_glTexParameteriv(const GLenum target, const GLenum pname, const GLint *params)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	struct gl_texture *tx = internal_tx_unit_get_texture_target(target);
 
 	switch (pname)
 	{
-		default: 		    	{ kas_assert(0); } break;
+		default: 		    	{ ds_assert(0); } break;
 	}
 
 	gl_state->func.glTexParameteriv(target, pname, params);
 }
 
-void kas_glTexParameterfv(const GLenum target, const GLenum pname, const GLfloat *params)
+void ds_glTexParameterfv(const GLenum target, const GLenum pname, const GLfloat *params)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	struct gl_texture *tx = internal_tx_unit_get_texture_target(target);
 
 	switch (pname)
 	{
-		default: 		    	{ kas_assert(0); } break;
+		default: 		    	{ ds_assert(0); } break;
 	}
 
 	gl_state->func.glTexParameterfv(target, pname, params);
 }
 
-void kas_glEnableDepthTesting(void)
+void ds_glEnableDepthTesting(void)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	if (!gl_state->depth)
@@ -947,7 +947,7 @@ void kas_glEnableDepthTesting(void)
 	}
 }
 
-void kas_glDisableDepthTesting(void)
+void ds_glDisableDepthTesting(void)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	if (gl_state->depth)
@@ -957,19 +957,19 @@ void kas_glDisableDepthTesting(void)
 	}
 }
 
-GLuint kas_glCreateProgram(void)
+GLuint ds_glCreateProgram(void)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	return gl_state->func.glCreateProgram();
 }
 
-void kas_glLinkProgram(GLuint program)
+void ds_glLinkProgram(GLuint program)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glLinkProgram(program);
 }
 
-void kas_glUseProgram(GLuint program)
+void ds_glUseProgram(GLuint program)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	if (program != gl_state->program)
@@ -979,7 +979,7 @@ void kas_glUseProgram(GLuint program)
 	}
 }
 
-void kas_glDeleteProgram(GLuint program)
+void ds_glDeleteProgram(GLuint program)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	if (program == gl_state->program)
@@ -990,13 +990,13 @@ void kas_glDeleteProgram(GLuint program)
 	gl_state->func.glDeleteProgram(program);
 }
 
-void kas_glGetProgramiv(GLuint program, GLenum pname, GLint *params)
+void ds_glGetProgramiv(GLuint program, GLenum pname, GLint *params)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glGetProgramiv(program, pname, params);
 }
 
-void kas_glGetProgramInfoLog(GLuint program, GLsizei bufSize, GLsizei *length, GLchar *infoLog)
+void ds_glGetProgramInfoLog(GLuint program, GLsizei bufSize, GLsizei *length, GLchar *infoLog)
 {
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	gl_state->func.glGetProgramInfoLog(program, bufSize, length, infoLog);
@@ -1062,26 +1062,26 @@ u32 gl_state_alloc(void)
 	gl_state->func_s_a = GL_INVALID_ENUM;
 	gl_state->func_d_rgb = GL_INVALID_ENUM;
 	gl_state->func_d_a = GL_INVALID_ENUM;
-	kas_glDisableBlending();
-	kas_glBlendEquation(GL_FUNC_ADD);
-	kas_glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	ds_glDisableBlending();
+	ds_glBlendEquation(GL_FUNC_ADD);
+	ds_glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
 	gl_state->program = U32_MAX;
-	kas_glUseProgram(0);
+	ds_glUseProgram(0);
 
 	gl_state->cull_face = 0;
 	gl_state->cull_mode = GL_INVALID_ENUM;
 	gl_state->face_front = GL_INVALID_ENUM;
-	kas_glEnableFaceCulling();
-	kas_glFrontFace(GL_CCW);
-	kas_glCullFace(GL_BACK);
+	ds_glEnableFaceCulling();
+	ds_glFrontFace(GL_CCW);
+	ds_glCullFace(GL_BACK);
 
 	gl_state->depth = 0;
-	kas_glEnableDepthTesting();
+	ds_glEnableDepthTesting();
 
 	gl_state->tx_unit_active = g_gl_limits->tx_unit_count;
-	kas_glActiveTexture(GL_TEXTURE0 + 0);
-	kas_assert(gl_state->tx_unit_active == 0);
+	ds_glActiveTexture(GL_TEXTURE0 + 0);
+	ds_assert(gl_state->tx_unit_active == 0);
 
 	gl_state->tx_unit = malloc(g_gl_limits->tx_unit_count * sizeof(struct gl_texture_unit));
 	for (GLuint i = 0; i < g_gl_limits->tx_unit_count; ++i)
@@ -1137,7 +1137,7 @@ void gl_state_list_alloc(void)
 {
 	tx_list = array_list_alloc(NULL, 256, sizeof(struct gl_texture), ARRAY_LIST_GROWABLE);
 	const GLuint stub_index = array_list_reserve_index(tx_list);
-	kas_assert_string(stub_index == 0, "Reserve first index for stub, that we we can return 0 of *Texture calls to indicate error"); 
+	ds_assert_string(stub_index == 0, "Reserve first index for stub, that we we can return 0 of *Texture calls to indicate error"); 
 	g_gl_state_list = array_list_intrusive_alloc(NULL, 8, sizeof(struct gl_state), ARRAY_LIST_GROWABLE);
 	g_binding_pool = pool_alloc(NULL, 192, struct texture_unit_binding, GROWABLE);
 }

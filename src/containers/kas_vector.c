@@ -18,7 +18,7 @@
 */
 
 #include "sys_public.h"
-#include "kas_vector.h"
+#include "ds_vector.h"
 
 DEFINE_STACK(u64);
 DEFINE_STACK(u32);
@@ -33,7 +33,7 @@ static const struct vector empty = { 0 };
 
 struct vector vector_alloc(struct arena *mem, const u64 blocksize, const u32 length, const u32 growable)
 {
-	kas_assert(length && blocksize);
+	ds_assert(length && blocksize);
 
 	struct vector v =
 	{
@@ -50,7 +50,7 @@ struct vector vector_alloc(struct arena *mem, const u64 blocksize, const u32 len
 	if (!v.data)
 	{
 		log_string(T_SYSTEM, S_FATAL, "Failed to allocate vector");
-		fatal_cleanup_and_exit(kas_thread_self_tid());
+		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 
 	return v;
@@ -72,7 +72,7 @@ struct slot vector_push(struct vector *v)
 			if (!v->data)
 			{
 				log_string(T_SYSTEM, S_FATAL, "Failed to resize vector");
-				fatal_cleanup_and_exit(kas_thread_self_tid());
+				fatal_cleanup_and_exit(ds_thread_self_tid());
 			}
 		}
 		else
@@ -89,7 +89,7 @@ struct slot vector_push(struct vector *v)
 
 void vector_pop(struct vector *v)
 {
-	kas_assert(v->next);
+	ds_assert(v->next);
 	v->next -= 1;
 }
 

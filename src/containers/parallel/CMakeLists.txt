@@ -12,5 +12,5 @@ add_library(parallel_containers STATIC
 	ticket_factory.h
 )
 
-target_link_libraries(parallel_containers PUBLIC kas_common memory system kas_math)
+target_link_libraries(parallel_containers PUBLIC ds_common memory system ds_math)
 target_include_directories(parallel_containers INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})

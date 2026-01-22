@@ -20,7 +20,7 @@
 #ifndef __QUATERNION_H__
 #define __QUATERNION_H__
 
-#include "kas_math.h"
+#include "ds_math.h"
 
 /**
  * QUATERNION RULES:

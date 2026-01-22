@@ -18,7 +18,7 @@
 */
 
 #include "win_local.h"
-#include "kas_string.h"
+#include "ds_string.h"
 
 #include <minidumpapiset.h>
 
@@ -37,8 +37,8 @@ static void win_fatal_cleanup_and_exit(const u32 thread)
 
 		struct arena tmp = arena_alloc_1MB();
 		const utf8 utf8_filename = utf8_format(&tmp, "%s_%s_latest.dmp"
-				, KAS_EXECUTABLE_CSTR
-				, KAS_VERSION_CSTR);
+				, DS_EXECUTABLE_CSTR
+				, DS_VERSION_CSTR);
 		//const utf8 utf8_filename = utf8_format(&tmp, "%s_%s_%u%u%u_%u%u%u.dmp", 
     		//           "engine_sandbox",
 		//	   "0_1", 

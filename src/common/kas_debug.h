@@ -17,8 +17,8 @@
 ==========================================================================
 */
 
-#ifndef __KAS_DEBUG_H__
-#define __KAS_DEBUG_H__
+#ifndef __DS_DEBUG_H__
+#define __DS_DEBUG_H__
 
 /* Should be included at top of file */
 
@@ -28,17 +28,17 @@
 #include <stdio.h>
 #include <assert.h>
 
-#define KAS_PHYSICS_DEBUG	/* Physics debug events, physics debug rendering	*/
+#define DS_PHYSICS_DEBUG	/* Physics debug events, physics debug rendering	*/
 
-#ifdef KAS_DEBUG
+#ifdef DS_DEBUG
 
-#define KAS_ASSERT_DEBUG 	/* Asserts on 						*/
+#define DS_ASSERT_DEBUG 	/* Asserts on 						*/
 
 #endif
 
 /*** enables opengl debugging ***/
 
 //TODO  How does debug callbacks work multi-context, context local func_ptrs?
-//#define KAS_GL_DEBUG		/* graphics debugging */
+//#define DS_GL_DEBUG		/* graphics debugging */
 
 #endif

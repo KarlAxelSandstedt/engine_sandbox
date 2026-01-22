@@ -20,7 +20,7 @@
 #ifndef __ARRAY_LIST_H__
 #define __ARRAY_LIST_H__
 
-#include "kas_common.h"
+#include "ds_common.h"
 #include "allocator.h"
 #include "allocator_debug.h"
 

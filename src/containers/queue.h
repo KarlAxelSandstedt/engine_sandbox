@@ -20,7 +20,7 @@
 #ifndef __MIN_QUEUE_H__
 #define __MIN_QUEUE_H__
 
-#include "kas_common.h"
+#include "ds_common.h"
 #include "allocator.h"
 
 /*

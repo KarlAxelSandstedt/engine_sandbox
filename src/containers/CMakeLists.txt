@@ -10,8 +10,8 @@ add_library(containers STATIC
 	queue.h
 	bit_vector.c
 	bit_vector.h
-	kas_vector.c
-	kas_vector.h
+	ds_vector.c
+	ds_vector.h
 	array_list.c
 	array_list.h
 	list.c
@@ -26,13 +26,13 @@ add_library(containers STATIC
 
 target_link_libraries(containers
 	PUBLIC
-		kas_common
+		ds_common
 		memory
 		system
 		allocator_debug
 		serialize
 	PRIVATE
-		kas_math
+		ds_math
 )
 
 if (UNIX)

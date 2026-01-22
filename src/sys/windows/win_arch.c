@@ -20,8 +20,8 @@
 #include "win_local.h"
 #include <intrin.h>
 
-void 		(*kas_cpuid)(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, const u32 function);
-void 		(*kas_cpuid_ex)(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, const u32 function, const u32 subfunction);
+void 		(*ds_cpuid)(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, const u32 function);
+void 		(*ds_cpuid_ex)(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, const u32 function, const u32 subfunction);
 u32  		(*system_logical_core_count)(void);
 u64  		(*system_pagesize)(void);
 pid		(*system_pid)(void);
@@ -67,8 +67,8 @@ static pid win_pid(void)
 
 void os_arch_init_func_ptrs(void)
 {
-	kas_cpuid = &win_kas_cpuid;
-	kas_cpuid_ex = &win_kas_cpuid_ex;
+	ds_cpuid = &win_kas_cpuid;
+	ds_cpuid_ex = &win_kas_cpuid_ex;
 	system_logical_core_count = &win_logical_core_count;
 	system_pagesize = &win_system_pagesize;
 	system_pid = &win_pid;

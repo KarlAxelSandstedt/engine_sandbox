@@ -31,16 +31,16 @@
 #include <fcntl.h>
 #include <unistd.h>
 
-#include "kas_common.h"
+#include "ds_common.h"
 #include "wasm_local.h"
 #include "memory.h"
-#include "kas_string.h"
+#include "ds_string.h"
 #include "sys_public.h"
 #include "asset_public.h"
 #include "r_public.h"
 #include "led_public.h"
 #include "ui_public.h"
-#include "kas_random.h"
+#include "ds_random.h"
 
 struct arena mem_persistent;
 struct led *editor;

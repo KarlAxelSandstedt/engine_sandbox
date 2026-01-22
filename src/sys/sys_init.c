@@ -21,10 +21,10 @@
 #include "log.h"
 #include "dtoa.h"
 
-static struct kas_sys_env g_sys_env_storage = { 0 };
-struct kas_sys_env *g_sys_env = &g_sys_env_storage;
+static struct ds_sys_env g_sys_env_storage = { 0 };
+struct ds_sys_env *g_sys_env = &g_sys_env_storage;
 
-void kas_sys_env_init(struct arena *mem)
+void ds_sys_env_init(struct arena *mem)
 {
 	g_sys_env->user_privileged = system_user_is_admin();	
 	g_sys_env->cwd = file_null();
@@ -40,12 +40,12 @@ void system_resources_init(struct arena *mem)
 	init_error_handling_func_ptrs();
 	filesystem_init_func_ptrs();
 
- 	kas_sys_env_init(mem);
-	kas_thread_master_init(mem);
+ 	ds_sys_env_init(mem);
+	ds_thread_master_init(mem);
 	time_init(mem);
 	log_init(mem, "log.txt");
 
-	if (!kas_arch_config_init(mem))
+	if (!ds_arch_config_init(mem))
 	{
 		log_string(T_SYSTEM, S_FATAL, "Unsupported instrincs required");
 		fatal_cleanup_and_exit(0);

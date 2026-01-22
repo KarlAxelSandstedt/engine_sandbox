@@ -20,9 +20,9 @@
 #ifndef __GEOMETRY_H__
 #define __GEOMETRY_H__
 
-#include "kas_common.h"
+#include "ds_common.h"
 #include "allocator.h"
-#include "kas_math.h"
+#include "ds_math.h"
 
 /****************** GEOMETRIC PRIMITIVES ******************/
 
@@ -294,7 +294,7 @@ struct segment 	dcel_edge_segment(const struct dcel *h, mat3 rot, const vec3 pos
 /* TODO: merge with newer commented out dcel_assert_topology... */
 void 		dcel_assert_topology(struct dcel *dcel);
 
-#ifdef KAS_DEBUG
+#ifdef DS_DEBUG
 #define COLLISION_HULL_ASSERT(dcel)	dcel_assert_topology(dcel)
 #else
 #define COLLISION_HULL_ASSERT(dcel)	

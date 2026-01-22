@@ -17,7 +17,7 @@
 ==========================================================================
 */
 
-#include "kas_common.h"
+#include "ds_common.h"
 #if __OS__ == __WEB__
 #include <emscripten/console.h>
 #endif
@@ -170,7 +170,7 @@ void log_write_message(const enum system_id system, const enum severity_id sever
 {
 	//TODO should perf log this 
 	
-	const u32 thread_id = kas_thread_self_tid();
+	const u32 thread_id = ds_thread_self_tid();
 	/* spin until a new msg slot is up for grabs for us to publish */
 	u32 ticket;
 	u32 ret;

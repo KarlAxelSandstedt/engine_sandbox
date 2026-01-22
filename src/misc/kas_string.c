@@ -18,7 +18,7 @@
 */
 
 #include <string.h>
-#include "kas_string.h"
+#include "ds_string.h"
 #include "sys_public.h"
 #include "asset_public.h"
 #include "dtoa.h"
@@ -614,7 +614,7 @@ utf8 utf8_f64_buffered(u8 buf[], const u64 bufsize, const u32 decimals, const f6
 				}
 			}
 
-			kas_assert(i == req_size);
+			ds_assert(i == req_size);
 			str.buf = buf;
 			str.len = i;
 			str.size = bufsize;
@@ -991,7 +991,7 @@ utf32 utf32_f64_buffered(u32 buf[], const u64 buflen, const u32 decimals, const 
 				}
 			}
 
-			kas_assert(i == req_len);
+			ds_assert(i == req_len);
 			str.buf = buf;
 			str.len = i;
 			str.max_len = i;

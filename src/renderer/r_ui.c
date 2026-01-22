@@ -68,41 +68,41 @@ void r_ui_draw(struct ui *ui)
 
 void r_ui_buffer_shared_layout_setter(void)
 {
-	kas_glEnableVertexAttribArray(0);
-	kas_glEnableVertexAttribArray(1);
-	kas_glEnableVertexAttribArray(2);
-	kas_glEnableVertexAttribArray(3);
-	kas_glEnableVertexAttribArray(4);
-	kas_glEnableVertexAttribArray(5);
-	kas_glEnableVertexAttribArray(6);
-	kas_glEnableVertexAttribArray(7);
-	kas_glEnableVertexAttribArray(8);
-	kas_glEnableVertexAttribArray(9);
-	kas_glEnableVertexAttribArray(10);
+	ds_glEnableVertexAttribArray(0);
+	ds_glEnableVertexAttribArray(1);
+	ds_glEnableVertexAttribArray(2);
+	ds_glEnableVertexAttribArray(3);
+	ds_glEnableVertexAttribArray(4);
+	ds_glEnableVertexAttribArray(5);
+	ds_glEnableVertexAttribArray(6);
+	ds_glEnableVertexAttribArray(7);
+	ds_glEnableVertexAttribArray(8);
+	ds_glEnableVertexAttribArray(9);
+	ds_glEnableVertexAttribArray(10);
 
-	kas_glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, S_UI_STRIDE, (void *)S_NODE_RECT_OFFSET);
-	kas_glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, S_UI_STRIDE, (void *)S_VISIBLE_RECT_OFFSET);
-	kas_glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, S_UI_STRIDE, (void *)S_UV_RECT_OFFSET);
-	kas_glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, S_UI_STRIDE, (void *)S_BACKGROUND_COLOR_OFFSET);
-	kas_glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, S_UI_STRIDE, (void *)S_BORDER_COLOR_OFFSET);
-	kas_glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, S_UI_STRIDE, (void *)S_SPRITE_COLOR_OFFSET);
-	kas_glVertexAttribPointer(6, 3, GL_FLOAT, GL_FALSE, S_UI_STRIDE, (void *)S_EXTRA_OFFSET);
-	kas_glVertexAttribPointer(7, 4, GL_FLOAT, GL_FALSE, S_UI_STRIDE, (void *)S_GRADIENT_COLOR_BR_OFFSET);
-	kas_glVertexAttribPointer(8, 4, GL_FLOAT, GL_FALSE, S_UI_STRIDE, (void *)S_GRADIENT_COLOR_TR_OFFSET);
-	kas_glVertexAttribPointer(9, 4, GL_FLOAT, GL_FALSE, S_UI_STRIDE, (void *)S_GRADIENT_COLOR_TL_OFFSET);
-	kas_glVertexAttribPointer(10, 4, GL_FLOAT, GL_FALSE, S_UI_STRIDE, (void *)S_GRADIENT_COLOR_BL_OFFSET);
+	ds_glVertexAttribPointer(0, 4, GL_FLOAT, GL_FALSE, S_UI_STRIDE, (void *)S_NODE_RECT_OFFSET);
+	ds_glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, S_UI_STRIDE, (void *)S_VISIBLE_RECT_OFFSET);
+	ds_glVertexAttribPointer(2, 4, GL_FLOAT, GL_FALSE, S_UI_STRIDE, (void *)S_UV_RECT_OFFSET);
+	ds_glVertexAttribPointer(3, 4, GL_FLOAT, GL_FALSE, S_UI_STRIDE, (void *)S_BACKGROUND_COLOR_OFFSET);
+	ds_glVertexAttribPointer(4, 4, GL_FLOAT, GL_FALSE, S_UI_STRIDE, (void *)S_BORDER_COLOR_OFFSET);
+	ds_glVertexAttribPointer(5, 4, GL_FLOAT, GL_FALSE, S_UI_STRIDE, (void *)S_SPRITE_COLOR_OFFSET);
+	ds_glVertexAttribPointer(6, 3, GL_FLOAT, GL_FALSE, S_UI_STRIDE, (void *)S_EXTRA_OFFSET);
+	ds_glVertexAttribPointer(7, 4, GL_FLOAT, GL_FALSE, S_UI_STRIDE, (void *)S_GRADIENT_COLOR_BR_OFFSET);
+	ds_glVertexAttribPointer(8, 4, GL_FLOAT, GL_FALSE, S_UI_STRIDE, (void *)S_GRADIENT_COLOR_TR_OFFSET);
+	ds_glVertexAttribPointer(9, 4, GL_FLOAT, GL_FALSE, S_UI_STRIDE, (void *)S_GRADIENT_COLOR_TL_OFFSET);
+	ds_glVertexAttribPointer(10, 4, GL_FLOAT, GL_FALSE, S_UI_STRIDE, (void *)S_GRADIENT_COLOR_BL_OFFSET);
 
-	kas_glVertexAttribDivisor(0, 1);
-	kas_glVertexAttribDivisor(1, 1);
-	kas_glVertexAttribDivisor(2, 1);
-	kas_glVertexAttribDivisor(3, 1);
-	kas_glVertexAttribDivisor(4, 1);
-	kas_glVertexAttribDivisor(5, 1);
-	kas_glVertexAttribDivisor(6, 1);
-	kas_glVertexAttribDivisor(7, 1);
-	kas_glVertexAttribDivisor(8, 1);
-	kas_glVertexAttribDivisor(9, 1);
-	kas_glVertexAttribDivisor(10, 1);
+	ds_glVertexAttribDivisor(0, 1);
+	ds_glVertexAttribDivisor(1, 1);
+	ds_glVertexAttribDivisor(2, 1);
+	ds_glVertexAttribDivisor(3, 1);
+	ds_glVertexAttribDivisor(4, 1);
+	ds_glVertexAttribDivisor(5, 1);
+	ds_glVertexAttribDivisor(6, 1);
+	ds_glVertexAttribDivisor(7, 1);
+	ds_glVertexAttribDivisor(8, 1);
+	ds_glVertexAttribDivisor(9, 1);
+	ds_glVertexAttribDivisor(10, 1);
 }
 
 void r_ui_buffer_local_layout_setter(void)

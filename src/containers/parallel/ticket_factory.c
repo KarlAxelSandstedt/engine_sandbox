@@ -18,11 +18,11 @@
 */
 
 #include "ticket_factory.h"
-#include "kas_math.h"
+#include "ds_math.h"
 
 struct ticket_factory *ticket_factory_init(struct arena *mem, const u32 max_tickets)
 {
-	kas_assert(max_tickets > 0 && is_power_of_two(max_tickets));
+	ds_assert(max_tickets > 0 && is_power_of_two(max_tickets));
 	struct ticket_factory *tf = arena_push(mem, sizeof(struct ticket_factory));
 
 	tf->max_tickets = max_tickets;

@@ -17,7 +17,7 @@
 ==========================================================================
 */
 
-#ifdef	KAS_DEV
+#ifdef	DS_DEV
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #undef log
@@ -26,7 +26,7 @@
 #include "asset_local.h"
 #include "serialize.h"
 
-#ifdef KAS_DEV
+#ifdef DS_DEV
 
 /*
  * Handling sprite-to-ssff mappings:
@@ -69,8 +69,8 @@
  * 	SORCERER_WALK_1 = 0		//HARDCODED ID
  * 	SORCERER_WALK_2 = 1		//HARDCODED ID
  *
- * #if defined(KAS_DEV)
- * 	material[MATERIAL_SORCERER_ID].source = KAS_COMPILE_TIME_STRING(filepath);	//HARDCODED
+ * #if defined(DS_DEV)
+ * 	material[MATERIAL_SORCERER_ID].source = DS_COMPILE_TIME_STRING(filepath);	//HARDCODED
  * #endif
  * 	material[MATERIAL_SORCERER_ID].ssff = SSFF_ID			// HARDCODED MAPPING
  *	material[MATERIAL_SORCERER_ID].collection_id = index;		// SET ON STARTUP (less error-prone, tedious).
@@ -184,11 +184,11 @@ i32 wi, he, co;
 		if (!pixel[i])
 		{
 			log_string(T_SYSTEM, S_FATAL, stbi_failure_reason());
-			kas_assert(0);
+			ds_assert(0);
 		}
 
-		kas_assert(comp == 4);
-		kas_assert(png_width[i] % info->png[i].sprite_width == 0);
+		ds_assert(comp == 4);
+		ds_assert(png_width[i] % info->png[i].sprite_width == 0);
 		sprite_count[i] = png_width[i] / info->png[i].sprite_width;
 		sprite[i] = arena_push_packed(mem, sprite_count[i] * sizeof(struct ssff_sprite));
 		color[i] = (void *) mem->stack_ptr;
@@ -226,7 +226,7 @@ i32 wi, he, co;
 			}
 		}
 
-		kas_assert(lb != U32_MAX);
+		ds_assert(lb != U32_MAX);
 		c[i].bit_depth = (hb == lb)
 			? hb
 			: hb + 1;
@@ -288,7 +288,7 @@ i32 wi, he, co;
 							break;	
 						}
 					}
-					//TODO kas_assert(ci != U32_MAX);
+					//TODO ds_assert(ci != U32_MAX);
 					ss_write_u32_be_partial(&stream, ci, c[i].bit_depth);
 				}
 			}
@@ -317,7 +317,7 @@ void ssff_save(const struct asset_ssff *asset, const struct ssff_header *header)
 	if (file_try_create_at_cwd(&tmp, &file, asset->filepath, FILE_TRUNCATE) != FS_SUCCESS)
 	{
 		log_string(T_ASSET, S_FATAL, "Failed to create .ssff file handle");
-		fatal_cleanup_and_exit(kas_thread_self_tid());
+		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 
 	file_write_append(&file, (u8 *) header, header->size);
@@ -374,7 +374,7 @@ struct ssff_texture_return ssff_texture(struct arena *mem, const struct ssff_hea
 			{
 				for (u32 x = 0; x < sprite_width; ++x)
 				{
-					kas_assert_string(x_offset + x < width, "trying to write outside of row");
+					ds_assert_string(x_offset + x < width, "trying to write outside of row");
 					const u32 ci = ss_read_u32_be_partial(&stream, c->bit_depth);
 					const u32 color = color_table[ci];
 					pixel[4*((y_offset + y)*width + (x_offset + x)) + 0] = (u8) (color >> 24);
@@ -465,7 +465,7 @@ struct asset_ssff *asset_database_request_ssff(struct arena *tmp, const enum ssf
 {
 	arena_push_record(tmp);
 	struct asset_ssff *asset = g_asset_db->ssff[id];
-#ifdef KAS_DEV
+#ifdef DS_DEV
 	if (!asset->valid)
 	{
 		if (asset->loaded)
@@ -487,7 +487,7 @@ struct asset_ssff *asset_database_request_ssff(struct arena *tmp, const enum ssf
 		{
 			case SSFF_DYNAMIC_ID: { dynamic_ssff_set_sprite_parameters(asset, &ret); } break;
 			case SSFF_LED_ID: { led_ssff_set_sprite_parameters(asset, &ret); } break;
-			default: { kas_assert_string(0, "unhandled sprite sheet parameter setting"); } break;
+			default: { ds_assert_string(0, "unhandled sprite sheet parameter setting"); } break;
 		}
 		asset->loaded = 1;
 	}

@@ -32,8 +32,8 @@
 /************************************************************************/
 
 /* cpu x86 querying */
-extern void 	(*kas_cpuid)(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, const u32 function);
-extern void 	(*kas_cpuid_ex)(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, const u32 function, const u32 subfunction);
+extern void 	(*ds_cpuid)(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, const u32 function);
+extern void 	(*ds_cpuid_ex)(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, const u32 function, const u32 subfunction);
 /* return logical core count  */
 extern u32  	(*system_logical_core_count)(void);
 /* return system pagesize */
@@ -41,7 +41,7 @@ extern u64	(*system_pagesize)(void);
 extern pid	(*system_pid)(void);
 
 /* sets up g_arch_config. returns 1 on intrinsics requirements fullfilled, 0 otherwise. */
-u32 		kas_arch_config_init(struct arena *mem);
+u32 		ds_arch_config_init(struct arena *mem);
 
 /************************************************************************/
 /* 				System Graphics 			*/
@@ -123,9 +123,9 @@ extern u32 	(*system_exit_text_input_mode)(struct native_window *native);
 /* push directory file paths and states AND CLOSE DIRECTORY! 
  *
  * RETURNS:
- * 	KAS_FS_SUCCESS on success,
- * 	KAS_FS_BUFFER_TO_SMALL on out-of-memory,
- *	KAS_FS_UNSPECIFIED on errors regarding opening and reading the directory.
+ * 	DS_FS_SUCCESS on success,
+ * 	DS_FS_BUFFER_TO_SMALL on out-of-memory,
+ *	DS_FS_UNSPECIFIED on errors regarding opening and reading the directory.
  */
 extern enum fs_error	(*directory_push_entries)(struct arena *mem, struct vector *vec, struct file *dir);
 

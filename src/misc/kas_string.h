@@ -17,8 +17,8 @@
 ==========================================================================
 */
 
-#ifndef __KAS_STRING_H__
-#define __KAS_STRING_H__
+#ifndef __DS_STRING_H__
+#define __DS_STRING_H__
 
 #include <stdarg.h>
 #include "allocator.h"

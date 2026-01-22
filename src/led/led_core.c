@@ -18,7 +18,7 @@
 */
 
 #include "led_local.h"
-#include "kas_random.h"
+#include "ds_random.h"
 
 void cmd_led_compile(void);
 void cmd_led_run(void);
@@ -735,7 +735,7 @@ void led_node_set_proxy3d(struct led *led, const utf8 id, const utf8 mesh, const
 
 static struct tri_mesh tri_mesh_perlin_noise(struct arena *mem_persistent, const u32 n, const f32 width)
 {
-	kas_assert(is_power_of_two(n) && n >= 32);
+	ds_assert(is_power_of_two(n) && n >= 32);
 
 	struct arena tmp = arena_alloc_1MB();
 
@@ -748,7 +748,7 @@ static struct tri_mesh tri_mesh_perlin_noise(struct arena *mem_persistent, const
 	mesh.tri = arena_push(mem_persistent, mesh.tri_count*sizeof(vec3u32));
 	//TODO move out functino to tri_mesh_perlin_noise method
 	//TODO return stub mesh
-	kas_assert(mesh.v && mesh.tri);
+	ds_assert(mesh.v && mesh.tri);
 
 	const f32 unit = width / n;
 
@@ -1650,7 +1650,7 @@ static void led_engine_run(struct led *led)
 				}
 			} break;
 
-#ifdef KAS_PHYSICS_DEBUG
+#ifdef DS_PHYSICS_DEBUG
 			case PHYSICS_EVENT_ISLAND_NEW:
 			{
 				struct island *is = array_list_address(led->physics.is_db.islands, event->island);

@@ -40,7 +40,7 @@ static void system_window_free_resources(struct system_window *sys_win)
 u32 system_window_alloc(const char *title, const vec2u32 position, const vec2u32 size, const u32 parent)
 {
 	struct slot slot = hierarchy_index_add(g_window_hierarchy, parent);
-	kas_assert(parent != HI_ROOT_STUB_INDEX || slot.index == 2);
+	ds_assert(parent != HI_ROOT_STUB_INDEX || slot.index == 2);
 
 	struct system_window *sys_win = slot.address;
 
@@ -152,9 +152,9 @@ struct slot system_window_lookup(const u64 native_handle)
 
 u32 system_process_root_window_alloc(const char *title, const vec2u32 position, const vec2u32 size)
 {
-	kas_assert(g_process_root_window == HI_NULL_INDEX);
+	ds_assert(g_process_root_window == HI_NULL_INDEX);
 	g_process_root_window = system_window_alloc(title, position, size, HI_ROOT_STUB_INDEX);
-	kas_assert(g_process_root_window == 2);
+	ds_assert(g_process_root_window == 2);
 	return g_process_root_window;
 }
 

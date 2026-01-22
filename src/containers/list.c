@@ -136,7 +136,7 @@ void dll_prepend(struct dll *dll, void *array, const u32 index)
 
 void dll_remove(struct dll *dll, void *array, const u32 index)
 {
-	kas_assert(dll->count);
+	ds_assert(dll->count);
 	dll->count -= 1;
 
 	u32 *node_prev = (u32*) ((u8*) array + index*dll->slot_size + dll->prev_offset);
@@ -199,8 +199,8 @@ struct nll nll_alloc_internal(struct arena *mem,
 	       	u32 (*index_in_next_node)(struct nll *, void **, const void *, const u32),
 		const u32 growable)
 {
-	kas_assert(!growable || !mem);
-	kas_assert(initial_length);
+	ds_assert(!growable || !mem);
+	ds_assert(initial_length);
 	
 	struct nll net =
 	{
@@ -224,7 +224,7 @@ struct nll nll_alloc_internal(struct arena *mem,
 	if (!net.pool.length)
 	{
 		log_string(T_SYSTEM, S_FATAL, "Failed to allocate net list");
-		fatal_cleanup_and_exit(kas_thread_self_tid());
+		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 
 	struct slot slot = pool_add(&net.pool);
@@ -234,7 +234,7 @@ struct nll nll_alloc_internal(struct arena *mem,
 	next[1] = NLL_NULL;
 	prev[0] = NLL_NULL;
 	prev[1] = NLL_NULL;
-	kas_assert(slot.index == NLL_NULL);
+	ds_assert(slot.index == NLL_NULL);
 
 	return net;	
 }
@@ -257,7 +257,7 @@ void nll_flush(struct nll *net)
 	next[1] = NLL_NULL;
 	prev[0] = NLL_NULL;
 	prev[1] = NLL_NULL;
-	kas_assert(slot.index == NLL_NULL);
+	ds_assert(slot.index == NLL_NULL);
 }
 
 struct slot nll_add(struct nll *net, void *data, const u32 next_0, const u32 next_1)
@@ -283,16 +283,16 @@ struct slot nll_add(struct nll *net, void *data, const u32 next_0, const u32 nex
 	const u32 index_next_1 = net->index_in_next_node(net, (void **) &node_next_1, slot.address, 1);
 
 	prev = (u32 *)((u8 *) node_next_0 + net->prev_offset);
-	kas_assert_string(next_0 == NLL_NULL || prev[index_next_0] == NLL_NULL, "either the next node must be the NULL NODE, indicating a list of size 1, or the previous head in the list which should have its previous node as the NULL NODE");
+	ds_assert_string(next_0 == NLL_NULL || prev[index_next_0] == NLL_NULL, "either the next node must be the NULL NODE, indicating a list of size 1, or the previous head in the list which should have its previous node as the NULL NODE");
 	prev[index_next_0] = slot.index;
 	
 	prev = (u32 *)((u8 *) node_next_1 + net->prev_offset);
-	kas_assert_string(next_1 == NLL_NULL || prev[index_next_1] == NLL_NULL, "either the next node must be the NULL NODE, indicating a list of size 1, or the previous head in the list which should have its previous node as the NULL NODE");
+	ds_assert_string(next_1 == NLL_NULL || prev[index_next_1] == NLL_NULL, "either the next node must be the NULL NODE, indicating a list of size 1, or the previous head in the list which should have its previous node as the NULL NODE");
 	prev[index_next_1] = slot.index;
 
 	u8 *tmp;
-	kas_assert(next_0 == NLL_NULL || net->index_in_prev_node(net, (void **) &tmp, node_next_0, index_next_0) == 0);
-	kas_assert(next_1 == NLL_NULL || net->index_in_prev_node(net, (void **) &tmp, node_next_1, index_next_1) == 1);
+	ds_assert(next_0 == NLL_NULL || net->index_in_prev_node(net, (void **) &tmp, node_next_0, index_next_0) == 0);
+	ds_assert(next_1 == NLL_NULL || net->index_in_prev_node(net, (void **) &tmp, node_next_1, index_next_1) == 1);
 
 	return slot;
 }
@@ -314,10 +314,10 @@ void nll_remove(struct nll *net, const u32 index)
 	u32 *node_next_0_prev = (u32 *)((u8 *) node_next_0 + net->prev_offset) + index_next_0;
 	u32 *node_next_1_prev = (u32 *)((u8 *) node_next_1 + net->prev_offset) + index_next_1;
 
-	kas_assert(node_prev[0] == NLL_NULL || *node_prev_0_next == index);
-	kas_assert(node_prev[1] == NLL_NULL || *node_prev_1_next == index);
-	kas_assert(node_next[0] == NLL_NULL || *node_next_0_prev == index);
-	kas_assert(node_next[1] == NLL_NULL || *node_next_1_prev == index);
+	ds_assert(node_prev[0] == NLL_NULL || *node_prev_0_next == index);
+	ds_assert(node_prev[1] == NLL_NULL || *node_prev_1_next == index);
+	ds_assert(node_next[0] == NLL_NULL || *node_next_0_prev == index);
+	ds_assert(node_next[1] == NLL_NULL || *node_next_1_prev == index);
 
 	*node_prev_0_next = node_next[0];
 	*node_prev_1_next = node_next[1];

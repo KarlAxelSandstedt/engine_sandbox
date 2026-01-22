@@ -17,10 +17,10 @@
 ==========================================================================
 */
 
-#ifndef __KAS_LIST_H__
-#define __KAS_LIST_H__
+#ifndef __DS_LIST_H__
+#define __DS_LIST_H__
 
-#include "kas_common.h"
+#include "ds_common.h"
 #include "allocator.h"
 
 /*

@@ -20,9 +20,9 @@
 #ifndef __COLLISION_H__
 #define __COLLISION_H__
 
-#include "kas_common.h"
+#include "ds_common.h"
 #include "allocator.h"
-#include "kas_math.h"
+#include "ds_math.h"
 #include "geometry.h"
 #include "sys_public.h"
 #include "string_database.h"
@@ -160,9 +160,9 @@ struct collision_debug
 	u8			pad[64];
 };
 
-extern kas_thread_local struct collision_debug *tl_debug;
+extern ds_thread_local struct collision_debug *tl_debug;
 
-#ifdef KAS_PHYSICS_DEBUG
+#ifdef DS_PHYSICS_DEBUG
 
 #define COLLISION_DEBUG_ADD_SEGMENT(segment, color)							\
 	stack_visual_segment_push(&tl_debug->stack_segment,  visual_segment_construct(segment, color))

@@ -17,10 +17,10 @@
 ==========================================================================
 */
 
-#ifndef __KAS_VECTOR_H__
-#define __KAS_VECTOR_H__
+#ifndef __DS_VECTOR_H__
+#define __DS_VECTOR_H__
 
-#include "kas_common.h"
+#include "ds_common.h"
 #include "allocator.h"
 #include "allocator_debug.h"
 
@@ -101,7 +101,7 @@ DECLARE_STACK_ALLOC(type)										\
 		: malloc(sizeof(type)*length);								\
 	if (length > 0 && !stack.arr)									\
 	{												\
-		fatal_cleanup_and_exit(kas_thread_self_tid());						\
+		fatal_cleanup_and_exit(ds_thread_self_tid());						\
 	}												\
 	/*ALLOCATOR_DEBUG_INDEX_ALLOC(&stack, (u8 *) stack.arr, stack.length, sizeof(type), 0);*/	\
 	return stack;											\
@@ -128,13 +128,13 @@ DECLARE_STACK_PUSH(type)											\
 			stack->arr = realloc(stack->arr, stack->length*sizeof(stack->arr[0]));			\
 			if (!stack->arr)									\
 			{											\
-				fatal_cleanup_and_exit(kas_thread_self_tid());					\
+				fatal_cleanup_and_exit(ds_thread_self_tid());					\
 			}											\
 			/*ALLOCATOR_DEBUG_INDEX_ALIAS_AND_REPOISON(stack, (u8 *) stack->arr, stack->length);*/	\
 		}												\
 		else												\
 		{												\
-			fatal_cleanup_and_exit(kas_thread_self_tid());						\
+			fatal_cleanup_and_exit(ds_thread_self_tid());						\
 		}												\
 	}													\
 	/*ALLOCATOR_DEBUG_INDEX_UNPOISON(stack, stack->next);*/							\
@@ -145,14 +145,14 @@ DECLARE_STACK_PUSH(type)											\
 #define DEFINE_STACK_SET(type)			\
 DECLARE_STACK_SET(type)				\
 {						\
-	kas_assert(stack->next);		\
+	ds_assert(stack->next);		\
 	stack->arr[stack->next-1] = val;	\
 }
 
 #define DEFINE_STACK_POP(type)					\
 DECLARE_STACK_POP(type)						\
 {								\
-	kas_assert(stack->next);				\
+	ds_assert(stack->next);				\
 	stack->next -= 1;					\
 	const type val = stack->arr[stack->next];		\
 	/*ALLOCATOR_DEBUG_INDEX_POISON(stack, stack->next);*/	\
@@ -168,7 +168,7 @@ DECLARE_STACK_FLUSH(type)					\
 #define DEFINE_STACK_TOP(type)			\
 DECLARE_STACK_TOP(type)				\
 {						\
-	kas_assert(stack->next);		\
+	ds_assert(stack->next);		\
 	return stack->arr[stack->next-1];	\
 }
 
@@ -224,7 +224,7 @@ DECLARE_STACK_VEC_ALLOC(vectype)									\
 		: malloc(sizeof(vectype)*length);							\
 	if (length > 0 && !stack.arr)									\
 	{												\
-		fatal_cleanup_and_exit(kas_thread_self_tid());						\
+		fatal_cleanup_and_exit(ds_thread_self_tid());						\
 	}												\
 	/*ALLOCATOR_DEBUG_INDEX_ALLOC(&stack, (u8 *) stack.arr, stack.length, sizeof(vectype), 0);*/	\
 	return stack;											\
@@ -251,13 +251,13 @@ DECLARE_STACK_VEC_PUSH(vectype)											\
 			stack->arr = realloc(stack->arr, stack->length*sizeof(stack->arr[0]));			\
 			if (!stack->arr)									\
 			{											\
-				fatal_cleanup_and_exit(kas_thread_self_tid());					\
+				fatal_cleanup_and_exit(ds_thread_self_tid());					\
 			}											\
 			/*ALLOCATOR_DEBUG_INDEX_ALIAS_AND_REPOISON(stack, (u8 *) stack->arr, stack->length);*/	\
 		}												\
 		else												\
 		{												\
-			fatal_cleanup_and_exit(kas_thread_self_tid());						\
+			fatal_cleanup_and_exit(ds_thread_self_tid());						\
 		}												\
 	}													\
 	/*ALLOCATOR_DEBUG_INDEX_UNPOISON(stack, stack->next);*/							\
@@ -268,14 +268,14 @@ DECLARE_STACK_VEC_PUSH(vectype)											\
 #define DEFINE_STACK_VEC_SET(vectype)				\
 DECLARE_STACK_VEC_SET(vectype)					\
 {								\
-	kas_assert(stack->next);				\
+	ds_assert(stack->next);				\
 	vectype ## _copy(stack->arr[stack->next-1], val);	\
 }
 
 #define DEFINE_STACK_VEC_POP(vectype)				\
 DECLARE_STACK_VEC_POP(vectype)					\
 {								\
-	kas_assert(stack->next);				\
+	ds_assert(stack->next);				\
 	stack->next -= 1;					\
 	/*ALLOCATOR_DEBUG_INDEX_POISON(stack, stack->next);*/	\
 }
@@ -289,7 +289,7 @@ DECLARE_STACK_VEC_FLUSH(vectype)				\
 #define DEFINE_STACK_VEC_TOP(vectype)				\
 DECLARE_STACK_VEC_TOP(vectype)					\
 {								\
-	kas_assert(stack->next);				\
+	ds_assert(stack->next);				\
 	vectype ## _copy(ret_val, stack->arr[stack->next-1]);	\
 }
 

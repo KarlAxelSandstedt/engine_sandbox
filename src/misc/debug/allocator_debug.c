@@ -20,7 +20,7 @@
 #include "allocator_debug.h"
 #include "sys_common.h"
 
-#if (defined(KAS_ASAN) && defined(KAS_ASSERT_DEBUG))
+#if (defined(DS_ASAN) && defined(DS_ASSERT_DEBUG))
 
 struct allocator_debug_index allocator_debug_index_alloc(const u8 *array, const u32 slot_count, const u64 slot_size, const u64 slot_header_size, const u64 slot_header_offset)
 {
@@ -35,9 +35,9 @@ struct allocator_debug_index allocator_debug_index_alloc(const u8 *array, const 
 		.max_unpoisoned_count = 0,
 	};
 
-	kas_assert(debug.slot_count > 0);
-	kas_assert(debug.poisoned.bit_count > 0);
-	kas_assert(array != NULL);
+	ds_assert(debug.slot_count > 0);
+	ds_assert(debug.poisoned.bit_count > 0);
+	ds_assert(array != NULL);
 
 	ASAN_POISON_MEMORY_REGION(array, slot_count*slot_size);
 
@@ -58,8 +58,8 @@ void allocator_debug_index_flush(struct allocator_debug_index *debug)
 
 void allocator_debug_index_poison(struct allocator_debug_index *debug, const u32 index)
 {
-	kas_assert(index < debug->slot_count);
-	kas_assert(bit_vec_get_bit(&debug->poisoned, index) == 0);
+	ds_assert(index < debug->slot_count);
+	ds_assert(bit_vec_get_bit(&debug->poisoned, index) == 0);
 
 	if (debug->slot_header_offset)
 	{
@@ -76,12 +76,12 @@ void allocator_debug_index_poison(struct allocator_debug_index *debug, const u32
 
 void allocator_debug_index_unpoison(struct allocator_debug_index *debug, const u32 index)
 {
-	kas_assert(index < debug->slot_count);
-	kas_assert(bit_vec_get_bit(&debug->poisoned, index) == 1);
+	ds_assert(index < debug->slot_count);
+	ds_assert(bit_vec_get_bit(&debug->poisoned, index) == 1);
 
 	if (debug->max_unpoisoned_count <= index)
 	{
-		kas_assert(debug->max_unpoisoned_count == index);
+		ds_assert(debug->max_unpoisoned_count == index);
 		ASAN_UNPOISON_MEMORY_REGION(debug->array + index*debug->slot_size, debug->slot_size);
 		debug->max_unpoisoned_count = index+1;
 	}
@@ -104,7 +104,7 @@ void allocator_debug_index_unpoison(struct allocator_debug_index *debug, const u
 
 void allocator_debug_index_alias_and_repoison(struct allocator_debug_index *debug, const u8 *reallocated_array, const u32 new_slot_count)
 {
-	kas_assert(debug->slot_count <= new_slot_count);
+	ds_assert(debug->slot_count <= new_slot_count);
 	if (debug->poisoned.bit_count < new_slot_count)
 	{
 		bit_vec_increase_size(&debug->poisoned, new_slot_count, 1);

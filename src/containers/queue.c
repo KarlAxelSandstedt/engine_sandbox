@@ -148,9 +148,9 @@ static void recursive_call(struct min_queue * const queue, const u32 queue_index
 
 struct min_queue min_queue_new(struct arena *arena, const u32 initial_length, const u32 growable)
 {
-	kas_assert(initial_length);
-	kas_assert(!arena || !growable);
-	kas_static_assert(sizeof(u32f32) == 8, "");
+	ds_assert(initial_length);
+	ds_assert(!arena || !growable);
+	ds_static_assert(sizeof(u32f32) == 8, "");
 
 	struct min_queue queue;
 
@@ -172,7 +172,7 @@ struct min_queue min_queue_new(struct arena *arena, const u32 initial_length, co
 	if (queue.object_pool.length == 0 || queue.elements == NULL)
 	{
 		log_string(T_SYSTEM, S_FATAL, "Failed to allocate min queue, exiting.");
-		fatal_cleanup_and_exit(kas_thread_self_tid());
+		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 		
 	return queue;
@@ -189,7 +189,7 @@ void min_queue_free(struct min_queue * const queue)
 
 u32 min_queue_extract_min(struct min_queue * const queue)
 {
-	kas_assert_string(queue->object_pool.count > 0, "Queue should have elements to extract\n");
+	ds_assert_string(queue->object_pool.count > 0, "Queue should have elements to extract\n");
 	struct queue_object *obj = pool_address(&queue->object_pool, queue->elements[0].object_index);
 	const u32 external_index = obj->external_index;
 	queue->elements[0].priority = FLT_MAX;
@@ -211,12 +211,12 @@ u32 min_queue_insert(struct min_queue * const queue, const f32 priority, const u
 	struct slot slot = pool_add(&queue->object_pool);
 	if (old_length != queue->object_pool.length)
 	{
-		kas_assert(queue->growable);
+		ds_assert(queue->growable);
 		queue->elements = realloc(queue->elements, queue->object_pool.length * sizeof(struct queue_element));
 		if (queue->elements == NULL)
 		{
 			log_string(T_SYSTEM, S_FATAL, "Failed to reallocate min queue, exiting.");
-			fatal_cleanup_and_exit(kas_thread_self_tid());
+			fatal_cleanup_and_exit(ds_thread_self_tid());
 		}
 	}
 
@@ -234,7 +234,7 @@ u32 min_queue_insert(struct min_queue * const queue, const f32 priority, const u
 
 void min_queue_decrease_priority(struct min_queue * const queue, const u32 object_index, const f32 priority)
 {
-	kas_assert_string(object_index < queue->object_pool.count, "Queue index should be withing queue bounds");
+	ds_assert_string(object_index < queue->object_pool.count, "Queue index should be withing queue bounds");
 
 	struct queue_object *obj = pool_address(&queue->object_pool, object_index);
 	if (priority < queue->elements[obj->queue_index].priority) 
@@ -301,7 +301,7 @@ static void queue_fixed_recursive_call(struct min_queue_fixed * const queue, con
 
 struct min_queue_fixed min_queue_fixed_alloc(struct arena *mem, const u32 initial_length, const u32 growable)
 {
-	kas_assert(!growable || !mem);
+	ds_assert(!growable || !mem);
 	if (!initial_length) { return (struct min_queue_fixed) { 0 }; }
 
 	struct min_queue_fixed queue =
@@ -325,7 +325,7 @@ struct min_queue_fixed min_queue_fixed_alloc(struct arena *mem, const u32 initia
 	if (queue.element == NULL)
 	{
 		log_string(T_SYSTEM, S_FATAL, "Failed to allocate min_queue_fixed memory, exiting.");
-		fatal_cleanup_and_exit(kas_thread_self_tid());
+		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 
 	return queue;
@@ -333,7 +333,7 @@ struct min_queue_fixed min_queue_fixed_alloc(struct arena *mem, const u32 initia
 
 struct min_queue_fixed min_queue_fixed_alloc_all(struct arena *mem)
 {
-	kas_assert(mem);
+	ds_assert(mem);
 
 	struct allocation_array arr = arena_push_aligned_all(mem, sizeof(u32f32), 4);
 	struct min_queue_fixed queue =
@@ -385,7 +385,7 @@ void min_queue_fixed_push(struct min_queue_fixed *queue, const u32 id, const f32
 			if (queue->element == NULL)
 			{
 				log_string(T_SYSTEM, S_FATAL, "Failed to reallocate min_queue_fixed memory, exiting.");
-				fatal_cleanup_and_exit(kas_thread_self_tid());
+				fatal_cleanup_and_exit(ds_thread_self_tid());
 			}
 		}	
 		else
@@ -403,7 +403,7 @@ void min_queue_fixed_push(struct min_queue_fixed *queue, const u32 id, const f32
 
 u32f32 min_queue_fixed_pop(struct min_queue_fixed *queue)
 {
-	kas_assert_string(queue->count > 0, "Heap should have elements to extract\n");
+	ds_assert_string(queue->count > 0, "Heap should have elements to extract\n");
 	queue->count -= 1;
 
 	const u32f32 tuple = queue->element[0];
@@ -415,6 +415,6 @@ u32f32 min_queue_fixed_pop(struct min_queue_fixed *queue)
 
 u32f32 	min_queue_fixed_peek(const struct min_queue_fixed *queue)
 {
-	kas_assert_string(queue->count > 0, "Heap should have elements to extract\n");
+	ds_assert_string(queue->count > 0, "Heap should have elements to extract\n");
 	return queue->element[0];
 }

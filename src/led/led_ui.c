@@ -333,17 +333,17 @@ static void led_input_handler(struct led *led, struct ui_node *viewport)
 		{
 			switch (event->scancode)
 			{
-				case KAS_MINUS:
+				case DS_MINUS:
 				{
 					led->ns_delta_modifier *= 0.8f;
 				} break;
 
-				case KAS_PLUS:
+				case DS_PLUS:
 				{
 					led->ns_delta_modifier *= 1.25f;
 				} break;
 
-				case KAS_R:
+				case DS_R:
 				{
 					led->ns_delta_modifier *= 1.0f;
 				} break;
@@ -363,22 +363,22 @@ static void led_input_handler(struct led *led, struct ui_node *viewport)
 		i = next;
 	}
 
-	if (sys_win->ui->inter.key_pressed[KAS_W])
+	if (sys_win->ui->inter.key_pressed[DS_W])
 	{
 	    	led->cam_forward_velocity += 9.0f; 
 	} 
 
-	if (sys_win->ui->inter.key_pressed[KAS_S])
+	if (sys_win->ui->inter.key_pressed[DS_S])
 	{
 	    	led->cam_forward_velocity -= 9.0f; 
 	} 
 
-	if (sys_win->ui->inter.key_pressed[KAS_A])
+	if (sys_win->ui->inter.key_pressed[DS_A])
 	{
 		led->cam_left_velocity += 9.0f; 
 	} 
 
-	if (sys_win->ui->inter.key_pressed[KAS_D])
+	if (sys_win->ui->inter.key_pressed[DS_D])
 	{
 	    	led->cam_left_velocity -= 9.0f; 
 	} 

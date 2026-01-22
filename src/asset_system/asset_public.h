@@ -125,7 +125,7 @@ extern struct sprite *	g_sprite;
 
 /***************************** PNG ASSET DEFINITIONS AND GLOBALS *****************************/
 
-#ifdef	KAS_DEV
+#ifdef	DS_DEV
 
 struct asset_png
 {
@@ -153,7 +153,7 @@ struct asset_ssff
 	struct sprite *		sprite_info;	/* sprite information is order of sprite generation */
 	u32 			count;		/* uv[count] 					*/
 	enum r_texture_id	texture_id;	/* texture id to use in draw command pipeline   */
-#ifdef	KAS_DEV
+#ifdef	DS_DEV
 	u32			valid;		/* is the asset valid? (if not, we must rebuilt it) */
 	u32			png_count;	/* number of png sources that this ssff is constructed from */
 	struct asset_png *	png;		/* png sources  */
@@ -167,7 +167,7 @@ enum r_texture_id	asset_database_sprite_get_texture_id(const enum sprite_id spri
 
 /***************************** TTF ASSET DEFINITIONS AND GLOBALS *****************************/
 
-#ifdef	KAS_DEV
+#ifdef	DS_DEV
 
 struct asset_ttf
 {
@@ -217,7 +217,7 @@ struct asset_font
 	const u32 		pixel_glyph_height;
 	/* if loaded and valid */
 	enum r_texture_id	texture_id;	/* texture id to use in draw command pipeline   */
-#ifdef	KAS_DEV
+#ifdef	DS_DEV
 	u32			valid;		/* is the asset valid? (if not, we must rebuilt it) */
 	struct asset_ttf *	ttf;		/* ttf source  */
 #endif
@@ -238,7 +238,7 @@ struct asset_database
 
 extern struct asset_database *g_asset_db;
 
-/* Full flush of asset database; all assets will be reloaded (and rebuilt if KAS_DEV) on next request */
+/* Full flush of asset database; all assets will be reloaded (and rebuilt if DS_DEV) on next request */
 void 	asset_database_flush_full(void);
 
 /******************** asset_init.c ********************/

@@ -21,11 +21,11 @@
 
 #include "hash_map.h"
 #include "sys_public.h"
-#include "kas_math.h"
+#include "ds_math.h"
 
 struct hash_map *hash_map_alloc(struct arena *mem, const u32 hash_len, const u32 index_len, const u32 growable)
 {
-	kas_assert(hash_len && index_len && (hash_len >> 31) == 0);
+	ds_assert(hash_len && index_len && (hash_len >> 31) == 0);
 	const u32 actual_hash_len = (u32) power_of_two_ceil(hash_len);
 
 	struct hash_map *map = NULL;
@@ -96,7 +96,7 @@ void hash_map_serialize(struct serialize_stream *ss, const struct hash_map *map)
 
 struct hash_map *hash_map_deserialize(struct arena *mem, struct serialize_stream *ss, const u32 growable)
 {
-	kas_assert(!(mem && growable));
+	ds_assert(!(mem && growable));
 	if (2 * sizeof(u32) > ss_bytes_left(ss))
 	{
 		return NULL;
@@ -163,7 +163,7 @@ struct hash_map *hash_map_deserialize(struct arena *mem, struct serialize_stream
 
 u32 hash_map_add(struct hash_map *map, const u32 key, const u32 index)
 {
-	kas_assert(index >> 31 == 0);
+	ds_assert(index >> 31 == 0);
 
 	if (map->index_len <= index)
 	{
@@ -187,7 +187,7 @@ u32 hash_map_add(struct hash_map *map, const u32 key, const u32 index)
 
 void hash_map_remove(struct hash_map *map, const u32 key, const u32 index)
 {
-	kas_assert(index < map->index_len);
+	ds_assert(index < map->index_len);
 
 	const u32 h = key & map->hash_mask;
 	if (map->hash[h] == index)

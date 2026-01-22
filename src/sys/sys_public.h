@@ -22,14 +22,14 @@
 
 #include <stdio.h>
 #include "sys_common.h"
-#include "kas_common.h"
+#include "ds_common.h"
 #include "memory.h"
-#include "kas_math.h"
+#include "ds_math.h"
 #include "bit_vector.h"
-#include "kas_string.h"
+#include "ds_string.h"
 #include "hash_map.h"
 #include "hierarchy_index.h"
-#include "kas_vector.h"
+#include "ds_vector.h"
 
 #if __OS__ == __LINUX__
 #include "linux_public.h"
@@ -52,13 +52,13 @@ void 	virtual_memory_release(void *addr, const u64 size);
 /* 				System Environment			*/
 /************************************************************************/
 
-struct kas_sys_env
+struct ds_sys_env
 {
 	struct file	cwd;			/* current working directory, SHOULD ONLY BE SET ONCE 	*/
 	u32 		user_privileged;	/* 1 if privileged user 			 	*/ 
 };
 
-extern struct kas_sys_env *g_sys_env;
+extern struct ds_sys_env *g_sys_env;
 
 /* allocate utf8 on arena */
 extern utf8 	(*utf8_get_clipboard)(struct arena *mem);
@@ -197,8 +197,8 @@ void		system_process_events(void);
 
 extern u32	(*system_key_modifiers)(void);
 	
-const char *	kas_keycode_to_string(const enum kas_keycode key);
-const char *	kas_button_to_string(const enum mouse_button button);
+const char *	ds_keycode_to_string(const enum ds_keycode key);
+const char *	ds_button_to_string(const enum mouse_button button);
 
 /************************************************************************/
 /* 			permissions and priviliege  			*/
@@ -231,8 +231,8 @@ extern enum fs_error 		(*file_try_open)(struct arena *mem, struct file *file, co
 extern enum fs_error 		(*file_try_open_at_cwd)(struct arena *mem, struct file *file, const char *filename, const u32 writeable);
 
 /* On success, return filled buffer. On failure, set buffer to empty buffer */
-extern struct kas_buffer 	(*file_dump)(struct arena *mem, const char *path, const struct file *dir);
-extern struct kas_buffer 	(*file_dump_at_cwd)(struct arena *mem, const char *path);
+extern struct ds_buffer 	(*file_dump)(struct arena *mem, const char *path, const struct file *dir);
+extern struct ds_buffer 	(*file_dump_at_cwd)(struct arena *mem, const char *path);
 
 /*********************************** file writing and  memory mapping *********************************/
 
@@ -288,10 +288,10 @@ u32				directory_navigator_lookup(const struct directory_navigator *dn, const ut
 /* enter given folder and update the directory_navigator state. 
  * WARNING: aliases input path.
  * RETURNS:
- * 	KAS_FS_SUCCESS (= 0) on success,
- * 	KAS_FS_TYPE_INVALID if specified file is not a directory,
- * 	KAS_FS_PATH_INVALID if the given file does not exist,
- * 	KAS_FS_PERMISSION_DENIED if user to permitted.
+ * 	DS_FS_SUCCESS (= 0) on success,
+ * 	DS_FS_TYPE_INVALID if specified file is not a directory,
+ * 	DS_FS_PATH_INVALID if the given file does not exist,
+ * 	DS_FS_PERMISSION_DENIED if user to permitted.
  */
 enum fs_error			directory_navigator_enter_and_alias_path(struct directory_navigator *dn, const utf8 path);
 
@@ -311,11 +311,11 @@ extern utf8			(*cwd_get)(struct arena *mem);
 /* Set g_sys_env->cwd and update process' internal current working directory.
  *
  * RETURNS:
- *	KAS_FS_SUCCESS on success,
- *	KAS_FS_PATH_INVALID if given file does not exist,
- * 	KAS_FS_TYPE_INVALID if given file is not a normal directory,
- *	KAS_FS_PERMISSION_DENIED if bad permissions.
- *	KAS_FS_UNSPECIFIED on unexpected error.
+ *	DS_FS_SUCCESS on success,
+ *	DS_FS_PATH_INVALID if given file does not exist,
+ * 	DS_FS_TYPE_INVALID if given file is not a normal directory,
+ *	DS_FS_PERMISSION_DENIED if bad permissions.
+ *	DS_FS_UNSPECIFIED on unexpected error.
  */
 extern enum fs_error		(*cwd_set)(struct arena *mem, const char *path);
 
@@ -365,29 +365,29 @@ extern u64 *	g_tsc_skew;
 /************************************************************************/
 
 /* Initiate thread local storage for master thread; should only be called once! */
-void 	kas_thread_master_init(struct arena *mem);
+void 	ds_thread_master_init(struct arena *mem);
 /* Alloc thread space on arena (or heap if mem=NULL) and initialize thread */
-void 	kas_thread_clone(struct arena *mem, void (*start)(kas_thread *), void *args, const u64 stack_size);
+void 	ds_thread_clone(struct arena *mem, void (*start)(ds_thread *), void *args, const u64 stack_size);
 /* Exit calling thread */
-void	kas_thread_exit(kas_thread *thr);
+void	ds_thread_exit(ds_thread *thr);
 /* Wait for given thread to finish execution */
-void 	kas_thread_wait(const kas_thread *thr);
+void 	ds_thread_wait(const ds_thread *thr);
 /* retrieve ret value adress */
-void *	kas_thread_ret_value(const kas_thread *thr);
+void *	ds_thread_ret_value(const ds_thread *thr);
 /* retrieve ret value size */
-u64	kas_thread_ret_value_size(const kas_thread *thr);
+u64	ds_thread_ret_value_size(const ds_thread *thr);
 /* retrieve thread function arguments */
-void *  kas_thread_args(const kas_thread *thr);
+void *  ds_thread_args(const ds_thread *thr);
 /* Release any thread allocated memory from finished thread.  NOTE: Must be called from main thread when running emscripten/wasm */
-void 	kas_thread_release(kas_thread *thr);	
+void 	ds_thread_release(ds_thread *thr);	
 /* return tid (native id, thread<->process id on linux pid_t)*/
-tid	kas_thread_tid(const kas_thread *thr);
+tid	ds_thread_tid(const ds_thread *thr);
 /* return tid of caller */
-tid 	kas_thread_self_tid(void);
+tid 	ds_thread_self_tid(void);
 /* return index of thread (each created thread increments the global index counter) */
-u32	kas_thread_index(const kas_thread *thr);
+u32	ds_thread_index(const ds_thread *thr);
 /* return index of caller */ 
-u32	kas_thread_self_index(void);
+u32	ds_thread_self_index(void);
 
 /* Initiate the semaphore with a given value; NOTE: initiating an already initiated semphore is UB */
 void 	semaphore_init(semaphore *sem, const u32 val); 
@@ -416,7 +416,7 @@ struct worker
 {
 	//TODO Cacheline alignment 
 	struct arena	mem_frame;		/* Cleared at start of every frame */	
-	kas_thread *	thr;
+	ds_thread *	thr;
 	u32 		a_mem_frame_clear;	/* atomic sync-point: if set, on next task run flush mem_frame. */
 };
 
@@ -474,7 +474,7 @@ void 	task_context_destroy(struct task_context *ctx);
 /* Clear any frame resources held by the task context and it's workers */
 void	task_context_frame_clear(void);
 /* main loop for slave workers */
-void  	task_main(kas_thread *thr);
+void  	task_main(ds_thread *thr);
 /* master worker runs any available work */
 void 	task_main_master_run_available_jobs(void);
 

@@ -17,12 +17,12 @@
 ==========================================================================
 */
 
-#include "kas_math.h"
+#include "ds_math.h"
 #include "fifo_spmc.h"
 
 struct fifo_spmc *fifo_spmc_init(struct arena *mem_persistent, const u32 max_entry_count)
 {
-	kas_assert(max_entry_count > 0 && is_power_of_two(max_entry_count));
+	ds_assert(max_entry_count > 0 && is_power_of_two(max_entry_count));
 	struct fifo_spmc *q = NULL; 
 
 	q = arena_push(mem_persistent, sizeof(struct fifo_spmc));
@@ -56,7 +56,7 @@ void *fifo_spmc_pop(struct fifo_spmc *q)
 	const u32 i = atomic_fetch_add_rlx_32(&q->a_first, 1) % q->max_entry_count;
 	void *data = (void *) atomic_load_acq_64(&q->entries[i].data);
 
-	kas_assert_string(q->entries[i].in_use == 1, "If this happens, we have a race condition and in_use must be ATOMIC_AQUIRE.\n This seems unreasonable, because requiring aquire would mean that this CPU\n would not let the release CPU finish its local loads BEFORE its release \n which at this point has happened and finished.\n");
+	ds_assert_string(q->entries[i].in_use == 1, "If this happens, we have a race condition and in_use must be ATOMIC_AQUIRE.\n This seems unreasonable, because requiring aquire would mean that this CPU\n would not let the release CPU finish its local loads BEFORE its release \n which at this point has happened and finished.\n");
 
 	/* 
 	 * Local rw reorder barrier for above entries, releasing the barrier enforces the above loads to finish

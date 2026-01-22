@@ -18,14 +18,14 @@
 */
 
 #include <string.h>
-#include "kas_math.h"
+#include "ds_math.h"
 #include "geometry.h"
 #include "hash_map.h"
 #include "array_list.h"
 #include "queue.h"
 #include "float32.h"
 #include "sys_public.h"
-#include "kas_random.h"
+#include "ds_random.h"
 
 //TODO what to do with this?
 #define MIN_SEGMENT_LENGTH_SQ	(100.0f*F32_EPSILON)
@@ -525,7 +525,7 @@ f32 AABB_raycast_parameter_ex(const struct AABB *aabb, const struct ray *ray, co
 			const f32 t_min_axis = (1-dir_sign_bit[axis])*t_1 + dir_sign_bit[axis]*t_2;
 			const f32 t_max_axis = (1-dir_sign_bit[axis])*t_2 + dir_sign_bit[axis]*t_1;
 
-			kas_assert(t_min_axis <= t_max_axis);
+			ds_assert(t_min_axis <= t_max_axis);
 			t_min = f32_max(t_min, t_min_axis);
 			t_max = f32_min(t_max, t_max_axis);
 
@@ -1235,12 +1235,12 @@ static void ddcel_assert_topology(const struct ddcel *ddcel)
 				const struct ddcel_edge *n = ddcel->e + c->next;
 				const struct ddcel_edge *t = ddcel->e + c->twin;
 
-				kas_assert(c->horizon == 0);
-				kas_assert(c->origin < ddcel->v_count);
-				kas_assert(p->next == current);
-				kas_assert(n->prev == current);
-				kas_assert(t->twin == current);
-				kas_assert(t->origin == n->origin);
+				ds_assert(c->horizon == 0);
+				ds_assert(c->origin < ddcel->v_count);
+				ds_assert(p->next == current);
+				ds_assert(n->prev == current);
+				ds_assert(t->twin == current);
+				ds_assert(t->origin == n->origin);
 
 				edge_check[current] = 1;
 				vertex_count += (1 - vertex_check[c->origin]);
@@ -1249,7 +1249,7 @@ static void ddcel_assert_topology(const struct ddcel *ddcel)
 				current = c->next;
 			} while (current != i);
 
-			kas_assert(edge_count >= 3);
+			ds_assert(edge_count >= 3);
 		}
 	}
 
@@ -1269,13 +1269,13 @@ static void ddcel_assert_topology(const struct ddcel *ddcel)
 		{
 			vec3 diff;
 			vec3_sub(diff, center, ddcel->v[ddcel->e[ddcel->f[i].first].origin]);
-			kas_assert(vec3_dot(diff, ddcel->f[i].normal) < 0.0f);
+			ds_assert(vec3_dot(diff, ddcel->f[i].normal) < 0.0f);
 		}
 	}
 
 	arena_free_1MB(&tmp);
 
-	kas_assert(face_count >= 4);
+	ds_assert(face_count >= 4);
 }
 
 u32 internal_convex_hull_tetrahedron_indices(struct ddcel *ddcel, const f32 tol)
@@ -1460,8 +1460,8 @@ void convex_hull_iteration(struct ddcel *ddcel, const u32 cvi, const f32 tol)
 		for (u32 j = 0; j < ddcel->f[fi].count; ++j)
 		{
 			struct ddcel_edge *twin = ddcel->e + e->twin;
-			kas_assert(e->horizon == 0);
-			kas_assert(twin->horizon == 0);
+			ds_assert(e->horizon == 0);
+			ds_assert(twin->horizon == 0);
 		}
 	}
 	
@@ -1480,8 +1480,8 @@ void convex_hull_iteration(struct ddcel *ddcel, const u32 cvi, const f32 tol)
 			//fprintf(stderr, "horizon edge par (%u,%u)\n", pool_index(&ddcel->edge_pool, e), e->twin);
 			e->horizon += 1;
 			twin->horizon += 1;
-			kas_assert(e->horizon <= 2 && twin->horizon <= 2);
-			kas_assert(twin->twin == pool_index(&ddcel->edge_pool, e));
+			ds_assert(e->horizon <= 2 && twin->horizon <= 2);
+			ds_assert(twin->twin == pool_index(&ddcel->edge_pool, e));
 			e = ddcel->e + e->next;
 		}
 	}
@@ -1512,8 +1512,8 @@ void convex_hull_iteration(struct ddcel *ddcel, const u32 cvi, const f32 tol)
 				struct ddcel_edge *e_twin = ddcel->e + e->twin;
 				struct ddcel_face *f_twin = ddcel->f + e_twin->face_ccw;
 
-				kas_assert(e->horizon == 1);
-				kas_assert(e_twin->horizon == 1);
+				ds_assert(e->horizon == 1);
+				ds_assert(e_twin->horizon == 1);
 				e->horizon = 0;
 				e_twin->horizon = 0;
 
@@ -1662,7 +1662,7 @@ void convex_hull_iteration(struct ddcel *ddcel, const u32 cvi, const f32 tol)
 			{
 				ce = ddcel->ce + j;
 				vec3 diff;
-				kas_assert(ce->vertex != cvi)
+				ds_assert(ce->vertex != cvi)
 				if (ddcel->cv[ce->vertex].last_face != sf.index || ddcel->cv[ce->vertex].last_iter != cvi)
 				{
 					ddcel->cv[ce->vertex].last_iter = cvi;
@@ -1751,7 +1751,7 @@ struct dcel dcel_ddcel(struct arena *mem, const struct ddcel *ddcel)
 		off = 0;
 		for (u32 fi = 0, fj = 0; fi < cpy.f_count; fj += 1)
 		{
-			kas_assert(fj < ddcel->face_pool.count_max);
+			ds_assert(fj < ddcel->face_pool.count_max);
 			if (POOL_SLOT_ALLOCATED(ddcel->f + fj))
 			{
 				cpy.f[fi].count = ddcel->f[fj].count;
@@ -1884,7 +1884,7 @@ u32 tri_ccw_raycast(vec3 intersection, const struct tri_mesh *mesh, const u32 tr
 	vec3_sub(p0, mesh->v[mesh->tri[tri][1]],mesh->v[mesh->tri[tri][0]]);
 	vec3_sub(p1, mesh->v[mesh->tri[tri][2]],mesh->v[mesh->tri[tri][0]]);
 	vec3_cross(p2, p0, p1);
-	kas_assert(p2[1] > 0.0f);
+	ds_assert(p2[1] > 0.0f);
 
 	vec3_sub(p0, mesh->v[mesh->tri[tri][0]], ray->origin);
 	vec3_sub(p1, mesh->v[mesh->tri[tri][1]], ray->origin);

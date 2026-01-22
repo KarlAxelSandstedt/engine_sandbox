@@ -21,15 +21,15 @@
 #include <bcrypt.h>
 #include <stdio.h>
 
-#include "kas_common.h"
-#include "kas_random.h"
+#include "ds_common.h"
+#include "ds_random.h"
 #include "sys_public.h"
 #include "led_public.h"
 #include "r_public.h"
 
 static void win_init_rng(void)
 {
-#if defined(KAS_TEST_CORRECTNESS)
+#if defined(DS_TEST_CORRECTNESS)
 	u64 seed[4] = { 6712394175642371735lu, 15709062239796375561lu, 2231484769219996854lu, 779317575278281131lu };
 #else
 	u64 seed[4];
@@ -71,7 +71,7 @@ int CALLBACK WinMain(HINSTANCE h_instance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	cmd_alloc();
 	ui_init_global_state();
 	asset_database_init(&mem_persistent);
-#if defined(KAS_TEST_CORRECTNESS) || defined(KAS_TEST_PERFORMANCE)
+#if defined(DS_TEST_CORRECTNESS) || defined(DS_TEST_PERFORMANCE)
 	test_main();
 #else
 	struct led *editor = led_alloc();

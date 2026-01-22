@@ -15,7 +15,7 @@ add_library(led STATIC
 
 target_link_libraries(led
 	PUBLIC
-		kas_common
+		ds_common
 		memory
 		system
 		renderer

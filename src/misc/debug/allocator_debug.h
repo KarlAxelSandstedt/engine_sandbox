@@ -20,9 +20,9 @@
 #ifndef __ALLOCATOR_DEBUG_H__
 #define __ALLOCATOR_DEBUG_H__
 
-#include "kas_common.h"
+#include "ds_common.h"
 
-#if defined(KAS_ASAN)
+#if defined(DS_ASAN)
 
 #include "sanitizer/asan_interface.h"
 #include "bit_vector.h"

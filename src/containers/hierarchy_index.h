@@ -20,7 +20,7 @@
 #ifndef __HIERARCHY_INDEX_H__
 #define __HIERARCHY_INDEX_H__
 
-#include "kas_common.h"
+#include "ds_common.h"
 #include "array_list.h"
 #include "allocator.h"
 

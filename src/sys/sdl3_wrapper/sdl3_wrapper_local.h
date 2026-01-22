@@ -32,8 +32,8 @@ u32 			sdl3_wrapper_event_consume(struct system_event *event);
 
 u32 			sdl3_wrapper_key_modifiers(void);
 enum mouse_button	sdl3_wrapper_to_system_mouse_button(const u8 mouse_button);
-enum kas_keycode	sdl3_wrapper_to_system_keycode(const SDL_Keycode sdl_key);
-enum kas_keycode 	sdl3_wrapper_to_system_scancode(const SDL_Scancode sdl_key);
+enum ds_keycode	sdl3_wrapper_to_system_keycode(const SDL_Keycode sdl_key);
+enum ds_keycode 	sdl3_wrapper_to_system_scancode(const SDL_Scancode sdl_key);
 
 void 			sdl3_wrapper_gl_functions_init(struct gl_functions *func);
 

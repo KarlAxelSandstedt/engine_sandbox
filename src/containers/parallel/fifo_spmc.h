@@ -20,7 +20,7 @@
 #ifndef __FIFO_SPMC_H__
 #define __FIFO_SPMC_H__
 
-#include "kas_common.h"
+#include "ds_common.h"
 #include "allocator.h"
 #include "sys_public.h"
 

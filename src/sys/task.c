@@ -19,7 +19,7 @@
 
 #include "sys_public.h"
 #include "log.h"
-#include "kas_random.h"
+#include "ds_random.h"
 
 struct task_context t_ctx;
 struct task_context *g_task_ctx = &t_ctx;
@@ -34,7 +34,7 @@ static void worker_init(struct worker *w)
 static void worker_exit(void *void_task)
 {
 	struct task *task = void_task;
-	kas_thread_exit(task->executor->thr);
+	ds_thread_exit(task->executor->thr);
 }
 
 static void task_run(struct task *task_info, struct worker *w)
@@ -71,9 +71,9 @@ static void task_run(struct task *task_info, struct worker *w)
 	}
 }
 
-void task_main(kas_thread *thr)
+void task_main(ds_thread *thr)
 {
-	struct worker *w = kas_thread_args(thr);
+	struct worker *w = ds_thread_args(thr);
 	thread_xoshiro_256_init_sequence();
 
 	while (atomic_load_acq_32(&a_startup_complete) == 0);
@@ -146,7 +146,7 @@ void task_context_init(struct arena *mem_persistent, const u32 thread_count)
 	/* NOTE: worker 0: reserved for main thread */
 	for (u32 i = 1; i < thread_count; ++i)
 	{
-		kas_thread_clone(mem_persistent, task_main, g_task_ctx->workers + i, stack_size);
+		ds_thread_clone(mem_persistent, task_main, g_task_ctx->workers + i, stack_size);
 	}
 
 	atomic_store_rel_32(&a_startup_complete, 1);
@@ -174,8 +174,8 @@ void task_context_destroy(struct task_context *ctx)
 
 	for (u32 i = 1; i < ctx->worker_count; ++i)
 	{
-		kas_thread_wait(ctx->workers[i].thr);
-		kas_thread_release(ctx->workers[i].thr);
+		ds_thread_wait(ctx->workers[i].thr);
+		ds_thread_release(ctx->workers[i].thr);
 	}
 
 	for (u32 i = 0; i < ctx->worker_count; ++i)
@@ -270,5 +270,5 @@ void task_stream_spin_wait(struct task_stream *stream)
 void task_stream_cleanup(struct task_stream *stream)
 {
 	const u32 finished = (atomic_load_acq_32(&stream->a_completed) == stream->task_count);
-	kas_assert_string(finished, "Bad use of task stream, when (and only) the main thread enters task_stream_cleanup, all tasks must have been dispatched and completed.");
+	ds_assert_string(finished, "Bad use of task stream, when (and only) the main thread enters task_stream_cleanup, all tasks must have been dispatched and completed.");
 }

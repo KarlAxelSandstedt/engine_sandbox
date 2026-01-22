@@ -22,7 +22,7 @@
 
 #include <stdint.h>
 
-#include "kas_common.h"
+#include "ds_common.h"
 #include "allocator.h"
 
 #define BIT_VEC_BLOCK_SIZE 	64

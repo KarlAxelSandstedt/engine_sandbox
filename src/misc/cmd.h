@@ -17,8 +17,8 @@
 ==========================================================================
 */
 
-#ifndef __KAS_CMD_H__
-#define __KAS_CMD_H__
+#ifndef __DS_CMD_H__
+#define __DS_CMD_H__
 
 /*
    ========================================== CMP API ==========================================
@@ -49,7 +49,7 @@
 
 #include "allocator.h"
 #include "array_list.h"
-#include "kas_string.h"
+#include "ds_string.h"
 
 enum cmd_args_type
 {

@@ -20,9 +20,9 @@
 #ifndef __SYSTEM_DEFINITION_H__
 #define __SYSTEM_DEFINITION_H__
 
-#include "kas_common.h"
-#include "kas_string.h"
-#include "kas_vector.h"
+#include "ds_common.h"
+#include "ds_string.h"
+#include "ds_vector.h"
 #include "list.h"
 
 /* MACROS, GLOBALS and SYSTEM-LEVEL STRUCTS */
@@ -45,7 +45,7 @@ enum arch_type
 	ARCH_AMD64,
 };
 
-struct kas_arch_config
+struct ds_arch_config
 {
 	utf8 	vendor_string;
 	utf8	processor_string;
@@ -72,7 +72,7 @@ struct kas_arch_config
 	u32		rdtscp : 1;	/* profiling timer support  */
 	u32		tsc_invariant : 1;  /* tsc works as a wallclock timer, always ticking and at same frequency */
 };
-extern const struct kas_arch_config *g_arch_config;
+extern const struct ds_arch_config *g_arch_config;
 
 /************************************************************************/
 /* 			system mouse/keyboard handling 			*/
@@ -97,74 +97,74 @@ extern const struct kas_arch_config *g_arch_config;
 #define KEY_MOD_ALT	(KEY_MOD_LALT | KEY_MOD_RALT)
 #define KEY_MOD_GUI	(KEY_MOD_LGUI | KEY_MOD_RGUI)
 
-enum kas_keycode
+enum ds_keycode
 {
-	KAS_SHIFT,
-	KAS_CTRL,
-	KAS_SPACE,
-	KAS_BACKSPACE,
-	KAS_ESCAPE,
-	KAS_ENTER,
-	KAS_F1,
-	KAS_F2,
-	KAS_F3,
-	KAS_F4,
-	KAS_F5,
-	KAS_F6,
-	KAS_F7,
-	KAS_F8,
-	KAS_F9,
-	KAS_F10,
-	KAS_F11,
-	KAS_F12,
-	KAS_TAB,
-	KAS_UP,
-	KAS_DOWN,
-	KAS_LEFT,
-	KAS_RIGHT,
-	KAS_DELETE,
-	KAS_PLUS,
-	KAS_MINUS,
-	KAS_HOME,
-	KAS_END,
-	KAS_0,
-	KAS_1,
-	KAS_2,
-	KAS_3,
-	KAS_4,
-	KAS_5,
-	KAS_6,
-	KAS_7,
-	KAS_8,
-	KAS_9,
-	KAS_A,
-	KAS_B,  
-	KAS_C, 
-	KAS_D, 
-	KAS_E, 
-	KAS_F, 
-	KAS_G, 
-	KAS_H, 
-	KAS_I, 
-	KAS_J, 
-	KAS_K, 
-	KAS_L, 
-	KAS_M, 
-	KAS_N, 
-	KAS_O, 
-	KAS_P, 
-	KAS_Q, 
-	KAS_R, 
-	KAS_S, 
-	KAS_T, 
-	KAS_U, 
-	KAS_V, 
-	KAS_W, 
-	KAS_X, 
-	KAS_Y, 
-	KAS_Z, 
-	KAS_NO_SYMBOL,
-	KAS_KEY_COUNT
+	DS_SHIFT,
+	DS_CTRL,
+	DS_SPACE,
+	DS_BACKSPACE,
+	DS_ESCAPE,
+	DS_ENTER,
+	DS_F1,
+	DS_F2,
+	DS_F3,
+	DS_F4,
+	DS_F5,
+	DS_F6,
+	DS_F7,
+	DS_F8,
+	DS_F9,
+	DS_F10,
+	DS_F11,
+	DS_F12,
+	DS_TAB,
+	DS_UP,
+	DS_DOWN,
+	DS_LEFT,
+	DS_RIGHT,
+	DS_DELETE,
+	DS_PLUS,
+	DS_MINUS,
+	DS_HOME,
+	DS_END,
+	DS_0,
+	DS_1,
+	DS_2,
+	DS_3,
+	DS_4,
+	DS_5,
+	DS_6,
+	DS_7,
+	DS_8,
+	DS_9,
+	DS_A,
+	DS_B,  
+	DS_C, 
+	DS_D, 
+	DS_E, 
+	DS_F, 
+	DS_G, 
+	DS_H, 
+	DS_I, 
+	DS_J, 
+	DS_K, 
+	DS_L, 
+	DS_M, 
+	DS_N, 
+	DS_O, 
+	DS_P, 
+	DS_Q, 
+	DS_R, 
+	DS_S, 
+	DS_T, 
+	DS_U, 
+	DS_V, 
+	DS_W, 
+	DS_X, 
+	DS_Y, 
+	DS_Z, 
+	DS_NO_SYMBOL,
+	DS_KEY_COUNT
 };
 
 enum mouse_button
@@ -215,8 +215,8 @@ struct system_event {
 	enum system_event_type 	type;
 
 	/* Input key */
-	enum kas_keycode keycode; 	
-	enum kas_keycode scancode;
+	enum ds_keycode keycode; 	
+	enum ds_keycode scancode;
 
 	/* Input Mouse button */
 	enum mouse_button button; 

@@ -25,7 +25,7 @@ void asset_database_flush_full(void)
 	for (u32 id = 1; id < SSFF_COUNT; ++id)
 	{
 		struct asset_ssff *asset = g_asset_db->ssff[id];
-#ifdef KAS_DEV
+#ifdef DS_DEV
 		asset->valid = 0;
 #endif
 		if (asset->loaded)

@@ -2,13 +2,13 @@ cmake_minimum_required(VERSION 3.14.3)
 
 add_library(system_common INTERFACE)
 target_include_directories(system_common INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(system_common INTERFACE kas_common containers kas_string)
+target_link_libraries(system_common INTERFACE ds_common containers ds_string)
 
 add_library(system_gl INTERFACE)
 target_include_directories(system_gl INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(system_gl 
 	INTERFACE 
-		kas_opengl
+		ds_opengl
 )
 
 add_library(system_graphics
@@ -42,11 +42,11 @@ add_library(system
 target_include_directories(system INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(system
 	PUBLIC
-		kas_common	
+		ds_common	
 		system_common
 		containers
 		memory
-		kas_math
+		ds_math
 		ui
 		cmd
 		parallel_containers

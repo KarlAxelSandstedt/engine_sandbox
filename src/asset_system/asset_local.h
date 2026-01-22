@@ -104,7 +104,7 @@ struct ssff_texture_return
 	u32 		count;	/* uv[count] 						*/
 };
 
-#ifdef	KAS_DEV
+#ifdef	DS_DEV
 /* build a ssff file header and save it to disk. replace clip color with { 0, 0, 0, 0 } color */
 void				ssff_build(struct arena *mem, const u32 ssff_id);
 /* save ssff to disk  */
@@ -147,7 +147,7 @@ void				ssff_debug_print(FILE *out, const struct ssff_header *ssff);
 	pixmap[width*height]		; u8		// bl -> tp pixel sequence
  */
 
-#ifdef	KAS_DEV
+#ifdef	DS_DEV
 /* initalize freetype library resources */
 void				internal_freetype_init(void);
 /* release freetype library resources */

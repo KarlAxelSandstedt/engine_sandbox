@@ -17,12 +17,12 @@
 ==========================================================================
 */
 
-#include "kas_common.h"
+#include "ds_common.h"
 #include "sys_public.h"
 #include "sys_local.h"
-#include "kas_string.h"
+#include "ds_string.h"
 
-const char *kas_button_string_map[] =
+const char *ds_button_string_map[] =
 {
 	"MOUSE_BUTTON_LEFT",
 	"MOUSE_BUTTON_RIGHT",
@@ -31,82 +31,82 @@ const char *kas_button_string_map[] =
 	"MOUSE_BUTTON_COUNT",
 };
 
-const char *kas_keycode_string_map[] = 
+const char *ds_keycode_string_map[] = 
 {
-	"KAS_SHIFT",
-	"KAS_CTRL",
-	"KAS_SPACE",
-	"KAS_BACKSPACE",
-	"KAS_ESCAPE",
-	"KAS_ENTER",
-	"KAS_PLUS",
-	"KAS_MINUS",
-	"KAS_F1",
-	"KAS_F2",
-	"KAS_F3",
-	"KAS_F4",
-	"KAS_F5",
-	"KAS_F6",
-	"KAS_F7",
-	"KAS_F8",
-	"KAS_F9",
-	"KAS_F10",
-	"KAS_F11",
-	"KAS_F12",
-	"KAS_TAB",
-	"KAS_UP",
-	"KAS_DOWN",
-	"KAS_LEFT",
-	"KAS_RIGHT",
-	"KAS_DELETE",
-	"KAS_HOME",
-	"KAS_END",
-	"KAS_0",
-	"KAS_1",
-	"KAS_2",
-	"KAS_3",
-	"KAS_4",
-	"KAS_5",
-	"KAS_6",
-	"KAS_7",
-	"KAS_8",
-	"KAS_9",
-	"KAS_A",
-	"KAS_B", 
-	"KAS_C", 
-	"KAS_D", 
-	"KAS_E", 
-	"KAS_F", 
-	"KAS_G", 
-	"KAS_H", 
-	"KAS_I", 
-	"KAS_J", 
-	"KAS_K", 
-	"KAS_L", 
-	"KAS_M", 
-	"KAS_N", 
-	"KAS_O", 
-	"KAS_P", 
-	"KAS_Q", 
-	"KAS_R", 
-	"KAS_S", 
-	"KAS_T", 
-	"KAS_U", 
-	"KAS_V", 
-	"KAS_W", 
-	"KAS_X", 
-	"KAS_Y", 
-	"KAS_Z", 
-	"KAS_NO_SYMBOL",
-	"KAS_KEY_COUN"
+	"DS_SHIFT",
+	"DS_CTRL",
+	"DS_SPACE",
+	"DS_BACKSPACE",
+	"DS_ESCAPE",
+	"DS_ENTER",
+	"DS_PLUS",
+	"DS_MINUS",
+	"DS_F1",
+	"DS_F2",
+	"DS_F3",
+	"DS_F4",
+	"DS_F5",
+	"DS_F6",
+	"DS_F7",
+	"DS_F8",
+	"DS_F9",
+	"DS_F10",
+	"DS_F11",
+	"DS_F12",
+	"DS_TAB",
+	"DS_UP",
+	"DS_DOWN",
+	"DS_LEFT",
+	"DS_RIGHT",
+	"DS_DELETE",
+	"DS_HOME",
+	"DS_END",
+	"DS_0",
+	"DS_1",
+	"DS_2",
+	"DS_3",
+	"DS_4",
+	"DS_5",
+	"DS_6",
+	"DS_7",
+	"DS_8",
+	"DS_9",
+	"DS_A",
+	"DS_B", 
+	"DS_C", 
+	"DS_D", 
+	"DS_E", 
+	"DS_F", 
+	"DS_G", 
+	"DS_H", 
+	"DS_I", 
+	"DS_J", 
+	"DS_K", 
+	"DS_L", 
+	"DS_M", 
+	"DS_N", 
+	"DS_O", 
+	"DS_P", 
+	"DS_Q", 
+	"DS_R", 
+	"DS_S", 
+	"DS_T", 
+	"DS_U", 
+	"DS_V", 
+	"DS_W", 
+	"DS_X", 
+	"DS_Y", 
+	"DS_Z", 
+	"DS_NO_SYMBOL",
+	"DS_KEY_COUN"
 };
 
-const char *kas_keycode_to_string(const enum kas_keycode key)
+const char *ds_keycode_to_string(const enum ds_keycode key)
 {
-	return kas_keycode_string_map[key];
+	return ds_keycode_string_map[key];
 }
 
-const char *kas_button_to_string(const enum mouse_button button)
+const char *ds_button_to_string(const enum mouse_button button)
 {
-	return kas_button_string_map[button];
+	return ds_button_string_map[button];
 }

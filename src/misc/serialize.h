@@ -17,10 +17,10 @@
 ==========================================================================
 */
 
-#ifndef __KAS_SERIALIZE_H__
-#define __KAS_SERIALIZE_H__
+#ifndef __DS_SERIALIZE_H__
+#define __DS_SERIALIZE_H__
 
-#include "kas_common.h"
+#include "ds_common.h"
 #include "allocator.h"
 
 /*

@@ -17,10 +17,10 @@
 ==========================================================================
 */
 
-#ifndef __KAS_COMMON_H__
-#define __KAS_COMMON_H__
+#ifndef __DS_COMMON_H__
+#define __DS_COMMON_H__
 
-#ifdef KAS_PROFILE
+#ifdef DS_PROFILE
 	#include "tracy/TracyC.h"
 	#define PROF_FRAME_MARK		TracyCFrameMark
 	#define	PROF_ZONE		TracyCZone(ctx, 1)
@@ -36,7 +36,7 @@
 #endif
 
 /*** logger definitions ***/
-#define KAS_LOG		/* LOGGER ON */
+#define DS_LOG		/* LOGGER ON */
 
 /*** assert library definitions ***/
 
@@ -67,13 +67,13 @@
 
 #if defined(__EMSCRIPTEN__)
 	#define __COMPILER__ 		__EMSCRIPTEN__ 
-	#define kas_thread_local	__thread
+	#define ds_thread_local	__thread
 	#ifndef LITTLE_ENDIAN
 		#define LITTLE_ENDIAN
 	#endif
 #elif defined(__GNUC__)
 	#define __COMPILER__ 		__GCC__
-	#define kas_thread_local	__thread
+	#define ds_thread_local	__thread
 	#if (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN)
 		#define LITTLE_ENDIAN
 	#elif (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN)
@@ -81,12 +81,12 @@
 	#endif
 #elif defined(_MSC_VER)
 	#define __COMPILER__ 		__MSVC__
-	#define kas_thread_local	__declspec(thread)
+	#define ds_thread_local	__declspec(thread)
 	#define LITTLE_ENDIAN
 #endif
 
-#include "kas_types.h"
-#include "kas_debug.h"
+#include "ds_types.h"
+#include "ds_debug.h"
 
 /* system identifiers for logger, profiler ... */
 enum system_id

@@ -20,9 +20,9 @@
 #ifndef __SDL3_WRAPPER_PUBLIC_H__
 #define __SDL3_WRAPPER_PUBLIC_H__
 
-#include "kas_common.h"
+#include "ds_common.h"
 #include "allocator.h"
-#include "kas_string.h"
+#include "ds_string.h"
 
 void	sdl3_wrapper_init(void);
 

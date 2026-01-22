@@ -17,7 +17,7 @@
 ==========================================================================
 */
 
-#include "kas_math.h"
+#include "ds_math.h"
 
 void mat2_print(const char *text, mat2 m)
 {

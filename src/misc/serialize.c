@@ -244,8 +244,8 @@ void ss_free(struct serialize_stream *ss)
 
 b8 ss_read8(struct serialize_stream *ss)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert(ss->bit_index + 8 <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert(ss->bit_index + 8 <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 8;
@@ -255,8 +255,8 @@ b8 ss_read8(struct serialize_stream *ss)
 
 void ss_write8(struct serialize_stream *ss, const b8 val)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert(ss->bit_index + 8 <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert(ss->bit_index + 8 <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 8;
@@ -265,8 +265,8 @@ void ss_write8(struct serialize_stream *ss, const b8 val)
 
 b16 ss_read16_le(struct serialize_stream *ss)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert((ss->bit_index + 16) <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert((ss->bit_index + 16) <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 16;
@@ -276,8 +276,8 @@ b16 ss_read16_le(struct serialize_stream *ss)
 
 void ss_write16_le(struct serialize_stream *ss, const b16 val)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert((ss->bit_index + 16) <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert((ss->bit_index + 16) <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 16;
@@ -286,8 +286,8 @@ void ss_write16_le(struct serialize_stream *ss, const b16 val)
 
 b16 ss_read16_be(struct serialize_stream *ss)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert((ss->bit_index + 16) <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert((ss->bit_index + 16) <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 16;
@@ -297,8 +297,8 @@ b16 ss_read16_be(struct serialize_stream *ss)
 
 void ss_write16_be(struct serialize_stream *ss, const b16 val)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert((ss->bit_index + 16) <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert((ss->bit_index + 16) <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 16;
@@ -307,8 +307,8 @@ void ss_write16_be(struct serialize_stream *ss, const b16 val)
 
 b32 ss_read32_le(struct serialize_stream *ss)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert((ss->bit_index + 32) <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert((ss->bit_index + 32) <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 32;
@@ -318,8 +318,8 @@ b32 ss_read32_le(struct serialize_stream *ss)
 
 void ss_write32_le(struct serialize_stream *ss, const b32 val)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert((ss->bit_index + 32) <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert((ss->bit_index + 32) <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 32;
@@ -328,8 +328,8 @@ void ss_write32_le(struct serialize_stream *ss, const b32 val)
 
 b32 ss_read32_be(struct serialize_stream *ss)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert((ss->bit_index + 32) <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert((ss->bit_index + 32) <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 32;
@@ -339,8 +339,8 @@ b32 ss_read32_be(struct serialize_stream *ss)
 
 void ss_write32_be(struct serialize_stream *ss, const b32 val)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert((ss->bit_index + 32) <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert((ss->bit_index + 32) <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 32;
@@ -349,8 +349,8 @@ void ss_write32_be(struct serialize_stream *ss, const b32 val)
 
 b64 ss_read64_le(struct serialize_stream *ss)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert((ss->bit_index + 64) <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert((ss->bit_index + 64) <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 64;
@@ -360,8 +360,8 @@ b64 ss_read64_le(struct serialize_stream *ss)
 
 void ss_write64_le(struct serialize_stream *ss, const b64 val)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert((ss->bit_index + 64) <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert((ss->bit_index + 64) <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 64;
@@ -370,8 +370,8 @@ void ss_write64_le(struct serialize_stream *ss, const b64 val)
 
 b64 ss_read64_be(struct serialize_stream *ss)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert((ss->bit_index + 64) <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert((ss->bit_index + 64) <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 64;
@@ -381,8 +381,8 @@ b64 ss_read64_be(struct serialize_stream *ss)
 
 void ss_write64_be(struct serialize_stream *ss, const b64 val)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert((ss->bit_index + 64) <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert((ss->bit_index + 64) <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 64;
@@ -391,8 +391,8 @@ void ss_write64_be(struct serialize_stream *ss, const b64 val)
 
 void ss_read8_array(b8 *buf, struct serialize_stream *ss, const u64 len)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert((ss->bit_index + 8*len) <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert((ss->bit_index + 8*len) <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 8*len;
@@ -405,8 +405,8 @@ void ss_read8_array(b8 *buf, struct serialize_stream *ss, const u64 len)
 
 void ss_write8_array(struct serialize_stream *ss, const b8 *buf, const u64 len)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert((ss->bit_index + 8*len) <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert((ss->bit_index + 8*len) <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 8*len;
@@ -419,8 +419,8 @@ void ss_write8_array(struct serialize_stream *ss, const b8 *buf, const u64 len)
 
 void ss_read16_le_array(b16 *buf, struct serialize_stream *ss, const u64 len)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert((ss->bit_index + 16*len) <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert((ss->bit_index + 16*len) <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 16*len;
@@ -433,8 +433,8 @@ void ss_read16_le_array(b16 *buf, struct serialize_stream *ss, const u64 len)
 
 void ss_write16_le_array(struct serialize_stream *ss, const b16 *buf, const u64 len)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert((ss->bit_index + 16*len) <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert((ss->bit_index + 16*len) <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 16*len;
@@ -447,8 +447,8 @@ void ss_write16_le_array(struct serialize_stream *ss, const b16 *buf, const u64 
 
 void ss_read16_be_array(b16 *buf, struct serialize_stream *ss, const u64 len)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert((ss->bit_index + 16*len) <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert((ss->bit_index + 16*len) <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 16*len;
@@ -461,8 +461,8 @@ void ss_read16_be_array(b16 *buf, struct serialize_stream *ss, const u64 len)
 
 void ss_write16_be_array(struct serialize_stream *ss, const b16 *buf, const u64 len)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert((ss->bit_index + 16*len) <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert((ss->bit_index + 16*len) <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 16*len;
@@ -475,8 +475,8 @@ void ss_write16_be_array(struct serialize_stream *ss, const b16 *buf, const u64 
 
 void ss_read32_le_array(b32 *buf, struct serialize_stream *ss, const u64 len)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert((ss->bit_index + 32*len) <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert((ss->bit_index + 32*len) <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 32*len;
@@ -489,8 +489,8 @@ void ss_read32_le_array(b32 *buf, struct serialize_stream *ss, const u64 len)
 
 void ss_write32_le_array(struct serialize_stream *ss, const b32 *buf, const u64 len)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert((ss->bit_index + 32*len) <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert((ss->bit_index + 32*len) <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 32*len;
@@ -503,8 +503,8 @@ void ss_write32_le_array(struct serialize_stream *ss, const b32 *buf, const u64 
 
 void ss_read32_be_array(b32 *buf, struct serialize_stream *ss, const u64 len)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert((ss->bit_index + 32*len) <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert((ss->bit_index + 32*len) <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 32*len;
@@ -517,8 +517,8 @@ void ss_read32_be_array(b32 *buf, struct serialize_stream *ss, const u64 len)
 
 void ss_write32_be_array(struct serialize_stream *ss, const b32 *buf, const u64 len)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert((ss->bit_index + 32*len) <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert((ss->bit_index + 32*len) <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 32*len;
@@ -531,8 +531,8 @@ void ss_write32_be_array(struct serialize_stream *ss, const b32 *buf, const u64 
 
 void ss_read64_le_array(b64 *buf, struct serialize_stream *ss, const u64 len)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert((ss->bit_index + 64*len) <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert((ss->bit_index + 64*len) <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 64*len;
@@ -545,8 +545,8 @@ void ss_read64_le_array(b64 *buf, struct serialize_stream *ss, const u64 len)
 
 void ss_write64_le_array(struct serialize_stream *ss, const b64 *buf, const u64 len)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert((ss->bit_index + 64*len) <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert((ss->bit_index + 64*len) <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 64*len;
@@ -559,8 +559,8 @@ void ss_write64_le_array(struct serialize_stream *ss, const b64 *buf, const u64 
 
 void ss_read64_be_array(b64 *buf, struct serialize_stream *ss, const u64 len)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert((ss->bit_index + 64*len) <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert((ss->bit_index + 64*len) <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 64*len;
@@ -573,8 +573,8 @@ void ss_read64_be_array(b64 *buf, struct serialize_stream *ss, const u64 len)
 
 void ss_write64_be_array(struct serialize_stream *ss, const b64 *buf, const u64 len)
 {
-	kas_assert((ss->bit_index & 0x7) == 0);
-	kas_assert((ss->bit_index + 64*len) <= ss->bit_count);
+	ds_assert((ss->bit_index & 0x7) == 0);
+	ds_assert((ss->bit_index + 64*len) <= ss->bit_count);
 
 	const u64 offset = ss->bit_index >> 3;
 	ss->bit_index += 64*len;
@@ -1198,11 +1198,11 @@ static void internal_write_9_le_straddling(u8 *ptr, const u32 byte_lower_mask_si
 
 void ss_write_u64_le_partial(struct serialize_stream *ss, const u64 val, const u64 bit_count)
 {
-	kas_assert((ss->bit_index + bit_count) <= ss->bit_count);
-	kas_assert(1 <= bit_count && bit_count <= 64);
+	ds_assert((ss->bit_index + bit_count) <= ss->bit_count);
+	ds_assert(1 <= bit_count && bit_count <= 64);
 
 	const u64 masked_val = val & (U64_MAX >> (64 - bit_count));
-	kas_assert_string( ((~(U64_MAX >> (64 - bit_count))) & masked_val) == 0, "Expect upper unused bits to be 0 in value to serialize");
+	ds_assert_string( ((~(U64_MAX >> (64 - bit_count))) & masked_val) == 0, "Expect upper unused bits to be 0 in value to serialize");
 
 	u8 *ptr = ss->buf + (ss->bit_index >> 3);
 	const u32 byte_upper_mask_size = ss->bit_index & 0x7;
@@ -1244,8 +1244,8 @@ void ss_write_u64_le_partial(struct serialize_stream *ss, const u64 val, const u
 
 u64 ss_read_u64_le_partial(struct serialize_stream *ss, const u64 bit_count)
 {
-	kas_assert((ss->bit_index + bit_count) <= ss->bit_count);
-	kas_assert(1 <= bit_count && bit_count <= 64);
+	ds_assert((ss->bit_index + bit_count) <= ss->bit_count);
+	ds_assert(1 <= bit_count && bit_count <= 64);
 
 	const u8 *ptr = ss->buf + (ss->bit_index >> 3);
 	const u64 byte_upper_mask_size = ss->bit_index & 0x7;
@@ -1286,7 +1286,7 @@ u64 ss_read_u64_le_partial(struct serialize_stream *ss, const u64 bit_count)
 		}
 	}
 
-	kas_assert_string( ((~(U64_MAX >> (64 - bit_count))) & val) == 0, "Expect upper unused bits to be 0 in value to serialize");
+	ds_assert_string( ((~(U64_MAX >> (64 - bit_count))) & val) == 0, "Expect upper unused bits to be 0 in value to serialize");
 	ss->bit_index += bit_count;
 	return val;
 }
@@ -1587,8 +1587,8 @@ static void internal_write_9_be_straddling(u8 *ptr, const u32 byte_lower_mask_si
 
 u64 ss_read_u64_be_partial(struct serialize_stream *ss, const u64 bit_count)
 {
-	kas_assert((ss->bit_index + bit_count) <= ss->bit_count);
-	kas_assert(1 <= bit_count && bit_count <= 64);
+	ds_assert((ss->bit_index + bit_count) <= ss->bit_count);
+	ds_assert(1 <= bit_count && bit_count <= 64);
 
 	const u8 *ptr = ss->buf + (ss->bit_index >> 3);
 	const u64 byte_upper_mask_size = ss->bit_index & 0x7;
@@ -1680,18 +1680,18 @@ u64 ss_read_u64_be_partial(struct serialize_stream *ss, const u64 bit_count)
 	//fprintf(stderr, "\n\n");
 
 
-	kas_assert_string( ((~(U64_MAX >> (64 - bit_count))) & val) == 0, "Expect upper unused bits to be 0 in value to serialize");
+	ds_assert_string( ((~(U64_MAX >> (64 - bit_count))) & val) == 0, "Expect upper unused bits to be 0 in value to serialize");
 	ss->bit_index += bit_count;
 	return val;
 }
 
 void ss_write_u64_be_partial(struct serialize_stream *ss, const u64 val, const u64 bit_count)
 {
-	kas_assert((ss->bit_index + bit_count) <= ss->bit_count);
-	kas_assert(1 <= bit_count && bit_count <= 64);
+	ds_assert((ss->bit_index + bit_count) <= ss->bit_count);
+	ds_assert(1 <= bit_count && bit_count <= 64);
 
 	const u64 masked_val = val & (U64_MAX >> (64 - bit_count));
-	kas_assert_string( ((~(U64_MAX >> (64 - bit_count))) & masked_val) == 0, "Expect upper unused bits to be 0 in value to serialize");
+	ds_assert_string( ((~(U64_MAX >> (64 - bit_count))) & masked_val) == 0, "Expect upper unused bits to be 0 in value to serialize");
 
 	u8 *ptr = ss->buf + (ss->bit_index >> 3);
 	const u32 byte_upper_mask_size = ss->bit_index & 0x7;

@@ -17,11 +17,11 @@
 ==========================================================================
 */
 
-#ifndef __KAS_CSG_H__
-#define __KAS_CSG_H__
+#ifndef __DS_CSG_H__
+#define __DS_CSG_H__
 
-#include "kas_common.h"
-#include "kas_string.h"
+#include "ds_common.h"
+#include "ds_string.h"
 #include "allocator.h"
 #include "string_database.h"
 #include "list.h"

@@ -19,7 +19,7 @@
 
 #include "asset_local.h"
 
-#ifdef	KAS_DEV
+#ifdef	DS_DEV
 
 #include "ft2build.h"
 #include FT_FREETYPE_H
@@ -31,7 +31,7 @@ void internal_freetype_init(void)
 	if (FT_Init_FreeType(&g_ft_library))
 	{
 		log_string(T_ASSET, S_FATAL, "Failed to initiate freetype2 library");
-		fatal_cleanup_and_exit(kas_thread_self_tid());
+		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 }
 
@@ -55,14 +55,14 @@ void font_build(struct arena *mem, const enum font_id id)
 	if (error)
 	{
 		log_string(T_ASSET, S_FATAL, "Failed to initiate freetype face");
-		fatal_cleanup_and_exit(kas_thread_self_tid());
+		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 
 	error = FT_Set_Pixel_Sizes(face, 0, asset->pixel_glyph_height);
 	if (error)
 	{
 		log_string(T_ASSET, S_FATAL, "Failed to set freetype pixel size");
-		fatal_cleanup_and_exit(kas_thread_self_tid());
+		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 
 	i32 total_glyph_width = 0;
@@ -203,14 +203,14 @@ void font_build(struct arena *mem, const enum font_id id)
 			offset[0] = 0;		
 			offset[1] += asset->pixel_glyph_height;
 		}
-		kas_assert(offset[1] + g->size[1] <= font->pixmap_height);
+		ds_assert(offset[1] + g->size[1] <= font->pixmap_height);
 
 		for (i32 y = 0; y < g->size[1]; ++y)
 		{
 			for (i32 x = 0; x < g->size[0]; ++x)
 			{
-				kas_assert(offset[1] + y < font->pixmap_height);
-				kas_assert(offset[0] + x < font->pixmap_width);
+				ds_assert(offset[1] + y < font->pixmap_height);
+				ds_assert(offset[0] + x < font->pixmap_width);
 				alpha[(offset[1] + g->size[1] - 1 - y)*font->pixmap_width + (offset[0] + x)] = pixels[y*g->size[0] + x];
 			}
 		}
@@ -225,7 +225,7 @@ void font_build(struct arena *mem, const enum font_id id)
 
 	if (FT_HAS_KERNING(face))
 	{
-		kas_assert_string(0, "Font supports kerning, but we do not!\n");
+		ds_assert_string(0, "Font supports kerning, but we do not!\n");
 	}
 
 	font_serialize(asset, font);
@@ -242,7 +242,7 @@ void font_serialize(const struct asset_font *asset, const struct font *font)
 	if (file_try_create_at_cwd(&tmp, &file, asset->filepath, FILE_TRUNCATE) != FS_SUCCESS)
 	{
 		log_string(T_ASSET, S_FATAL, "Failed to create .font file");
-		fatal_cleanup_and_exit(kas_thread_self_tid());
+		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 
 	file_set_size(&file, font->size);
@@ -373,7 +373,7 @@ struct asset_font *asset_database_request_font(struct arena *tmp, const enum fon
 {
 	arena_push_record(tmp);
 	struct asset_font *asset = g_asset_db->font[id];
-#ifdef KAS_DEV
+#ifdef DS_DEV
 	if (!asset->valid)
 	{
 		if (asset->loaded)

@@ -23,7 +23,7 @@
 struct sprite sprite_storage[SPRITE_COUNT];
 struct sprite *g_sprite = sprite_storage;
 
-#ifdef KAS_DEV
+#ifdef DS_DEV
 
 static struct asset_png led_png_arr[] =
 {
@@ -70,7 +70,7 @@ static struct asset_ssff none_ssff =
 	.sprite_info = &sprite_storage[SPRITE_NONE],
 	.count = 1,
 	.texture_id = TEXTURE_NONE,
-#ifdef KAS_DEV
+#ifdef DS_DEV
 	.valid = 1,
 #endif
 };
@@ -86,7 +86,7 @@ static struct asset_ssff led_ssff =
 	.count = 0,
 	.width = 512,
 	.height = 512,
-#ifdef KAS_DEV
+#ifdef DS_DEV
 	.valid = 0,
 	.png_count = sizeof(led_png_arr) / sizeof(struct asset_png),
 	.png = led_png_arr,
@@ -104,7 +104,7 @@ static struct asset_ssff dynamic_ssff =
 	.count = 0,
 	.width = 512,
 	.height = 512,
-#ifdef KAS_DEV
+#ifdef DS_DEV
 	.valid = 0,
 	.png_count = sizeof(dynamic_png_arr) / sizeof(struct asset_png),
 	.png = dynamic_png_arr,
@@ -121,7 +121,7 @@ static struct asset_font default_font_small =
 	//.dpi_x = 96,
 	//.dpi_y = 96,
 	.texture_id = TEXTURE_FONT_DEFAULT_SMALL,
-#ifdef KAS_DEV
+#ifdef DS_DEV
 	.valid = 0,
 	.ttf = &hack_regular_ttf,
 #endif
@@ -137,7 +137,7 @@ static struct asset_font default_font_medium =
 	//.dpi_x = 96,
 	//.dpi_y = 96,
 	.texture_id = TEXTURE_FONT_DEFAULT_MEDIUM,
-#ifdef KAS_DEV
+#ifdef DS_DEV
 	.valid = 0,
 	.ttf = &hack_regular_ttf,
 #endif
@@ -186,7 +186,7 @@ void dynamic_ssff_set_sprite_parameters(struct asset_ssff *dynamic_ssff, const s
 	g_sprite[SPRITE_SORCERER_RUN_CAST_4].ssff_id = SSFF_DYNAMIC_ID;
 	g_sprite[SPRITE_SORCERER_RUN_CAST_5] = param->sprite[count++];
 	g_sprite[SPRITE_SORCERER_RUN_CAST_5].ssff_id = SSFF_DYNAMIC_ID;
-	kas_assert_string(count == param->count, "unexpected sprite count in dynamic sprite sheet, or in hardcoded values");
+	ds_assert_string(count == param->count, "unexpected sprite count in dynamic sprite sheet, or in hardcoded values");
 }
 
 void led_ssff_set_sprite_parameters(struct asset_ssff *led_ssff, const struct ssff_texture_return *param)
@@ -212,7 +212,7 @@ void led_ssff_set_sprite_parameters(struct asset_ssff *led_ssff, const struct ss
 	g_sprite[SPRITE_LED_PAUSE].ssff_id = SSFF_LED_ID;
 	g_sprite[SPRITE_LED_STOP] = param->sprite[count++];
 	g_sprite[SPRITE_LED_STOP].ssff_id = SSFF_LED_ID;
-	kas_assert_string(count == param->count, "unexpected sprite count in level editor sprite sheet, or in hardcoded values");
+	ds_assert_string(count == param->count, "unexpected sprite count in level editor sprite sheet, or in hardcoded values");
 }
 
 static struct asset_ssff **internal_asset_ssff_array_init(struct arena *mem_persistent)
@@ -221,7 +221,7 @@ static struct asset_ssff **internal_asset_ssff_array_init(struct arena *mem_pers
 	if (ssff == NULL)
 	{
 		log_string(T_ASSET, S_FATAL, "Failed to alloc asset ssff array");
-		fatal_cleanup_and_exit(kas_thread_self_tid());
+		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 
 	ssff[SSFF_NONE_ID] = &none_ssff;
@@ -237,7 +237,7 @@ static struct asset_font **internal_asset_font_array_init(struct arena *mem_pers
 	if (font == NULL)
 	{
 		log_string(T_ASSET, S_FATAL, "Failed to alloc asset font array");
-		fatal_cleanup_and_exit(kas_thread_self_tid());
+		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 
 	font[FONT_NONE] = NULL, 
@@ -260,14 +260,14 @@ void asset_database_init(struct arena *mem_persistent)
 	g_asset_db->ssff = internal_asset_ssff_array_init(mem_persistent);
 	g_asset_db->font = internal_asset_font_array_init(mem_persistent);
 
-#if	KAS_DEV
+#if	DS_DEV
 	internal_freetype_init();
 #endif
 }
 
 void asset_database_cleanup(void)
 {
-#if	KAS_DEV
+#if	DS_DEV
 	internal_freetype_free();
 #endif
 }

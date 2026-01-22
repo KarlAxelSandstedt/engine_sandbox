@@ -20,8 +20,8 @@
 #ifndef __LED_PUBLIC_H__
 #define __LED_PUBLIC_H__
 
-#include "kas_common.h"
-#include "kas_string.h"
+#include "ds_common.h"
+#include "ds_string.h"
 #include "sys_public.h"
 #include "allocator.h"
 #include "csg.h"

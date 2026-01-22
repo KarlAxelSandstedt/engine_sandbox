@@ -17,7 +17,7 @@
 ==========================================================================
 */
 
-#include "kas_math.h"
+#include "ds_math.h"
 #include "transform.h"
 
 void sequential_rotation_matrix(mat3 dst, const vec3 axis_1, const f32 angle_1, const vec3 axis_2, const f32 angle_2)

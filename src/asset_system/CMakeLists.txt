@@ -15,7 +15,7 @@ target_link_libraries(asset_system
 		stb_image
 		freetype
 	PUBLIC
-		kas_common
+		ds_common
 		memory
-		kas_string
+		ds_string
 	)

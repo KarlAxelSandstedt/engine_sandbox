@@ -21,7 +21,7 @@
 #define __WIN_PUBLIC_H__
 
 #include <windows.h>
-#include "kas_common.h"
+#include "ds_common.h"
 
 /************************* windows memory utils *************************/
 
@@ -40,11 +40,11 @@
 #define breakpoint(condition) if (!(condition)) { } else { __debugbreak(); }
 #endif 
 
-#ifdef KAS_ASSERT_DEBUG
-#define kas_assert(assertion)			_kas_assert(assertion, __FILE__, __LINE__, __func__)
-#define kas_assert_string(assertion, cstr)	_kas_assert_string(assertion, __FILE__, __LINE__, __func__, cstr) 
-#define kas_assert_message(assertion, msg, ...)	_kas_assert_message(assertion, __FILE__, __LINE__, __func__, msg, __VA_ARGS__)
-#define kas_static_assert(assertion, str)	static_assert(assertion, str)
+#ifdef DS_ASSERT_DEBUG
+#define ds_assert(assertion)			_kas_assert(assertion, __FILE__, __LINE__, __func__)
+#define ds_assert_string(assertion, cstr)	_kas_assert_string(assertion, __FILE__, __LINE__, __func__, cstr) 
+#define ds_assert_message(assertion, msg, ...)	_kas_assert_message(assertion, __FILE__, __LINE__, __func__, msg, __VA_ARGS__)
+#define ds_static_assert(assertion, str)	static_assert(assertion, str)
 
 #define _kas_assert(assertion, file, line, func)							\
 	if (assertion) { }										\
@@ -52,7 +52,7 @@
 	{												\
 		log(T_ASSERT, S_FATAL, "assertion failed at %s:%u in function %s", file, line, func);	\
 		__debugbreak();										\
- 		fatal_cleanup_and_exit(kas_thread_self_tid());						\
+ 		fatal_cleanup_and_exit(ds_thread_self_tid());						\
 	}
 
 #define _kas_assert_string(assertion, file, line, func, cstr)							\
@@ -61,7 +61,7 @@
 	{													\
 		log(T_ASSERT, S_FATAL, "assertion failed at %s:%u in function %s - %s", file, line, func, cstr);\
 		__debugbreak();											\
- 		fatal_cleanup_and_exit(kas_thread_self_tid());						\
+ 		fatal_cleanup_and_exit(ds_thread_self_tid());						\
 	}
 
 #define _kas_assert_message(assertion, file, line, func, msg, ...)						    \
@@ -72,13 +72,13 @@
 		const utf8 __fmsg = utf8_format_buffered(__msg_buf, LOG_MAX_MESSAGE_SIZE, msg, __VA_ARGS__);	    \
 		log(T_ASSERT, S_FATAL, "assertion failed at %s:%u in function %s - %k", file, line, func, &__fmsg); \
 		__debugbreak();											    \
- 		fatal_cleanup_and_exit(kas_thread_self_tid());						\
+ 		fatal_cleanup_and_exit(ds_thread_self_tid());						\
 	}
 #else
-#define kas_static_assert(assertion, str)
-#define kas_assert(assertion)
-#define kas_assert_string(assertion, str)
-#define kas_assert_message(assertion, msg, ...)
+#define ds_static_assert(assertion, str)
+#define ds_assert(assertion)
+#define ds_assert_string(assertion, str)
+#define ds_assert_message(assertion, msg, ...)
 #define _kas_assert(assertion, file, line, func)
 #define _kas_assert_string(assertion, file, line, func, str)
 #define _kas_assert_message(assertion, file, line, func, str, ...)
@@ -120,7 +120,7 @@ void 	filesystem_init_func_ptrs(void);
 
 typedef DWORD				pid;
 typedef DWORD				tid;
-typedef struct kas_thread		kas_thread;
+typedef struct ds_thread		ds_thread;
 
 /************************* win_sync_primitives.c *************************/
 

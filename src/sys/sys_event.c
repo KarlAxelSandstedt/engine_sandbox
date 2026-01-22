@@ -30,42 +30,42 @@ void system_window_event_handler(struct system_window *sys_win)
 		event = pool_address(&sys_win->ui->event_pool, i);
 		switch (event->keycode)
 		{
-			case KAS_L:
+			case DS_L:
 			{
 				(cursor_is_locked(sys_win))
 					? cursor_unlock(sys_win)
 					: cursor_lock(sys_win);
 			} break;
 
-			case KAS_F10: 
+			case DS_F10: 
 			{
 				(cursor_is_visible(sys_win))
 				      ? cursor_hide(sys_win) 
 				      : cursor_show(sys_win);
 			} break;
 
-			case KAS_F11: 
+			case DS_F11: 
 			{
 				(native_window_is_fullscreen(sys_win->native))
 				      ? native_window_windowed(sys_win->native) 
 				      : native_window_fullscreen(sys_win->native);
 			} break;
 
-			case KAS_F12:
+			case DS_F12:
 			{
 				(native_window_is_bordered(sys_win->native))
 				      ? native_window_borderless(sys_win->native) 
 				      : native_window_bordered(sys_win->native);
 			} break;
 
-			case KAS_C: 
+			case DS_C: 
 			{
 				system_window_tag_sub_hierarchy_for_destruction(system_window_index(sys_win));
 			} break;	
 
 			default:
 			{
-				fprintf(stderr, "Unhandled Press: %s\n", kas_keycode_to_string(event->keycode));
+				fprintf(stderr, "Unhandled Press: %s\n", ds_keycode_to_string(event->keycode));
 			} break;
 		}
 	}
@@ -121,7 +121,7 @@ void system_process_events(void)
 					}
 					sys_win->ui->inter.button_clicked[event.button] = 1;
 					sys_win->ui->inter.button_pressed[event.button] = 1;
-					//fprintf(stderr, "Button Pressed: %s\n", kas_button_to_string(event.button));
+					//fprintf(stderr, "Button Pressed: %s\n", ds_button_to_string(event.button));
 				}
 			} break;
 
@@ -131,7 +131,7 @@ void system_process_events(void)
 				{
 					sys_win->ui->inter.button_pressed[event.button] = 0;
 					sys_win->ui->inter.button_released[event.button] = 1;
-					//fprintf(stderr, "%p, Button Released: %s\n", sys_win, kas_button_to_string(event.button));
+					//fprintf(stderr, "%p, Button Released: %s\n", sys_win, ds_button_to_string(event.button));
 				}
 			} break;
 
@@ -145,77 +145,77 @@ void system_process_events(void)
 				{
 					switch (event.scancode)
 					{
-						case KAS_RIGHT:
+						case DS_RIGHT:
 						{
 							text_edit_event = 1;
-							sys_win->cmd_queue->regs[0].u32 = KAS_RIGHT;
+							sys_win->cmd_queue->regs[0].u32 = DS_RIGHT;
 							sys_win->cmd_queue->regs[1].u32 = key_modifiers;
 							sys_win->cmd_queue->regs[2].utf8 = utf8_empty();
 						} break;
 					
-						case KAS_LEFT:
+						case DS_LEFT:
 						{
 							text_edit_event = 1;
-							sys_win->cmd_queue->regs[0].u32 = KAS_LEFT;
+							sys_win->cmd_queue->regs[0].u32 = DS_LEFT;
 							sys_win->cmd_queue->regs[1].u32 = key_modifiers;
 							sys_win->cmd_queue->regs[2].utf8 = utf8_empty();
 						} break;
 
-						case KAS_DELETE:
+						case DS_DELETE:
 						{
 							text_edit_event = 1;
-							sys_win->cmd_queue->regs[0].u32 = KAS_DELETE;
+							sys_win->cmd_queue->regs[0].u32 = DS_DELETE;
 							sys_win->cmd_queue->regs[1].u32 = key_modifiers;
 							sys_win->cmd_queue->regs[2].utf8 = utf8_empty();
 						} break;
 
-						case KAS_HOME:
+						case DS_HOME:
 						{
 							text_edit_event = 1;
-							sys_win->cmd_queue->regs[0].u32 = KAS_HOME;
+							sys_win->cmd_queue->regs[0].u32 = DS_HOME;
 							sys_win->cmd_queue->regs[1].u32 = key_modifiers;
 							sys_win->cmd_queue->regs[2].utf8 = utf8_empty();
 						} break;
 
-						case KAS_END:
+						case DS_END:
 						{
 							text_edit_event = 1;
-							sys_win->cmd_queue->regs[0].u32 = KAS_END;
+							sys_win->cmd_queue->regs[0].u32 = DS_END;
 							sys_win->cmd_queue->regs[1].u32 = key_modifiers;
 							sys_win->cmd_queue->regs[2].utf8 = utf8_empty();
 						} break;
 
-						case KAS_BACKSPACE:
+						case DS_BACKSPACE:
 						{
 							text_edit_event = 1;
-							sys_win->cmd_queue->regs[0].u32 = KAS_BACKSPACE;
+							sys_win->cmd_queue->regs[0].u32 = DS_BACKSPACE;
 							sys_win->cmd_queue->regs[1].u32 = key_modifiers;
 							sys_win->cmd_queue->regs[2].utf8 = utf8_empty();
 						} break;
 
-						case KAS_X:
+						case DS_X:
 						{
 							if (key_modifiers & KEY_MOD_CTRL)
 							{
 								text_edit_event = 1;
-								sys_win->cmd_queue->regs[0].u32 = KAS_X;
+								sys_win->cmd_queue->regs[0].u32 = DS_X;
 								sys_win->cmd_queue->regs[1].u32 = key_modifiers;
 								sys_win->cmd_queue->regs[2].utf8 = utf8_empty();
 							}
 						} break;
 
-						case KAS_C:
+						case DS_C:
 						{
 							if (key_modifiers & KEY_MOD_CTRL)
 							{
 								text_edit_event = 1;
-								sys_win->cmd_queue->regs[0].u32 = KAS_C;
+								sys_win->cmd_queue->regs[0].u32 = DS_C;
 								sys_win->cmd_queue->regs[1].u32 = key_modifiers;
 								sys_win->cmd_queue->regs[2].utf8 = utf8_empty();
 							}	
 						} break;
 
-						case KAS_V:
+						case DS_V:
 						{
 							if (key_modifiers & KEY_MOD_CTRL)
 							{
@@ -227,7 +227,7 @@ void system_process_events(void)
 						} break;
 
 
-						case KAS_ESCAPE: 
+						case DS_ESCAPE: 
 						{ 
 							cmd_queue_submit_f(sys_win->ui->mem_frame, sys_win->cmd_queue, "ui_text_input_mode_disable \"%k\"", &sys_win->ui->inter.text_edit_id);
 						 } break;

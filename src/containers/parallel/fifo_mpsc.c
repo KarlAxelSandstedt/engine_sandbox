@@ -18,7 +18,7 @@
 */
 
 #include "fifo_mpsc.h"
-#include "kas_math.h"
+#include "ds_math.h"
 
 struct fifo_mpsc *fifo_mpsc_init(struct arena *mem, const u32 max_entry_count)
 {

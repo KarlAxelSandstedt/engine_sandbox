@@ -56,8 +56,8 @@ void 			(*file_memory_sync_unmap)(void *addr, const u64 length);
 utf8			(*cwd_get)(struct arena *mem);
 enum fs_error		(*cwd_set)(struct arena *mem, const char *path);
 
-struct kas_buffer 	(*file_dump)(struct arena *mem, const char *path, const struct file *dir);
-struct kas_buffer 	(*file_dump_at_cwd)(struct arena *mem, const char *path);
+struct ds_buffer 	(*file_dump)(struct arena *mem, const char *path, const struct file *dir);
+struct ds_buffer 	(*file_dump_at_cwd)(struct arena *mem, const char *path);
 
 enum fs_error		(*file_status_path)(file_status *status, const char *path, const struct file *dir);
 enum fs_error		(*file_status_file)(file_status *status, const struct file *file);
@@ -125,7 +125,7 @@ u32 win_cstr_path_is_relative(const char *path)
 
 enum fs_error win_file_try_create(struct arena *mem, struct file *file, const char *filename, const struct file *dir, const u32 truncate)
 {
-	kas_assert(file->handle == FILE_HANDLE_INVALID);
+	ds_assert(file->handle == FILE_HANDLE_INVALID);
 	file->handle = FILE_HANDLE_INVALID;
 		
 	enum fs_error err = FS_SUCCESS;
@@ -182,7 +182,7 @@ enum fs_error win_file_try_create_at_cwd(struct arena *mem, struct file *file, c
 
 enum fs_error win_file_try_open(struct arena *mem, struct file *file, const char *filename, const struct file *dir, const u32 writeable)
 {
-	kas_assert(file->handle == FILE_HANDLE_INVALID);
+	ds_assert(file->handle == FILE_HANDLE_INVALID);
 	file->handle = FILE_HANDLE_INVALID;
 		
 	enum fs_error err = FS_SUCCESS;
@@ -238,7 +238,7 @@ enum fs_error win_file_try_open_at_cwd(struct arena *mem, struct file *file, con
 
 enum fs_error win_directory_try_create(struct arena *mem, struct file *dir, const char *filename, const struct file *parent_dir)
 {
-	kas_assert(dir->handle == FILE_HANDLE_INVALID);
+	ds_assert(dir->handle == FILE_HANDLE_INVALID);
 	dir->handle = FILE_HANDLE_INVALID;
 		
 	enum fs_error err = FS_SUCCESS;
@@ -293,7 +293,7 @@ enum fs_error win_directory_try_create_at_cwd(struct arena *mem, struct file *di
 
 enum fs_error win_directory_try_open(struct arena *mem, struct file *dir, const char *filename, const struct file *parent_dir)
 {
-	kas_assert(dir->handle == FILE_HANDLE_INVALID);
+	ds_assert(dir->handle == FILE_HANDLE_INVALID);
 	dir->handle = FILE_HANDLE_INVALID;
 		
 	enum fs_error err = FS_SUCCESS;
@@ -342,10 +342,10 @@ enum fs_error win_directory_try_open_at_cwd(struct arena *mem, struct file *dir,
 	return win_directory_try_open(mem, dir, filename, &g_sys_env->cwd); 
 }
 
-struct kas_buffer win_file_dump(struct arena *mem, const char *path, const struct file *dir)
+struct ds_buffer win_file_dump(struct arena *mem, const char *path, const struct file *dir)
 {
 	struct file file = file_null();
-	struct kas_buffer buf = { 0 };
+	struct ds_buffer buf = { 0 };
 	if (!file_try_open(mem, &file, path, dir, FILE_READ) == FS_SUCCESS)
 	{
 		return buf;
@@ -363,7 +363,7 @@ struct kas_buffer win_file_dump(struct arena *mem, const char *path, const struc
 		{
 			DWORD bytes_read;
 			buf.size = size.QuadPart;
-			kas_assert(size.QuadPart <= U32_MAX);
+			ds_assert(size.QuadPart <= U32_MAX);
 			if (!ReadFile(file.handle, buf.data, (u32) buf.size, &bytes_read, NULL))
 			{
 				log_system_error(S_ERROR);
@@ -372,7 +372,7 @@ struct kas_buffer win_file_dump(struct arena *mem, const char *path, const struc
 			}
 			else
 			{
-				kas_assert(bytes_read == buf.size);
+				ds_assert(bytes_read == buf.size);
 			}
 		}
 	}
@@ -382,7 +382,7 @@ struct kas_buffer win_file_dump(struct arena *mem, const char *path, const struc
 	return buf;
 }
 
-struct kas_buffer win_file_dump_at_cwd(struct arena *mem, const char *path)
+struct ds_buffer win_file_dump_at_cwd(struct arena *mem, const char *path)
 {
 	return win_file_dump(mem, path, &g_sys_env->cwd);
 }
@@ -440,7 +440,7 @@ u64 win_file_write_offset(const struct file *file, const u8 *buf, const u64 size
 
 	/* Seems like no memory maps will see our writes if we do not sync... TODO: Fix sane api */
 	file_sync(file);
-	kas_assert_message(bytes_written == size, "bytes_written = %u, size = %u\n", bytes_written, size); 
+	ds_assert_message(bytes_written == size, "bytes_written = %u, size = %u\n", bytes_written, size); 
 	return bytes_written;
 
 }
@@ -464,7 +464,7 @@ u64 win_file_write_append(const struct file *file, const u8 *buf, const u64 size
 	/* Seems like no memory maps will see our writes if we do not sync... TODO: Fix sane api */
 	file_sync(file);
 
-	kas_assert_message(bytes_written == size, "bytes_written = %u, size = %u\n", bytes_written, size); 
+	ds_assert_message(bytes_written == size, "bytes_written = %u, size = %u\n", bytes_written, size); 
 
 	return bytes_written;
 }

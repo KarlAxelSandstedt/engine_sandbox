@@ -25,7 +25,7 @@
 
 #include <time.h>
 #include <errno.h>
-#include "kas_common.h"
+#include "ds_common.h"
 #include "sys_common.h"
 #include "linux_public.h"
 #include "log.h"
@@ -48,9 +48,9 @@
  *	The TID of a thread is retrieved by gettid();
  */
 
-struct kas_thread
+struct ds_thread
 {
-	void		(*start)(kas_thread *);	/* beginning of execution for thread */
+	void		(*start)(ds_thread *);	/* beginning of execution for thread */
 	void 		*args;			/* thread arguments */
 	void 		*ret;			/* adress to returned value, if any */
 	u64		ret_size;		/* size of returned value */

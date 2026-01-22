@@ -21,7 +21,7 @@
 
 struct bt bt_alloc_internal(struct arena *mem, const u32 initial_length, const u64 slot_size, const u64 parent_offset, const u64 left_offset, const u64 right_offset, const u64 pool_slot_offset, const u32 growable)
 {
-	kas_assert(!growable || !mem);
+	ds_assert(!growable || !mem);
 
 	struct bt bt =
 	{
@@ -54,7 +54,7 @@ void bt_validate(struct arena *tmp, const struct bt *tree)
 {
 	if (tree->root == POOL_NULL)
 	{
-		kas_assert(0 == bt_node_count(tree));
+		ds_assert(0 == bt_node_count(tree));
 		return;
 	}
 
@@ -77,8 +77,8 @@ void bt_validate(struct arena *tmp, const struct bt *tree)
 		u32 *l = (u32 *) (addr + tree->left_offset);
 		u32 *r = (u32 *) (addr + tree->right_offset);
 
-		kas_assert((*alloc) >> 31);
-		kas_assert(bit_vec_get_bit(&traversed, stack[sc]) == 0);
+		ds_assert((*alloc) >> 31);
+		ds_assert(bit_vec_get_bit(&traversed, stack[sc]) == 0);
 		bit_vec_set_bit(&traversed, stack[sc], 1);
 
 		if ((BT_PARENT_INDEX_MASK & (*p)) != POOL_NULL)
@@ -89,9 +89,9 @@ void bt_validate(struct arena *tmp, const struct bt *tree)
 			u32 *p_l = (u32 *) (parent + tree->left_offset);
 			u32 *p_r = (u32 *) (parent + tree->right_offset);
 
-			kas_assert((*p_alloc) >> 31);
-			kas_assert(!(BT_PARENT_LEAF_MASK & (*p_p)));
-			kas_assert(*p_l == stack[sc] || *p_r == stack[sc]);
+			ds_assert((*p_alloc) >> 31);
+			ds_assert(!(BT_PARENT_LEAF_MASK & (*p_p)));
+			ds_assert(*p_l == stack[sc] || *p_r == stack[sc]);
 		}
 
 		if (BT_PARENT_LEAF_MASK & (*p))
@@ -108,8 +108,8 @@ void bt_validate(struct arena *tmp, const struct bt *tree)
 
 	const u32 actual_leaf_count = bt_leaf_count(tree);
 	const u32 actual_node_count = bt_node_count(tree);
-	kas_assert(leaf_count == actual_leaf_count);
-	kas_assert(node_count == actual_node_count);
+	ds_assert(leaf_count == actual_leaf_count);
+	ds_assert(node_count == actual_node_count);
 
 	arena_pop_record(tmp);
 }
@@ -129,7 +129,7 @@ struct slot bt_node_add_root(struct bt *tree)
 	struct slot slot = pool_add(&tree->pool);
 	if (slot.index != POOL_NULL)
 	{
-		kas_assert(tree->root == POOL_NULL);
+		ds_assert(tree->root == POOL_NULL);
 		tree->root = slot.index;
 		u32 *parent = (u32 *) (((u8 *) slot.address) + tree->parent_offset);	
 		*parent = BT_PARENT_LEAF_MASK | POOL_NULL;
@@ -156,7 +156,7 @@ void bt_node_add_children(struct bt *tree, struct slot *left, struct slot *right
 		u32 *bt_left   = (u32 *)(((u8 *) tree->pool.buf) + tree->pool.slot_size*parent + tree->left_offset);	
 		u32 *bt_right  = (u32 *)(((u8 *) tree->pool.buf) + tree->pool.slot_size*parent + tree->right_offset);	
 
-		kas_assert(*bt_parent & BT_PARENT_LEAF_MASK);
+		ds_assert(*bt_parent & BT_PARENT_LEAF_MASK);
 		*bt_parent &= BT_PARENT_INDEX_MASK;
 		*bt_left = left->index;
 		*bt_right = right->index;
@@ -171,13 +171,13 @@ void bt_node_add_children(struct bt *tree, struct slot *left, struct slot *right
 
 u32 bt_node_count(const struct bt *tree)
 {
-	kas_assert(tree->pool.count == 0 || (tree->pool.count & 0x1));
+	ds_assert(tree->pool.count == 0 || (tree->pool.count & 0x1));
 	return tree->pool.count;
 }
 
 u32 bt_leaf_count(const struct bt *tree)
 {
-	kas_assert(tree->pool.count == 0 || (tree->pool.count & 0x1));
+	ds_assert(tree->pool.count == 0 || (tree->pool.count & 0x1));
 	return (tree->pool.count)
 		? (tree->pool.count >> 1) + 1
 		: 0;

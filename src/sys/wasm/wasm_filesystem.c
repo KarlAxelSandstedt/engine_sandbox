@@ -57,8 +57,8 @@ void 			(*file_memory_sync_unmap)(void *addr, const u64 length);
 utf8			(*cwd_get)(struct arena *mem);
 enum fs_error		(*cwd_set)(struct arena *mem, const char *path);
 
-struct kas_buffer 	(*file_dump)(struct arena *mem, const char *path, const struct file *dir);
-struct kas_buffer 	(*file_dump_at_cwd)(struct arena *mem, const char *path);
+struct ds_buffer 	(*file_dump)(struct arena *mem, const char *path, const struct file *dir);
+struct ds_buffer 	(*file_dump_at_cwd)(struct arena *mem, const char *path);
 
 enum fs_error		(*file_status_path)(file_status *status, const char *path, const struct file *dir);
 enum fs_error		(*file_status_file)(file_status *status, const struct file *file);
@@ -90,7 +90,7 @@ u32 wasm_cstr_path_is_relative(const char *path)
 
 enum fs_error wasm_file_try_create(struct arena *mem, struct file *file, const char *filename, const struct file *dir, const u32 truncate)
 {
-	kas_assert(file->handle == FILE_HANDLE_INVALID);
+	ds_assert(file->handle == FILE_HANDLE_INVALID);
 	file->handle = FILE_HANDLE_INVALID;
 		
 	enum fs_error err = FS_SUCCESS;
@@ -131,7 +131,7 @@ enum fs_error wasm_file_try_create(struct arena *mem, struct file *file, const c
 
 enum fs_error wasm_file_try_open(struct arena *mem, struct file *file, const char *filename, const struct file *dir, const u32 writeable)
 {
-	kas_assert(file->handle == FILE_HANDLE_INVALID);
+	ds_assert(file->handle == FILE_HANDLE_INVALID);
 	file->handle = FILE_HANDLE_INVALID;
 		
 	enum fs_error err = FS_SUCCESS;
@@ -169,7 +169,7 @@ enum fs_error wasm_file_try_open(struct arena *mem, struct file *file, const cha
 
 enum fs_error wasm_directory_try_create(struct arena *mem, struct file *dir, const char *filename, const struct file *parent_dir)
 {	
-	kas_assert(dir->handle == FILE_HANDLE_INVALID);
+	ds_assert(dir->handle == FILE_HANDLE_INVALID);
 	dir->handle = FILE_HANDLE_INVALID;
 		
 	enum fs_error err = FS_SUCCESS;
@@ -251,13 +251,13 @@ enum fs_error wasm_directory_try_open_at_cwd(struct arena *mem, struct file *dir
 	return wasm_file_try_open_at_cwd(mem, dir, filename, 0);
 }
 
-struct kas_buffer wasm_file_dump(struct arena *mem, const char *path, const struct file *dir)
+struct ds_buffer wasm_file_dump(struct arena *mem, const char *path, const struct file *dir)
 {
 	const file_handle handle = openat(dir->handle, path, O_RDONLY);
 	if (handle == -1)
 	{
 		LOG_SYSTEM_ERROR(S_ERROR);
-		return kas_buffer_empty;
+		return ds_buffer_empty;
 	}
 
 	
@@ -265,10 +265,10 @@ struct kas_buffer wasm_file_dump(struct arena *mem, const char *path, const stru
 	if (file_status_file(&stat, &(struct file ) { .handle = handle }) != FS_SUCCESS)
 	{
 		close(handle);
-		return kas_buffer_empty;	
+		return ds_buffer_empty;	
 	}
 
-	struct kas_buffer buf =
+	struct ds_buffer buf =
 	{
 		.size = (u64) stat.st_size,
 		.mem_left = (u64) stat.st_size,
@@ -288,7 +288,7 @@ struct kas_buffer wasm_file_dump(struct arena *mem, const char *path, const stru
 	if (!buf.data)
 	{
 		close(handle);
-		return kas_buffer_empty;	
+		return ds_buffer_empty;	
 	}
 
 	u64 bytes_left = buf.size;
@@ -299,7 +299,7 @@ struct kas_buffer wasm_file_dump(struct arena *mem, const char *path, const stru
 		if (bytes_read_in_call == -1)
 		{
 			LOG_SYSTEM_ERROR(S_ERROR);
-			buf = kas_buffer_empty;
+			buf = ds_buffer_empty;
 			if (mem)
 			{
 				*mem = record;
@@ -317,7 +317,7 @@ struct kas_buffer wasm_file_dump(struct arena *mem, const char *path, const stru
 	return buf;
 }
 
-struct kas_buffer wasm_file_dump_at_cwd(struct arena *mem, const char *path)
+struct ds_buffer wasm_file_dump_at_cwd(struct arena *mem, const char *path)
 {
 	const struct file dir = { .handle = AT_FDCWD };
 	return wasm_file_dump(mem, path, &dir);

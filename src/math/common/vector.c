@@ -23,7 +23,7 @@
 //#include "nmmintrin.h"
 //#include "immintrin.h"
 
-#include "kas_math.h"
+#include "ds_math.h"
 
 //#include "SSE.h"
 

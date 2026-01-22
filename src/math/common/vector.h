@@ -20,7 +20,7 @@
 #ifndef __VECTOR_MATH__
 #define __VECTOR_MATH__
 
-#include "kas_common.h"
+#include "ds_common.h"
 
 #define vec2_inline(a,b) ((vec2) { a, b })
 #define vec3_inline(a,b,c) ((vec3) { a, b, c })

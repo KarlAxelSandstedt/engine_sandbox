@@ -4,8 +4,8 @@ target_link_libraries(ui
 		asset_system
 		containers
 		memory
-		kas_math
-		kas_string
+		ds_math
+		ds_string
 		cmd
 )
 target_include_directories(ui INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})

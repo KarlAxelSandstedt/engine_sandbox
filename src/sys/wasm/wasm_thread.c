@@ -27,7 +27,7 @@
 #include "wasm_local.h"
 #include "sys_public.h"
 
-kas_thread_local struct kas_thread *self = NULL;
+ds_thread_local struct ds_thread *self = NULL;
 u32	a_index_counter = 1;
 
 const char *thread_profiler_id[] = 
@@ -41,10 +41,10 @@ const char *thread_profiler_id[] =
 	"Worker 60", "Worker 61", "Worker 62", "Worker 63",
 };
 
-static void *kas_thread_clone_start(void *void_thr)
+static void *ds_thread_clone_start(void *void_thr)
 {
 	self = void_thr;
-	struct kas_thread *thr = void_thr;
+	struct ds_thread *thr = void_thr;
 	thr->tid = gettid();
 	thr->index = atomic_fetch_add_rlx_32(&a_index_counter, 1);
 	PROF_THREAD_NAMED(thread_profiler_id[thr->index]);
@@ -53,23 +53,23 @@ static void *kas_thread_clone_start(void *void_thr)
 	return NULL;
 }
 
-void kas_thread_master_init(struct arena *mem)
+void ds_thread_master_init(struct arena *mem)
 {
-	self = arena_push(mem, sizeof(struct kas_thread));
+	self = arena_push(mem, sizeof(struct ds_thread));
 	self->tid = gettid();
 	self->index = 0;
 	PROF_THREAD_NAMED(thread_profiler_id[self->index]);
 }
 
-void kas_thread_clone(struct arena *mem, void (*start)(kas_thread *), void *args, const u64 stack_size)
+void ds_thread_clone(struct arena *mem, void (*start)(ds_thread *), void *args, const u64 stack_size)
 {
-	kas_assert(stack_size > 0);
+	ds_assert(stack_size > 0);
 
-	const u64 thr_size = (sizeof(kas_thread) % g_arch_config->cacheline == 0)
-		? sizeof(kas_thread)
-		: sizeof(kas_thread) + g_arch_config->cacheline - (sizeof(kas_thread) % g_arch_config->cacheline);
+	const u64 thr_size = (sizeof(ds_thread) % g_arch_config->cacheline == 0)
+		? sizeof(ds_thread)
+		: sizeof(ds_thread) + g_arch_config->cacheline - (sizeof(ds_thread) % g_arch_config->cacheline);
 
-	kas_thread *thr = NULL;
+	ds_thread *thr = NULL;
 	if (mem)
 	{
 		thr = arena_push_aligned(mem, thr_size, g_arch_config->cacheline);
@@ -85,7 +85,7 @@ void kas_thread_clone(struct arena *mem, void (*start)(kas_thread *), void *args
 		fatal_cleanup_and_exit(gettid());
 	}
 
-	kas_assert((u64) thr % g_arch_config->cacheline == 0);
+	ds_assert((u64) thr % g_arch_config->cacheline == 0);
 
 	thr->start = start;
 	thr->args = args;
@@ -110,9 +110,9 @@ void kas_thread_clone(struct arena *mem, void (*start)(kas_thread *), void *args
 
 	size_t real_size;
 	pthread_attr_getstacksize(&attr, &real_size);
-	kas_assert(real_size == thr->stack_size);
+	ds_assert(real_size == thr->stack_size);
 
-	if (pthread_create(&thr->pthread, &attr, kas_thread_clone_start, thr) != 0)
+	if (pthread_create(&thr->pthread, &attr, ds_thread_clone_start, thr) != 0)
 	{
 		LOG_SYSTEM_ERROR(S_FATAL);	
 		fatal_cleanup_and_exit(gettid());
@@ -125,13 +125,13 @@ void kas_thread_clone(struct arena *mem, void (*start)(kas_thread *), void *args
 	}
 }
 
-void kas_thread_exit(kas_thread *thr)
+void ds_thread_exit(ds_thread *thr)
 {
 	self = NULL;
 	pthread_exit(0);
 }
 
-void kas_thread_wait(const kas_thread *thr)
+void ds_thread_wait(const ds_thread *thr)
 {
 	void *garbage;
 
@@ -143,42 +143,42 @@ void kas_thread_wait(const kas_thread *thr)
 	}
 }
 
-void kas_thread_release(kas_thread *thr)
+void ds_thread_release(ds_thread *thr)
 {
 	return;
 }
 
-void *kas_thread_ret_value(const kas_thread *thr)
+void *ds_thread_ret_value(const ds_thread *thr)
 {
 	return thr->ret;	
 }
 
-void *kas_thread_args(const kas_thread *thr)
+void *ds_thread_args(const ds_thread *thr)
 {
 	return thr->args;
 }
 
-u64 kas_thread_ret_value_size(const kas_thread *thr)
+u64 ds_thread_ret_value_size(const ds_thread *thr)
 {
 	return thr->ret_size;
 }
 
-tid kas_thread_tid(const kas_thread *thr)
+tid ds_thread_tid(const ds_thread *thr)
 {
 	return thr->tid;
 }
 
-tid kas_thread_self_tid(void)
+tid ds_thread_self_tid(void)
 {
 	return self->tid;
 }
 
-u32 kas_thread_index(const kas_thread *thr)
+u32 ds_thread_index(const ds_thread *thr)
 {
 	return thr->index;
 }
 
-u32 kas_thread_self_index(void)
+u32 ds_thread_self_index(void)
 {
 	return self->index;
 }

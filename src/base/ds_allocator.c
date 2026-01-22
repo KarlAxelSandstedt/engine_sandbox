@@ -17,10 +17,13 @@
 ==========================================================================
 */
 
-#include "allocator.h"
+#include "ds_base.h"
+#if defined(DS_ASAN)
+#include "sanitizer/asan_interface.h"
+#endif
+
 #include "sys_public.h"
-#include "allocator_debug.h"
-#include "kas_math.h"
+#include "ds_math.h"
 #include "log.h"
 
 void arena_push_record(struct arena *ar)
@@ -39,8 +42,8 @@ void arena_pop_record(struct arena *ar)
 {
 	if (ar->record)
 	{
-		kas_assert((u64) ar->record <= (u64) ar->stack_ptr);
-		kas_assert(ar->mem_left <= ar->record->rec_mem_left);
+		ds_assert((u64) ar->record <= (u64) ar->stack_ptr);
+		ds_assert(ar->mem_left <= ar->record->rec_mem_left);
 		const u64 rec_mem_left = ar->record->rec_mem_left;
 		ar->record = ar->record->prev;
 		arena_pop_packed(ar, rec_mem_left - ar->mem_left);
@@ -140,7 +143,7 @@ void arena_flush(struct arena* ar)
 
 void arena_pop_packed(struct arena *ar, const u64 mem_to_pop)
 {
-	kas_assert_string(ar->mem_size - ar->mem_left >= mem_to_pop, "Trying to pop memory outside of arena");
+	ds_assert_string(ar->mem_size - ar->mem_left >= mem_to_pop, "Trying to pop memory outside of arena");
 
 	ar->stack_ptr -= mem_to_pop;
 	ar->mem_left += mem_to_pop;
@@ -149,7 +152,7 @@ void arena_pop_packed(struct arena *ar, const u64 mem_to_pop)
 
 void *arena_push_aligned(struct arena *ar, const u64 size, const u64 alignment)
 {
-	kas_assert(is_power_of_two(alignment) == 1);
+	ds_assert(is_power_of_two(alignment) == 1);
 
 	void* alloc_addr = NULL;
 	if (size) 
@@ -192,7 +195,7 @@ void *arena_push_aligned_zero(struct arena *ar, const u64 size, const u64 alignm
 
 struct allocation_array arena_push_aligned_all(struct arena *ar, const u64 slot_size, const u64 alignment)
 {
-	kas_assert(is_power_of_two(alignment) == 1 && slot_size > 0);
+	ds_assert(is_power_of_two(alignment) == 1 && slot_size > 0);
 
 	struct allocation_array array = { .len = 0, .addr = NULL, .mem_pushed = 0 };
 	const u64 mod = ((u64) ar->stack_ptr) & (alignment - 1);
@@ -227,8 +230,8 @@ struct thread_block_header
 #define LOCAL_MAX_COUNT		32
 #define LOCAL_FREE_LOW  	16
 #define LOCAL_FREE_HIGH 	31
-static kas_thread_local u32 local_count = 1;	/* local_next[0] is dummy */
-static kas_thread_local u64 local_next[LOCAL_MAX_COUNT];
+static ds_thread_local u32 local_count = 1;	/* local_next[0] is dummy */
+static ds_thread_local u64 local_next[LOCAL_MAX_COUNT];
 
 struct thread_block_allocator *g_block_allocator_256B;
 struct thread_block_allocator *g_block_allocator_1MB;
@@ -247,17 +250,17 @@ void global_thread_block_allocators_free()
 
 struct thread_block_allocator *thread_block_allocator_alloc(const u64 block_count, const u64 block_size)
 {
-	kas_static_assert(LOCAL_MAX_COUNT - 1 == LOCAL_FREE_HIGH, "");
-	kas_static_assert(LOCAL_FREE_LOW <= LOCAL_FREE_HIGH, "");
-	kas_static_assert(1 <= LOCAL_FREE_LOW, "");
+	ds_static_assert(LOCAL_MAX_COUNT - 1 == LOCAL_FREE_HIGH, "");
+	ds_static_assert(LOCAL_FREE_LOW <= LOCAL_FREE_HIGH, "");
+	ds_static_assert(1 <= LOCAL_FREE_LOW, "");
 
-	kas_assert(block_count && block_size);
+	ds_assert(block_count && block_size);
 	struct thread_block_allocator *allocator = NULL;
        	memory_alloc_aligned(&allocator, sizeof(struct thread_block_allocator), g_arch_config->cacheline);
 	if (!allocator)
 	{
 		log_string(T_SYSTEM, S_FATAL, "Failed to allocate block allocator");
-		fatal_cleanup_and_exit(kas_thread_self_tid());
+		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 
 	allocator->max_count = block_count;
@@ -268,11 +271,11 @@ struct thread_block_allocator *thread_block_allocator_alloc(const u64 block_coun
 
 	allocator->block_size = actual_block_size;
 	allocator->block = virtual_memory_reserve(block_count * allocator->block_size);
-	kas_assert_string(((u64) allocator->block & (g_arch_config->cacheline-1)) == 0, "allocator block array should be cacheline aligned");
+	ds_assert_string(((u64) allocator->block & (g_arch_config->cacheline-1)) == 0, "allocator block array should be cacheline aligned");
 	if (!allocator->block)
 	{
 		log_string(T_SYSTEM, S_FATAL, "Failed to allocate block allocator->block");
-		fatal_cleanup_and_exit(kas_thread_self_tid());
+		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 	/* sync point (gen, index) = (0,0) */
 	atomic_store_rel_64(&allocator->a_next, 0);
@@ -345,7 +348,7 @@ void *thread_block_alloc(struct thread_block_allocator *allocator)
 	u64 a_next = atomic_load_acq_64(&allocator->a_next);
 	while ((ret = thread_block_try_alloc(&addr, &a_next, allocator)) == ALLOCATOR_FAILURE);
 
-	kas_assert(ret != ALLOCATOR_OUT_OF_MEMORY);
+	ds_assert(ret != ALLOCATOR_OUT_OF_MEMORY);
 
 	return (ret != ALLOCATOR_OUT_OF_MEMORY) 
 		? addr 
@@ -434,11 +437,11 @@ struct ring ring_empty()
 #if __OS__ == __LINUX__
 
 #include <fcntl.h>
-#include "kas_string.h"
+#include "ds_string.h"
 
 struct ring ring_alloc(const u64 mem_hint)
 {
-	kas_assert(mem_hint);
+	ds_assert(mem_hint);
 	const u64 mod = mem_hint % g_arch_config->pagesize;
 
 	struct ring ring = { 0 };
@@ -481,7 +484,7 @@ void ring_dealloc(struct ring *ring)
 
 struct ring ring_alloc(const u64 mem_hint)
 {
-	kas_assert(mem_hint);
+	ds_assert(mem_hint);
 
 	SYSTEM_INFO info;
 	GetSystemInfo(&info);
@@ -550,11 +553,11 @@ void ring_flush(struct ring *ring)
 	ring->offset = 0;
 }
 
-struct kas_buffer ring_push_start(struct ring *ring, const u64 size)
+struct ds_buffer ring_push_start(struct ring *ring, const u64 size)
 {
-	kas_assert_string(size <= ring->mem_left, "ring allocator OOM");
+	ds_assert_string(size <= ring->mem_left, "ring allocator OOM");
 
-	struct kas_buffer buf = kas_buffer_empty;
+	struct ds_buffer buf = ds_buffer_empty;
 	if (size <= ring->mem_left)
 	{
 		ring->mem_left -= size;
@@ -566,9 +569,9 @@ struct kas_buffer ring_push_start(struct ring *ring, const u64 size)
 	return buf;
 }
 
-struct kas_buffer ring_push_end(struct ring *ring, const u64 size)
+struct ds_buffer ring_push_end(struct ring *ring, const u64 size)
 {
-	struct kas_buffer buf = kas_buffer_empty;
+	struct ds_buffer buf = ds_buffer_empty;
 	if (size <= ring->mem_left)
 	{
 		buf.data = ring->buf + ring->offset;
@@ -583,13 +586,13 @@ struct kas_buffer ring_push_end(struct ring *ring, const u64 size)
 
 void ring_pop_start(struct ring *ring, const u64 size)
 {
-	kas_assert(size + ring->mem_left <= ring->mem_total);
+	ds_assert(size + ring->mem_left <= ring->mem_total);
 	ring->mem_left += size;
 }
 
 void ring_pop_end(struct ring *ring, const u64 size)
 {
-	kas_assert(size + ring->mem_left <= ring->mem_total);
+	ds_assert(size + ring->mem_left <= ring->mem_total);
 	ring->mem_left += size;
 	ring->offset = (ring->mem_total + ring->offset - size) % ring->mem_total;
 }
@@ -597,7 +600,7 @@ void ring_pop_end(struct ring *ring, const u64 size)
 /* internal allocation of pool, use pool_alloc macro instead */
 struct pool pool_alloc_internal(struct arena *mem, const u32 length, const u64 slot_size, const u64 slot_allocation_offset, const u64 slot_generation_offset, const u32 growable)
 {
-	kas_assert(!growable || !mem);
+	ds_assert(!growable || !mem);
 
 	struct pool pool = { 0 };
 
@@ -654,7 +657,7 @@ static void internal_pool_realloc(struct pool *pool)
 	if (pool->length == length_max)
 	{
 		log_string(T_SYSTEM, S_FATAL, "pool allocator full, exiting");
-		fatal_cleanup_and_exit(kas_thread_self_tid());
+		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 	
 	u32 old_length = pool->length;
@@ -668,7 +671,7 @@ static void internal_pool_realloc(struct pool *pool)
 	if (!pool->buf)
 	{
 		log_string(T_SYSTEM, S_FATAL, "pool reallocation failed, exiting");
-		fatal_cleanup_and_exit(kas_thread_self_tid());
+		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 
 	UNPOISON_ADDRESS(pool->buf, pool->slot_size*old_length);
@@ -677,7 +680,7 @@ static void internal_pool_realloc(struct pool *pool)
 
 struct slot pool_add(struct pool *pool)
 {
-	kas_assert(pool->slot_generation_offset == U64_MAX);
+	ds_assert(pool->slot_generation_offset == U64_MAX);
 
 	struct slot allocation = { .address = NULL, .index = POOL_NULL };
 
@@ -694,7 +697,7 @@ struct slot pool_add(struct pool *pool)
 
 			slot_state = (u32 *) ((u8 *) allocation.address + pool->slot_allocation_offset);
 			pool->next_free = *slot_state & 0x7fffffff;
-			kas_assert((*slot_state & 0x80000000) == 0);
+			ds_assert((*slot_state & 0x80000000) == 0);
 		}
 		else
 		{
@@ -724,7 +727,7 @@ struct slot pool_add(struct pool *pool)
 
 struct slot gpool_add(struct pool *pool)
 {
-	kas_assert(pool->slot_generation_offset != U64_MAX);
+	ds_assert(pool->slot_generation_offset != U64_MAX);
 
 	struct slot allocation = { .address = NULL, .index = POOL_NULL };
 
@@ -741,7 +744,7 @@ struct slot gpool_add(struct pool *pool)
 			pool->next_free = *slot_state & 0x7fffffff;
 			u32 *gen_state = (u32 *) ((u8 *) allocation.address + pool->slot_generation_offset);
 			*gen_state += 1;
-			kas_assert((*slot_state & 0x80000000) == 0);
+			ds_assert((*slot_state & 0x80000000) == 0);
 		}
 		else
 		{
@@ -775,11 +778,11 @@ struct slot gpool_add(struct pool *pool)
 
 void pool_remove(struct pool *pool, const u32 index)
 {
-	kas_assert(index < pool->length);
+	ds_assert(index < pool->length);
 
 	u8 *address = pool->buf + index*pool->slot_size;
 	u32 *slot_state = (u32 *) (address + pool->slot_allocation_offset);
-	kas_assert(*slot_state);
+	ds_assert(*slot_state);
 
 	*slot_state = pool->next_free;
 	pool->next_free = index;
@@ -797,15 +800,15 @@ void pool_remove_address(struct pool *pool, void *slot)
 
 void *pool_address(const struct pool *pool, const u32 index)
 {
-	kas_assert(index <= pool->count_max);
+	ds_assert(index <= pool->count_max);
 	return (u8 *) pool->buf + index*pool->slot_size;
 }
 
 u32 pool_index(const struct pool *pool, const void *slot)
 {
-	kas_assert((u64) slot >= (u64) pool->buf);
-	kas_assert((u64) slot < (u64) pool->buf + pool->length*pool->slot_size);
-	kas_assert(((u64) slot - (u64) pool->buf) % pool->slot_size == 0); 
+	ds_assert((u64) slot >= (u64) pool->buf);
+	ds_assert((u64) slot < (u64) pool->buf + pool->length*pool->slot_size);
+	ds_assert(((u64) slot - (u64) pool->buf) % pool->slot_size == 0); 
 	return (u32) (((u64) slot - (u64) pool->buf) / pool->slot_size);
 }
 
@@ -816,7 +819,7 @@ struct pool_external_slot
 
 struct pool_external pool_external_alloc(void **external_buf, const u32 length, const u64 slot_size, const u32 growable)
 {
-	kas_static_assert(sizeof(struct pool_external_slot) == 4, "Expect size of pool_external_slot is 4");
+	ds_static_assert(sizeof(struct pool_external_slot) == 4, "Expect size of pool_external_slot is 4");
 
 	*external_buf = NULL;
 	struct pool_external ext = { 0 };
@@ -866,7 +869,7 @@ struct slot pool_external_add(struct pool_external *pool)
 			if (*pool->external_buf == NULL)
 			{
 				log_string(T_SYSTEM, S_FATAL, "Failed to reallocate external pool buffer");
-				fatal_cleanup_and_exit(kas_thread_self_tid());
+				fatal_cleanup_and_exit(ds_thread_self_tid());
 			}
 			UNPOISON_ADDRESS(*pool->external_buf, pool->slot_size*old_length);
 			POISON_ADDRESS(((u8 *)(*pool->external_buf) + pool->slot_size*old_length), pool->slot_size*(pool->pool.length - old_length)); 
@@ -893,14 +896,14 @@ void pool_external_remove_address(struct pool_external *pool, void *slot)
 
 void *pool_external_address(const struct pool_external *pool, const u32 index)
 {
-	kas_assert(index <= pool->pool.count_max);
+	ds_assert(index <= pool->pool.count_max);
 	return ((u8*)*pool->external_buf) + index*pool->slot_size;
 }
 
 u32 pool_external_index(const struct pool_external *pool, const void *slot)
 {
-	kas_assert((u64) slot >= (u64) (*pool->external_buf));
-	kas_assert((u64) slot < (u64) *pool->external_buf + pool->pool.length*pool->slot_size);
-	kas_assert(((u64) slot - (u64) *pool->external_buf) % pool->slot_size == 0); 
+	ds_assert((u64) slot >= (u64) (*pool->external_buf));
+	ds_assert((u64) slot < (u64) *pool->external_buf + pool->pool.length*pool->slot_size);
+	ds_assert(((u64) slot - (u64) *pool->external_buf) % pool->slot_size == 0); 
 	return (u32) (((u64) slot - (u64) *pool->external_buf) / pool->slot_size);
 }

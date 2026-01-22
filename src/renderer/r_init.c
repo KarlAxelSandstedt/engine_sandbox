@@ -55,79 +55,79 @@ static void shader_source_and_compile(GLuint shader, const char *filepath)
 	fread(buf, 1, size, file);
 
 	const GLchar *buf_ptr = buf;
-	kas_glShaderSource(shader, 1, &buf_ptr, 0);
+	ds_glShaderSource(shader, 1, &buf_ptr, 0);
 
 	fclose(file);
 
-	kas_glCompileShader(shader);	
+	ds_glCompileShader(shader);	
 
 	GLint compiled;
-	kas_glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
+	ds_glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
 	if (compiled == GL_FALSE)
 	{
 		GLsizei len = 0;
-		kas_glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &len);
-		kas_glGetShaderInfoLog(shader, len, &len, buf);
+		ds_glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &len);
+		ds_glGetShaderInfoLog(shader, len, &len, buf);
 		log(T_RENDERER, S_FATAL, "Failed to compile %s, %s", filepath, buf);
-		fatal_cleanup_and_exit(kas_thread_self_tid());
+		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 }
 
 void r_compile_shader(u32 *prg, const char *v_filepath, const char *f_filepath)
 {
-	GLuint v_sh = kas_glCreateShader(GL_VERTEX_SHADER);
-	GLuint f_sh = kas_glCreateShader(GL_FRAGMENT_SHADER);
+	GLuint v_sh = ds_glCreateShader(GL_VERTEX_SHADER);
+	GLuint f_sh = ds_glCreateShader(GL_FRAGMENT_SHADER);
 
 	shader_source_and_compile(v_sh, v_filepath);
 	shader_source_and_compile(f_sh, f_filepath);
 
-	*prg = kas_glCreateProgram();
+	*prg = ds_glCreateProgram();
 
-	kas_glAttachShader(*prg, v_sh);
-	kas_glAttachShader(*prg, f_sh);
+	ds_glAttachShader(*prg, v_sh);
+	ds_glAttachShader(*prg, f_sh);
 
-	kas_glLinkProgram(*prg);
+	ds_glLinkProgram(*prg);
 	GLint success;
-	kas_glGetProgramiv(*prg, GL_LINK_STATUS, &success);
+	ds_glGetProgramiv(*prg, GL_LINK_STATUS, &success);
 	if (!success)
 	{
 		char buf[4096];
 		GLsizei len = 0;
-		kas_glGetProgramiv(*prg, GL_INFO_LOG_LENGTH, &len);
-		kas_glGetProgramInfoLog(*prg, len, &len, buf);
+		ds_glGetProgramiv(*prg, GL_INFO_LOG_LENGTH, &len);
+		ds_glGetProgramInfoLog(*prg, len, &len, buf);
 		log(T_RENDERER, S_FATAL, "Failed to Link program: %s", buf);
-		fatal_cleanup_and_exit(kas_thread_self_tid());
+		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 
-	kas_glDetachShader(*prg, v_sh);
-	kas_glDetachShader(*prg, f_sh);
+	ds_glDetachShader(*prg, v_sh);
+	ds_glDetachShader(*prg, f_sh);
 
-	kas_glDeleteShader(v_sh);
-	kas_glDeleteShader(f_sh);
+	ds_glDeleteShader(v_sh);
+	ds_glDeleteShader(f_sh);
 }
 
 void r_color_buffer_layout_setter(void)
 {
-	kas_glEnableVertexAttribArray(0);
-	kas_glEnableVertexAttribArray(1);
+	ds_glEnableVertexAttribArray(0);
+	ds_glEnableVertexAttribArray(1);
 
 	const u64 stride = sizeof(vec3) + sizeof(vec4);
 
-	kas_glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, (GLsizei)  stride, 0);
-	kas_glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, (GLsizei)  stride, (void *)(sizeof(vec3)));
+	ds_glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, (GLsizei)  stride, 0);
+	ds_glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, (GLsizei)  stride, (void *)(sizeof(vec3)));
 }
 
 void r_lightning_buffer_layout_setter(void)
 {
-	kas_glEnableVertexAttribArray(0);
-	kas_glEnableVertexAttribArray(1);
-	kas_glEnableVertexAttribArray(2);
+	ds_glEnableVertexAttribArray(0);
+	ds_glEnableVertexAttribArray(1);
+	ds_glEnableVertexAttribArray(2);
 
 	const u64 stride = 2*sizeof(vec3) + sizeof(vec4);
 
-	kas_glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, (GLsizei)  stride, 0);
-	kas_glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, (GLsizei)  stride, (void *)(sizeof(vec3)));
-	kas_glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, (GLsizei)  stride, (void *)(sizeof(vec3) + sizeof(vec4)));
+	ds_glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, (GLsizei)  stride, 0);
+	ds_glVertexAttribPointer(1, 4, GL_FLOAT, GL_FALSE, (GLsizei)  stride, (void *)(sizeof(vec3)));
+	ds_glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, (GLsizei)  stride, (void *)(sizeof(vec3) + sizeof(vec4)));
 }
 
 void r_init(struct arena *mem_persistent, const u64 ns_tick, const u64 frame_size, const u64 core_unit_count, struct string_database *mesh_database)
@@ -171,12 +171,12 @@ void r_init(struct arena *mem_persistent, const u64 ns_tick, const u64 frame_siz
 	if (g_r_core->proxy3d_hierarchy == NULL)
 	{
 		log_string(T_SYSTEM, S_FATAL, "Failed to allocate r_core unit hierarchy, exiting.");
-		fatal_cleanup_and_exit(kas_thread_self_tid());
+		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 
 	struct slot slot3d = hierarchy_index_add(g_r_core->proxy3d_hierarchy, HI_NULL_INDEX);
 	g_r_core->proxy3d_root = slot3d.index;
-	kas_assert(g_r_core->proxy3d_root == PROXY3D_ROOT);
+	ds_assert(g_r_core->proxy3d_root == PROXY3D_ROOT);
 	struct r_proxy3d *stub3d = slot3d.address;
 	vec3_set(stub3d->position, 0.0f, 0.0f, 0.0f);
 	vec3_set(stub3d->spec_position, 0.0f, 0.0f, 0.0f);
@@ -207,15 +207,15 @@ void r_init(struct arena *mem_persistent, const u64 ns_tick, const u64 frame_siz
 	{
 		pixel32[i] = ((u32) pixel8[i] << 24) + 0xffffff;
 	}
-	kas_glGenTextures(1, &g_r_core->texture[TEXTURE_FONT_DEFAULT_SMALL].handle);
-	kas_glActiveTexture(GL_TEXTURE0 + 0);
-	kas_glBindTexture(GL_TEXTURE_2D, g_r_core->texture[TEXTURE_FONT_DEFAULT_SMALL].handle);
-	kas_glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixel32);
-	kas_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
-	kas_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
-	kas_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	kas_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	kas_glGenerateMipmap(GL_TEXTURE_2D);
+	ds_glGenTextures(1, &g_r_core->texture[TEXTURE_FONT_DEFAULT_SMALL].handle);
+	ds_glActiveTexture(GL_TEXTURE0 + 0);
+	ds_glBindTexture(GL_TEXTURE_2D, g_r_core->texture[TEXTURE_FONT_DEFAULT_SMALL].handle);
+	ds_glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixel32);
+	ds_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
+	ds_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
+	ds_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	ds_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	ds_glGenerateMipmap(GL_TEXTURE_2D);
 
 	a_f = asset_database_request_font(&g_r_core->frame, FONT_DEFAULT_MEDIUM);
 	w = a_f->font->pixmap_width;
@@ -226,35 +226,35 @@ void r_init(struct arena *mem_persistent, const u64 ns_tick, const u64 frame_siz
 	{
 		pixel32[i] = ((u32) pixel8[i] << 24) + 0xffffff;
 	}
-	kas_glGenTextures(1, &g_r_core->texture[TEXTURE_FONT_DEFAULT_MEDIUM].handle);
-	kas_glActiveTexture(GL_TEXTURE0 + 1);
-	kas_glBindTexture(GL_TEXTURE_2D, g_r_core->texture[TEXTURE_FONT_DEFAULT_MEDIUM].handle);
-	kas_glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixel32);
-	kas_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
-	kas_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
-	kas_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	kas_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	kas_glGenerateMipmap(GL_TEXTURE_2D);
+	ds_glGenTextures(1, &g_r_core->texture[TEXTURE_FONT_DEFAULT_MEDIUM].handle);
+	ds_glActiveTexture(GL_TEXTURE0 + 1);
+	ds_glBindTexture(GL_TEXTURE_2D, g_r_core->texture[TEXTURE_FONT_DEFAULT_MEDIUM].handle);
+	ds_glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixel32);
+	ds_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT );
+	ds_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT );
+	ds_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	ds_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	ds_glGenerateMipmap(GL_TEXTURE_2D);
 
 	arena_pop_record(mem_persistent);
 
 	struct asset_ssff *asset = asset_database_request_ssff(&g_r_core->frame, SSFF_LED_ID);
-	kas_glGenTextures(1, &g_r_core->texture[TEXTURE_LED].handle);
-	kas_glActiveTexture(GL_TEXTURE0 + 2);
-	kas_glBindTexture(GL_TEXTURE_2D, g_r_core->texture[TEXTURE_LED].handle);
-	kas_glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, asset->width, asset->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, asset->pixel);
-	kas_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	kas_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	kas_glGenerateMipmap(GL_TEXTURE_2D);
+	ds_glGenTextures(1, &g_r_core->texture[TEXTURE_LED].handle);
+	ds_glActiveTexture(GL_TEXTURE0 + 2);
+	ds_glBindTexture(GL_TEXTURE_2D, g_r_core->texture[TEXTURE_LED].handle);
+	ds_glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, asset->width, asset->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, asset->pixel);
+	ds_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	ds_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	ds_glGenerateMipmap(GL_TEXTURE_2D);
 
 	asset = asset_database_request_ssff(&g_r_core->frame, SSFF_NONE_ID);
-	kas_glGenTextures(1, &g_r_core->texture[TEXTURE_NONE].handle);
-	kas_glActiveTexture(GL_TEXTURE0 + 3);
-	kas_glBindTexture(GL_TEXTURE_2D, g_r_core->texture[TEXTURE_NONE].handle);
-	kas_glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, asset->width, asset->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, asset->pixel);
-	kas_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	kas_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	kas_glGenerateMipmap(GL_TEXTURE_2D);
+	ds_glGenTextures(1, &g_r_core->texture[TEXTURE_NONE].handle);
+	ds_glActiveTexture(GL_TEXTURE0 + 3);
+	ds_glBindTexture(GL_TEXTURE_2D, g_r_core->texture[TEXTURE_NONE].handle);
+	ds_glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, asset->width, asset->height, 0, GL_RGBA, GL_UNSIGNED_BYTE, asset->pixel);
+	ds_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	ds_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	ds_glGenerateMipmap(GL_TEXTURE_2D);
 }
 
 void r_core_flush(void)
@@ -265,7 +265,7 @@ void r_core_flush(void)
 	hierarchy_index_flush(g_r_core->proxy3d_hierarchy);
 	struct slot slot3d = hierarchy_index_add(g_r_core->proxy3d_hierarchy, HI_NULL_INDEX);
 	g_r_core->proxy3d_root = slot3d.index;
-	kas_assert(g_r_core->proxy3d_root == PROXY3D_ROOT);
+	ds_assert(g_r_core->proxy3d_root == PROXY3D_ROOT);
 	struct r_proxy3d *stub3d = slot3d.address;
 	vec3_set(stub3d->position, 0.0f, 0.0f, 0.0f);
 	vec3_set(stub3d->spec_position, 0.0f, 0.0f, 0.0f);

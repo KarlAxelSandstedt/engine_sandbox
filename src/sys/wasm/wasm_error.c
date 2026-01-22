@@ -51,7 +51,7 @@ void init_error_handling_func_ptrs(void)
 
 utf8 utf8_system_error_code_string_buffered(u8 *buf, const u32 bufsize, const u32 code)
 {
-	kas_assert(bufsize > 0);
+	ds_assert(bufsize > 0);
 	utf8 err_str = 
 	{
 		.len = 0,
@@ -68,7 +68,7 @@ utf8 utf8_system_error_code_string_buffered(u8 *buf, const u32 bufsize, const u3
 		}
 		else if (status == ERANGE)
 		{
-			kas_assert(0 && "increase system error string buffer size!");
+			ds_assert(0 && "increase system error string buffer size!");
 		}
 
 		return utf8_empty();

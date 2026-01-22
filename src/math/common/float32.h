@@ -20,7 +20,7 @@
 #ifndef __MG_FLOAT32_H__
 #define __MG_FLOAT32_H__
 
-#include "kas_common.h"
+#include "ds_common.h"
 
 #undef  F32_PI
 #undef  F32_PI

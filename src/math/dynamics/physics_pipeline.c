@@ -34,7 +34,7 @@ const char *body_color_mode_str_buf[RB_COLOR_MODE_COUNT] =
 
 const char **body_color_mode_str = body_color_mode_str_buf;
 
-kas_thread_local struct collision_debug *tl_debug;
+ds_thread_local struct collision_debug *tl_debug;
 
 u32 g_a_thread_counter = 0;
 
@@ -43,7 +43,7 @@ static void thread_set_collision_debug(void *task_addr)
 	struct task *task = task_addr;
 	struct worker *worker = task->executor;
 	const struct physics_pipeline *pipeline = task->input;
-	tl_debug = pipeline->debug + kas_thread_self_index();
+	tl_debug = pipeline->debug + ds_thread_self_index();
 
 	atomic_fetch_add_rel_32(&g_a_thread_counter, 1);
 	while (atomic_load_acq_32(&g_a_thread_counter) != pipeline->debug_count);
@@ -83,7 +83,7 @@ struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 init
 
 	}
 
-	kas_assert_string(is_power_of_two(initial_size), "For simplicity of future data structures, expect pipeline sizes to be powers of two");
+	ds_assert_string(is_power_of_two(initial_size), "For simplicity of future data structures, expect pipeline sizes to be powers of two");
 
 	pipeline.body_pool = pool_alloc(NULL, initial_size, struct rigid_body, GROWABLE);
 	pipeline.body_marked_list = dll_init(struct rigid_body);
@@ -120,7 +120,7 @@ struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 init
 
 	pipeline.debug_count = 0;
 	pipeline.debug = NULL;
-#ifdef KAS_PHYSICS_DEBUG
+#ifdef DS_PHYSICS_DEBUG
 	struct task_stream *stream = task_stream_init(&pipeline.frame);
 
 	pipeline.debug_count = g_arch_config->logical_core_count;
@@ -144,7 +144,7 @@ struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 init
 
 void physics_pipeline_free(struct physics_pipeline *pipeline)
 {
-#ifdef KAS_PHYSICS_DEBUG
+#ifdef DS_PHYSICS_DEBUG
 	for (u32 i = 0; i < pipeline->debug_count; ++i)
 	{
 		stack_visual_segment_free(&pipeline->debug[i].stack_segment);
@@ -159,7 +159,7 @@ void physics_pipeline_free(struct physics_pipeline *pipeline)
 
 static void internal_physics_pipeline_clear_frame(struct physics_pipeline *pipeline)
 {
-#ifdef KAS_PHYSICS_DEBUG
+#ifdef DS_PHYSICS_DEBUG
 	for (u32 i = 0; i < pipeline->debug_count; ++i)
 	{
 		stack_visual_segment_flush(&pipeline->debug[i].stack_segment);
@@ -178,7 +178,7 @@ static void internal_physics_pipeline_clear_frame(struct physics_pipeline *pipel
 
 void physics_pipeline_flush(struct physics_pipeline *pipeline)
 {
-#ifdef KAS_PHYSICS_DEBUG
+#ifdef DS_PHYSICS_DEBUG
 	for (u32 i = 0; i < pipeline->debug_count; ++i)
 	{
 		stack_visual_segment_flush(&pipeline->debug[i].stack_segment);
@@ -472,8 +472,8 @@ static void internal_parallel_push_contacts(struct arena *mem_frame, struct phys
 	arena_pop_packed(mem_frame, (pipeline->proxy_overlap_count - pipeline->cm_count) * sizeof(struct contact_manifold));
 
 	pipeline->c_db.contacts_frame_usage = bit_vec_alloc(mem_frame, pipeline->c_db.contacts_persistent_usage.bit_count, 0, 0);
-	kas_assert(pipeline->c_db.contacts_frame_usage.block_count == pipeline->c_db.contacts_persistent_usage.block_count);
-	kas_assert(pipeline->c_db.contacts_frame_usage.bit_count == pipeline->c_db.contacts_persistent_usage.bit_count);
+	ds_assert(pipeline->c_db.contacts_frame_usage.block_count == pipeline->c_db.contacts_persistent_usage.block_count);
+	ds_assert(pipeline->c_db.contacts_frame_usage.bit_count == pipeline->c_db.contacts_persistent_usage.bit_count);
 
 	pipeline->contact_new_count = 0;
 	pipeline->contact_new = (u32 *) mem_frame->stack_ptr;
@@ -794,7 +794,7 @@ static void internal_update_contact_solver_config(struct physics_pipeline *pipel
 static void physics_pipeline_rigid_body_dealloc(struct physics_pipeline *pipeline, const u32 handle)
 {
 	struct rigid_body *body = pool_address(&pipeline->body_pool, handle);
-	kas_assert(POOL_SLOT_ALLOCATED(body));
+	ds_assert(POOL_SLOT_ALLOCATED(body));
 
 	string_database_dereference(pipeline->shape_db, body->shape_handle);
 	dbvh_remove(&pipeline->dynamic_tree, body->proxy);
@@ -983,7 +983,7 @@ struct physics_event *physics_pipeline_event_push(struct physics_pipeline *pipel
 //TODO: REPLACE using table
 static u32 comb(const u32 o, const u32 u)
 {
-	kas_assert(u <= o);
+	ds_assert(u <= o);
 
 	u32 v1 = 1;
 	u32 v2 = 1;
@@ -995,14 +995,14 @@ static u32 comb(const u32 o, const u32 u)
 		v2 *= (i+1);
 	}
 
-	kas_assert(v1 % v2 == 0);
+	ds_assert(v1 % v2 == 0);
 
 	return v1 / v2;
 }
 
 static f32 statics_internal_line_integrals(const vec2 v0, const vec2 v1, const vec2 v2, const u32 p, const u32 q, const vec3 int_scalars)
 {
-       kas_assert(p <= 4 && q <= 4);
+       ds_assert(p <= 4 && q <= 4);
        
        f32 sum = 0.0f;
        for (u32 i = 0; i <= p; ++i)
@@ -1183,7 +1183,7 @@ void prefab_statics_setup(struct rigid_body_prefab *prefab, struct collision_sha
 			}
 
 			const f32 mass = integrals[VOL] * density;
-			kas_assert(mass >= 0.0f);
+			ds_assert(mass >= 0.0f);
 			/* center of mass */
 			vec3_set(com,
 				integrals[T_X] * density / mass,
@@ -1217,7 +1217,7 @@ void prefab_statics_setup(struct rigid_body_prefab *prefab, struct collision_sha
 //      	                   integrals[T_ZX]);
 
 		prefab->mass = integrals[VOL] * density;
-		kas_assert(prefab->mass >= 0.0f);
+		ds_assert(prefab->mass >= 0.0f);
 
 		I_xx = density * (integrals[T_YY] + integrals[T_ZZ]);
 		I_yy = density * (integrals[T_XX] + integrals[T_ZZ]);

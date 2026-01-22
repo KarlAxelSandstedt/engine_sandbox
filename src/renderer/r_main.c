@@ -232,7 +232,7 @@ static struct r_mesh *debug_lines_mesh(struct arena *mem, const struct physics_p
 			mem_left -= 2*(sizeof(vec3) + sizeof(vec4));
 		}
 	}
-	kas_assert(mem_left == 0);
+	ds_assert(mem_left == 0);
 end:
 	return mesh;
 }
@@ -270,7 +270,7 @@ static struct r_mesh *bounding_boxes_mesh(struct arena *mem, const struct physic
 		vertex_data += bytes_written;
 		mem_left -= bytes_written;
 	}
-	kas_assert(mem_left == 0);
+	ds_assert(mem_left == 0);
 end:
 	return mesh;
 }
@@ -334,7 +334,7 @@ static struct r_mesh *bvh_mesh(struct arena *mem, const struct bvh *bvh, const v
 			i = U32_MAX;
 		}
 	}
-	kas_assert(mem_left == 0);
+	ds_assert(mem_left == 0);
 end:
 	arena_pop_record(mem);
 	return mesh;
@@ -346,7 +346,7 @@ static void r_led_draw(const struct led *led)
 
 	//{
 	//	struct slot slot = string_database_lookup(&led->render_mesh_db, utf8_inline("rm_map"));
-	//	kas_assert(slot.index != STRING_DATABASE_STUB_INDEX);
+	//	ds_assert(slot.index != STRING_DATABASE_STUB_INDEX);
 	//	if (slot.index != STRING_DATABASE_STUB_INDEX)
 	//	{
 	//		const u64 material = r_material_construct(PROGRAM_LIGHTNING, slot.index, TEXTURE_NONE);
@@ -359,7 +359,7 @@ static void r_led_draw(const struct led *led)
 	//}
 
 	const u32 depth_exponent = 1 + f32_exponent_bits(led->cam.fz_far);
-	kas_assert(depth_exponent >= 23);
+	ds_assert(depth_exponent >= 23);
 
 	r_proxy3d_hierarchy_speculate(&g_r_core->frame, led->ns - led->ns_engine_paused);
 
@@ -501,35 +501,35 @@ static void internal_r_proxy3d_uniforms(const struct led *led, const u32 window)
 	perspective_matrix(perspective, cam->aspect_ratio, cam->fov_x, cam->fz_near, cam->fz_far);
 	view_matrix(view, cam->position, cam->left, cam->up, cam->forward);
 	
-	kas_glUseProgram(g_r_core->program[PROGRAM_PROXY3D].gl_program);
+	ds_glUseProgram(g_r_core->program[PROGRAM_PROXY3D].gl_program);
 	GLint aspect_ratio_addr, view_addr, perspective_addr, light_position_addr;
-	aspect_ratio_addr = kas_glGetUniformLocation(g_r_core->program[PROGRAM_PROXY3D].gl_program, "aspect_ratio");
-	view_addr = kas_glGetUniformLocation(g_r_core->program[PROGRAM_PROXY3D].gl_program, "view");
-	perspective_addr = kas_glGetUniformLocation(g_r_core->program[PROGRAM_PROXY3D].gl_program, "perspective");
-	light_position_addr = kas_glGetUniformLocation(g_r_core->program[PROGRAM_PROXY3D].gl_program, "light_position");
-	kas_glUniform1f(aspect_ratio_addr, (f32) cam->aspect_ratio);
-	kas_glUniform3f(light_position_addr, cam->position[0], cam->position[1], cam->position[2]);
-	kas_glUniformMatrix4fv(perspective_addr, 1, GL_FALSE, (f32 *) perspective);
-	kas_glUniformMatrix4fv(view_addr, 1, GL_FALSE, (f32 *) view);
+	aspect_ratio_addr = ds_glGetUniformLocation(g_r_core->program[PROGRAM_PROXY3D].gl_program, "aspect_ratio");
+	view_addr = ds_glGetUniformLocation(g_r_core->program[PROGRAM_PROXY3D].gl_program, "view");
+	perspective_addr = ds_glGetUniformLocation(g_r_core->program[PROGRAM_PROXY3D].gl_program, "perspective");
+	light_position_addr = ds_glGetUniformLocation(g_r_core->program[PROGRAM_PROXY3D].gl_program, "light_position");
+	ds_glUniform1f(aspect_ratio_addr, (f32) cam->aspect_ratio);
+	ds_glUniform3f(light_position_addr, cam->position[0], cam->position[1], cam->position[2]);
+	ds_glUniformMatrix4fv(perspective_addr, 1, GL_FALSE, (f32 *) perspective);
+	ds_glUniformMatrix4fv(view_addr, 1, GL_FALSE, (f32 *) view);
 
-	kas_glUseProgram(g_r_core->program[PROGRAM_LIGHTNING].gl_program);
-	aspect_ratio_addr = kas_glGetUniformLocation(g_r_core->program[PROGRAM_LIGHTNING].gl_program, "aspect_ratio");
-	view_addr = kas_glGetUniformLocation(g_r_core->program[PROGRAM_LIGHTNING].gl_program, "view");
-	perspective_addr = kas_glGetUniformLocation(g_r_core->program[PROGRAM_LIGHTNING].gl_program, "perspective");
-	light_position_addr = kas_glGetUniformLocation(g_r_core->program[PROGRAM_LIGHTNING].gl_program, "light_position");
-	kas_glUniform1f(aspect_ratio_addr, (f32) cam->aspect_ratio);
-	kas_glUniform3f(light_position_addr, cam->position[0], cam->position[1], cam->position[2]);
-	kas_glUniformMatrix4fv(perspective_addr, 1, GL_FALSE, (f32 *) perspective);
-	kas_glUniformMatrix4fv(view_addr, 1, GL_FALSE, (f32 *) view);
+	ds_glUseProgram(g_r_core->program[PROGRAM_LIGHTNING].gl_program);
+	aspect_ratio_addr = ds_glGetUniformLocation(g_r_core->program[PROGRAM_LIGHTNING].gl_program, "aspect_ratio");
+	view_addr = ds_glGetUniformLocation(g_r_core->program[PROGRAM_LIGHTNING].gl_program, "view");
+	perspective_addr = ds_glGetUniformLocation(g_r_core->program[PROGRAM_LIGHTNING].gl_program, "perspective");
+	light_position_addr = ds_glGetUniformLocation(g_r_core->program[PROGRAM_LIGHTNING].gl_program, "light_position");
+	ds_glUniform1f(aspect_ratio_addr, (f32) cam->aspect_ratio);
+	ds_glUniform3f(light_position_addr, cam->position[0], cam->position[1], cam->position[2]);
+	ds_glUniformMatrix4fv(perspective_addr, 1, GL_FALSE, (f32 *) perspective);
+	ds_glUniformMatrix4fv(view_addr, 1, GL_FALSE, (f32 *) view);
 	
 	
-	kas_glUseProgram(g_r_core->program[PROGRAM_COLOR].gl_program);
-	aspect_ratio_addr = kas_glGetUniformLocation(g_r_core->program[PROGRAM_COLOR].gl_program, "aspect_ratio");
-	view_addr = kas_glGetUniformLocation(g_r_core->program[PROGRAM_COLOR].gl_program, "view");
-	perspective_addr = kas_glGetUniformLocation(g_r_core->program[PROGRAM_COLOR].gl_program, "perspective");
-	kas_glUniform1f(aspect_ratio_addr, (f32) cam->aspect_ratio);
-	kas_glUniformMatrix4fv(perspective_addr, 1, GL_FALSE, (f32 *) perspective);
-	kas_glUniformMatrix4fv(view_addr, 1, GL_FALSE, (f32 *) view);
+	ds_glUseProgram(g_r_core->program[PROGRAM_COLOR].gl_program);
+	aspect_ratio_addr = ds_glGetUniformLocation(g_r_core->program[PROGRAM_COLOR].gl_program, "aspect_ratio");
+	view_addr = ds_glGetUniformLocation(g_r_core->program[PROGRAM_COLOR].gl_program, "view");
+	perspective_addr = ds_glGetUniformLocation(g_r_core->program[PROGRAM_COLOR].gl_program, "perspective");
+	ds_glUniform1f(aspect_ratio_addr, (f32) cam->aspect_ratio);
+	ds_glUniformMatrix4fv(perspective_addr, 1, GL_FALSE, (f32 *) perspective);
+	ds_glUniformMatrix4fv(view_addr, 1, GL_FALSE, (f32 *) view);
 }
 
 static void internal_r_ui_uniforms(const u32 window)
@@ -537,9 +537,9 @@ static void internal_r_ui_uniforms(const u32 window)
 	vec2u32 resolution;
 	system_window_size(resolution, window);
 
-	kas_glUseProgram(g_r_core->program[PROGRAM_UI].gl_program);
-	GLint resolution_addr = kas_glGetUniformLocation(g_r_core->program[PROGRAM_UI].gl_program, "resolution");
-	kas_glUniform2f(resolution_addr, (f32) resolution[0], (f32) resolution[1]);
+	ds_glUseProgram(g_r_core->program[PROGRAM_UI].gl_program);
+	GLint resolution_addr = ds_glGetUniformLocation(g_r_core->program[PROGRAM_UI].gl_program, "resolution");
+	ds_glUniform2f(resolution_addr, (f32) resolution[0], (f32) resolution[1]);
 }
 
 static void r_scene_render(const struct led *led, const u32 window)
@@ -547,10 +547,10 @@ static void r_scene_render(const struct led *led, const u32 window)
 	PROF_ZONE;
 
 	struct system_window *sys_win = system_window_address(window);
-	kas_glViewport(0, 0, (i32) sys_win->size[0], (i32) sys_win->size[1]); 
+	ds_glViewport(0, 0, (i32) sys_win->size[0], (i32) sys_win->size[1]); 
 
-	kas_glClearColor(0.08f, 0.08f, 0.08f, 1.0f);
-	kas_glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	ds_glClearColor(0.08f, 0.08f, 0.08f, 1.0f);
+	ds_glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	for (struct r_bucket *b = sys_win->r_scene->frame_bucket_list; b; b = b->next)
 	{
@@ -559,17 +559,17 @@ static void r_scene_render(const struct led *led, const u32 window)
 		{
 			case R_CMD_SCREEN_LAYER_GAME:
 			{
-				kas_glEnableDepthTesting();
+				ds_glEnableDepthTesting();
 			} break;
 
 			case R_CMD_SCREEN_LAYER_HUD:
 			{
-				kas_glDisableDepthTesting();
+				ds_glDisableDepthTesting();
 			} break;
 
 			default:
 			{
-				kas_assert_string(0, "unimplemented");
+				ds_assert_string(0, "unimplemented");
 			} break;
 		}
 
@@ -577,29 +577,29 @@ static void r_scene_render(const struct led *led, const u32 window)
 		{
 			case R_CMD_TRANSPARENCY_OPAQUE:
 			{
-				kas_glDisableBlending();
+				ds_glDisableBlending();
 			} break;
 
 			case R_CMD_TRANSPARENCY_ADDITIVE:
 			{
-				kas_glEnableBlending();
-				kas_glBlendEquation(GL_FUNC_ADD);
+				ds_glEnableBlending();
+				ds_glBlendEquation(GL_FUNC_ADD);
 			} break;
 
 			case R_CMD_TRANSPARENCY_SUBTRACTIVE:
 			{
-				kas_glEnableBlending();
-				kas_glBlendEquation(GL_FUNC_SUBTRACT);
+				ds_glEnableBlending();
+				ds_glBlendEquation(GL_FUNC_SUBTRACT);
 			} break;
 
 			default: 
 			{ 
-				 kas_assert_string(0, "unexpected transparency setting"); 
+				 ds_assert_string(0, "unexpected transparency setting"); 
 			} break;
 		}
 		
 		const u32 program = MATERIAL_PROGRAM_GET(b->material);
-		kas_glUseProgram(g_r_core->program[program].gl_program);
+		ds_glUseProgram(g_r_core->program[program].gl_program);
 
 		const u32 mesh = MATERIAL_MESH_GET(b->material);
 		const u32 texture = MATERIAL_TEXTURE_GET(b->material);	
@@ -608,19 +608,19 @@ static void r_scene_render(const struct led *led, const u32 window)
 			case PROGRAM_UI:
 			{
 				u32 tx_index = 0;
-				kas_glActiveTexture(GL_TEXTURE0 + tx_index);
+				ds_glActiveTexture(GL_TEXTURE0 + tx_index);
 				//TODO setup compile time arrays as with g_r_core->program[program].gl_program (?????)
-				kas_glBindTexture(GL_TEXTURE_2D, g_r_core->texture[texture].handle);
-				const i32 texture_addr = kas_glGetUniformLocation(g_r_core->program[program].gl_program, "texture");
-				kas_glUniform1i(texture_addr, tx_index);
-				kas_glViewport(0, 0, (i32) sys_win->size[0], (i32) sys_win->size[1]); 
+				ds_glBindTexture(GL_TEXTURE_2D, g_r_core->texture[texture].handle);
+				const i32 texture_addr = ds_glGetUniformLocation(g_r_core->program[program].gl_program, "texture");
+				ds_glUniform1i(texture_addr, tx_index);
+				ds_glViewport(0, 0, (i32) sys_win->size[0], (i32) sys_win->size[1]); 
 			} break;
 
 			case PROGRAM_LIGHTNING:
 			case PROGRAM_COLOR:
 			case PROGRAM_PROXY3D:
 			{
-				kas_glViewport(led->viewport_position[0]
+				ds_glViewport(led->viewport_position[0]
 					       , led->viewport_position[1]
 					       , led->viewport_size[0]
 					       , led->viewport_size[1]
@@ -633,18 +633,18 @@ static void r_scene_render(const struct led *led, const u32 window)
 		{
 			case R_CMD_PRIMITIVE_LINE: { mode = GL_LINES; } break;
 			case R_CMD_PRIMITIVE_TRIANGLE: { mode = GL_TRIANGLES; } break;
-			default: { kas_assert_string(0, "Unexpected draw primitive"); } break;
+			default: { ds_assert_string(0, "Unexpected draw primitive"); } break;
 		}
 
 		u32 vao;
-		kas_glGenVertexArrays(1, &vao);
-		kas_glBindVertexArray(vao);
+		ds_glGenVertexArrays(1, &vao);
+		ds_glBindVertexArray(vao);
 		for (u32 i = 0; i < b->buffer_count; ++i)
 		{	
 			struct r_buffer *buf = b->buffer_array[i];
-			kas_glGenBuffers(1, &buf->local_vbo);
-			kas_glBindBuffer(GL_ARRAY_BUFFER, buf->local_vbo);
-			kas_glBufferData(GL_ARRAY_BUFFER, buf->local_size, buf->local_data, GL_STATIC_DRAW);
+			ds_glGenBuffers(1, &buf->local_vbo);
+			ds_glBindBuffer(GL_ARRAY_BUFFER, buf->local_vbo);
+			ds_glBufferData(GL_ARRAY_BUFFER, buf->local_size, buf->local_data, GL_STATIC_DRAW);
 			g_r_core->program[program].buffer_local_layout_setter();
 
 			if (!b->elements)
@@ -655,25 +655,25 @@ static void r_scene_render(const struct led *led, const u32 window)
 
 				if (!b->instanced)
 				{
-					kas_glDrawArrays(mode, 0, buf->local_size / g_r_core->program[program].local_stride);
+					ds_glDrawArrays(mode, 0, buf->local_size / g_r_core->program[program].local_stride);
 				}
 				else
 				{
-					kas_glGenBuffers(1, &buf->shared_vbo);
-					kas_glBindBuffer(GL_ARRAY_BUFFER, buf->shared_vbo);
-					kas_glBufferData(GL_ARRAY_BUFFER, buf->shared_size, buf->shared_data, GL_STATIC_DRAW);
+					ds_glGenBuffers(1, &buf->shared_vbo);
+					ds_glBindBuffer(GL_ARRAY_BUFFER, buf->shared_vbo);
+					ds_glBufferData(GL_ARRAY_BUFFER, buf->shared_size, buf->shared_data, GL_STATIC_DRAW);
 					g_r_core->program[program].buffer_shared_layout_setter();
 
-					kas_glDrawArraysInstanced(mode, 0, buf->local_size / g_r_core->program[program].local_stride, buf->instance_count);
-					kas_glDeleteBuffers(1, &buf->shared_vbo);
+					ds_glDrawArraysInstanced(mode, 0, buf->local_size / g_r_core->program[program].local_stride, buf->instance_count);
+					ds_glDeleteBuffers(1, &buf->shared_vbo);
 
 				}
 			}
 			else
 			{
-				kas_glGenBuffers(1, &buf->ebo);
-				kas_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buf->ebo);
-				kas_glBufferData(GL_ELEMENT_ARRAY_BUFFER, buf->index_count * sizeof(u32), buf->index_data, GL_STATIC_DRAW);
+				ds_glGenBuffers(1, &buf->ebo);
+				ds_glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, buf->ebo);
+				ds_glBufferData(GL_ELEMENT_ARRAY_BUFFER, buf->index_count * sizeof(u32), buf->index_data, GL_STATIC_DRAW);
 				if (!b->instanced)
 				{
 					//fprintf(stderr, "\t\tDrawing Regular: buf[%u], vbuf[%lu], index_count: %u\n", 
@@ -681,7 +681,7 @@ static void r_scene_render(const struct led *led, const u32 window)
 					//		buf->local_size,
 					//		buf->index_count);
 
-					kas_glDrawElements(mode, buf->index_count, GL_UNSIGNED_INT, 0);
+					ds_glDrawElements(mode, buf->index_count, GL_UNSIGNED_INT, 0);
 				}
 				else
 				{
@@ -692,21 +692,21 @@ static void r_scene_render(const struct led *led, const u32 window)
 					//		buf->index_count,
 					//		buf->instance_count);
 
-					kas_glGenBuffers(1, &buf->shared_vbo);
-					kas_glBindBuffer(GL_ARRAY_BUFFER, buf->shared_vbo);
-					kas_glBufferData(GL_ARRAY_BUFFER, buf->shared_size, buf->shared_data, GL_STATIC_DRAW);
+					ds_glGenBuffers(1, &buf->shared_vbo);
+					ds_glBindBuffer(GL_ARRAY_BUFFER, buf->shared_vbo);
+					ds_glBufferData(GL_ARRAY_BUFFER, buf->shared_size, buf->shared_data, GL_STATIC_DRAW);
 					g_r_core->program[program].buffer_shared_layout_setter();
 
-					kas_glDrawElementsInstanced(mode, buf->index_count, GL_UNSIGNED_INT, 0, buf->instance_count);
-					kas_glDeleteBuffers(1, &buf->shared_vbo);
+					ds_glDrawElementsInstanced(mode, buf->index_count, GL_UNSIGNED_INT, 0, buf->instance_count);
+					ds_glDeleteBuffers(1, &buf->shared_vbo);
 				}	
 			}
 
-			kas_glDeleteBuffers(1, &buf->local_vbo);
-			kas_glDeleteBuffers(1, &buf->ebo);
+			ds_glDeleteBuffers(1, &buf->local_vbo);
+			ds_glDeleteBuffers(1, &buf->ebo);
 		}
 
-		kas_glDeleteVertexArrays(1, &vao);
+		ds_glDeleteVertexArrays(1, &vao);
 		PROF_ZONE_END;
 	}
 
@@ -772,7 +772,7 @@ void r_led_main(const struct led *led)
 	}
 	else
 	{
-		kas_assert(0);
+		ds_assert(0);
 		g_r_core->frames_elapsed += 1;
 	}
 }

@@ -20,8 +20,8 @@
 #ifndef __STRING_DATABASE_H__
 #define __STRING_DATABASE_H__
 
-#include "kas_common.h"
-#include "kas_string.h"
+#include "ds_common.h"
+#include "ds_string.h"
 #include "allocator.h"
 #include "hash_map.h"
 #include "list.h"
