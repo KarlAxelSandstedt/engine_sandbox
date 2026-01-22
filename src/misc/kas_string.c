@@ -94,7 +94,7 @@ u32 utf8_read_codepoint(u64 *new_offset, const utf8 *str, const u64 offset)
 	u32 bad_sequence = 0;
 
 	const u32 inv = ~((u32) (str->buf[offset]) << 24);
-	const u32 leading_ones_count = clz32(inv);
+	const u32 leading_ones_count = Clz32(inv);
 
 	switch (leading_ones_count)
 	{
@@ -734,8 +734,8 @@ struct parse_retval u64_utf8(const utf8 str)
 			return (struct parse_retval) { .op_result = PARSE_STRING_INVALID, .u64 = 0 };
 		}
 
-		overflow |= u64_mul_return_overflow(&ret, ret, 10);
-		overflow |= u64_add_return_overflow(&ret, ret, c-'0');
+		overflow |= u64_MulReturnOverflow(&ret, ret, 10);
+		overflow |= u64_AddReturnOverflow(&ret, ret, c-'0');
 	}
 
 	return (overflow) 
@@ -800,8 +800,8 @@ struct parse_retval u64_utf32(const utf32 str)
 			return (struct parse_retval) { .op_result = PARSE_STRING_INVALID, .u64 = 0 };
 		}
 
-		overflow |= u64_mul_return_overflow(&ret, ret, 10);
-		overflow |= u64_add_return_overflow(&ret, ret, c-'0');
+		overflow |= u64_MulReturnOverflow(&ret, ret, 10);
+		overflow |= u64_AddReturnOverflow(&ret, ret, c-'0');
 	}
 
 	return (overflow) 

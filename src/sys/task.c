@@ -39,10 +39,10 @@ static void worker_exit(void *void_task)
 
 static void task_run(struct task *task_info, struct worker *w)
 {
-	if (atomic_load_acq_32(&w->a_mem_frame_clear))
+	if (AtomicLoadAcq32(&w->a_mem_frame_clear))
 	{
 		arena_flush(&w->mem_frame);
-		atomic_store_rel_32(&w->a_mem_frame_clear, 0);
+		AtomicStoreRel32(&w->a_mem_frame_clear, 0);
 	}
 
 	task_info->executor = w;
@@ -57,7 +57,7 @@ static void task_run(struct task *task_info, struct worker *w)
 			 * TODO: Investigate more.
 			 */
 			struct task_bundle *bundle = task_info->batch;
-			if (atomic_sub_fetch_seq_cst_32(&bundle->a_tasks_left, 1) == 0)
+			if (AtomicSubFetchSeqCst32(&bundle->a_tasks_left, 1) == 0)
 			{
 				semaphore_post(&bundle->bundle_completed);
 			}
@@ -66,7 +66,7 @@ static void task_run(struct task *task_info, struct worker *w)
 		case TASK_BATCH_STREAM:
 		{
 			struct task_stream *stream = task_info->batch;
-			atomic_add_fetch_rel_32(&stream->a_completed, 1);
+			AtomicAddFetchRel32(&stream->a_completed, 1);
 		} break;
 	}
 }
@@ -76,10 +76,10 @@ void task_main(ds_thread *thr)
 	struct worker *w = ds_thread_args(thr);
 	thread_xoshiro_256_init_sequence();
 
-	while (atomic_load_acq_32(&a_startup_complete) == 0);
+	while (AtomicLoadAcq32(&a_startup_complete) == 0);
 
 	w->thr = thr;
-	atomic_fetch_add_seq_cst_32(&a_startup_complete, 1);
+	AtomicFetchAddSeqCst32(&a_startup_complete, 1);
 	log_string(T_SYSTEM, S_NOTE, "task_worker setup finalized");
 
 	while (1)
@@ -149,16 +149,16 @@ void task_context_init(struct arena *mem_persistent, const u32 thread_count)
 		ds_thread_clone(mem_persistent, task_main, g_task_ctx->workers + i, stack_size);
 	}
 
-	atomic_store_rel_32(&a_startup_complete, 1);
+	AtomicStoreRel32(&a_startup_complete, 1);
 
-	while ((u32) atomic_load_seq_cst_32(&a_startup_complete) < g_task_ctx->worker_count);
+	while ((u32) AtomicLoadSeqCst32(&a_startup_complete) < g_task_ctx->worker_count);
 }
 
 void task_context_frame_clear(void)
 {
 	for (u32 i = 0; i < g_task_ctx->worker_count; ++i)
 	{
-		atomic_store_rel_32(&g_task_ctx->workers[i].a_mem_frame_clear, 1);
+		AtomicStoreRel32(&g_task_ctx->workers[i].a_mem_frame_clear, 1);
 	}
 }
 
@@ -218,10 +218,10 @@ struct task_bundle *task_bundle_split_range(struct arena *mem_task_lifetime, TAS
 
 		range[i].base = ((u8 *) inputs) + offset;
 		offset += range[i].count * input_element_size;
-		atomic_store_rel_64(&bundle->tasks[i].batch, bundle);
+		AtomicStoreRel64(&bundle->tasks[i].batch, bundle);
 	}
 
-	atomic_store_rel_32(&bundle->a_tasks_left, splits);
+	AtomicStoreRel32(&bundle->a_tasks_left, splits);
 	/* Sync points, we release tasks->data, threads aquire tasks->data => threads will see all previous writes */
 	for (u32 i = 0; i < splits; ++i)
 	{
@@ -238,13 +238,13 @@ void task_bundle_wait(struct task_bundle *bundle)
 
 void task_bundle_release(struct task_bundle *bundle)
 {
-	atomic_store_rel_32(&bundle->a_tasks_left, 0);
+	AtomicStoreRel32(&bundle->a_tasks_left, 0);
 }
 
 struct task_stream *task_stream_init(struct arena *mem)
 {
 	struct task_stream *stream = arena_push(mem, sizeof(struct task_stream));
-	atomic_store_rel_32(&stream->a_completed, 0);
+	AtomicStoreRel32(&stream->a_completed, 0);
 	stream->task_count = 0;
 
 	return stream;
@@ -264,11 +264,11 @@ void task_stream_dispatch(struct arena *mem, struct task_stream *stream, TASK fu
 
 void task_stream_spin_wait(struct task_stream *stream)
 {
-	while ((u32) atomic_load_acq_32(&stream->a_completed) < stream->task_count);
+	while ((u32) AtomicLoadAcq32(&stream->a_completed) < stream->task_count);
 }
 
 void task_stream_cleanup(struct task_stream *stream)
 {
-	const u32 finished = (atomic_load_acq_32(&stream->a_completed) == stream->task_count);
+	const u32 finished = (AtomicLoadAcq32(&stream->a_completed) == stream->task_count);
 	ds_AssertString(finished, "Bad use of task stream, when (and only) the main thread enters task_stream_cleanup, all tasks must have been dispatched and completed.");
 }

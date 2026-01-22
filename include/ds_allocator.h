@@ -24,22 +24,15 @@
 extern "C" { 
 #endif
 
+#include "ds_define.h"
 #include "ds_types.h"
 
-/***************************** Address sanitizing and poisoning  ***************************/
+/****************************************** utils ****************************************/
 
-#ifdef DS_ASAN
-#include "sanitizer/asan_interface.h"
-
-#define POISON_ADDRESS(addr, size)	ASAN_POISON_MEMORY_REGION((addr), (size))
-#define UNPOISON_ADDRESS(addr, size)	ASAN_UNPOISON_MEMORY_REGION((addr), (size))
-
-#else
-
-#define POISON_ADDRESS(addr, size)		
-#define UNPOISON_ADDRESS(addr, size)
-
-#endif
+/* Return 1 if n = 2*k for some k >= 0, otherwise return 0 */
+u32	PowerOfTwoCheck(const u64 n);
+/* Return smallest value 2^k >= n where k >= 0 */
+u64 	PowerOfTwoCeil(const u64 n);
 
 /************************************* heap allocator  *************************************/
 
@@ -291,6 +284,23 @@ void			pool_external_remove_address(struct pool_external *pool, void *slot);
 void *			pool_external_address(const struct pool_external *pool, const u32 index);
 /* return index of address */
 u32			pool_external_index(const struct pool_external *pool, const void *slot);
+
+/***************************** Address sanitizing and poisoning ***************************/
+
+#ifdef DS_ASAN
+#include "sanitizer/asan_interface.h"
+
+#define POISON_ADDRESS(addr, size)	ASAN_POISON_MEMORY_REGION((addr), (size))
+#define UNPOISON_ADDRESS(addr, size)	ASAN_UNPOISON_MEMORY_REGION((addr), (size))
+
+#else
+
+#define POISON_ADDRESS(addr, size)		
+#define UNPOISON_ADDRESS(addr, size)
+
+#endif
+
+
 
 #ifdef __cplusplus
 }

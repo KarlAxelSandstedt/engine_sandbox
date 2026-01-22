@@ -22,7 +22,7 @@
 
 struct fifo_mpsc *fifo_mpsc_init(struct arena *mem, const u32 max_entry_count)
 {
-	assert(max_entry_count > 0 && is_power_of_two(max_entry_count));
+	assert(max_entry_count > 0 && PowerOfTwoCheck(max_entry_count));
 	struct fifo_mpsc *q = NULL; 
 
 	q = arena_push(mem, sizeof(struct fifo_mpsc));
@@ -30,13 +30,13 @@ struct fifo_mpsc *fifo_mpsc_init(struct arena *mem, const u32 max_entry_count)
 	q->entries = arena_push(mem, q->max_entry_count * sizeof(struct fifo_mpsc_entry));
 	for (u32 i = 0; i < q->max_entry_count; ++i)
 	{
-		atomic_store_rel_32(&q->entries[i].a_pushed, 0);
+		AtomicStoreRel32(&q->entries[i].a_pushed, 0);
 		q->entries[i].data = NULL;
 	}
 
 	semaphore_init(&q->available, max_entry_count);
-	atomic_store_rel_32(&q->a_next, 0);
-	atomic_store_rel_32(&q->a_first, 0);
+	AtomicStoreRel32(&q->a_next, 0);
+	AtomicStoreRel32(&q->a_first, 0);
 
 	return q;
 }
@@ -52,9 +52,9 @@ u32 fifo_mpsc_try_push(struct fifo_mpsc *q, void *data)
 	if (semaphore_trywait(&q->available))
 	{
 		pushed = 1;	
-		const u32 i = atomic_fetch_add_rlx_32(&q->a_next, 1) % q->max_entry_count;
+		const u32 i = AtomicFetchAddRlx32(&q->a_next, 1) % q->max_entry_count;
 		q->entries[i].data = data;
-		atomic_store_rel_32(&q->entries[i].a_pushed, 1);
+		AtomicStoreRel32(&q->entries[i].a_pushed, 1);
 		/* mem-barrier */
 	}
 
@@ -68,15 +68,15 @@ void fifo_mpsc_push(struct fifo_mpsc *q, void *data)
 
 void *fifo_mpsc_consume(struct fifo_mpsc *q)
 {
-	const u32 first = atomic_load_acq_32(&q->a_first);
+	const u32 first = AtomicLoadAcq32(&q->a_first);
 	/* mem-barrier */
-	const u32 pushed = atomic_load_acq_32(&q->entries[first].a_pushed);
+	const u32 pushed = AtomicLoadAcq32(&q->entries[first].a_pushed);
 
 	void *data = NULL;
 	if (pushed)
 	{	
 		data = q->entries[first].data;
-		atomic_store_rel_32(&q->entries[first].a_pushed, 1);
+		AtomicStoreRel32(&q->entries[first].a_pushed, 1);
 		semaphore_post(&q->available);
 	}
 
@@ -85,8 +85,8 @@ void *fifo_mpsc_consume(struct fifo_mpsc *q)
 
 void *fifo_mpsc_peek(struct fifo_mpsc *q)
 {
-	const u32 first = atomic_load_acq_32(&q->a_first);
+	const u32 first = AtomicLoadAcq32(&q->a_first);
 	/* mem-barrier */
-	const u32 pushed = atomic_load_acq_32(&q->entries[first].a_pushed);
+	const u32 pushed = AtomicLoadAcq32(&q->entries[first].a_pushed);
 	return (pushed) ? q->entries[first].data : NULL;
 }

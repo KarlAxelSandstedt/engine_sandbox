@@ -22,7 +22,7 @@
 
 struct fifo_spmc *fifo_spmc_init(struct arena *mem_persistent, const u32 max_entry_count)
 {
-	ds_Assert(max_entry_count > 0 && is_power_of_two(max_entry_count));
+	ds_Assert(max_entry_count > 0 && PowerOfTwoCheck(max_entry_count));
 	struct fifo_spmc *q = NULL; 
 
 	q = arena_push(mem_persistent, sizeof(struct fifo_spmc));
@@ -36,7 +36,7 @@ struct fifo_spmc *fifo_spmc_init(struct arena *mem_persistent, const u32 max_ent
 
 	q->next_alloc = 0;
 	semaphore_init(&q->able_for_reservation, 0);
-	atomic_store_rel_32(&q->a_first, 0);
+	AtomicStoreRel32(&q->a_first, 0);
 
 	return q;
 }
@@ -53,8 +53,8 @@ void *fifo_spmc_pop(struct fifo_spmc *q)
 	 * makes sure not to not publish an index (through the semaphore) before having written
 	 * everything out into the entry. 
 	 */
-	const u32 i = atomic_fetch_add_rlx_32(&q->a_first, 1) % q->max_entry_count;
-	void *data = (void *) atomic_load_acq_64(&q->entries[i].data);
+	const u32 i = AtomicFetchAddRlx32(&q->a_first, 1) % q->max_entry_count;
+	void *data = (void *) AtomicLoadAcq64(&q->entries[i].data);
 
 	ds_AssertString(q->entries[i].in_use == 1, "If this happens, we have a race condition and in_use must be ATOMIC_AQUIRE.\n This seems unreasonable, because requiring aquire would mean that this CPU\n would not let the release CPU finish its local loads BEFORE its release \n which at this point has happened and finished.\n");
 
@@ -62,7 +62,7 @@ void *fifo_spmc_pop(struct fifo_spmc *q)
 	 * Local rw reorder barrier for above entries, releasing the barrier enforces the above loads to finish
 	 * (become visible) before the producer may reallocate the entry. 
 	 */
-	atomic_store_rel_32(&q->entries[i].in_use, 0);
+	AtomicStoreRel32(&q->entries[i].in_use, 0);
 
 	return data;
 }
@@ -75,7 +75,7 @@ u32 fifo_spmc_pushable_count(const struct fifo_spmc *q)
 	{
 		const u32 next = (q->next_alloc + count) % q->max_entry_count;
 		/* acquire here is important, as we do not know what the caller may wish to do with the local data */
-		if (atomic_load_acq_32(&q->entries[next].in_use))
+		if (AtomicLoadAcq32(&q->entries[next].in_use))
 		{
 			break;
 		}
@@ -90,7 +90,7 @@ u32 fifo_spmc_try_push(struct fifo_spmc *q, void *data)
 {
 	const u32 next = q->next_alloc % q->max_entry_count;
 	//const u32 next = atomic_load(&q->alloc, ATOMIC_RELAXED) % q->max_entry_count;
-	const u32 in_use = atomic_load_rlx_32(&q->entries[next].in_use);
+	const u32 in_use = AtomicLoadRlx32(&q->entries[next].in_use);
 	/* Local rw reorder barrier + if not in use, we can be sure that the entry can be changed */
 
 	if (in_use) { return 0; }
@@ -102,7 +102,7 @@ u32 fifo_spmc_try_push(struct fifo_spmc *q, void *data)
 	
 	q->next_alloc = next + 1;
 	q->entries[next].in_use = 1;
-	atomic_store_rel_64(&q->entries[next].data, data);
+	AtomicStoreRel64(&q->entries[next].data, data);
 	/* ACQ_SEQ */
 	semaphore_post(&q->able_for_reservation);
 

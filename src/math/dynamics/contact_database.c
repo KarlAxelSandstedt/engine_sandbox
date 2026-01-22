@@ -51,7 +51,7 @@ u32 c_db_index_in_next_contact_node(struct nll *net, void **next_node, const voi
 struct contact_database c_db_alloc(struct arena *mem_persistent, const u32 size)
 {
 	struct contact_database c_db = { 0 };
-	ds_Assert(is_power_of_two(size));
+	ds_Assert(PowerOfTwoCheck(size));
 
 	c_db.sat_cache_list = dll_init(struct sat_cache);
 	c_db.sat_cache_map = hash_map_alloc(NULL, size, size, GROWABLE);

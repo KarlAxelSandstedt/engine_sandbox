@@ -30,7 +30,7 @@ static void win_fatal_cleanup_and_exit(const u32 thread)
 	u32 desired = 0;
 	// TODO Somehow stop/force all threads to not continue / shut down program until cleanup is complete 
 	
-	if (atomic_compare_exchange_acq_32(&a_fatal_cleanup_initiated, &desired, 1))
+	if (AtomicCompareExchangeAcq32(&a_fatal_cleanup_initiated, &desired, 1))
 	{
     		SYSTEMTIME local_time;
     		GetLocalTime(&local_time);
@@ -70,7 +70,7 @@ static void win_fatal_cleanup_and_exit(const u32 thread)
 
 void init_error_handling_func_ptrs(void)
 {
-	atomic_store_rel_32(&a_fatal_cleanup_initiated, 0);
+	AtomicStoreRel32(&a_fatal_cleanup_initiated, 0);
 	fatal_cleanup_and_exit = &win_fatal_cleanup_and_exit;
 }
 

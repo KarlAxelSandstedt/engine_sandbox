@@ -25,6 +25,8 @@ extern "C" {
 #endif
 
 #include "ds_define.h"
+#include "ds_types.h"
+#include "ds_atomic.h"
 #include "ds_allocator.h"
 
 #ifdef DS_PROFILE

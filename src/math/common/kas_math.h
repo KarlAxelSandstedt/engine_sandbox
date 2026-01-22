@@ -36,8 +36,8 @@
 #define MM_PI_2     (2.0 * MM_PI)
 
 /* Return 1 if n = 2*k for some k >= 0, otherwise return 0 */
-u32	is_power_of_two(const u64 n);
+u32	PowerOfTwoCheck(const u64 n);
 /* Return smallest value 2^k >= n where k >= 0 */
-u64	power_of_two_ceil(const u64 n); 
+u64	PowerOfTwoCeil(const u64 n); 
 
 #endif

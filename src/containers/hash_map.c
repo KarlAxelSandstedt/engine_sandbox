@@ -26,7 +26,7 @@
 struct hash_map *hash_map_alloc(struct arena *mem, const u32 hash_len, const u32 index_len, const u32 growable)
 {
 	ds_Assert(hash_len && index_len && (hash_len >> 31) == 0);
-	const u32 actual_hash_len = (u32) power_of_two_ceil(hash_len);
+	const u32 actual_hash_len = (u32) PowerOfTwoCeil(hash_len);
 
 	struct hash_map *map = NULL;
 	u32 *hash = NULL;
@@ -169,7 +169,7 @@ u32 hash_map_add(struct hash_map *map, const u32 key, const u32 index)
 	{
 		if (map->growable)
 		{
-			map->index_len = (u32) power_of_two_ceil(index+1);
+			map->index_len = (u32) PowerOfTwoCeil(index+1);
 			map->index = realloc(map->index, map->index_len * sizeof(u32));
 		}
 		else

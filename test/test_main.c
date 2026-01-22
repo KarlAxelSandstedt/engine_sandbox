@@ -105,7 +105,7 @@ void test_caller(void *task_input)
 {
 	struct task *t_ctx = task_input;
 	struct performance_test_caller_input *input = t_ctx->input;
-	while (!atomic_load_acq_32(input->a_barrier));
+	while (!AtomicLoadAcq32(input->a_barrier));
 	input->test(input->args);
 }
 
@@ -171,7 +171,7 @@ static void run_performance_suite(struct performance_suite *suite)
 		{
 			rng_push_state();
 			arena_push_record(&mem);
-			atomic_store_rel_32(&a_barrier, 0);
+			AtomicStoreRel32(&a_barrier, 0);
 			struct task_stream *stream = task_stream_init(&mem);
 			for (u32 k = 0; k < g_task_ctx->worker_count; ++k)
 			{
@@ -184,7 +184,7 @@ static void run_performance_suite(struct performance_suite *suite)
 			}
 
 			rt_begin_time(&tester);	
-			atomic_store_rel_32(&a_barrier, 1);
+			AtomicStoreRel32(&a_barrier, 1);
 			task_main_master_run_available_jobs();
 			task_stream_spin_wait(stream);
 			rt_end_time(&tester);

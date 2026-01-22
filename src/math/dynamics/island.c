@@ -70,7 +70,7 @@ struct island *is_db_init_island_from_body(struct physics_pipeline *pipeline, co
 	PHYSICS_EVENT_ISLAND_NEW(pipeline, b->island_index);
 	if (pipeline->is_db.island_usage.bit_count <= b->island_index)
 	{
-		bit_vec_increase_size(&pipeline->is_db.island_usage, power_of_two_ceil(b->island_index+1), 0);
+		bit_vec_increase_size(&pipeline->is_db.island_usage, PowerOfTwoCeil(b->island_index+1), 0);
 	}
 	bit_vec_set_bit(&pipeline->is_db.island_usage, b->island_index, 1);
 
@@ -182,7 +182,7 @@ void is_db_validate(const struct physics_pipeline *pipeline)
 		u32 offset = 0;
 		while (island_block)
 		{
-			const u32 tzc = ctz64(island_block);
+			const u32 tzc = Ctz64(island_block);
 			offset += tzc;
 			const u32 is_index = base + offset;
 			offset += 1;

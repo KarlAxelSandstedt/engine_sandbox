@@ -125,10 +125,10 @@ void g_xoshiro_256_jump(void)
 void thread_xoshiro_256_init_sequence(void)
 {
 	u32 a_wanted_lock_state;
-	atomic_store_rel_32(&a_wanted_lock_state, 0);
-	while (!atomic_compare_exchange_seq_cst_32(&a_g_xoshiro_256_lock, &a_wanted_lock_state, 1))
+	AtomicStoreRel32(&a_wanted_lock_state, 0);
+	while (!AtomicCompareExchangeSeqCst32(&a_g_xoshiro_256_lock, &a_wanted_lock_state, 1))
 	{
-		atomic_store_rel_32(&a_wanted_lock_state, 0);
+		AtomicStoreRel32(&a_wanted_lock_state, 0);
 	}
 
 	thread_xoshiro_256[0] = g_xoshiro_256[0];
@@ -137,6 +137,6 @@ void thread_xoshiro_256_init_sequence(void)
 	thread_xoshiro_256[3] = g_xoshiro_256[3];
 	g_xoshiro_256_jump();
 
-	atomic_store_seq_cst_32(&a_g_xoshiro_256_lock, 0);
+	AtomicStoreSeqCst32(&a_g_xoshiro_256_lock, 0);
 }
 

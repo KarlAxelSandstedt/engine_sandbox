@@ -45,8 +45,8 @@ static void thread_set_collision_debug(void *task_addr)
 	const struct physics_pipeline *pipeline = task->input;
 	tl_debug = pipeline->debug + ds_thread_self_index();
 
-	atomic_fetch_add_rel_32(&g_a_thread_counter, 1);
-	while (atomic_load_acq_32(&g_a_thread_counter) != pipeline->debug_count);
+	AtomicFetchAddRel32(&g_a_thread_counter, 1);
+	while (AtomicLoadAcq32(&g_a_thread_counter) != pipeline->debug_count);
 }
 
 struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 initial_size, const u64 ns_tick, const u64 frame_memory, struct string_database *shape_db, struct string_database *prefab_db)
@@ -83,7 +83,7 @@ struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 init
 
 	}
 
-	ds_AssertString(is_power_of_two(initial_size), "For simplicity of future data structures, expect pipeline sizes to be powers of two");
+	ds_AssertString(PowerOfTwoCheck(initial_size), "For simplicity of future data structures, expect pipeline sizes to be powers of two");
 
 	pipeline.body_pool = pool_alloc(NULL, initial_size, struct rigid_body, GROWABLE);
 	pipeline.body_marked_list = dll_init(struct rigid_body);
@@ -447,7 +447,7 @@ static void internal_parallel_push_contacts(struct arena *mem_frame, struct phys
 
 		for (u32 i = 0; i < bundle->task_count; ++i)
 		{
-			struct tpc_output *out = (struct tpc_output *) atomic_load_acq_64(&bundle->tasks[i].output);
+			struct tpc_output *out = (struct tpc_output *) AtomicLoadAcq64(&bundle->tasks[i].output);
 			for (u32 j = 0; j < out->result_count; ++j)
 			{
 				if (out->result[j].type == COLLISION_SAT_CACHE)
@@ -502,7 +502,7 @@ static void internal_parallel_push_contacts(struct arena *mem_frame, struct phys
 	//	//fprintf(stderr, "A: {");
 	//	for (u32 i = 0; i < bundle->task_count; ++i)
 	//	{
-	//		struct tpc_output *out = (struct tpc_output *) atomic_load_acq_64(&bundle->tasks[i].output);
+	//		struct tpc_output *out = (struct tpc_output *) AtomicLoadAcq64(&bundle->tasks[i].output);
 	//		for (u32 j = 0; j < out->cm_count; ++j)
 	//		{
 	//			const struct contact *c = c_db_add_contact(pipeline, out->cm + j, out->cm[j].i1, out->cm[j].i2);
@@ -585,7 +585,7 @@ static void internal_remove_contacts_and_tag_split_islands(struct arena *mem_fra
 		u32 b = 0;
 		while (broken_link_block)
 		{
-			const u32 tzc = ctz64(broken_link_block);
+			const u32 tzc = Ctz64(broken_link_block);
 			b += tzc;
 			const u32 ci = bit + b;
 			b += 1;
@@ -656,7 +656,7 @@ static void internal_parallel_solve_islands(struct arena *mem_frame, struct phys
 		u32 offset = 0;
 		while (island_block)
 		{
-			const u32 tzc = ctz64(island_block);
+			const u32 tzc = Ctz64(island_block);
 			offset += tzc;
 			const u32 is_index = base + offset;
 			offset += 1;

@@ -46,7 +46,7 @@ static void *ds_thread_clone_start(void *void_thr)
 	self = void_thr;
 	struct ds_thread *thr = void_thr;
 	thr->tid = gettid();
-	thr->index = atomic_fetch_add_rlx_32(&a_index_counter, 1);
+	thr->index = AtomicFetchAddRlx32(&a_index_counter, 1);
 	PROF_THREAD_NAMED(thread_profiler_id[thr->index]);
 	thr->start(thr);
 

@@ -735,7 +735,7 @@ void led_node_set_proxy3d(struct led *led, const utf8 id, const utf8 mesh, const
 
 static struct tri_mesh tri_mesh_perlin_noise(struct arena *mem_persistent, const u32 n, const f32 width)
 {
-	ds_Assert(is_power_of_two(n) && n >= 32);
+	ds_Assert(PowerOfTwoCheck(n) && n >= 32);
 
 	struct arena tmp = arena_alloc_1MB();
 

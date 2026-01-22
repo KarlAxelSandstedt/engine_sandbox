@@ -113,20 +113,20 @@ void log_init(struct arena *mem, const char *filepath)
 	g_log.has_file = (g_log.file.handle != FILE_HANDLE_INVALID)
 			? 1
 			: 0;
-	atomic_store_rel_32(&g_log.a_writing_to_disk, 0);
+	AtomicStoreRel32(&g_log.a_writing_to_disk, 0);
 }
 
 static void log_try_write_to_disk(void)
 {
 	u32 desired = 0;
 	/* If we fail, try to write messages to disk and re-publish them  */
-	if (atomic_compare_exchange_acq_32(&g_log.a_writing_to_disk, &desired, 1))
+	if (AtomicCompareExchangeAcq32(&g_log.a_writing_to_disk, &desired, 1))
 	{
 		u32 count = 0;
 		/* we are the single owner of a_serve: sync with any previous disk-writer */
-		u32 serving = atomic_load_acq_32(&g_log.tf->a_serve) % LOG_MAX_MESSAGES;
+		u32 serving = AtomicLoadAcq32(&g_log.tf->a_serve) % LOG_MAX_MESSAGES;
 		u32 completed = 1;
-		while (atomic_compare_exchange_acq_32(&g_log.msg[serving].a_in_use_and_completed, &completed, 0))
+		while (AtomicCompareExchangeAcq32(&g_log.msg[serving].a_in_use_and_completed, &completed, 0))
 		{
 			struct log_message *msg = g_log.msg + serving;
 
@@ -139,14 +139,14 @@ static void log_try_write_to_disk(void)
 		}
 
 		ticket_factory_return_tickets(g_log.tf, count);
-		atomic_store_rel_32(&g_log.a_writing_to_disk, 0);
+		AtomicStoreRel32(&g_log.a_writing_to_disk, 0);
 	}
 }
 
 static void internal_write_to_disk(void)
 {
 	/* spin until all tickets have finished and the messages have been written to disk */
-	while (atomic_load_acq_32(&g_log.tf->a_serve) != atomic_load_acq_32(&g_log.tf->a_next))
+	while (AtomicLoadAcq32(&g_log.tf->a_serve) != AtomicLoadAcq32(&g_log.tf->a_next))
 	{
 		log_try_write_to_disk();
 	}
@@ -156,7 +156,7 @@ void log_shutdown()
 {
 	log_string(T_SYSTEM, S_NOTE, "Log system initiated shutdown");
 
-	atomic_store_rel_32(&g_log.tf->a_open, 0);
+	AtomicStoreRel32(&g_log.tf->a_open, 0);
 	if (g_log.has_file)
 	{
 		internal_write_to_disk();
@@ -224,7 +224,7 @@ void log_write_message(const enum system_id system, const enum severity_id sever
 	if (str.len == 0)
 	{
 		msg->len = 0;
-		atomic_store_rel_32(&msg->a_in_use_and_completed, 1);
+		AtomicStoreRel32(&msg->a_in_use_and_completed, 1);
 		return;
 	}
 #if __DS_PLATFORM__ == __DS_WEB__
@@ -233,5 +233,5 @@ void log_write_message(const enum system_id system, const enum severity_id sever
 	fprintf(stdout, "%s", msg->buf);
 #endif
 	/* sync-point, msg ready for writing */
-	atomic_store_rel_32(&msg->a_in_use_and_completed, 1);
+	AtomicStoreRel32(&msg->a_in_use_and_completed, 1);
 }

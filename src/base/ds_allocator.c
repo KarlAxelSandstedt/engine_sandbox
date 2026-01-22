@@ -40,6 +40,38 @@
 
 #endif
 
+u32 PowerOfTwoCheck(const u64 n)
+{
+	/* k > 0: 2^k =>   (10... - 1)  =>   (01...) = 0
+	 *               & (10...    )     & (10...)
+	 */
+
+	/* k > 0: NOT 2^k =>   (1XXX10... - 1)  =>   (1XXX01...) = (1XXX00...
+	 *                   & (1XXX10...    )     & (1XXX10...)
+	 */
+
+	return (n & (n-1)) == 0 && n > 0;
+}
+
+u64 PowerOfTwoCeil(const u64 n)
+{
+	if (n == 0)
+	{
+		return 1;
+	}
+
+	if (PowerOfTwoCheck(n))
+	{
+		return n;
+	}
+
+	/* [1, 63] */
+	const u32 lz = Clz64(n);
+	ds_AssertString(lz > 0, "Overflow in PowerOfTwoCeil");
+	return (u64) 0x8000000000000000 >> (lz-1);
+}
+
+
 void *ds_Alloc(const u64 size)
 {
 	return ds_AllocAligned(size, DEFAULT_MEMORY_ALIGNMENT);	
@@ -47,7 +79,7 @@ void *ds_Alloc(const u64 size)
 
 void *ds_AllocAligned(const u64 size, const u64 alignment)
 {
-	ds_Assert(is_power_of_two(alignment) || alignment == sizeof(void *));
+	ds_Assert(PowerOfTwoCheck(alignment) || alignment == sizeof(void *));
 	void *addr;
 #if __DS_PLATFORM__ == __DS_LINUX__ || __DS_PLATFORM__ == __DS_WEB__
 	if (posix_memalign(&addr, alignment, size))
@@ -191,7 +223,7 @@ void ds_Free(void *addr)
 //
 //void *arena_push_aligned(struct arena *ar, const u64 size, const u64 alignment)
 //{
-//	ds_Assert(is_power_of_two(alignment) == 1);
+//	ds_Assert(PowerOfTwoCheck(alignment) == 1);
 //
 //	void* alloc_addr = NULL;
 //	if (size) 
@@ -234,7 +266,7 @@ void ds_Free(void *addr)
 //
 //struct allocation_array arena_push_aligned_all(struct arena *ar, const u64 slot_size, const u64 alignment)
 //{
-//	ds_Assert(is_power_of_two(alignment) == 1 && slot_size > 0);
+//	ds_Assert(PowerOfTwoCheck(alignment) == 1 && slot_size > 0);
 //
 //	struct allocation_array array = { .len = 0, .addr = NULL, .mem_pushed = 0 };
 //	const u64 mod = ((u64) ar->stack_ptr) & (alignment - 1);
@@ -317,7 +349,7 @@ void ds_Free(void *addr)
 //		fatal_cleanup_and_exit(ds_thread_self_tid());
 //	}
 //	/* sync point (gen, index) = (0,0) */
-//	atomic_store_rel_64(&allocator->a_next, 0);
+//	AtomicStoreRel64(&allocator->a_next, 0);
 //	return allocator;
 //}
 //
@@ -342,7 +374,7 @@ void ds_Free(void *addr)
 //	/* Unallocated blocks always start on generation 0, that we we can identify if the free list is empty */
 //	const u64 new_next = (gen == 0)
 //		? index+1
-//		: atomic_load_rlx_64(&header->next);
+//		: AtomicLoadRlx64(&header->next);
 //
 //	/* Relaxed store on success, Aquire read on failure: 
 //	 * 	If we succeed in the exchange, no tampering of the allocator has happened and we make 
@@ -352,7 +384,7 @@ void ds_Free(void *addr)
 //	 *
 //	 * 	If we fail in the exchange, we need to make an aquired read of a_next again; The allocator
 //	 * 	may be in a state in which we will read thread written headers.  */
-//	if (atomic_compare_exchange_acq_64(&allocator->a_next, a_next, new_next))
+//	if (AtomicCompareExchangeAcq64(&allocator->a_next, a_next, new_next))
 //	{
 //		*addr = (u8 *) header + g_arch_config->cacheline;
 //		/* update generation */
@@ -374,7 +406,7 @@ void ds_Free(void *addr)
 //	 * On failure, we may do a relaxed load of the next allocation identifier. We are never dereferencing it
 //	 * in our pop procedure, so this is okay.
 //	 */
-//	return (atomic_compare_exchange_rel_64(&allocator->a_next, &header->next, new_next))
+//	return (AtomicCompareExchangeRel64(&allocator->a_next, &header->next, new_next))
 //		? ALLOCATOR_SUCCESS
 //		: ALLOCATOR_FAILURE;
 //}
@@ -384,7 +416,7 @@ void ds_Free(void *addr)
 //	void *addr;
 //	enum thread_alloc_ret ret;
 //
-//	u64 a_next = atomic_load_acq_64(&allocator->a_next);
+//	u64 a_next = AtomicLoadAcq64(&allocator->a_next);
 //	while ((ret = thread_block_try_alloc(&addr, &a_next, allocator)) == ALLOCATOR_FAILURE);
 //
 //	ds_Assert(ret != ALLOCATOR_OUT_OF_MEMORY);
@@ -398,7 +430,7 @@ void ds_Free(void *addr)
 //void thread_block_free(struct thread_block_allocator *allocator, void *addr)
 //{
 //	struct thread_block_header *header = (struct thread_block_header *) ((u8 *) addr - g_arch_config->cacheline);
-//	header->next = atomic_load_rlx_64(&allocator->a_next);
+//	header->next = AtomicLoadRlx64(&allocator->a_next);
 //	while (thread_block_try_free(header, allocator, header->id) == ALLOCATOR_FAILURE);
 //}
 //
@@ -418,7 +450,7 @@ void ds_Free(void *addr)
 //	}
 //	else
 //	{
-//		u64 a_next = atomic_load_acq_64(&allocator->a_next);
+//		u64 a_next = AtomicLoadAcq64(&allocator->a_next);
 //		while ((ret = thread_block_try_alloc(&addr, &a_next, allocator)) == ALLOCATOR_FAILURE);
 //	}
 //
@@ -437,14 +469,14 @@ void ds_Free(void *addr)
 //		u64 tail = local_next[LOCAL_FREE_LOW];
 //
 //		header = (struct thread_block_header *) (allocator->block + (tail & U32_MAX)*allocator->block_size);
-//		header->next = atomic_load_rlx_64(&allocator->a_next);
+//		header->next = AtomicLoadRlx64(&allocator->a_next);
 //		while (thread_block_try_free(header, allocator, head) == ALLOCATOR_FAILURE);
 //		local_count = LOCAL_FREE_LOW;
 //	}
 //
 //	/* local_next[0] (DUMMY)  <- local_next[1] <- ... <- local_next[local_count] */
 //	header = (struct thread_block_header *) ((u8 *) addr - g_arch_config->cacheline);
-//	atomic_store_rel_32(&header->next, local_next[local_count-1]);
+//	AtomicStoreRel32(&header->next, local_next[local_count-1]);
 //	local_next[local_count++] = header->id;
 //}
 //
@@ -528,7 +560,7 @@ void ds_Free(void *addr)
 //	SYSTEM_INFO info;
 //	GetSystemInfo(&info);
 //
-//	u64 bufsize = power_of_two_ceil(mem_hint);
+//	u64 bufsize = PowerOfTwoCeil(mem_hint);
 //	if (bufsize < info.dwAllocationGranularity)
 //	{
 //		bufsize = info.dwAllocationGranularity;

@@ -185,16 +185,16 @@ DWORD WINAPI ping_pong_reference(void *data_void)
 	g_tsc_skew[0] = 0;
 	for (u32 core = 1; core < data->logical_core_count; ++core)
 	{
-		atomic_store_rel_32(&data->a_iteration_test, 1);
+		AtomicStoreRel32(&data->a_iteration_test, 1);
 
 		for (u32 i = 0; i < data->iterations; ++i)
 		{
-			while (atomic_load_acq_32(&data->a_lock) != UNLOCKED_BY_ITERATOR);
+			while (AtomicLoadAcq32(&data->a_lock) != UNLOCKED_BY_ITERATOR);
 			data->tsc_reference[i] = rdtscp(&c);
-			atomic_store_rel_32(&data->a_lock, UNLOCKED_BY_REFERENCE);
+			AtomicStoreRel32(&data->a_lock, UNLOCKED_BY_REFERENCE);
 		}
 		/* wait until last iteration of iterator is complete before calculating skew */
-		while (atomic_load_acq_32(&data->a_iteration_test) != 0);
+		while (AtomicLoadAcq32(&data->a_iteration_test) != 0);
 
 		b64 skew = { .i = I64_MAX, };
 		for (u32 i = 0; i < data->iterations; ++i)
@@ -231,19 +231,19 @@ DWORD WINAPI ping_pong_core_iterator(void *data_void)
 			fatal_cleanup_and_exit(0);
 		}
 
-		while (atomic_load_acq_32(&data->a_iteration_test) != 1);
+		while (AtomicLoadAcq32(&data->a_iteration_test) != 1);
 
-		atomic_store_rel_32(&data->a_lock, UNLOCKED_BY_ITERATOR);
+		AtomicStoreRel32(&data->a_lock, UNLOCKED_BY_ITERATOR);
 
 		for (u32 i = 0; i < data->iterations; ++i)
 		{
-			while (atomic_load_acq_32(&data->a_lock) != UNLOCKED_BY_REFERENCE);
+			while (AtomicLoadAcq32(&data->a_lock) != UNLOCKED_BY_REFERENCE);
 			data->tsc_iterator[i] = rdtscp(&c);
-			atomic_store_rel_32(&data->a_lock, UNLOCKED_BY_ITERATOR);
+			AtomicStoreRel32(&data->a_lock, UNLOCKED_BY_ITERATOR);
 		}
 
-		atomic_store_rel_32(&data->a_lock, 0);
-		atomic_store_rel_32(&data->a_iteration_test, 0);
+		AtomicStoreRel32(&data->a_lock, 0);
+		AtomicStoreRel32(&data->a_iteration_test, 0);
 	}
 
 	return 0;

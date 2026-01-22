@@ -20,7 +20,7 @@
 #include "ds_math.h"
 #include "sys_public.h"
 
-u32 is_power_of_two(const u64 n)
+u32 PowerOfTwoCheck(const u64 n)
 {
 	/* k > 0: 2^k =>   (10... - 1)  =>   (01...) = 0
 	 *               & (10...    )     & (10...)
@@ -33,21 +33,21 @@ u32 is_power_of_two(const u64 n)
 	return (n & (n-1)) == 0 && n > 0;
 }
 
-u64 power_of_two_ceil(const u64 n)
+u64 PowerOfTwoCeil(const u64 n)
 {
 	if (n == 0)
 	{
 		return 1;
 	}
 
-	if (is_power_of_two(n))
+	if (PowerOfTwoCheck(n))
 	{
 		return n;
 	}
 
 	/* [1, 63] */
-	const u32 lz = clz64(n);
-	ds_AssertString(lz > 0, "Overflow in power_of_two_ceil");
+	const u32 lz = Clz64(n);
+	ds_AssertString(lz > 0, "Overflow in PowerOfTwoCeil");
 	return (u64) 0x8000000000000000 >> (lz-1);
 }
 

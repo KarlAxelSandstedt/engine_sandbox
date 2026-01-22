@@ -40,7 +40,7 @@ DWORD WINAPI ds_thread_clone_start(LPVOID void_thr)
 	self = void_thr;
 	struct ds_thread *thr = void_thr;
 	thr->tid = GetCurrentThreadId();
-	thr->index = atomic_fetch_add_rlx_32(&a_index_counter, 1);
+	thr->index = AtomicFetchAddRlx32(&a_index_counter, 1);
 	PROF_THREAD_NAMED(thread_profiler_id[thr->index]);
 	thr->start(thr);
 

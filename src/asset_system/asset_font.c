@@ -140,7 +140,7 @@ void font_build(struct arena *mem, const enum font_id id)
 			});
 	}
 
-	const u32 hash_len = (u32) power_of_two_ceil(stack_glyph.next);
+	const u32 hash_len = (u32) PowerOfTwoCeil(stack_glyph.next);
 	struct font *font = arena_push(mem, sizeof(struct font));
 	font->codepoint_to_glyph_map = hash_map_alloc(mem, hash_len, hash_len, !HASH_GROWABLE);
 	font->glyph_count = stack_glyph.next;
@@ -154,7 +154,7 @@ void font_build(struct arena *mem, const enum font_id id)
 	font->linespace = (f32) face->size->metrics.height / 64;
 
 	font->size = 0;
-	font->pixmap_width = (u32) power_of_two_ceil(asset->pixel_glyph_height);
+	font->pixmap_width = (u32) PowerOfTwoCeil(asset->pixel_glyph_height);
 	font->pixmap_height = 0;
 	font->pixmap = NULL;
 

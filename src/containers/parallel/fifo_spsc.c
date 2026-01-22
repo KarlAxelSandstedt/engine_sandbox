@@ -45,17 +45,17 @@ struct fifo_spsc *fifo_alloc(struct arena *mem)
 
 void *fifo_spsc_pop(struct fifo_spsc *q)
 {
-	struct fifo_spsc_node *first = (struct fifo_spsc_node *) atomic_load_rlx_64(&q->a_first);
-	struct fifo_spsc_node *next  = (struct fifo_spsc_node *) atomic_load_acq_64(&first->a_next);
+	struct fifo_spsc_node *first = (struct fifo_spsc_node *) AtomicLoadRlx64(&q->a_first);
+	struct fifo_spsc_node *next  = (struct fifo_spsc_node *) AtomicLoadAcq64(&first->a_next);
 	/* Local thread rw barrier */
 	/* Any writes before first->next release on other threads are now visible. */
 
 	/* We are at dummy, so queue was empty when we loaded next aquired next */
 	if (next == NULL) return NULL;
 
-	void *data = (void *) atomic_load_rlx_64(&next->data);
-	atomic_store_rlx_64(&next->data, NULL);
-	atomic_store_rlx_64(&q->a_first, next);	
+	void *data = (void *) AtomicLoadRlx64(&next->data);
+	AtomicStoreRlx64(&next->data, NULL);
+	AtomicStoreRlx64(&q->a_first, next);	
 
 	return data;
 }
@@ -63,10 +63,10 @@ void *fifo_spsc_pop(struct fifo_spsc *q)
 void fifo_spsc_push(struct fifo_spsc *q, struct fifo_spsc_node *node)
 {
 
-	struct fifo_spsc_node *prev_last = (struct fifo_spsc_node *) atomic_load_rlx_64(&q->a_last); 
-	atomic_store_rlx_64(&q->a_last, node);
+	struct fifo_spsc_node *prev_last = (struct fifo_spsc_node *) AtomicLoadRlx64(&q->a_last); 
+	AtomicStoreRlx64(&q->a_last, node);
 
 	/* Any aquisition of a next node will always be a pointer to valid data */
 	/* Local thread rw barrier */
-	atomic_store_rel_64(&prev_last->a_next, node);
+	AtomicStoreRel64(&prev_last->a_next, node);
 }
