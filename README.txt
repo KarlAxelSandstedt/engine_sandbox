@@ -111,12 +111,11 @@ option(DS_ASAN "Compile the library with Asan, and enable custom poisoning code"
 	and internal APIs. Defaults to OFF. Since sanitizing is costly, it is
 	recommended to also set DS_OPTIMIZE to ON.
 
-option(TRACY_ENABLE)
+option(DS_PROFILE)
 
-	TRACY_ENABLE turns the Tracy Profiler on or off depending on the set value;
-	If the option is set, the library profiles itself using Tracy. Furthermore,
-	it enables the profiling API.
-
+	DS_PROFILE turns the Tracy Profiler on or off depending on the set value and
+	enables the Dreamscape profiling API wrapping Tracy. Furthermore, if the option
+	is enabled, Tracy profile zones within the library is enabled.
 
 License
 =======

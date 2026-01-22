@@ -6,6 +6,9 @@ set(CPACK_PACKAGE_MINOR "1")
 set(CPACK_PACKAGE_PATCH "2")
 set(CPACK_PACKAGE_VERSION "${CPACK_PACKAGE_MAJOR}.${CPACK_PACKAGE_MINOR}.${CPACK_PACKAGE_PATCH}")
 
+option(DS_PROFILE "DS_PROFILE enables internal profiling and the profiling API wrapping the Tracy Profiler API." 
+		OFF)
+
 option(DS_OPTIMIZE "DS_OPTIMIZE enables compiler optimization flags in the library. Defaults 
 		    to OFF." 
 		OFF)
@@ -20,12 +23,18 @@ option(DS_ASAN "DS_ASAN builds the library with Asan address sanitizing. If the 
 		recommended to also set DS_OPTIMIZE to ON."
 		OFF)
 
-set(INCLUDE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/include")
-set(SRC_PATH "${CMAKE_CURRENT_SOURCE_DIR}/src")
-set(LIB_PATH "${CMAKE_CURRENT_SOURCE_DIR}/lib")
+option(DS_LOG "DS_LOG enabled the logging API and internal logging points in the library." ON)
+
+set(DS_INCLUDE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/include")
+set(DS_SRC_PATH "${CMAKE_CURRENT_SOURCE_DIR}/src")
+set(DS_LIB_PATH "${CMAKE_CURRENT_SOURCE_DIR}/lib")
 
 find_package(OpenGL REQUIRED)
 find_package(Threads REQUIRED)
+
+if (DS_PROFILE)
+	set(TRACY_ENABLE ON)
+endif ()
 
 if (DEFINED EMSCRIPTEN)
 	if (DS_DEBUG)
@@ -86,8 +95,8 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 
 endif ()
 
-add_subdirectory("${SRC_PATH}/base")
-add_subdirectory("${LIB_PATH}")
+add_subdirectory("${DS_SRC_PATH}/base")
+add_subdirectory("${DS_LIB_PATH}")
 
 add_library(${PROJECT_NAME} INTERFACE)
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
@@ -105,7 +114,7 @@ endif()
 #     porting process: both the user and the developer is interested in what
 #     progressively more coupled sub-system is not working as expected, and
 #     this should be exposed in some form or another.
-set(TEST_PATH "${CMAKE_CURRENT_SOURCE_DIR}/test")
+set(DS_TEST_PATH "${CMAKE_CURRENT_SOURCE_DIR}/test")
 #if (kas_test_correctness)
 #	add_compile_definitions(KAS_TEST_CORRECTNESS)
 #	add_subdirectory("${TEST_PATH}")
@@ -116,12 +125,6 @@ set(TEST_PATH "${CMAKE_CURRENT_SOURCE_DIR}/test")
 #	target_link_libraries(${PROJECT_NAME} PUBLIC kas_test)
 #endif ()
 
-#TODO: all these add_(compile,link,definition) should instead be target_add(dsFramework::Base PUBLIC () )
-#	so we propagate all things ONLY WITHIN OUR LIBRARY. In the end, the exposed things to the user
-#	should be some macros such as DS_DEBUG, so that any user of our library also gets the asserts,
-#	breakpoints and so on.
-
-
 #TODO: link to base, so it propagates WITHIN LIBRARY but nowhere else
 #if (TRACY_ENABLE)
 #	link_libraries(Tracy::TracyClient)
@@ -129,18 +132,19 @@ set(TEST_PATH "${CMAKE_CURRENT_SOURCE_DIR}/test")
 #	add_compile_definitions(DS_PROFILE)
 #endif ()
 
-add_subdirectory("${SRC_PATH}/misc")
-add_subdirectory("${SRC_PATH}/misc/ui")
-add_subdirectory("${SRC_PATH}/misc/debug")
-add_subdirectory("${SRC_PATH}/common")
-add_subdirectory("${SRC_PATH}/math")
-add_subdirectory("${SRC_PATH}/containers")
-add_subdirectory("${SRC_PATH}/memory")
-add_subdirectory("${SRC_PATH}/renderer")
-add_subdirectory("${SRC_PATH}/sys")
-add_subdirectory("${SRC_PATH}/sys/sdl3_wrapper")
-add_subdirectory("${SRC_PATH}/led")
-add_subdirectory("${SRC_PATH}/asset_system")
+
+add_subdirectory("${DS_SRC_PATH}/misc")
+add_subdirectory("${DS_SRC_PATH}/misc/ui")
+add_subdirectory("${DS_SRC_PATH}/misc/debug")
+add_subdirectory("${DS_SRC_PATH}/common")
+add_subdirectory("${DS_SRC_PATH}/math")
+add_subdirectory("${DS_SRC_PATH}/containers")
+add_subdirectory("${DS_SRC_PATH}/memory")
+add_subdirectory("${DS_SRC_PATH}/renderer")
+add_subdirectory("${DS_SRC_PATH}/sys")
+add_subdirectory("${DS_SRC_PATH}/sys/sdl3_wrapper")
+add_subdirectory("${DS_SRC_PATH}/led")
+add_subdirectory("${DS_SRC_PATH}/asset_system")
 
 link_libraries(kas_common)
 link_libraries(log)
@@ -153,32 +157,13 @@ target_link_libraries(${PROJECT_NAME}
 		led
 	)
 if (DEFINED EMSCRIPTEN)
-	add_subdirectory(${SRC_PATH}/sys/wasm)
+	add_subdirectory(${DS_SRC_PATH}/sys/wasm)
 	target_link_libraries(${PROJECT_NAME} PUBLIC wasm_interface)
-	#target_include_directories(${PROJECT_NAME}
-	#	PRIVATE
-	#		"${LIB_PATH}"
-	#		"${SRC_PATH}/misc"
-	#		"${SRC_PATH}/misc/profiler"
-	#		"${SRC_PATH}/common"
-	#		"${SRC_PATH}/math"
-	#		"${SRC_PATH}/math/common"
-	#		"${SRC_PATH}/containers"
-	#		"${SRC_PATH}/containers/parallel"
-	#		"${SRC_PATH}/memory"
-	#		"${SRC_PATH}/renderer"
-	#		"${SRC_PATH}/sys"
-	#		"${SRC_PATH}/sys/sdl3_wrapper"
-	#		"${SRC_PATH}/game"
-	#		"${SRC_PATH}/asset_system"
-	#		"${SRC_PATH}/sys"
-	#		"${SRC_PATH}/sys/wasm"
-	#)
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-	add_subdirectory(${SRC_PATH}/sys/linux)
+	add_subdirectory(${DS_SRC_PATH}/sys/linux)
 	target_link_libraries(${PROJECT_NAME} INTERFACE inux_interface)
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-	add_subdirectory(${SRC_PATH}/sys/windows)
+	add_subdirectory(${DS_SRC_PATH}/sys/windows)
 	target_link_libraries(${PROJECT_NAME} INTERFACE windows_interface bcrypt)
 
 	# DLLs must be in same folder as exe? Not as on linux where we have rpath and such...

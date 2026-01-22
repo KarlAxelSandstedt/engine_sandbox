@@ -20,7 +20,7 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/opengl")
 add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/tracy")
 
 add_library(stb_image INTERFACE)
-target_include_directories(stb_image INTERFACE "${LIB_PATH}/stb_image")
+target_include_directories(stb_image INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/stb_image")
   
-add_library(xxHash STATIC "${LIB_PATH}/xxHash/xxhash.c" "${LIB_PATH}/xxHash/xxhash.h")
-target_include_directories(xxHash INTERFACE "${LIB_PATH}/xxHash")
+add_library(xxHash STATIC "${CMAKE_CURRENT_SOURCE_DIR}/xxHash/xxhash.c" "${CMAKE_CURRENT_SOURCE_DIR}/xxHash/xxhash.h")
+target_include_directories(xxHash INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}/xxHash")
