@@ -1,6 +1,6 @@
 /*
 ==========================================================================
-    Copyright (C) 2025 Axel Sandstedt 
+    Copyright (C) 2025, 2026 Axel Sandstedt 
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ static void system_window_free_resources(struct system_window *sys_win)
 u32 system_window_alloc(const char *title, const vec2u32 position, const vec2u32 size, const u32 parent)
 {
 	struct slot slot = hierarchy_index_add(g_window_hierarchy, parent);
-	ds_assert(parent != HI_ROOT_STUB_INDEX || slot.index == 2);
+	ds_Assert(parent != HI_ROOT_STUB_INDEX || slot.index == 2);
 
 	struct system_window *sys_win = slot.address;
 
@@ -152,9 +152,9 @@ struct slot system_window_lookup(const u64 native_handle)
 
 u32 system_process_root_window_alloc(const char *title, const vec2u32 position, const vec2u32 size)
 {
-	ds_assert(g_process_root_window == HI_NULL_INDEX);
+	ds_Assert(g_process_root_window == HI_NULL_INDEX);
 	g_process_root_window = system_window_alloc(title, position, size, HI_ROOT_STUB_INDEX);
-	ds_assert(g_process_root_window == 2);
+	ds_Assert(g_process_root_window == 2);
 	return g_process_root_window;
 }
 
@@ -204,11 +204,8 @@ void system_window_set_global(const u32 index)
 
 void system_graphics_init(void)
 {
-#if __GAPI__ == __X11__	
-#elif __GAPI__ == __WAYLAND__
-#elif __GAPI__ == __SDL3__
+#if __GAPI__ == __DS_SDL3__
 	sdl3_wrapper_init();
-#elif __GAPI__ == __WIN64__
 #endif
 	g_window_hierarchy = hierarchy_index_alloc(NULL, 8, sizeof(struct system_window), ARRAY_LIST_GROWABLE);
 	

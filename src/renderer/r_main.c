@@ -232,7 +232,7 @@ static struct r_mesh *debug_lines_mesh(struct arena *mem, const struct physics_p
 			mem_left -= 2*(sizeof(vec3) + sizeof(vec4));
 		}
 	}
-	ds_assert(mem_left == 0);
+	ds_Assert(mem_left == 0);
 end:
 	return mesh;
 }
@@ -270,7 +270,7 @@ static struct r_mesh *bounding_boxes_mesh(struct arena *mem, const struct physic
 		vertex_data += bytes_written;
 		mem_left -= bytes_written;
 	}
-	ds_assert(mem_left == 0);
+	ds_Assert(mem_left == 0);
 end:
 	return mesh;
 }
@@ -334,7 +334,7 @@ static struct r_mesh *bvh_mesh(struct arena *mem, const struct bvh *bvh, const v
 			i = U32_MAX;
 		}
 	}
-	ds_assert(mem_left == 0);
+	ds_Assert(mem_left == 0);
 end:
 	arena_pop_record(mem);
 	return mesh;
@@ -346,7 +346,7 @@ static void r_led_draw(const struct led *led)
 
 	//{
 	//	struct slot slot = string_database_lookup(&led->render_mesh_db, utf8_inline("rm_map"));
-	//	ds_assert(slot.index != STRING_DATABASE_STUB_INDEX);
+	//	ds_Assert(slot.index != STRING_DATABASE_STUB_INDEX);
 	//	if (slot.index != STRING_DATABASE_STUB_INDEX)
 	//	{
 	//		const u64 material = r_material_construct(PROGRAM_LIGHTNING, slot.index, TEXTURE_NONE);
@@ -359,7 +359,7 @@ static void r_led_draw(const struct led *led)
 	//}
 
 	const u32 depth_exponent = 1 + f32_exponent_bits(led->cam.fz_far);
-	ds_assert(depth_exponent >= 23);
+	ds_Assert(depth_exponent >= 23);
 
 	r_proxy3d_hierarchy_speculate(&g_r_core->frame, led->ns - led->ns_engine_paused);
 
@@ -569,7 +569,7 @@ static void r_scene_render(const struct led *led, const u32 window)
 
 			default:
 			{
-				ds_assert_string(0, "unimplemented");
+				ds_AssertString(0, "unimplemented");
 			} break;
 		}
 
@@ -594,7 +594,7 @@ static void r_scene_render(const struct led *led, const u32 window)
 
 			default: 
 			{ 
-				 ds_assert_string(0, "unexpected transparency setting"); 
+				 ds_AssertString(0, "unexpected transparency setting"); 
 			} break;
 		}
 		
@@ -633,7 +633,7 @@ static void r_scene_render(const struct led *led, const u32 window)
 		{
 			case R_CMD_PRIMITIVE_LINE: { mode = GL_LINES; } break;
 			case R_CMD_PRIMITIVE_TRIANGLE: { mode = GL_TRIANGLES; } break;
-			default: { ds_assert_string(0, "Unexpected draw primitive"); } break;
+			default: { ds_AssertString(0, "Unexpected draw primitive"); } break;
 		}
 
 		u32 vao;
@@ -772,7 +772,7 @@ void r_led_main(const struct led *led)
 	}
 	else
 	{
-		ds_assert(0);
+		ds_Assert(0);
 		g_r_core->frames_elapsed += 1;
 	}
 }

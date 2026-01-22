@@ -28,7 +28,7 @@
 #include "linux_local.h"
 #include "sys_public.h"
 
-ds_thread_local struct ds_thread *self = NULL;
+dsThreadLocal struct ds_thread *self = NULL;
 u32	a_index_counter = 1;
 
 const char *thread_profiler_id[] = 
@@ -68,7 +68,7 @@ void ds_thread_master_init(struct arena *mem)
 
 void ds_thread_clone(struct arena *mem, void (*start)(ds_thread *), void *args, const u64 stack_size)
 {
-	ds_assert(stack_size > 0);
+	ds_Assert(stack_size > 0);
 
 	const u64 thr_size = (sizeof(ds_thread) % g_arch_config->cacheline == 0)
 		? sizeof(ds_thread)
@@ -90,7 +90,7 @@ void ds_thread_clone(struct arena *mem, void (*start)(ds_thread *), void *args, 
 		fatal_cleanup_and_exit(gettid());
 	}
 
-	ds_assert((u64) thr % g_arch_config->cacheline == 0);
+	ds_Assert((u64) thr % g_arch_config->cacheline == 0);
 
 	thr->start = start;
 	thr->args = args;
@@ -115,7 +115,7 @@ void ds_thread_clone(struct arena *mem, void (*start)(ds_thread *), void *args, 
 
 	size_t real_size;
 	pthread_attr_getstacksize(&attr, &real_size);
-	ds_assert(real_size == thr->stack_size);
+	ds_Assert(real_size == thr->stack_size);
 
 	if (pthread_create(&thr->pthread, &attr, ds_thread_clone_start, thr) != 0)
 	{

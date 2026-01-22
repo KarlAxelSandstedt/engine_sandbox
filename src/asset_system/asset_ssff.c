@@ -184,11 +184,11 @@ i32 wi, he, co;
 		if (!pixel[i])
 		{
 			log_string(T_SYSTEM, S_FATAL, stbi_failure_reason());
-			ds_assert(0);
+			ds_Assert(0);
 		}
 
-		ds_assert(comp == 4);
-		ds_assert(png_width[i] % info->png[i].sprite_width == 0);
+		ds_Assert(comp == 4);
+		ds_Assert(png_width[i] % info->png[i].sprite_width == 0);
 		sprite_count[i] = png_width[i] / info->png[i].sprite_width;
 		sprite[i] = arena_push_packed(mem, sprite_count[i] * sizeof(struct ssff_sprite));
 		color[i] = (void *) mem->stack_ptr;
@@ -226,7 +226,7 @@ i32 wi, he, co;
 			}
 		}
 
-		ds_assert(lb != U32_MAX);
+		ds_Assert(lb != U32_MAX);
 		c[i].bit_depth = (hb == lb)
 			? hb
 			: hb + 1;
@@ -288,7 +288,7 @@ i32 wi, he, co;
 							break;	
 						}
 					}
-					//TODO ds_assert(ci != U32_MAX);
+					//TODO ds_Assert(ci != U32_MAX);
 					ss_write_u32_be_partial(&stream, ci, c[i].bit_depth);
 				}
 			}
@@ -374,7 +374,7 @@ struct ssff_texture_return ssff_texture(struct arena *mem, const struct ssff_hea
 			{
 				for (u32 x = 0; x < sprite_width; ++x)
 				{
-					ds_assert_string(x_offset + x < width, "trying to write outside of row");
+					ds_AssertString(x_offset + x < width, "trying to write outside of row");
 					const u32 ci = ss_read_u32_be_partial(&stream, c->bit_depth);
 					const u32 color = color_table[ci];
 					pixel[4*((y_offset + y)*width + (x_offset + x)) + 0] = (u8) (color >> 24);
@@ -487,7 +487,7 @@ struct asset_ssff *asset_database_request_ssff(struct arena *tmp, const enum ssf
 		{
 			case SSFF_DYNAMIC_ID: { dynamic_ssff_set_sprite_parameters(asset, &ret); } break;
 			case SSFF_LED_ID: { led_ssff_set_sprite_parameters(asset, &ret); } break;
-			default: { ds_assert_string(0, "unhandled sprite sheet parameter setting"); } break;
+			default: { ds_AssertString(0, "unhandled sprite sheet parameter setting"); } break;
 		}
 		asset->loaded = 1;
 	}

@@ -90,7 +90,7 @@ u32 wasm_cstr_path_is_relative(const char *path)
 
 enum fs_error wasm_file_try_create(struct arena *mem, struct file *file, const char *filename, const struct file *dir, const u32 truncate)
 {
-	ds_assert(file->handle == FILE_HANDLE_INVALID);
+	ds_Assert(file->handle == FILE_HANDLE_INVALID);
 	file->handle = FILE_HANDLE_INVALID;
 		
 	enum fs_error err = FS_SUCCESS;
@@ -131,7 +131,7 @@ enum fs_error wasm_file_try_create(struct arena *mem, struct file *file, const c
 
 enum fs_error wasm_file_try_open(struct arena *mem, struct file *file, const char *filename, const struct file *dir, const u32 writeable)
 {
-	ds_assert(file->handle == FILE_HANDLE_INVALID);
+	ds_Assert(file->handle == FILE_HANDLE_INVALID);
 	file->handle = FILE_HANDLE_INVALID;
 		
 	enum fs_error err = FS_SUCCESS;
@@ -169,7 +169,7 @@ enum fs_error wasm_file_try_open(struct arena *mem, struct file *file, const cha
 
 enum fs_error wasm_directory_try_create(struct arena *mem, struct file *dir, const char *filename, const struct file *parent_dir)
 {	
-	ds_assert(dir->handle == FILE_HANDLE_INVALID);
+	ds_Assert(dir->handle == FILE_HANDLE_INVALID);
 	dir->handle = FILE_HANDLE_INVALID;
 		
 	enum fs_error err = FS_SUCCESS;

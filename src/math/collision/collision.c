@@ -24,7 +24,7 @@
 
 DEFINE_STACK(visual_segment);
 
-ds_thread_local struct collision_debug *debug;
+dsThreadLocal struct collision_debug *debug;
 
 struct visual_segment visual_segment_construct(const struct segment segment, const vec4 color)
 {
@@ -705,8 +705,8 @@ static u32 gjk_internal_support(vec3 support, const vec3 dir, struct gjk_input *
 
 static f32 gjk_distance_sq(vec3 c1, vec3 c2, struct gjk_input *in1, struct gjk_input *in2)
 {
-	ds_assert(in1->v_count > 0);
-	ds_assert(in2->v_count > 0);
+	ds_Assert(in1->v_count > 0);
+	ds_Assert(in2->v_count > 0);
 	
 	const f32 abs_tol = 100.0f * F32_EPSILON;
 	const f32 tol = 100.0f * F32_EPSILON;
@@ -740,7 +740,7 @@ static f32 gjk_distance_sq(vec3 c1, vec3 c2, struct gjk_input *in1, struct gjk_i
 				|| simplex.id[0] == support_id || simplex.id[1] == support_id 
 				|| simplex.id[2] == support_id || simplex.id[3] == support_id)
 		{
-			ds_assert(dist_sq != FLT_MAX);
+			ds_Assert(dist_sq != FLT_MAX);
 			simplex.type -= 1;
 			gjk_internal_closest_points(c1, c2, in1, &simplex, lambda);
 			return dist_sq;
@@ -753,7 +753,7 @@ static f32 gjk_distance_sq(vec3 c1, vec3 c2, struct gjk_input *in1, struct gjk_i
 		 */
 		if (gjk_internal_johnsons_algorithm(&simplex, c_v, lambda))
 		{
-			ds_assert(dist_sq != FLT_MAX);
+			ds_Assert(dist_sq != FLT_MAX);
 			simplex.type -= 1;
 			gjk_internal_closest_points(c1, c2, in1, &simplex, lambda);
 			return dist_sq;
@@ -793,7 +793,7 @@ static f32 gjk_distance_sq(vec3 c1, vec3 c2, struct gjk_input *in1, struct gjk_i
 
 static f32 sphere_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	ds_assert(b1->shape_type == COLLISION_SHAPE_SPHERE && b2->shape_type == COLLISION_SHAPE_SPHERE);
+	ds_Assert(b1->shape_type == COLLISION_SHAPE_SPHERE && b2->shape_type == COLLISION_SHAPE_SPHERE);
 
 	const struct collision_shape *shape1 = string_database_address(pipeline->shape_db, b1->shape_handle);
 	const struct collision_shape *shape2 = string_database_address(pipeline->shape_db, b2->shape_handle);
@@ -818,7 +818,7 @@ static f32 sphere_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipe
 
 static f32 capsule_sphere_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	ds_assert(b1->shape_type == COLLISION_SHAPE_CAPSULE && b2->shape_type == COLLISION_SHAPE_SPHERE);
+	ds_Assert(b1->shape_type == COLLISION_SHAPE_CAPSULE && b2->shape_type == COLLISION_SHAPE_SPHERE);
 
 	const struct collision_shape *shape2 = string_database_address(pipeline->shape_db, b2->shape_handle);
 
@@ -854,7 +854,7 @@ static f32 capsule_sphere_distance(vec3 c1, vec3 c2, const struct physics_pipeli
 
 static f32 capsule_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	ds_assert(b1->shape_type == COLLISION_SHAPE_CAPSULE && b2->shape_type == COLLISION_SHAPE_CAPSULE);
+	ds_Assert(b1->shape_type == COLLISION_SHAPE_CAPSULE && b2->shape_type == COLLISION_SHAPE_CAPSULE);
 
 
 	struct capsule *cap1 = &((struct collision_shape *) string_database_address(pipeline->shape_db, b1->shape_handle))->capsule;
@@ -897,8 +897,8 @@ static f32 capsule_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pip
 
 static f32 hull_sphere_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	ds_assert(b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
-	ds_assert(b2->shape_type == COLLISION_SHAPE_SPHERE);
+	ds_Assert(b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
+	ds_Assert(b2->shape_type == COLLISION_SHAPE_SPHERE);
 
 	const struct collision_shape *shape1 = string_database_address(pipeline->shape_db, b1->shape_handle);
 	const struct collision_shape *shape2 = string_database_address(pipeline->shape_db, b2->shape_handle);
@@ -932,8 +932,8 @@ static f32 hull_sphere_distance(vec3 c1, vec3 c2, const struct physics_pipeline 
 
 static f32 hull_capsule_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	ds_assert(b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
-	ds_assert(b2->shape_type == COLLISION_SHAPE_CAPSULE);
+	ds_Assert(b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
+	ds_Assert(b2->shape_type == COLLISION_SHAPE_CAPSULE);
 
 	const struct collision_shape *shape1 = string_database_address(pipeline->shape_db, b1->shape_handle);
 	const struct collision_shape *shape2 = string_database_address(pipeline->shape_db, b2->shape_handle);
@@ -971,8 +971,8 @@ static f32 hull_capsule_distance(vec3 c1, vec3 c2, const struct physics_pipeline
 
 static f32 hull_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	ds_assert (b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
-	ds_assert (b2->shape_type == COLLISION_SHAPE_CONVEX_HULL);
+	ds_Assert (b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
+	ds_Assert (b2->shape_type == COLLISION_SHAPE_CONVEX_HULL);
 
 	const struct collision_shape *shape1 = string_database_address(pipeline->shape_db, b1->shape_handle);
 	const struct collision_shape *shape2 = string_database_address(pipeline->shape_db, b2->shape_handle);
@@ -1001,19 +1001,19 @@ static f32 hull_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeli
 
 static f32 tri_mesh_bvh_sphere_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	ds_assert_string(0, "implement");
+	ds_AssertString(0, "implement");
 	return 0.0f;
 }
 
 static f32 tri_mesh_bvh_capsule_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	ds_assert_string(0, "implement");
+	ds_AssertString(0, "implement");
 	return 0.0f;
 }
 
 static f32 tri_mesh_bvh_hull_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	ds_assert_string(0, "implement");
+	ds_AssertString(0, "implement");
 	return 0.0f;
 }
 
@@ -1021,7 +1021,7 @@ static f32 tri_mesh_bvh_hull_distance(vec3 c1, vec3 c2, const struct physics_pip
 
 static u32 sphere_test(const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	ds_assert(b1->shape_type == COLLISION_SHAPE_SPHERE && b2->shape_type == COLLISION_SHAPE_SPHERE);
+	ds_Assert(b1->shape_type == COLLISION_SHAPE_SPHERE && b2->shape_type == COLLISION_SHAPE_SPHERE);
 
 	const struct collision_shape *shape1 = string_database_address(pipeline->shape_db, b1->shape_handle);
 	const struct collision_shape *shape2 = string_database_address(pipeline->shape_db, b2->shape_handle);
@@ -1032,7 +1032,7 @@ static u32 sphere_test(const struct physics_pipeline *pipeline, const struct rig
 
 static u32 capsule_sphere_test(const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	ds_assert(b1->shape_type == COLLISION_SHAPE_CAPSULE && b2->shape_type == COLLISION_SHAPE_SPHERE);
+	ds_Assert(b1->shape_type == COLLISION_SHAPE_CAPSULE && b2->shape_type == COLLISION_SHAPE_SPHERE);
 
 	const struct collision_shape *shape1 = string_database_address(pipeline->shape_db, b1->shape_handle);
 	const struct collision_shape *shape2 = string_database_address(pipeline->shape_db, b2->shape_handle);
@@ -1100,8 +1100,8 @@ static u32 tri_mesh_bvh_hull_test(const struct physics_pipeline *pipeline, const
 
 static u32 sphere_contact(struct arena *garbage, struct collision_result *result, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	ds_assert(b1->shape_type == COLLISION_SHAPE_SPHERE);
-	ds_assert(b2->shape_type == COLLISION_SHAPE_SPHERE);
+	ds_Assert(b1->shape_type == COLLISION_SHAPE_SPHERE);
+	ds_Assert(b2->shape_type == COLLISION_SHAPE_SPHERE);
 
 	const struct collision_shape *shape1 = string_database_address(pipeline->shape_db, b1->shape_handle);
 	const struct collision_shape *shape2 = string_database_address(pipeline->shape_db, b2->shape_handle);
@@ -1141,8 +1141,8 @@ static u32 sphere_contact(struct arena *garbage, struct collision_result *result
 
 static u32 capsule_sphere_contact(struct arena *garbage, struct collision_result *result, const struct physics_pipeline *pipeline,  const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	ds_assert(b1->shape_type == COLLISION_SHAPE_CAPSULE);
-	ds_assert(b2->shape_type == COLLISION_SHAPE_SPHERE);
+	ds_Assert(b1->shape_type == COLLISION_SHAPE_CAPSULE);
+	ds_Assert(b2->shape_type == COLLISION_SHAPE_SPHERE);
 
 	const struct collision_shape *shape1 = string_database_address(pipeline->shape_db, b1->shape_handle);
 	const struct collision_shape *shape2 = string_database_address(pipeline->shape_db, b2->shape_handle);
@@ -1207,8 +1207,8 @@ static u32 capsule_sphere_contact(struct arena *garbage, struct collision_result
 
 static u32 capsule_contact(struct arena *garbage, struct collision_result *result, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	ds_assert(b1->shape_type == COLLISION_SHAPE_CAPSULE);
-	ds_assert(b2->shape_type == COLLISION_SHAPE_CAPSULE);
+	ds_Assert(b1->shape_type == COLLISION_SHAPE_CAPSULE);
+	ds_Assert(b2->shape_type == COLLISION_SHAPE_CAPSULE);
 
 	u32 contact_generated = 0;
 	result->type = COLLISION_NONE;
@@ -1316,8 +1316,8 @@ static u32 capsule_contact(struct arena *garbage, struct collision_result *resul
 
 static u32 hull_sphere_contact(struct arena *garbage, struct collision_result *result, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	ds_assert (b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
-	ds_assert (b2->shape_type == COLLISION_SHAPE_SPHERE);
+	ds_Assert (b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
+	ds_Assert (b2->shape_type == COLLISION_SHAPE_SPHERE);
 
 	const struct collision_shape *shape1 = string_database_address(pipeline->shape_db, b1->shape_handle);
 	const struct collision_shape *shape2 = string_database_address(pipeline->shape_db, b2->shape_handle);
@@ -1394,8 +1394,8 @@ static u32 hull_sphere_contact(struct arena *garbage, struct collision_result *r
 
 static u32 hull_capsule_contact(struct arena *garbage, struct collision_result *result, const struct physics_pipeline *pipeline,  const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	ds_assert(b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
-	ds_assert(b2->shape_type == COLLISION_SHAPE_CAPSULE);
+	ds_Assert(b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
+	ds_Assert(b2->shape_type == COLLISION_SHAPE_CAPSULE);
 
 	result->type = COLLISION_NONE;
 	u32 contact_generated = 0;
@@ -1859,12 +1859,12 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 				}
 			}
 
-			ds_assert(deepest_point != max_i);
-			ds_assert(deepest_point != max_pos_i);
-			ds_assert(deepest_point != max_neg_i);
-			ds_assert(max_i != max_pos_i);
-			ds_assert(max_i != max_neg_i);
-			ds_assert(max_pos_i != max_neg_i);
+			ds_Assert(deepest_point != max_i);
+			ds_Assert(deepest_point != max_pos_i);
+			ds_Assert(deepest_point != max_neg_i);
+			ds_Assert(max_i != max_pos_i);
+			ds_Assert(max_i != max_neg_i);
+			ds_Assert(max_pos_i != max_neg_i);
 	
 			vec3 dir;
 			tri_ccw_direction(dir, cm->v[0], cp[max_pos_i], cm->v[2]);
@@ -2057,8 +2057,8 @@ void sat_edge_query_collision_result(struct contact_manifold *manifold, struct s
 	sat_cache->edge1 = query->e1;
 	sat_cache->edge2 = query->e2;
 	sat_cache->type = SAT_CACHE_CONTACT_EE;
-	ds_assert(1.0f - 1000.0f * F32_EPSILON < vec3_length(manifold->n));
-	ds_assert(vec3_length(manifold->n) < 1.0f + 1000.0f * F32_EPSILON);
+	ds_Assert(1.0f - 1000.0f * F32_EPSILON < vec3_length(manifold->n));
+	ds_Assert(vec3_length(manifold->n) < 1.0f + 1000.0f * F32_EPSILON);
 }
 
 /*
@@ -2068,8 +2068,8 @@ void sat_edge_query_collision_result(struct contact_manifold *manifold, struct s
  */
 static u32 hull_contact(struct arena *tmp, struct collision_result *result, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	ds_assert(b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
-	ds_assert(b2->shape_type == COLLISION_SHAPE_CONVEX_HULL);
+	ds_Assert(b1->shape_type == COLLISION_SHAPE_CONVEX_HULL);
+	ds_Assert(b2->shape_type == COLLISION_SHAPE_CONVEX_HULL);
 
 	/* 
 	 * we want penetration depth d and direction normal n (b1->b2), 
@@ -2119,7 +2119,7 @@ static u32 hull_contact(struct arena *tmp, struct collision_result *result, cons
 
 	const u32 bi1 = pool_index(&pipeline->body_pool, b1);
 	const u32 bi2 = pool_index(&pipeline->body_pool, b2);
-	ds_assert_string(bi1 < bi2, "Having these requirements spread all over the pipeline is bad, should\
+	ds_AssertString(bi1 < bi2, "Having these requirements spread all over the pipeline is bad, should\
 			standardize some place where we enforce this rule, if at all. Furthermore, we should\
 			consider better ways of creating body pair keys");
 
@@ -2265,7 +2265,7 @@ sat_cleanup:
 	{
 		sat_cache->key = key_gen_u32_u32(bi1, bi2);
 		result->type = COLLISION_SAT_CACHE;
-		ds_assert(result->sat_cache.type < SAT_CACHE_COUNT);
+		ds_Assert(result->sat_cache.type < SAT_CACHE_COUNT);
 	}
 	else
 	{
@@ -2281,8 +2281,8 @@ sat_cleanup:
 
 static u32 tri_mesh_bvh_sphere_contact(struct arena *tmp, struct collision_result *result, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	ds_assert(b1->shape_type == COLLISION_SHAPE_TRI_MESH);
-	ds_assert(b2->shape_type == COLLISION_SHAPE_SPHERE);
+	ds_Assert(b1->shape_type == COLLISION_SHAPE_TRI_MESH);
+	ds_Assert(b2->shape_type == COLLISION_SHAPE_SPHERE);
 
 	struct tri_mesh_bvh *mesh_bvh = &((struct collision_shape *) string_database_address(pipeline->shape_db, b1->shape_handle))->mesh_bvh;
 	struct sphere *sph = &((struct collision_shape *) string_database_address(pipeline->shape_db, b2->shape_handle))->sphere;
@@ -2345,8 +2345,8 @@ static u32 tri_mesh_bvh_sphere_contact(struct arena *tmp, struct collision_resul
 
 static u32 tri_mesh_bvh_capsule_contact(struct arena *tmp, struct collision_result *result, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	ds_assert(b1->shape_type == COLLISION_SHAPE_TRI_MESH);
-	ds_assert(b2->shape_type == COLLISION_SHAPE_CAPSULE);
+	ds_Assert(b1->shape_type == COLLISION_SHAPE_TRI_MESH);
+	ds_Assert(b2->shape_type == COLLISION_SHAPE_CAPSULE);
 
 	result->type = COLLISION_NONE;
 	return 0;
@@ -2354,8 +2354,8 @@ static u32 tri_mesh_bvh_capsule_contact(struct arena *tmp, struct collision_resu
 
 static u32 tri_mesh_bvh_hull_contact(struct arena *tmp, struct collision_result *result, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	ds_assert(b1->shape_type == COLLISION_SHAPE_TRI_MESH);
-	ds_assert(b2->shape_type == COLLISION_SHAPE_CONVEX_HULL);
+	ds_Assert(b1->shape_type == COLLISION_SHAPE_TRI_MESH);
+	ds_Assert(b2->shape_type == COLLISION_SHAPE_CONVEX_HULL);
 
 	result->type = COLLISION_NONE;
 	return 0;
@@ -2365,7 +2365,7 @@ static u32 tri_mesh_bvh_hull_contact(struct arena *tmp, struct collision_result 
 
 f32 _sphere_raycast_parameter(const struct physics_pipeline *pipeline, const struct rigid_body *b, const struct ray *ray)
 {
-	ds_assert(b->shape_type == COLLISION_SHAPE_SPHERE);
+	ds_Assert(b->shape_type == COLLISION_SHAPE_SPHERE);
 	const struct collision_shape *shape = string_database_address(pipeline->shape_db, b->shape_handle);
 	struct sphere sph = sphere_construct(b->position, shape->sphere.radius);
 	return sphere_raycast_parameter(&sph, ray);	
@@ -2373,7 +2373,7 @@ f32 _sphere_raycast_parameter(const struct physics_pipeline *pipeline, const str
 
 f32 capsule_raycast_parameter(const struct physics_pipeline *pipeline, const struct rigid_body *b, const struct ray *ray)
 {
-	ds_assert(b->shape_type == COLLISION_SHAPE_CAPSULE);
+	ds_Assert(b->shape_type == COLLISION_SHAPE_CAPSULE);
 
 	const struct collision_shape *shape = string_database_address(pipeline->shape_db, b->shape_handle);
 	mat3 rot;
@@ -2397,7 +2397,7 @@ f32 capsule_raycast_parameter(const struct physics_pipeline *pipeline, const str
 
 f32 hull_raycast_parameter(const struct physics_pipeline *pipeline, const struct rigid_body *b, const struct ray *ray)
 {
-	ds_assert(b->shape_type == COLLISION_SHAPE_CONVEX_HULL);
+	ds_Assert(b->shape_type == COLLISION_SHAPE_CONVEX_HULL);
 
 	vec3 n, p;
 	mat3 rot;
@@ -2480,7 +2480,7 @@ f32 (*shape_raycast_parameter_methods[COLLISION_SHAPE_COUNT])(const struct physi
 
 u32 body_body_test(const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	ds_assert(margin >= 0.0f);
+	ds_Assert(margin >= 0.0f);
 	return (b1->shape_type >= b2->shape_type)  
 		? shape_tests[b1->shape_type][b2->shape_type](pipeline, b1, b2, margin)
 		: shape_tests[b2->shape_type][b1->shape_type](pipeline, b2, b1, margin);
@@ -2488,7 +2488,7 @@ u32 body_body_test(const struct physics_pipeline *pipeline, const struct rigid_b
 
 f32 body_body_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	ds_assert(margin >= 0.0f);
+	ds_Assert(margin >= 0.0f);
 	return (b1->shape_type >= b2->shape_type)  
 		? distance_methods[b1->shape_type][b2->shape_type](c1, c2, pipeline, b1, b2, margin)
 		: distance_methods[b2->shape_type][b1->shape_type](c2, c1, pipeline, b2, b1, margin);
@@ -2496,7 +2496,7 @@ f32 body_body_distance(vec3 c1, vec3 c2, const struct physics_pipeline *pipeline
 
 u32 body_body_contact_manifold(struct arena *tmp, struct collision_result *result, const struct physics_pipeline *pipeline, const struct rigid_body *b1, const struct rigid_body *b2, const f32 margin)
 {
-	ds_assert(margin >= 0.0f);
+	ds_Assert(margin >= 0.0f);
 
 	/* TODO: Cannot do as above, we must make sure that CM is in correct A->B order,  maybe push this issue up? */
 	u32 collision;	

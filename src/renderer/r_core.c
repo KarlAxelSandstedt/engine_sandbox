@@ -26,7 +26,7 @@ struct r_core *g_r_core = &r_core_storage;
 
 static void r_cmd_static_assert(void)
 {
-	ds_static_assert(R_CMD_SCREEN_LAYER_BITS
+	ds_StaticAssert(R_CMD_SCREEN_LAYER_BITS
 			+ R_CMD_DEPTH_BITS
 			+ R_CMD_TRANSPARENCY_BITS
 			+ R_CMD_MATERIAL_BITS
@@ -36,28 +36,28 @@ static void r_cmd_static_assert(void)
 			+ R_CMD_UNUSED_BITS == 64, "r_cmd definitions should span whole 64 bits");
 
 	//TODO Show no overlap between masks
-	ds_static_assert((R_CMD_SCREEN_LAYER_MASK & R_CMD_DEPTH_MASK) == 0, "R_CMD_*_MASK values should not overlap");
-	ds_static_assert((R_CMD_SCREEN_LAYER_MASK & R_CMD_TRANSPARENCY_MASK) == 0, "R_CMD_*_MASK values should not overlap");
-	ds_static_assert((R_CMD_SCREEN_LAYER_MASK & R_CMD_MATERIAL_MASK) == 0, "R_CMD_*_MASK values should not overlap");
-	ds_static_assert((R_CMD_SCREEN_LAYER_MASK & R_CMD_PRIMITIVE_MASK) == 0, "R_CMD_*_MASK values should not overlap");
-	ds_static_assert((R_CMD_SCREEN_LAYER_MASK & R_CMD_INSTANCED_MASK) == 0, "R_CMD_*_MASK values should not overlap");
-	ds_static_assert((R_CMD_SCREEN_LAYER_MASK & R_CMD_ELEMENTS_MASK) == 0, "R_CMD_*_MASK values should not overlap");
-	ds_static_assert((R_CMD_DEPTH_MASK & R_CMD_TRANSPARENCY_MASK) == 0, "R_CMD_*_MASK values should not overlap");
-	ds_static_assert((R_CMD_DEPTH_MASK & R_CMD_MATERIAL_MASK) == 0, "R_CMD_*_MASK values should not overlap");
-	ds_static_assert((R_CMD_DEPTH_MASK & R_CMD_PRIMITIVE_MASK) == 0, "R_CMD_*_MASK values should not overlap");
-	ds_static_assert((R_CMD_DEPTH_MASK & R_CMD_INSTANCED_MASK) == 0, "R_CMD_*_MASK values should not overlap");
-	ds_static_assert((R_CMD_DEPTH_MASK & R_CMD_ELEMENTS_MASK) == 0, "R_CMD_*_MASK values should not overlap");
-	ds_static_assert((R_CMD_TRANSPARENCY_MASK & R_CMD_MATERIAL_MASK) == 0, "R_CMD_*_MASK values should not overlap");
-	ds_static_assert((R_CMD_TRANSPARENCY_MASK & R_CMD_PRIMITIVE_MASK) == 0, "R_CMD_*_MASK values should not overlap");
-	ds_static_assert((R_CMD_TRANSPARENCY_MASK & R_CMD_INSTANCED_MASK) == 0, "R_CMD_*_MASK values should not overlap");
-	ds_static_assert((R_CMD_TRANSPARENCY_MASK & R_CMD_ELEMENTS_MASK) == 0, "R_CMD_*_MASK values should not overlap");
-	ds_static_assert((R_CMD_MATERIAL_MASK & R_CMD_PRIMITIVE_MASK) == 0, "R_CMD_*_MASK values should not overlap");
-	ds_static_assert((R_CMD_MATERIAL_MASK & R_CMD_INSTANCED_MASK) == 0, "R_CMD_*_MASK values should not overlap");
-	ds_static_assert((R_CMD_MATERIAL_MASK & R_CMD_ELEMENTS_MASK) == 0, "R_CMD_*_MASK values should not overlap");
-	ds_static_assert((R_CMD_PRIMITIVE_MASK & R_CMD_INSTANCED_MASK) == 0, "R_CMD_*_MASK values should not overlap");
-	ds_static_assert((R_CMD_PRIMITIVE_MASK & R_CMD_ELEMENTS_MASK) == 0, "R_CMD_*_MASK values should not overlap");
+	ds_StaticAssert((R_CMD_SCREEN_LAYER_MASK & R_CMD_DEPTH_MASK) == 0, "R_CMD_*_MASK values should not overlap");
+	ds_StaticAssert((R_CMD_SCREEN_LAYER_MASK & R_CMD_TRANSPARENCY_MASK) == 0, "R_CMD_*_MASK values should not overlap");
+	ds_StaticAssert((R_CMD_SCREEN_LAYER_MASK & R_CMD_MATERIAL_MASK) == 0, "R_CMD_*_MASK values should not overlap");
+	ds_StaticAssert((R_CMD_SCREEN_LAYER_MASK & R_CMD_PRIMITIVE_MASK) == 0, "R_CMD_*_MASK values should not overlap");
+	ds_StaticAssert((R_CMD_SCREEN_LAYER_MASK & R_CMD_INSTANCED_MASK) == 0, "R_CMD_*_MASK values should not overlap");
+	ds_StaticAssert((R_CMD_SCREEN_LAYER_MASK & R_CMD_ELEMENTS_MASK) == 0, "R_CMD_*_MASK values should not overlap");
+	ds_StaticAssert((R_CMD_DEPTH_MASK & R_CMD_TRANSPARENCY_MASK) == 0, "R_CMD_*_MASK values should not overlap");
+	ds_StaticAssert((R_CMD_DEPTH_MASK & R_CMD_MATERIAL_MASK) == 0, "R_CMD_*_MASK values should not overlap");
+	ds_StaticAssert((R_CMD_DEPTH_MASK & R_CMD_PRIMITIVE_MASK) == 0, "R_CMD_*_MASK values should not overlap");
+	ds_StaticAssert((R_CMD_DEPTH_MASK & R_CMD_INSTANCED_MASK) == 0, "R_CMD_*_MASK values should not overlap");
+	ds_StaticAssert((R_CMD_DEPTH_MASK & R_CMD_ELEMENTS_MASK) == 0, "R_CMD_*_MASK values should not overlap");
+	ds_StaticAssert((R_CMD_TRANSPARENCY_MASK & R_CMD_MATERIAL_MASK) == 0, "R_CMD_*_MASK values should not overlap");
+	ds_StaticAssert((R_CMD_TRANSPARENCY_MASK & R_CMD_PRIMITIVE_MASK) == 0, "R_CMD_*_MASK values should not overlap");
+	ds_StaticAssert((R_CMD_TRANSPARENCY_MASK & R_CMD_INSTANCED_MASK) == 0, "R_CMD_*_MASK values should not overlap");
+	ds_StaticAssert((R_CMD_TRANSPARENCY_MASK & R_CMD_ELEMENTS_MASK) == 0, "R_CMD_*_MASK values should not overlap");
+	ds_StaticAssert((R_CMD_MATERIAL_MASK & R_CMD_PRIMITIVE_MASK) == 0, "R_CMD_*_MASK values should not overlap");
+	ds_StaticAssert((R_CMD_MATERIAL_MASK & R_CMD_INSTANCED_MASK) == 0, "R_CMD_*_MASK values should not overlap");
+	ds_StaticAssert((R_CMD_MATERIAL_MASK & R_CMD_ELEMENTS_MASK) == 0, "R_CMD_*_MASK values should not overlap");
+	ds_StaticAssert((R_CMD_PRIMITIVE_MASK & R_CMD_INSTANCED_MASK) == 0, "R_CMD_*_MASK values should not overlap");
+	ds_StaticAssert((R_CMD_PRIMITIVE_MASK & R_CMD_ELEMENTS_MASK) == 0, "R_CMD_*_MASK values should not overlap");
 
-	ds_static_assert(R_CMD_SCREEN_LAYER_MASK
+	ds_StaticAssert(R_CMD_SCREEN_LAYER_MASK
 			+ R_CMD_DEPTH_MASK
 			+ R_CMD_TRANSPARENCY_MASK
 			+ R_CMD_MATERIAL_MASK
@@ -69,20 +69,20 @@ static void r_cmd_static_assert(void)
 
 static void material_static_assert(void)
 {
-	ds_static_assert(MATERIAL_PROGRAM_BITS + MATERIAL_MESH_BITS + MATERIAL_TEXTURE_BITS + MATERIAL_UNUSED_BITS 
+	ds_StaticAssert(MATERIAL_PROGRAM_BITS + MATERIAL_MESH_BITS + MATERIAL_TEXTURE_BITS + MATERIAL_UNUSED_BITS 
 			== R_CMD_MATERIAL_BITS, "material definitions should span whole material bit range");
 
-	ds_static_assert((MATERIAL_PROGRAM_MASK & MATERIAL_TEXTURE_MASK) == 0
+	ds_StaticAssert((MATERIAL_PROGRAM_MASK & MATERIAL_TEXTURE_MASK) == 0
 			, "MATERIAL_*_MASK values should not overlap");
-	ds_static_assert((MATERIAL_PROGRAM_MASK & MATERIAL_MESH_MASK) == 0
+	ds_StaticAssert((MATERIAL_PROGRAM_MASK & MATERIAL_MESH_MASK) == 0
 			, "MATERIAL_*_MASK values should not overlap");
-	ds_static_assert((MATERIAL_TEXTURE_MASK & MATERIAL_MESH_MASK) == 0
+	ds_StaticAssert((MATERIAL_TEXTURE_MASK & MATERIAL_MESH_MASK) == 0
 			, "MATERIAL_*_MASK values should not overlap");
 
-	ds_static_assert(MATERIAL_PROGRAM_MASK + MATERIAL_MESH_MASK + MATERIAL_TEXTURE_MASK + MATERIAL_UNUSED_MASK
+	ds_StaticAssert(MATERIAL_PROGRAM_MASK + MATERIAL_MESH_MASK + MATERIAL_TEXTURE_MASK + MATERIAL_UNUSED_MASK
 			== (R_CMD_MATERIAL_MASK >> R_CMD_MATERIAL_LOW_BIT)
 			, "sum of material masks should fill the material mask");
 
-	ds_static_assert(PROGRAM_COUNT <= (1 << MATERIAL_PROGRAM_BITS), "Material program mask to small, increase size");
-	ds_static_assert(TEXTURE_COUNT <= (1 << MATERIAL_TEXTURE_BITS), "Material program mask to small, increase size");
+	ds_StaticAssert(PROGRAM_COUNT <= (1 << MATERIAL_PROGRAM_BITS), "Material program mask to small, increase size");
+	ds_StaticAssert(TEXTURE_COUNT <= (1 << MATERIAL_TEXTURE_BITS), "Material program mask to small, increase size");
 }

@@ -1,6 +1,6 @@
 /*
 ==========================================================================
-    Copyright (C) 2025 Axel Sandstedt 
+    Copyright (C) 2025, 2026 Axel Sandstedt 
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 #ifndef __DMG_DTOA_H__
 #define __DMG_DTOA_H__
 
-#include "kas_common.h"
+#include "ds_types.h"
 
 /* Initalize dtoa/strod locks and thread count */
 void	dmg_dtoa_init(const u32 max_thread_count);

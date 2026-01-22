@@ -23,7 +23,7 @@
 #include "sys_public.h"
 #include "log.h"
 
-#if __GAPI__ == __SDL3__
+#if __GAPI__ == __DS_SDL3__
 #include "sdl3_wrapper_public.h"
 #endif
 

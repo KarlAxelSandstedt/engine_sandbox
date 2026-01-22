@@ -27,13 +27,13 @@ const struct bit_vec bvec_empty = { 0 };
 
 static void static_assert_bit_vec(void)
 {
-	ds_static_assert(BIT_VEC_BLOCK_SIZE == 64, "must be a power of two");
+	ds_StaticAssert(BIT_VEC_BLOCK_SIZE == 64, "must be a power of two");
 }
 
 struct bit_vec bit_vec_alloc(struct arena *mem, const u64 bit_count, const u64 clear_bit, const u32 growable)
 {
-	ds_assert_string(bit_count >= 1 && clear_bit <= 1, "invalid bit_vec_alloc bit count or clear bit value");
-	ds_assert(!(mem && growable));
+	ds_AssertString(bit_count >= 1 && clear_bit <= 1, "invalid bit_vec_alloc bit count or clear bit value");
+	ds_Assert(!(mem && growable));
 
 	const u64 mod = (bit_count % BIT_VEC_BLOCK_SIZE);
 	const u64 bit_count_req = (mod) ? bit_count + (BIT_VEC_BLOCK_SIZE - mod) : bit_count; 
@@ -71,8 +71,8 @@ void bit_vec_free(struct bit_vec *bvec)
 
 void bit_vec_increase_size(struct bit_vec *bvec, const u64 bit_count, const u64 clear_bit)
 {
-	ds_assert(bvec->bit_count < bit_count);
-	ds_assert(bvec->growable);
+	ds_Assert(bvec->bit_count < bit_count);
+	ds_Assert(bvec->growable);
 
 	const u64 new_blocks_start = bvec->block_count;
 	const u64 mod = (bit_count % BIT_VEC_BLOCK_SIZE);
@@ -94,7 +94,7 @@ void bit_vec_increase_size(struct bit_vec *bvec, const u64 bit_count, const u64 
 
 uint8_t bit_vec_get_bit(const struct bit_vec* bvec, const u64 bit)
 {
-	ds_assert(bit < bvec->bit_count);
+	ds_Assert(bit < bvec->bit_count);
 
 	const u64 block = bit / BIT_VEC_BLOCK_SIZE;
 	const u64 block_bit = bit % BIT_VEC_BLOCK_SIZE;
@@ -104,7 +104,7 @@ uint8_t bit_vec_get_bit(const struct bit_vec* bvec, const u64 bit)
 
 void bit_vec_set_bit(const struct bit_vec* bvec, const u64 bit, const u64 bit_value)
 {
-	ds_assert(bit < bvec->bit_count && bit_value <= 1);
+	ds_Assert(bit < bvec->bit_count && bit_value <= 1);
 
 	const u64 block = bit / BIT_VEC_BLOCK_SIZE;
 	const u64 block_bit = bit % BIT_VEC_BLOCK_SIZE;

@@ -186,7 +186,7 @@ void dynamic_ssff_set_sprite_parameters(struct asset_ssff *dynamic_ssff, const s
 	g_sprite[SPRITE_SORCERER_RUN_CAST_4].ssff_id = SSFF_DYNAMIC_ID;
 	g_sprite[SPRITE_SORCERER_RUN_CAST_5] = param->sprite[count++];
 	g_sprite[SPRITE_SORCERER_RUN_CAST_5].ssff_id = SSFF_DYNAMIC_ID;
-	ds_assert_string(count == param->count, "unexpected sprite count in dynamic sprite sheet, or in hardcoded values");
+	ds_AssertString(count == param->count, "unexpected sprite count in dynamic sprite sheet, or in hardcoded values");
 }
 
 void led_ssff_set_sprite_parameters(struct asset_ssff *led_ssff, const struct ssff_texture_return *param)
@@ -212,7 +212,7 @@ void led_ssff_set_sprite_parameters(struct asset_ssff *led_ssff, const struct ss
 	g_sprite[SPRITE_LED_PAUSE].ssff_id = SSFF_LED_ID;
 	g_sprite[SPRITE_LED_STOP] = param->sprite[count++];
 	g_sprite[SPRITE_LED_STOP].ssff_id = SSFF_LED_ID;
-	ds_assert_string(count == param->count, "unexpected sprite count in level editor sprite sheet, or in hardcoded values");
+	ds_AssertString(count == param->count, "unexpected sprite count in level editor sprite sheet, or in hardcoded values");
 }
 
 static struct asset_ssff **internal_asset_ssff_array_init(struct arena *mem_persistent)

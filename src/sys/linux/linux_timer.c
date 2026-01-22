@@ -77,14 +77,14 @@ u64 linux_tsc_from_ns(const u64 ns)
 
 u64 linux_time_ns_from_tsc(const u64 tsc)
 {
-	ds_assert(tsc >= g_timer.tsc_start);
+	ds_Assert(tsc >= g_timer.tsc_start);
 	const u64 ns = ns_from_tsc(tsc - g_timer.tsc_start);
 	return ns;
 }
 
 u64 linux_time_tsc_from_ns(const u64 ns)
 {
-	ds_assert(ns >= g_timer.ns_start);
+	ds_Assert(ns >= g_timer.ns_start);
 	const u64 cyc = tsc_from_ns(ns - g_timer.ns_start);
 	return cyc;
 }
@@ -124,7 +124,7 @@ u64 linux_time_ns_start(void)
 
 u64 linux_time_ns_from_os_source(const u64 ns_os_time)
 {
-	ds_assert(ns_os_time >= g_timer.ns_start);
+	ds_Assert(ns_os_time >= g_timer.ns_start);
 	return ns_os_time - g_timer.ns_start;
 }
 

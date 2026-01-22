@@ -614,7 +614,7 @@ utf8 utf8_f64_buffered(u8 buf[], const u64 bufsize, const u32 decimals, const f6
 				}
 			}
 
-			ds_assert(i == req_size);
+			ds_Assert(i == req_size);
 			str.buf = buf;
 			str.len = i;
 			str.size = bufsize;
@@ -991,7 +991,7 @@ utf32 utf32_f64_buffered(u32 buf[], const u64 buflen, const u32 decimals, const 
 				}
 			}
 
-			ds_assert(i == req_len);
+			ds_Assert(i == req_len);
 			str.buf = buf;
 			str.len = i;
 			str.max_len = i;

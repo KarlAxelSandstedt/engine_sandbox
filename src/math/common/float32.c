@@ -25,7 +25,7 @@
 
 static void f32_static_assert(void)
 {
-	ds_static_assert(F32_EPSILON == FLT_EPSILON, "Our machine epsilon does not equate to FLT_EPSILON");
+	ds_StaticAssert(F32_EPSILON == FLT_EPSILON, "Our machine epsilon does not equate to FLT_EPSILON");
 }
 
 static u32 ieee32_bit(const union ieee32 f, const u32 bit)

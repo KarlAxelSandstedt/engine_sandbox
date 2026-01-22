@@ -21,8 +21,7 @@
 #define __DS_VECTOR_H__
 
 #include "ds_common.h"
-#include "allocator.h"
-#include "allocator_debug.h"
+#include "ds_allocator.h"
 
 /****************************************** general vector ******************************************/
 
@@ -66,7 +65,6 @@ typedef struct				\
 	u32	growable;		\
 	type *	arr;			\
 					\
-	/*ALLOCATOR_DEBUG_INDEX_STRUCT*/\
 } stack_ ## type
 
 #define DECLARE_STACK_ALLOC(type)	stack_ ## type stack_ ## type ## _alloc(struct arena *arena, const u32 length, const u32 growable)
@@ -103,14 +101,12 @@ DECLARE_STACK_ALLOC(type)										\
 	{												\
 		fatal_cleanup_and_exit(ds_thread_self_tid());						\
 	}												\
-	/*ALLOCATOR_DEBUG_INDEX_ALLOC(&stack, (u8 *) stack.arr, stack.length, sizeof(type), 0);*/	\
 	return stack;											\
 }
 
 #define DEFINE_STACK_FREE(type)			\
 DECLARE_STACK_FREE(type)			\
 {						\
-	/*ALLOCATOR_DEBUG_INDEX_FREE(stack);*/	\
 	if (stack->arr)				\
 	{					\
 		free(stack->arr);		\
@@ -130,14 +126,12 @@ DECLARE_STACK_PUSH(type)											\
 			{											\
 				fatal_cleanup_and_exit(ds_thread_self_tid());					\
 			}											\
-			/*ALLOCATOR_DEBUG_INDEX_ALIAS_AND_REPOISON(stack, (u8 *) stack->arr, stack->length);*/	\
 		}												\
 		else												\
 		{												\
 			fatal_cleanup_and_exit(ds_thread_self_tid());						\
 		}												\
 	}													\
-	/*ALLOCATOR_DEBUG_INDEX_UNPOISON(stack, stack->next);*/							\
 	stack->arr[stack->next] = val;										\
 	stack->next += 1;											\
 }
@@ -145,17 +139,16 @@ DECLARE_STACK_PUSH(type)											\
 #define DEFINE_STACK_SET(type)			\
 DECLARE_STACK_SET(type)				\
 {						\
-	ds_assert(stack->next);		\
+	ds_Assert(stack->next);		\
 	stack->arr[stack->next-1] = val;	\
 }
 
 #define DEFINE_STACK_POP(type)					\
 DECLARE_STACK_POP(type)						\
 {								\
-	ds_assert(stack->next);				\
+	ds_Assert(stack->next);				\
 	stack->next -= 1;					\
 	const type val = stack->arr[stack->next];		\
-	/*ALLOCATOR_DEBUG_INDEX_POISON(stack, stack->next);*/	\
 	return val;						\
 }
 
@@ -168,7 +161,7 @@ DECLARE_STACK_FLUSH(type)					\
 #define DEFINE_STACK_TOP(type)			\
 DECLARE_STACK_TOP(type)				\
 {						\
-	ds_assert(stack->next);		\
+	ds_Assert(stack->next);		\
 	return stack->arr[stack->next-1];	\
 }
 
@@ -189,7 +182,6 @@ typedef struct				\
 	u32		growable;	\
 	vectype ## ptr	arr;		\
 					\
-	/*ALLOCATOR_DEBUG_INDEX_STRUCT*/	\
 } stack_ ## vectype
 
 #define DECLARE_STACK_VEC_ALLOC(vectype)	stack_ ## vectype stack_ ## vectype ## _alloc(struct arena *arena, const u32 length, const u32 growable)
@@ -226,14 +218,12 @@ DECLARE_STACK_VEC_ALLOC(vectype)									\
 	{												\
 		fatal_cleanup_and_exit(ds_thread_self_tid());						\
 	}												\
-	/*ALLOCATOR_DEBUG_INDEX_ALLOC(&stack, (u8 *) stack.arr, stack.length, sizeof(vectype), 0);*/	\
 	return stack;											\
 }
 
 #define DEFINE_STACK_VEC_FREE(vectype)		\
 DECLARE_STACK_VEC_FREE(vectype)			\
 {						\
-	/*ALLOCATOR_DEBUG_INDEX_FREE(stack);*/	\
 	if (stack->arr)				\
 	{					\
 		free(stack->arr);		\
@@ -253,14 +243,12 @@ DECLARE_STACK_VEC_PUSH(vectype)											\
 			{											\
 				fatal_cleanup_and_exit(ds_thread_self_tid());					\
 			}											\
-			/*ALLOCATOR_DEBUG_INDEX_ALIAS_AND_REPOISON(stack, (u8 *) stack->arr, stack->length);*/	\
 		}												\
 		else												\
 		{												\
 			fatal_cleanup_and_exit(ds_thread_self_tid());						\
 		}												\
 	}													\
-	/*ALLOCATOR_DEBUG_INDEX_UNPOISON(stack, stack->next);*/							\
 	vectype ## _copy(stack->arr[stack->next], val);								\
 	stack->next += 1;											\
 }
@@ -268,16 +256,15 @@ DECLARE_STACK_VEC_PUSH(vectype)											\
 #define DEFINE_STACK_VEC_SET(vectype)				\
 DECLARE_STACK_VEC_SET(vectype)					\
 {								\
-	ds_assert(stack->next);				\
+	ds_Assert(stack->next);				\
 	vectype ## _copy(stack->arr[stack->next-1], val);	\
 }
 
 #define DEFINE_STACK_VEC_POP(vectype)				\
 DECLARE_STACK_VEC_POP(vectype)					\
 {								\
-	ds_assert(stack->next);				\
+	ds_Assert(stack->next);				\
 	stack->next -= 1;					\
-	/*ALLOCATOR_DEBUG_INDEX_POISON(stack, stack->next);*/	\
 }
 
 #define DEFINE_STACK_VEC_FLUSH(vectype)				\
@@ -289,7 +276,7 @@ DECLARE_STACK_VEC_FLUSH(vectype)				\
 #define DEFINE_STACK_VEC_TOP(vectype)				\
 DECLARE_STACK_VEC_TOP(vectype)					\
 {								\
-	ds_assert(stack->next);				\
+	ds_Assert(stack->next);				\
 	vectype ## _copy(ret_val, stack->arr[stack->next-1]);	\
 }
 

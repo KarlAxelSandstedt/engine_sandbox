@@ -39,7 +39,7 @@ struct array_list *array_list_alloc(struct arena *mem, const u32 length, const u
 
 	if (mem)
 	{
-		ds_assert(growable == 0);
+		ds_Assert(growable == 0);
 		arena_push_record(mem);
 		list = arena_push(mem, sizeof(struct array_list));
 		if (list)
@@ -196,8 +196,8 @@ u32 array_list_reserve_index(struct array_list *list)
 
 void array_list_remove(struct array_list *list, void *addr)
 {
-	ds_assert(addr && (void *) list->slot <= addr && addr < (void *) ((u8 *) list->slot + list->length * list->slot_size));
-	ds_assert(((u64) addr - (u64) list->slot) % list->slot_size == 0);
+	ds_Assert(addr && (void *) list->slot <= addr && addr < (void *) ((u8 *) list->slot + list->length * list->slot_size));
+	ds_Assert(((u64) addr - (u64) list->slot) % list->slot_size == 0);
 	
 
 	const u32 free_i = list->free_index;
@@ -208,7 +208,7 @@ void array_list_remove(struct array_list *list, void *addr)
 
 void array_list_remove_index(struct array_list *list, const u32 index)
 {
-	ds_assert(index < list->length);
+	ds_Assert(index < list->length);
 	void *addr = (u8 *) list->slot + index * list->slot_size;
 
 	*(u32 *)((u8 *) list->slot + index * list->slot_size) = list->free_index;
@@ -223,9 +223,9 @@ void *array_list_address(struct array_list *list, const u32 index)
 
 u32 array_list_index(struct array_list *list, const void *address)
 {
-	ds_assert((u64) address >= (u64) list->slot);
-	ds_assert((u64) address < (u64) list->slot + list->length * list->slot_size);
-	ds_assert((u64) ((u64) address - (u64) list->slot) % list->slot_size == 0); 
+	ds_Assert((u64) address >= (u64) list->slot);
+	ds_Assert((u64) address < (u64) list->slot + list->length * list->slot_size);
+	ds_Assert((u64) ((u64) address - (u64) list->slot) % list->slot_size == 0); 
 	return (u32) (((u64) address - (u64) list->slot) / list->slot_size);
 }
 
@@ -235,7 +235,7 @@ struct array_list_intrusive *array_list_intrusive_alloc(struct arena *mem, const
 
 	if (mem)
 	{
-		ds_assert(growable == 0);
+		ds_Assert(growable == 0);
 		arena_push_record(mem);
 		list = arena_push(mem, sizeof(struct array_list_intrusive));
 		if (list)
@@ -311,7 +311,7 @@ struct slot array_list_intrusive_add(struct array_list_intrusive *list)
 		{
 			allocation.address =  (u8 *) list->data + list->free_index * list->data_size;
 			allocation.index = list->free_index;
-			ds_assert(((struct array_list_intrusive_node *) allocation.address)->allocated == 0);
+			ds_Assert(((struct array_list_intrusive_node *) allocation.address)->allocated == 0);
 			list->free_index = ((struct array_list_intrusive_node *) allocation.address)->next_free;
 		}
 		else
@@ -345,7 +345,7 @@ void *array_list_intrusive_reserve(struct array_list_intrusive *list)
 		if (list->free_index != U32_MAX)
 		{
 			node = (struct array_list_intrusive_node *) ((u8 *) list->data + list->free_index * list->data_size);
-			ds_assert(node->allocated == 0);
+			ds_Assert(node->allocated == 0);
 			list->free_index = node->next_free;
 		}
 		else
@@ -379,7 +379,7 @@ u32 array_list_intrusive_reserve_index(struct array_list_intrusive *list)
 		{
 			node = (struct array_list_intrusive_node *)((u8 *) list->data + index*list->data_size);
 			list->free_index = node->next_free;
-			ds_assert(node->allocated == 0);
+			ds_Assert(node->allocated == 0);
 		}
 		else
 		{
@@ -405,8 +405,8 @@ u32 array_list_intrusive_reserve_index(struct array_list_intrusive *list)
 
 void array_list_intrusive_remove(struct array_list_intrusive *list, void *addr)
 {
-	ds_assert(addr && (void *) list->data <= addr && addr < (void *) ((u8 *) list->data + list->length * list->data_size));
-	ds_assert(((u64) addr - (u64) list->data) % list->data_size == 0);
+	ds_Assert(addr && (void *) list->data <= addr && addr < (void *) ((u8 *) list->data + list->length * list->data_size));
+	ds_Assert(((u64) addr - (u64) list->data) % list->data_size == 0);
 	
 	struct array_list_intrusive_node *node = addr;
 	node->allocated = 0;
@@ -417,7 +417,7 @@ void array_list_intrusive_remove(struct array_list_intrusive *list, void *addr)
 
 void array_list_intrusive_remove_index(struct array_list_intrusive *list, const u32 index)
 {
-	ds_assert(index < list->length);
+	ds_Assert(index < list->length);
 	struct array_list_intrusive_node *node = (struct array_list_intrusive_node *) ((u8 *) list->data + index * list->data_size);
 	node->allocated = 0;
 	node->next_free = list->free_index;
@@ -432,8 +432,8 @@ void *array_list_intrusive_address(struct array_list_intrusive *list, const u32 
 
 u32 array_list_intrusive_index(struct array_list_intrusive *list, const void *address)
 {
-	ds_assert((u64) address >= (u64) list->data);
-	ds_assert((u64) address < (u64) list->data + list->length * list->data_size);
-	ds_assert((u64) ((u64) address - (u64) list->data) % list->data_size == 0); 
+	ds_Assert((u64) address >= (u64) list->data);
+	ds_Assert((u64) address < (u64) list->data + list->length * list->data_size);
+	ds_Assert((u64) ((u64) address - (u64) list->data) % list->data_size == 0); 
 	return (u32) (((u64) address - (u64) list->data) / list->data_size);
 }

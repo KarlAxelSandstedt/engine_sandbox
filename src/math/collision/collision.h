@@ -160,7 +160,7 @@ struct collision_debug
 	u8			pad[64];
 };
 
-extern ds_thread_local struct collision_debug *tl_debug;
+extern dsThreadLocal struct collision_debug *tl_debug;
 
 #ifdef DS_PHYSICS_DEBUG
 

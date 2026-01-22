@@ -158,7 +158,7 @@ static void internal_r_mesh_set_sphere(u32 *b_i, u8 *vertex_data, u32 *index_dat
 /* const_circle_points - number of vertices on single circle of sphere */
 void r_mesh_set_sphere(struct arena *mem, struct r_mesh *mesh, const f32 radius, const u32 refinement)
 {
-	ds_assert(refinement >= 3);
+	ds_Assert(refinement >= 3);
 
 	const u32 points_per_strip = 2 * refinement;
 	const u32 num_strips = refinement;
@@ -185,8 +185,8 @@ void r_mesh_set_sphere(struct arena *mem, struct r_mesh *mesh, const f32 radius,
 
 void r_mesh_set_capsule(struct arena *mem, struct r_mesh *mesh, const f32 half_height, const f32 radius, const u32 refinement)
 {
-	ds_assert(refinement >= 2);
-	ds_assert(half_height > 0.0f && radius > 0.0f);
+	ds_Assert(refinement >= 2);
+	ds_Assert(half_height > 0.0f && radius > 0.0f);
 
 	const u32 n_long_slice = 2*refinement;
 	const u32 n_lat_cap_slice = refinement;
@@ -242,7 +242,7 @@ void r_mesh_set_capsule(struct arena *mem, struct r_mesh *mesh, const f32 half_h
 		}
 	}
 
-	ds_assert(vi == n);
+	ds_Assert(vi == n);
 	arena_pop_packed(mem, (arr.len - vi) * sizeof(vec3));
 
 	struct arena tmp = arena_alloc_1MB();
@@ -321,7 +321,7 @@ void r_mesh_set_hull(struct arena *mem, struct r_mesh *mesh, const struct dcel *
 			mesh->index_count += 3;
 		}
 
-		ds_assert((u64) m_i + offset <= U32_MAX)
+		ds_Assert((u64) m_i + offset <= U32_MAX)
 		m_i += offset;
 	}
 

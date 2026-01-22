@@ -17,8 +17,8 @@
 ==========================================================================
 */
 
-#ifndef __SDL3_WRAPPER_LOCAL_H__
-#define __SDL3_WRAPPER_LOCAL_H__
+#ifndef __DS_SDL3_WRAPPER_LOCAL_H__
+#define __DS_SDL3_WRAPPER_LOCAL_H__
 
 #include "SDL3/SDL.h"
 

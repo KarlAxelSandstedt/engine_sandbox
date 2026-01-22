@@ -28,60 +28,12 @@
 #include "allocator.h"
 #include "ds_string.h"
 
-/******************** wasm memory utils  ********************/
-
-#define INLINE		inline
-#define ALIGN(m)	__attribute__((aligned (m)))	
-#define memory_alloc_aligned(ptr_addr, size, alignment)	posix_memalign((void **)(ptr_addr),(alignment),(size))
-
 /******************** wasm_error.c ********************/
 
 #include <stdarg.h>
 #include <signal.h>
 #include <errno.h>
 #include "log.h"
-
-#define ds_static_assert(assertion, str)	_Static_assert(assertion, str)
-
-#ifdef DS_ASSERT_DEBUG
-#define ds_assert(assertion)			_kas_assert(assertion, __FILE__, __LINE__, __func__)
-#define ds_assert_string(assertion, cstr)	_kas_assert_string(assertion, __FILE__, __LINE__, __func__, cstr) 
-#define ds_assert_message(assertion, msg, ...)	_kas_assert_message(assertion, __FILE__, __LINE__, __func__, msg, __VA_ARGS__)
-
-#define _kas_assert(assertion, file, line, func)							\
-	if (assertion) { }										\
-	else												\
-	{												\
-		log(T_ASSERT, S_FATAL, "assertion failed at %s:%u in function %s", file, line, func);	\
-		raise(SIGTRAP);										\
-	}
-
-#define _kas_assert_string(assertion, file, line, func, cstr)							 \
-	if (assertion) { }			     								 \
-	else													 \
-	{													 \
-		log(T_ASSERT, S_FATAL, "assertion failed at %s:%u in function %s - %s", file, line, func, cstr); \
-		raise(SIGTRAP);											 \
-	}
-
-#define _kas_assert_message(assertion, file, line, func, msg, ...)						    \
-	if (assertion) { }											    \
-	else													    \
-	{													    \
-		u8 __msg_buf[LOG_MAX_MESSAGE_SIZE];								    \
-		const utf8 __fmsg = utf8_format_buffered(__msg_buf, LOG_MAX_MESSAGE_SIZE, msg, __VA_ARGS__);	    \
-		log(T_ASSERT, S_FATAL, "assertion failed at %s:%u in function %s - %k", file, line, func, &__fmsg); \
-		raise(SIGTRAP);											    \
-	}
-
-#else
-#define ds_assert(assertion)
-#define ds_assert_string(assertion, str)
-#define ds_assert_message(assertion, msg, ...)
-#define _kas_assert(assertion, file, line, func)
-#define _kas_assert_string(assertion, file, line, func, str)
-#define _kas_assert_message(assertion, file, line, func, str, ...)
-#endif
 
 #define ERROR_BUFSIZE	512
 #define LOG_SYSTEM_ERROR(severity)		_LOG_SYSTEM_ERROR_CODE(severity, errno, __func__, __FILE__, __LINE__)

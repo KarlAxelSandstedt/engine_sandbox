@@ -43,46 +43,46 @@
 /*** synchronization definitions ***/
 
 /*** system definitions ***/
-#define __SDL3__	0
-#define __X11__		1
-#define __WAYLAND__	2
+#define __DS_SDL3__	0
+#define __DS_X11__		1
+#define __DS_WAYLAND__	2
 
-#define __WIN64__	3
-#define __LINUX__	4
-#define __WEB__		5
+#define __DS_WIN64__	3
+#define __DS_LINUX__	4
+#define __DS_WEB__		5
 
-#define __GCC__ 	6
-#define __MSVC__ 	7
+#define __DS_GCC__ 	6
+#define __DS_MSVC__ 	7
 
 /* OS api */
 #if defined(__linux__)
-	#define __OS__ 	__LINUX__
+	#define __DS_PLATFORM__ 	__DS_LINUX__
 #elif defined(__EMSCRIPTEN__)
-	#define __OS__ 	__WEB__
+	#define __DS_PLATFORM__ 	__DS_WEB__
 #elif defined(_WIN64)
-	#define __OS__ 	__WIN64__
+	#define __DS_PLATFORM__ 	__DS_WIN64__
 #endif
 
-#define __GAPI__ __SDL3__
+#define __GAPI__ __DS_SDL3__
 
 #if defined(__EMSCRIPTEN__)
 	#define __COMPILER__ 		__EMSCRIPTEN__ 
-	#define ds_thread_local	__thread
-	#ifndef LITTLE_ENDIAN
-		#define LITTLE_ENDIAN
+	#define dsThreadLocal	__thread
+	#ifndef DS_LITTLE_ENDIAN
+		#define DS_LITTLE_ENDIAN
 	#endif
 #elif defined(__GNUC__)
-	#define __COMPILER__ 		__GCC__
-	#define ds_thread_local	__thread
+	#define __COMPILER__ 		__DS_GCC__
+	#define dsThreadLocal	__thread
 	#if (__BYTE_ORDER__ == __ORDER_LITTLE_ENDIAN)
-		#define LITTLE_ENDIAN
+		#define DS_LITTLE_ENDIAN
 	#elif (__BYTE_ORDER__ == __ORDER_BIG_ENDIAN)
-		#define BIG_ENDIAN
+		#define DS_BIG_ENDIAN
 	#endif
 #elif defined(_MSC_VER)
-	#define __COMPILER__ 		__MSVC__
-	#define ds_thread_local	__declspec(thread)
-	#define LITTLE_ENDIAN
+	#define __COMPILER__ 		__DS_MSVC__
+	#define dsThreadLocal	__declspec(thread)
+	#define DS_LITTLE_ENDIAN
 #endif
 
 #include "ds_types.h"

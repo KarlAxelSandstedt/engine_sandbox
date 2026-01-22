@@ -71,14 +71,14 @@ static u64 win_tsc_from_ns(const u64 ns)
 
 static u64 win_time_ns_from_tsc(const u64 tsc)
 {
-	ds_assert(tsc >= g_timer.tsc_start);
+	ds_Assert(tsc >= g_timer.tsc_start);
 	const u64 ns = ns_from_tsc(tsc - g_timer.tsc_start);
 	return ns;
 }
 
 static u64 win_time_tsc_from_ns(const u64 ns)
 {
-	ds_assert(ns >= g_timer.ns_start);
+	ds_Assert(ns >= g_timer.ns_start);
 	const u64 cyc = tsc_from_ns(ns - g_timer.ns_start);
 	return cyc;
 }

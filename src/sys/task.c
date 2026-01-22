@@ -270,5 +270,5 @@ void task_stream_spin_wait(struct task_stream *stream)
 void task_stream_cleanup(struct task_stream *stream)
 {
 	const u32 finished = (atomic_load_acq_32(&stream->a_completed) == stream->task_count);
-	ds_assert_string(finished, "Bad use of task stream, when (and only) the main thread enters task_stream_cleanup, all tasks must have been dispatched and completed.");
+	ds_AssertString(finished, "Bad use of task stream, when (and only) the main thread enters task_stream_cleanup, all tasks must have been dispatched and completed.");
 }

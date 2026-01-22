@@ -28,7 +28,7 @@ void semaphore_init(semaphore *sem, const u32 val)
 	if (sem_init(sem, 1, val) == -1)
 	{
 		LOG_SYSTEM_ERROR(S_FATAL);
-		ds_assert(0);
+		ds_Assert(0);
 	}
 }
 
@@ -37,7 +37,7 @@ void semaphore_destroy(semaphore *sem)
 	if (sem_destroy(sem) == -1)
 	{
 		LOG_SYSTEM_ERROR(S_FATAL);
-		ds_assert(0);
+		ds_Assert(0);
 	}	
 }
 
@@ -46,7 +46,7 @@ void semaphore_post(semaphore *sem)
 	if (sem_post(sem) == -1)
 	{
 		LOG_SYSTEM_ERROR(S_FATAL);
-		ds_assert(0);
+		ds_Assert(0);
 	}
 }
 
@@ -58,7 +58,7 @@ u32 semaphore_wait(semaphore *sem)
 		if (errno == EINVAL)
 		{
 			LOG_SYSTEM_ERROR(S_FATAL);
-			ds_assert(0);
+			ds_Assert(0);
 		}	
 
 		success = 0;
@@ -75,7 +75,7 @@ u32 semaphore_trywait(semaphore *sem)
 		if (errno == EINVAL)
 		{
 			LOG_SYSTEM_ERROR(S_FATAL);
-			ds_assert(0);
+			ds_Assert(0);
 		}	
 
 		success = 0;

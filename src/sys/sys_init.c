@@ -54,7 +54,7 @@ void system_resources_init(struct arena *mem)
 	/* must initalize stuff in multithreaded dtoa/strtod */
 	dmg_dtoa_init(g_arch_config->logical_core_count);
 
-#if __OS__ != __WEB__
+#if __DS_PLATFORM__ != __DS_WEB__
 	log(T_SYSTEM, S_NOTE, "clock resolution (us): %3f", (f64) time_ns_per_tick() / 1000.0);
 	log(T_SYSTEM, S_NOTE, "rdtsc estimated frequency (GHz): %3f", (f32) freq_rdtsc() / 1000000000);
 	for (u32 i = 0; i < g_arch_config->logical_core_count; ++i)

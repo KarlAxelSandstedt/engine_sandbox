@@ -203,14 +203,14 @@ void font_build(struct arena *mem, const enum font_id id)
 			offset[0] = 0;		
 			offset[1] += asset->pixel_glyph_height;
 		}
-		ds_assert(offset[1] + g->size[1] <= font->pixmap_height);
+		ds_Assert(offset[1] + g->size[1] <= font->pixmap_height);
 
 		for (i32 y = 0; y < g->size[1]; ++y)
 		{
 			for (i32 x = 0; x < g->size[0]; ++x)
 			{
-				ds_assert(offset[1] + y < font->pixmap_height);
-				ds_assert(offset[0] + x < font->pixmap_width);
+				ds_Assert(offset[1] + y < font->pixmap_height);
+				ds_Assert(offset[0] + x < font->pixmap_width);
 				alpha[(offset[1] + g->size[1] - 1 - y)*font->pixmap_width + (offset[0] + x)] = pixels[y*g->size[0] + x];
 			}
 		}
@@ -225,7 +225,7 @@ void font_build(struct arena *mem, const enum font_id id)
 
 	if (FT_HAS_KERNING(face))
 	{
-		ds_assert_string(0, "Font supports kerning, but we do not!\n");
+		ds_AssertString(0, "Font supports kerning, but we do not!\n");
 	}
 
 	font_serialize(asset, font);

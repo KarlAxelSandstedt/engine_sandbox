@@ -215,15 +215,14 @@
  
 void set_max_dtoa_threads(unsigned int n);
 
-#include "kas_common.h"
-#include "memory.h"
+#include "ds_types.h"
 
 #define IEEE_8087
 #define NO_ERRNO
 
 #define MULTIPLE_THREADS
 
-#if __OS__ == __LINUX__
+#if __DS_PLATFORM__ == __DS_LINUX__
 #include <pthread.h>
 static pthread_mutex_t g_lock[2] = { PTHREAD_MUTEX_INITIALIZER, PTHREAD_MUTEX_INITIALIZER };
 #define ACQUIRE_DTOA_LOCK(n) 	pthread_mutex_lock(g_lock + n)
@@ -233,7 +232,7 @@ void dmg_dtoa_init(const u32 max_thread_count)
 {
 	set_max_dtoa_threads(max_thread_count);
 }
-#elif __OS__ == __WEB__
+#elif __DS_PLATFORM__ == __DS_WEB__
 #define _GNU_SOURCE
 #include <pthread.h>
 #include <unistd.h>
@@ -254,7 +253,7 @@ void dmg_dtoa_init(const u32 max_thread_count)
 //{
 //	set_max_dtoa_threads(max_thread_count);
 //}
-#elif __OS__ == __WIN64__
+#elif __DS_PLATFORM__ == __DS_WIN64__
 #include <windows.h>
 static CRITICAL_SECTION g_lock[2];
 #define ACQUIRE_DTOA_LOCK(n) 	EnterCriticalSection(g_lock + n)

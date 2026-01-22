@@ -72,7 +72,7 @@ void vec4i32_print(const char *text, const vec4i32 v)
 	fprintf(stderr, "%s: (%i, %i, %i, %i), \n", text, v[0], v[1], v[2], v[3]);
 }
 
-#if (__COMPILER__ == __GCC__)
+#if (__COMPILER__ == __DS_GCC__)
 void vec2i64_print(const char *text, const vec2i64 v)
 {
 	fprintf(stderr, "%s: (%li, %li), \n", text, v[0], v[1]);
@@ -102,7 +102,7 @@ void vec4u64_print(const char *text, const vec4u64 v)
 {
 	fprintf(stderr, "%s: (%lu, %lu, %lu, %lu), \n", text, v[0], v[1], v[2], v[3]);
 }
-#elif (__COMPILER__ == __MSVC__)
+#elif (__COMPILER__ == __DS_MSVC__)
 void vec2i64_print(const char *text, const vec2i64 v)
 {
 	fprintf(stderr, "%s: (%lli, %lli), \n", text, v[0], v[1]);

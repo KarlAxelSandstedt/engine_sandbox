@@ -125,7 +125,7 @@ u32 win_cstr_path_is_relative(const char *path)
 
 enum fs_error win_file_try_create(struct arena *mem, struct file *file, const char *filename, const struct file *dir, const u32 truncate)
 {
-	ds_assert(file->handle == FILE_HANDLE_INVALID);
+	ds_Assert(file->handle == FILE_HANDLE_INVALID);
 	file->handle = FILE_HANDLE_INVALID;
 		
 	enum fs_error err = FS_SUCCESS;
@@ -182,7 +182,7 @@ enum fs_error win_file_try_create_at_cwd(struct arena *mem, struct file *file, c
 
 enum fs_error win_file_try_open(struct arena *mem, struct file *file, const char *filename, const struct file *dir, const u32 writeable)
 {
-	ds_assert(file->handle == FILE_HANDLE_INVALID);
+	ds_Assert(file->handle == FILE_HANDLE_INVALID);
 	file->handle = FILE_HANDLE_INVALID;
 		
 	enum fs_error err = FS_SUCCESS;
@@ -238,7 +238,7 @@ enum fs_error win_file_try_open_at_cwd(struct arena *mem, struct file *file, con
 
 enum fs_error win_directory_try_create(struct arena *mem, struct file *dir, const char *filename, const struct file *parent_dir)
 {
-	ds_assert(dir->handle == FILE_HANDLE_INVALID);
+	ds_Assert(dir->handle == FILE_HANDLE_INVALID);
 	dir->handle = FILE_HANDLE_INVALID;
 		
 	enum fs_error err = FS_SUCCESS;
@@ -293,7 +293,7 @@ enum fs_error win_directory_try_create_at_cwd(struct arena *mem, struct file *di
 
 enum fs_error win_directory_try_open(struct arena *mem, struct file *dir, const char *filename, const struct file *parent_dir)
 {
-	ds_assert(dir->handle == FILE_HANDLE_INVALID);
+	ds_Assert(dir->handle == FILE_HANDLE_INVALID);
 	dir->handle = FILE_HANDLE_INVALID;
 		
 	enum fs_error err = FS_SUCCESS;
@@ -363,7 +363,7 @@ struct ds_buffer win_file_dump(struct arena *mem, const char *path, const struct
 		{
 			DWORD bytes_read;
 			buf.size = size.QuadPart;
-			ds_assert(size.QuadPart <= U32_MAX);
+			ds_Assert(size.QuadPart <= U32_MAX);
 			if (!ReadFile(file.handle, buf.data, (u32) buf.size, &bytes_read, NULL))
 			{
 				log_system_error(S_ERROR);
@@ -372,7 +372,7 @@ struct ds_buffer win_file_dump(struct arena *mem, const char *path, const struct
 			}
 			else
 			{
-				ds_assert(bytes_read == buf.size);
+				ds_Assert(bytes_read == buf.size);
 			}
 		}
 	}
@@ -440,7 +440,7 @@ u64 win_file_write_offset(const struct file *file, const u8 *buf, const u64 size
 
 	/* Seems like no memory maps will see our writes if we do not sync... TODO: Fix sane api */
 	file_sync(file);
-	ds_assert_message(bytes_written == size, "bytes_written = %u, size = %u\n", bytes_written, size); 
+	ds_AssertMessage(bytes_written == size, "bytes_written = %u, size = %u\n", bytes_written, size); 
 	return bytes_written;
 
 }
@@ -464,7 +464,7 @@ u64 win_file_write_append(const struct file *file, const u8 *buf, const u64 size
 	/* Seems like no memory maps will see our writes if we do not sync... TODO: Fix sane api */
 	file_sync(file);
 
-	ds_assert_message(bytes_written == size, "bytes_written = %u, size = %u\n", bytes_written, size); 
+	ds_AssertMessage(bytes_written == size, "bytes_written = %u, size = %u\n", bytes_written, size); 
 
 	return bytes_written;
 }

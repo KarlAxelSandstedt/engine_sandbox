@@ -30,7 +30,7 @@
 
 struct bvh dbvh_alloc(struct arena *mem, const u32 initial_length, const u32 growable)
 {
-	ds_assert(!mem || !growable);
+	ds_Assert(!mem || !growable);
 	struct bvh bvh =
 	{
 		.tree = bt_alloc(mem, initial_length, struct bvh_node, growable),
@@ -297,7 +297,7 @@ u32 dbvh_insert(struct bvh *bvh, const u32 id, const struct AABB *bbox)
 void dbvh_remove(struct bvh *bvh, const u32 index)
 {
 	struct bvh_node *nodes = (struct bvh_node *) bvh->tree.pool.buf;
-	ds_assert(BT_IS_LEAF(nodes + index));
+	ds_Assert(BT_IS_LEAF(nodes + index));
 
 	u32 parent = nodes[index].bt_parent & BT_PARENT_INDEX_MASK;
 	if (parent == POOL_NULL)
@@ -490,7 +490,7 @@ void bvh_validate(struct arena *tmp, const struct bvh *bvh)
 		if (!BT_IS_ROOT(node + i))
 		{
 			const u32 parent = node[i].bt_parent & BT_PARENT_INDEX_MASK;
-			ds_assert(AABB_contains_margin(&node[parent].bbox, &node[i].bbox, 0.001f));
+			ds_Assert(AABB_contains_margin(&node[parent].bbox, &node[i].bbox, 0.001f));
 		}
 
 		if (!BT_IS_LEAF(node + stack[sc]))
@@ -505,7 +505,7 @@ void bvh_validate(struct arena *tmp, const struct bvh *bvh)
 
 struct tri_mesh_bvh tri_mesh_bvh_construct(struct arena *mem, const struct tri_mesh *mesh, const u32 bin_count)
 {
-	ds_assert(bin_count);
+	ds_Assert(bin_count);
 	if (!mesh->tri_count)
 	{
 		return (struct tri_mesh_bvh) { 0 };
@@ -582,7 +582,7 @@ struct tri_mesh_bvh tri_mesh_bvh_construct(struct arena *mem, const struct tri_m
 		node->bbox = bbox_union(node->bbox, bbox_tri[i]);
 	}
 
-	ds_assert_string(vec3_length(node->bbox.center) < 0.0001f, "Center should most likely be 0.0, so the root box center defines a local origin!");
+	ds_AssertString(vec3_length(node->bbox.center) < 0.0001f, "Center should most likely be 0.0, so the root box center defines a local origin!");
 	
 	/* Process triangles from left to right, depth-first. */
 	while (sc--)
@@ -702,7 +702,7 @@ struct tri_mesh_bvh tri_mesh_bvh_construct(struct arena *mem, const struct tri_m
 
 				struct slot slot_left, slot_right;
 				bt_node_add_children(&mesh_bvh.bvh.tree, &slot_left, &slot_right, node_stack[sc]);
-				ds_assert(slot_left.address && slot_right.address);
+				ds_Assert(slot_left.address && slot_right.address);
 
 				struct bvh_node *child_left = slot_left.address;
 				struct bvh_node *child_right = slot_right.address;

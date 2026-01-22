@@ -31,11 +31,11 @@
 #include "hierarchy_index.h"
 #include "ds_vector.h"
 
-#if __OS__ == __LINUX__
+#if __DS_PLATFORM__ == __DS_LINUX__
 #include "linux_public.h"
-#elif __OS__ == __WIN64__
+#elif __DS_PLATFORM__ == __DS_WIN64__
 #include "win_public.h"
-#elif __OS__ == __WEB__
+#elif __DS_PLATFORM__ == __DS_WEB__
 #include "wasm_public.h"
 #endif
 
@@ -324,12 +324,12 @@ extern enum fs_error		(*cwd_set)(struct arena *mem, const char *path);
 /************************************************************************/
 
 #if (__COMPILER__ == __EMSCRIPTEN__)
-#elif (__COMPILER__ == __GCC__)
+#elif (__COMPILER__ == __DS_GCC__)
 	#include <x86intrin.h>
 	#define	rdtsc()			__rdtsc()
 	/* RDTSC + Read OS dependent IA32_TSC_AUX. All previous instructions finsish (RW finish?) before rdtscp is run. */
 	#define	rdtscp(core_addr)	__rdtscp(core_addr)
-#elif (__COMPILER__ == __MSVC__)
+#elif (__COMPILER__ == __DS_MSVC__)
 	#include <intrin.h>
 	#define	rdtsc()			__rdtsc()
 	/* RDTSC + Read OS dependent IA32_TSC_AUX. All previous instructions finsish (RW finish?) before rdtscp is run. */

@@ -223,10 +223,10 @@ static void cmd_tokenize_string(struct cmd *cmd)
 					token_type = CMD_TOKEN_U64;
 				}
 			}
-			ds_assert(token_type != CMD_TOKEN_INVALID);
+			ds_Assert(token_type != CMD_TOKEN_INVALID);
 		}
 
-		ds_assert(!codepoints_left || text[i] == ' ' || text[i] == '\t' || text[i] == '\n');
+		ds_Assert(!codepoints_left || text[i] == ' ' || text[i] == '\t' || text[i] == '\n');
 		if (codepoints_left && (text[i] != ' ' && text[i] != '\t' && text[i] != '\n'))
 		{
 			token_type = CMD_TOKEN_INVALID;

@@ -47,7 +47,7 @@ u64 power_of_two_ceil(const u64 n)
 
 	/* [1, 63] */
 	const u32 lz = clz64(n);
-	ds_assert_string(lz > 0, "Overflow in power_of_two_ceil");
+	ds_AssertString(lz > 0, "Overflow in power_of_two_ceil");
 	return (u64) 0x8000000000000000 >> (lz-1);
 }
 

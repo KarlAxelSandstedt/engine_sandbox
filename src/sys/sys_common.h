@@ -26,11 +26,11 @@
 #include "list.h"
 
 /* MACROS, GLOBALS and SYSTEM-LEVEL STRUCTS */
-#if __OS__ == __LINUX__
+#if __DS_PLATFORM__ == __DS_LINUX__
 #include "linux_public.h"
-#elif __OS__ == __WEB__
+#elif __DS_PLATFORM__ == __DS_WEB__
 #include "wasm_public.h"
-#elif __OS__ == __WIN64__
+#elif __DS_PLATFORM__ == __DS_WIN64__
 #include "win_public.h"
 #endif
 

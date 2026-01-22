@@ -228,7 +228,7 @@ static void internal_intel_determine_cache_attributes(const u32 largest_standard
 	u32 eax, ebx, ecx, edx, no_report = 0;
 	const u32 cacheline_tlb_func = 0x2;
 	ds_cpuid(&eax, &ebx, &ecx, &edx, cacheline_tlb_func);
-	ds_assert((eax & 0xff) == 0x1);
+	ds_Assert((eax & 0xff) == 0x1);
 
 	if ((eax & (1u << 31)) == 0)
 	{
@@ -273,7 +273,7 @@ static void internal_intel_determine_cache_attributes(const u32 largest_standard
 				if (type == 0) { break; }
 				else if (type == 1)
 				{
-					ds_assert_string((eax & 0xe0) == 1, "Expects first indexable data cache to be level 1");
+					ds_AssertString((eax & 0xe0) == 1, "Expects first indexable data cache to be level 1");
 					config.cacheline = ebx & 0xfff;
 					break;
 				}
@@ -385,7 +385,7 @@ u32 ds_arch_config_init(struct arena *mem)
 	config.pid = system_pid();
 
 	u32 requirements_fullfilled = 1;
-#if __OS__ == __WEB__
+#if __DS_PLATFORM__ == __DS_WEB__
 	config.vendor_string = utf8_inline("Web Browser (TODO)");
 	config.processor_string = utf8_inline("Web CPU (TODO)");
 	//TODO check SIMD support 

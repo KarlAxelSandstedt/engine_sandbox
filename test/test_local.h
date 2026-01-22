@@ -202,7 +202,7 @@ struct suite
 };
 
 #ifdef KAS_DEBUG
-#define TEST_FAILURE { output.success = 0; output.file = __FILE__; output.line = __LINE__; breakpoint(1); return output; }
+#define TEST_FAILURE { output.success = 0; output.file = __FILE__; output.line = __LINE__; Breakpoint(1); return output; }
 #else
 #define TEST_FAILURE { output.success = 0; output.file = __FILE__; output.line = __LINE__; return output; }
 #endif 

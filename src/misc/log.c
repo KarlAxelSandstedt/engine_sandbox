@@ -18,7 +18,7 @@
 */
 
 #include "ds_common.h"
-#if __OS__ == __WEB__
+#if __DS_PLATFORM__ == __DS_WEB__
 #include <emscripten/console.h>
 #endif
 #include "log.h"
@@ -204,7 +204,7 @@ void log_write_message(const enum system_id system, const enum severity_id sever
 	utf8 formatted = utf8_format_buffered_variadic(&req_size, buf, LOG_MAX_MESSAGE_SIZE, format, args);
 	va_end(args);
 
-#if __OS__ == __WEB__
+#if __DS_PLATFORM__ == __DS_WEB__
 	utf8 str = utf8_format_buffered(msg->buf, LOG_MAX_MESSAGE_SIZE-1, "[%lu.%lu%lu%lus] %k %k - Thread %u: %k",
 #else
 	utf8 str = utf8_format_buffered(msg->buf, LOG_MAX_MESSAGE_SIZE-1, "[%lu.%lu%lu%lus] %k %k - Thread %u: %k\n",
@@ -227,7 +227,7 @@ void log_write_message(const enum system_id system, const enum severity_id sever
 		atomic_store_rel_32(&msg->a_in_use_and_completed, 1);
 		return;
 	}
-#if __OS__ == __WEB__
+#if __DS_PLATFORM__ == __DS_WEB__
 	emscripten_out((char *) msg->buf);
 #else
 	fprintf(stdout, "%s", msg->buf);

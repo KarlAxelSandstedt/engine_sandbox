@@ -79,7 +79,7 @@ void csg_serialize(struct serialize_stream *ss, const struct csg *csg)
 
 struct csg csg_deserialize(struct arena *mem, struct serialize_stream *ss, const u32 growable)
 {
-	ds_assert(!mem || !growable);
+	ds_Assert(!mem || !growable);
 }
 
 static void csg_apply_delta(struct csg *csg)

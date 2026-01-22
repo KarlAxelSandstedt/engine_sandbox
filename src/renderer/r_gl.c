@@ -47,13 +47,13 @@ static void gl_state_assert_blending(void)
 	gl_state->func.glGetIntegerv(GL_BLEND_DST_RGB,   &func_d_rgb);
 	gl_state->func.glGetIntegerv(GL_BLEND_DST_ALPHA, &func_d_a);
 
-	ds_assert(gl_state->blend == gl_state->func.glIsEnabled(GL_BLEND));
-	ds_assert((GLint) gl_state->eq_rgb == eq_rgb);
-	ds_assert((GLint) gl_state->eq_a == eq_a);
-	ds_assert((GLint) gl_state->func_s_rgb == func_s_rgb);
-	ds_assert((GLint) gl_state->func_s_a == func_s_a);
-	ds_assert((GLint) gl_state->func_d_rgb == func_d_rgb);
-	ds_assert((GLint) gl_state->func_d_a == func_d_a);
+	ds_Assert(gl_state->blend == gl_state->func.glIsEnabled(GL_BLEND));
+	ds_Assert((GLint) gl_state->eq_rgb == eq_rgb);
+	ds_Assert((GLint) gl_state->eq_a == eq_a);
+	ds_Assert((GLint) gl_state->func_s_rgb == func_s_rgb);
+	ds_Assert((GLint) gl_state->func_s_a == func_s_a);
+	ds_Assert((GLint) gl_state->func_d_rgb == func_d_rgb);
+	ds_Assert((GLint) gl_state->func_d_a == func_d_a);
 }
 
 static void gl_state_assert_culling(void)
@@ -63,9 +63,9 @@ static void gl_state_assert_culling(void)
 	gl_state->func.glGetIntegerv(GL_CULL_FACE_MODE, &cull_mode);
 	gl_state->func.glGetIntegerv(GL_FRONT_FACE, &face_front);
 
-	ds_assert(gl_state->cull_face == gl_state->func.glIsEnabled(GL_CULL_FACE));
-	ds_assert((GLint) gl_state->cull_mode == cull_mode);
-	ds_assert((GLint) gl_state->face_front == face_front);
+	ds_Assert(gl_state->cull_face == gl_state->func.glIsEnabled(GL_CULL_FACE));
+	ds_Assert((GLint) gl_state->cull_mode == cull_mode);
+	ds_Assert((GLint) gl_state->face_front == face_front);
 }
 
 static void gl_state_assert_texture_unit(void)
@@ -73,7 +73,7 @@ static void gl_state_assert_texture_unit(void)
 	struct gl_state *gl_state = array_list_intrusive_address(g_gl_state_list, g_gl_state);
 	GLint tx_unit_active;
 	gl_state->func.glGetIntegerv(GL_ACTIVE_TEXTURE, (GLint *) &tx_unit_active);
-	ds_assert((GLint) gl_state->tx_unit_active == (tx_unit_active - GL_TEXTURE0));
+	ds_Assert((GLint) gl_state->tx_unit_active == (tx_unit_active - GL_TEXTURE0));
 
 	for (GLuint i = 0; i < g_gl_limits->tx_unit_count; ++i)
 	{
@@ -88,10 +88,10 @@ static void gl_state_assert_texture_unit(void)
 			for (u32 k = tx->binding_list.first; k != DLL_NULL; k = binding->dll_next)
 			{
  				binding = pool_address(&g_binding_pool, k);
-				ds_assert(binding->header.allocated);
+				ds_Assert(binding->header.allocated);
 				if (binding->context == g_gl_state)
 				{
-					ds_assert(binding->tx_unit == i);
+					ds_Assert(binding->tx_unit == i);
 					break;
 				}
 			}
@@ -109,11 +109,11 @@ static void gl_state_assert_texture_unit(void)
 			gl_state->func.glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, &wrap_s);
 			gl_state->func.glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, &wrap_t);
 
-			ds_assert((GLint) tx->name == tx_2d);
-			ds_assert(tx->wrap_s == wrap_s);
-			ds_assert(tx->wrap_t == wrap_t);
-			ds_assert(tx->mag_filter == mag_filter);
-			ds_assert(tx->min_filter == min_filter);
+			ds_Assert((GLint) tx->name == tx_2d);
+			ds_Assert(tx->wrap_s == wrap_s);
+			ds_Assert(tx->wrap_t == wrap_t);
+			ds_Assert(tx->mag_filter == mag_filter);
+			ds_Assert(tx->min_filter == min_filter);
 		}
 
 		if (tx2 != 0)
@@ -125,11 +125,11 @@ static void gl_state_assert_texture_unit(void)
 			gl_state->func.glGetTexParameteriv(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, &wrap_s);
 			gl_state->func.glGetTexParameteriv(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, &wrap_t);
 
-			ds_assert((GLint) tx->name == tx_cube);
-			ds_assert(tx->wrap_s == wrap_s);
-			ds_assert(tx->wrap_t == wrap_t);
-			ds_assert(tx->mag_filter == mag_filter);
-			ds_assert(tx->min_filter == min_filter);
+			ds_Assert((GLint) tx->name == tx_cube);
+			ds_Assert(tx->wrap_s == wrap_s);
+			ds_Assert(tx->wrap_t == wrap_t);
+			ds_Assert(tx->mag_filter == mag_filter);
+			ds_Assert(tx->min_filter == min_filter);
 		}
 	}
 
@@ -483,7 +483,7 @@ static struct gl_texture *internal_tx_unit_get_texture_target(const GLenum targe
 	}
 	else
 	{
-		ds_assert(target == GL_TEXTURE_CUBE_MAP);
+		ds_Assert(target == GL_TEXTURE_CUBE_MAP);
 		tx = array_list_address(tx_list, gl_state->tx_unit[unit].gl_tx_cube_map_index);
 	}
 
@@ -713,14 +713,14 @@ void ds_glDeleteTextures(const GLsizei count, const GLuint tx[])
 			{
 				binding = pool_address(&g_binding_pool, k);
 				struct gl_state *local_state = array_list_intrusive_address(g_gl_state_list, binding->context);
-				ds_assert(binding->tx_unit < g_gl_limits->tx_unit_count);
+				ds_Assert(binding->tx_unit < g_gl_limits->tx_unit_count);
 				if (local_state->tx_unit[binding->tx_unit].gl_tx_2d_index == tx[i])
 				{
 					local_state->tx_unit[binding->tx_unit].gl_tx_2d_index = 0;
 				}
 				else	
 				{
-					ds_assert(local_state->tx_unit[binding->tx_unit].gl_tx_cube_map_index == tx[i]);
+					ds_Assert(local_state->tx_unit[binding->tx_unit].gl_tx_cube_map_index == tx[i]);
 					local_state->tx_unit[binding->tx_unit].gl_tx_cube_map_index = 0;
 				}
 				local_state->tx_unit[binding->tx_unit].binding = DLL_NULL;
@@ -740,7 +740,7 @@ void ds_glBindTexture(const GLenum target, const GLuint tx)
 	GLuint prev_tx;
 	if (target == GL_TEXTURE_2D)
 	{
-		ds_assert_string(tx == 0 || unit->gl_tx_cube_map_index != tx, "While it is may be possible  \
+		ds_AssertString(tx == 0 || unit->gl_tx_cube_map_index != tx, "While it is may be possible  \
 								to bind a texture to several *different* type of \
 								targets, you are probably doing something fucky  \
 								wucky by mistake.\n");
@@ -749,8 +749,8 @@ void ds_glBindTexture(const GLenum target, const GLuint tx)
 	}
 	else
 	{
-		ds_assert(target == GL_TEXTURE_CUBE_MAP);
-		ds_assert_string(tx == 0 || unit->gl_tx_2d_index != tx,       "While it is may be possible \
+		ds_Assert(target == GL_TEXTURE_CUBE_MAP);
+		ds_AssertString(tx == 0 || unit->gl_tx_2d_index != tx,       "While it is may be possible \
 								to bind a texture to several *different* type of \
 								targets, you are probably doing something fucky  \
 								wucky by mistake.\n");
@@ -832,7 +832,7 @@ void ds_glBindTexture(const GLenum target, const GLuint tx)
 		//fprintf(stderr, "context; %p\t binding (UNIT,TEXTURE) : (%u,%u)\n", g_gl_state, gl_state->tx_unit_active, 0);
 	}
 
-	//breakpoint(1);
+	//Breakpoint(1);
 }
 
 void ds_glTexImage2D(const GLenum target,
@@ -863,7 +863,7 @@ void ds_glTexImage2D(const GLenum target,
 	}
 	else
 	{
-		ds_assert(target == GL_TEXTURE_CUBE_MAP);
+		ds_Assert(target == GL_TEXTURE_CUBE_MAP);
 		max_size = g_gl_limits->max_cube_map_tx_size;
 	}
 
@@ -888,7 +888,7 @@ void ds_glTexParameteri(const GLenum target, const GLenum pname, const GLint par
 		case GL_TEXTURE_MIN_FILTER: { tx->min_filter = param; } break;
 		case GL_TEXTURE_WRAP_S:	    { tx->wrap_s = param; } break;
 		case GL_TEXTURE_WRAP_T:	    { tx->wrap_t = param; } break;
-		default: 		    { ds_assert(0); }; break;
+		default: 		    { ds_Assert(0); }; break;
 	}
 
 	gl_state->func.glTexParameteri(target, pname, param);
@@ -905,7 +905,7 @@ void ds_glTexParameterf(const GLenum target, const GLenum pname, const GLfloat p
 		case GL_TEXTURE_MIN_FILTER: { tx->min_filter = param; } break;
 		case GL_TEXTURE_WRAP_S:	    { tx->wrap_s = param; } break;
 		case GL_TEXTURE_WRAP_T:	    { tx->wrap_t = param; } break;
-		default: 		    { ds_assert(0); }; break;
+		default: 		    { ds_Assert(0); }; break;
 	}
 
 	gl_state->func.glTexParameterf(target, pname, param);
@@ -918,7 +918,7 @@ void ds_glTexParameteriv(const GLenum target, const GLenum pname, const GLint *p
 
 	switch (pname)
 	{
-		default: 		    	{ ds_assert(0); } break;
+		default: 		    	{ ds_Assert(0); } break;
 	}
 
 	gl_state->func.glTexParameteriv(target, pname, params);
@@ -931,7 +931,7 @@ void ds_glTexParameterfv(const GLenum target, const GLenum pname, const GLfloat 
 
 	switch (pname)
 	{
-		default: 		    	{ ds_assert(0); } break;
+		default: 		    	{ ds_Assert(0); } break;
 	}
 
 	gl_state->func.glTexParameterfv(target, pname, params);
@@ -1081,7 +1081,7 @@ u32 gl_state_alloc(void)
 
 	gl_state->tx_unit_active = g_gl_limits->tx_unit_count;
 	ds_glActiveTexture(GL_TEXTURE0 + 0);
-	ds_assert(gl_state->tx_unit_active == 0);
+	ds_Assert(gl_state->tx_unit_active == 0);
 
 	gl_state->tx_unit = malloc(g_gl_limits->tx_unit_count * sizeof(struct gl_texture_unit));
 	for (GLuint i = 0; i < g_gl_limits->tx_unit_count; ++i)
@@ -1137,7 +1137,7 @@ void gl_state_list_alloc(void)
 {
 	tx_list = array_list_alloc(NULL, 256, sizeof(struct gl_texture), ARRAY_LIST_GROWABLE);
 	const GLuint stub_index = array_list_reserve_index(tx_list);
-	ds_assert_string(stub_index == 0, "Reserve first index for stub, that we we can return 0 of *Texture calls to indicate error"); 
+	ds_AssertString(stub_index == 0, "Reserve first index for stub, that we we can return 0 of *Texture calls to indicate error"); 
 	g_gl_state_list = array_list_intrusive_alloc(NULL, 8, sizeof(struct gl_state), ARRAY_LIST_GROWABLE);
 	g_binding_pool = pool_alloc(NULL, 192, struct texture_unit_binding, GROWABLE);
 }

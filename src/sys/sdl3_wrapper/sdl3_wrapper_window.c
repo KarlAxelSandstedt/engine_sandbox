@@ -388,7 +388,7 @@ void sdl3_wrapper_init(void)
 		fatal_cleanup_and_exit(0);
 	}
 
-#if __OS__ == __LINUX__ || __OS__ == __WIN64__
+#if __DS_PLATFORM__ == __DS_LINUX__ || __DS_PLATFORM__ == __DS_WIN64__
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
 	if (!SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1)
 		|| !SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3)
@@ -407,7 +407,7 @@ void sdl3_wrapper_init(void)
 		log_string(T_SYSTEM, S_FATAL, "Requires GL 3.3 or greater, exiting\n");
 		fatal_cleanup_and_exit(0);
 	}
-#elif __OS__ == __WEB__
+#elif __DS_PLATFORM__ == __DS_WEB__
 	SDL_SetHint(SDL_HINT_OPENGL_ES_DRIVER, "1");
 	SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_ES);
 	if (!SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1)

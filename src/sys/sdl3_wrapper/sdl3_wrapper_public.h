@@ -17,8 +17,8 @@
 ==========================================================================
 */
 
-#ifndef __SDL3_WRAPPER_PUBLIC_H__
-#define __SDL3_WRAPPER_PUBLIC_H__
+#ifndef __DS_SDL3_WRAPPER_PUBLIC_H__
+#define __DS_SDL3_WRAPPER_PUBLIC_H__
 
 #include "ds_common.h"
 #include "allocator.h"

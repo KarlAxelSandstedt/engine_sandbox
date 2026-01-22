@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.14.3)
 
-project(Dreamscape)
+project(Dreamscape LANGUAGES C)
 set(CPACK_PACKAGE_MAJOR "0")
 set(CPACK_PACKAGE_MINOR "1")
 set(CPACK_PACKAGE_PATCH "2")
@@ -95,14 +95,16 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
 
 endif ()
 
+add_subdirectory("${DS_INCLUDE_PATH}")
 add_subdirectory("${DS_SRC_PATH}/base")
 add_subdirectory("${DS_LIB_PATH}")
 
 add_library(${PROJECT_NAME} INTERFACE)
 add_library(${PROJECT_NAME}::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
-target_link_libraries(${PROJECT_NAME} INTERFACE "${PROJECT_NAME}::Base")
-target_include_directories(${PROJECT_NAME} INTERFACE "include")
+target_link_libraries(${PROJECT_NAME} 
+	INTERFACE "${PROJECT_NAME}::Base"
+)
 
 #TODO remove, consider using DS_DEBUG instead, or if required, add DS_DEV
 if (NOT CMAKE_BUILD_TYPE STREQUAL "Release")
@@ -133,48 +135,48 @@ set(DS_TEST_PATH "${CMAKE_CURRENT_SOURCE_DIR}/test")
 #endif ()
 
 
-add_subdirectory("${DS_SRC_PATH}/misc")
-add_subdirectory("${DS_SRC_PATH}/misc/ui")
-add_subdirectory("${DS_SRC_PATH}/misc/debug")
-add_subdirectory("${DS_SRC_PATH}/common")
-add_subdirectory("${DS_SRC_PATH}/math")
-add_subdirectory("${DS_SRC_PATH}/containers")
-add_subdirectory("${DS_SRC_PATH}/memory")
-add_subdirectory("${DS_SRC_PATH}/renderer")
-add_subdirectory("${DS_SRC_PATH}/sys")
-add_subdirectory("${DS_SRC_PATH}/sys/sdl3_wrapper")
-add_subdirectory("${DS_SRC_PATH}/led")
-add_subdirectory("${DS_SRC_PATH}/asset_system")
+#add_subdirectory("${DS_SRC_PATH}/misc")
+#add_subdirectory("${DS_SRC_PATH}/misc/ui")
+#add_subdirectory("${DS_SRC_PATH}/misc/debug")
+#add_subdirectory("${DS_SRC_PATH}/common")
+#add_subdirectory("${DS_SRC_PATH}/math")
+#add_subdirectory("${DS_SRC_PATH}/containers")
+#add_subdirectory("${DS_SRC_PATH}/memory")
+#add_subdirectory("${DS_SRC_PATH}/renderer")
+#add_subdirectory("${DS_SRC_PATH}/sys")
+#add_subdirectory("${DS_SRC_PATH}/sys/sdl3_wrapper")
+#add_subdirectory("${DS_SRC_PATH}/led")
+#add_subdirectory("${DS_SRC_PATH}/asset_system")
+#
+#link_libraries(kas_common)
+#link_libraries(log)
 
-link_libraries(kas_common)
-link_libraries(log)
-
-target_link_libraries(${PROJECT_NAME}
-	INTERFACE
-		system_graphics
-		renderer
-		asset_system
-		led
-	)
-if (DEFINED EMSCRIPTEN)
-	add_subdirectory(${DS_SRC_PATH}/sys/wasm)
-	target_link_libraries(${PROJECT_NAME} PUBLIC wasm_interface)
-elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-	add_subdirectory(${DS_SRC_PATH}/sys/linux)
-	target_link_libraries(${PROJECT_NAME} INTERFACE inux_interface)
-elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-	add_subdirectory(${DS_SRC_PATH}/sys/windows)
-	target_link_libraries(${PROJECT_NAME} INTERFACE windows_interface bcrypt)
-
-	# DLLs must be in same folder as exe? Not as on linux where we have rpath and such...
-	add_custom_command(
-		TARGET	${PROJECT_NAME} POST_BUILD
-		COMMAND ${CMAKE_COMMAND} -E copy_if_different
-			$<TARGET_FILE:SDL3::SDL3-shared>
-			$<TARGET_FILE_DIR:${PROJECT_NAME}>
-		VERBATIM
-	)
-endif ()
+#target_link_libraries(${PROJECT_NAME}
+#	INTERFACE
+#		system_graphics
+#		renderer
+#		asset_system
+#		led
+#	)
+#if (DEFINED EMSCRIPTEN)
+#	add_subdirectory(${DS_SRC_PATH}/sys/wasm)
+#	target_link_libraries(${PROJECT_NAME} PUBLIC wasm_interface)
+#elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+#	add_subdirectory(${DS_SRC_PATH}/sys/linux)
+#	target_link_libraries(${PROJECT_NAME} INTERFACE linux_interface)
+#elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+#	add_subdirectory(${DS_SRC_PATH}/sys/windows)
+#	target_link_libraries(${PROJECT_NAME} INTERFACE windows_interface bcrypt)
+#
+#	# DLLs must be in same folder as exe? Not as on linux where we have rpath and such...
+#	add_custom_command(
+#		TARGET	${PROJECT_NAME} POST_BUILD
+#		COMMAND ${CMAKE_COMMAND} -E copy_if_different
+#			$<TARGET_FILE:SDL3::SDL3-shared>
+#			$<TARGET_FILE_DIR:${PROJECT_NAME}>
+#		VERBATIM
+#	)
+#endif ()
 
 #
 # For CPack and installation process, good information can be found at:

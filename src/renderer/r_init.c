@@ -23,7 +23,7 @@
 #include <string.h>
 
 //TODO MOVE into asset_manager
-#if __OS__ == __WIN64__ || __OS__ ==  __LINUX__
+#if __DS_PLATFORM__ == __DS_WIN64__ || __DS_PLATFORM__ ==  __DS_LINUX__
 #define vertex_ui		"../assets/shaders/ui.vert"
 #define fragment_ui		"../assets/shaders/ui.frag"
 #define vertex_proxy3d		"../assets/shaders/proxy3d.vert"
@@ -32,7 +32,7 @@
 #define fragment_color		"../assets/shaders/color.frag"
 #define vertex_lightning	"../assets/shaders/lightning.vert"
 #define fragment_lightning	"../assets/shaders/lightning.frag"
-#elif __OS__ == __WEB__
+#elif __DS_PLATFORM__ == __DS_WEB__
 #define vertex_ui		"../assets/shaders/gles_ui.vert"
 #define fragment_ui		"../assets/shaders/gles_ui.frag"
 #define vertex_proxy3d		"../assets/shaders/gles_proxy3d.vert"
@@ -176,7 +176,7 @@ void r_init(struct arena *mem_persistent, const u64 ns_tick, const u64 frame_siz
 
 	struct slot slot3d = hierarchy_index_add(g_r_core->proxy3d_hierarchy, HI_NULL_INDEX);
 	g_r_core->proxy3d_root = slot3d.index;
-	ds_assert(g_r_core->proxy3d_root == PROXY3D_ROOT);
+	ds_Assert(g_r_core->proxy3d_root == PROXY3D_ROOT);
 	struct r_proxy3d *stub3d = slot3d.address;
 	vec3_set(stub3d->position, 0.0f, 0.0f, 0.0f);
 	vec3_set(stub3d->spec_position, 0.0f, 0.0f, 0.0f);
@@ -265,7 +265,7 @@ void r_core_flush(void)
 	hierarchy_index_flush(g_r_core->proxy3d_hierarchy);
 	struct slot slot3d = hierarchy_index_add(g_r_core->proxy3d_hierarchy, HI_NULL_INDEX);
 	g_r_core->proxy3d_root = slot3d.index;
-	ds_assert(g_r_core->proxy3d_root == PROXY3D_ROOT);
+	ds_Assert(g_r_core->proxy3d_root == PROXY3D_ROOT);
 	struct r_proxy3d *stub3d = slot3d.address;
 	vec3_set(stub3d->position, 0.0f, 0.0f, 0.0f);
 	vec3_set(stub3d->spec_position, 0.0f, 0.0f, 0.0f);

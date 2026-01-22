@@ -33,7 +33,7 @@ static const struct vector empty = { 0 };
 
 struct vector vector_alloc(struct arena *mem, const u64 blocksize, const u32 length, const u32 growable)
 {
-	ds_assert(length && blocksize);
+	ds_Assert(length && blocksize);
 
 	struct vector v =
 	{
@@ -89,7 +89,7 @@ struct slot vector_push(struct vector *v)
 
 void vector_pop(struct vector *v)
 {
-	ds_assert(v->next);
+	ds_Assert(v->next);
 	v->next -= 1;
 }
 

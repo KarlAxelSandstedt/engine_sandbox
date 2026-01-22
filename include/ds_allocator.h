@@ -17,12 +17,18 @@
 ==========================================================================
 */
 
-#ifndef __KAS_ALLOCATOR_H__
-#define __KAS_ALLOCATOR_H__
+#ifndef __DS_ALLOCATOR_H__
+#define __DS_ALLOCATOR_H__
 
-#include "kas_common.h"
+#ifdef __cplusplus
+extern "C" { 
+#endif
 
-#ifdef KAS_ASAN
+#include "ds_types.h"
+
+/***************************** Address sanitizing and poisoning  ***************************/
+
+#ifdef DS_ASAN
 #include "sanitizer/asan_interface.h"
 
 #define POISON_ADDRESS(addr, size)	ASAN_POISON_MEMORY_REGION((addr), (size))
@@ -35,9 +41,26 @@
 
 #endif
 
-/************************************* arena allocator  *************************************/
+/************************************* heap allocator  *************************************/
 
 #define DEFAULT_MEMORY_ALIGNMENT	((u64) 8)
+
+/*
+Heap allocation
+===============
+Heap allocation methods. Do not use free on any memory from ds_alloc and ds_alloc_aligned; use ds_free instead, 
+which properly frees aligned memory on the underlying platform.
+*/
+
+
+/* Return allocated heap memory aligned to DEFAULT_MEMORY_ALIGNMENT. On failure, return NULL. */
+void *	ds_Alloc(const u64 size);
+/* Return allocated heap memory aligned to the given POWER-OF-TWO value. On failure, return NULL. */
+void *	ds_AllocAligned(const u64 size, const u64 alignment);
+/* Free ds_alloc and ds_alloc_aligned memory. */
+void 	ds_Free(void *addr);
+
+/************************************* arena allocator  *************************************/
 
 struct allocation_array
 {
@@ -164,9 +187,9 @@ void 			ring_dealloc(struct ring *ring);
 /* flush ring memory and set offset to 0 */
 void			ring_flush(struct ring *ring);
 /* return allocaction[size], and do not advance the ring write offset on success; empty buffer on FAILURE. */
-struct kas_buffer 	ring_push_start(struct ring *ring, const u64 size);
+struct ds_buffer 	ring_push_start(struct ring *ring, const u64 size);
 /* return allocaction[size], and advance the ring write offset on success; empty buffer on FAILURE. */
-struct kas_buffer 	ring_push_end(struct ring *ring, const u64 size);
+struct ds_buffer 	ring_push_end(struct ring *ring, const u64 size);
 /* release bytes in ring in fifo order. */
 void 			ring_pop_start(struct ring *ring, const u64 size); 
 /* release bytes in ring in lifo order. */
@@ -268,5 +291,9 @@ void			pool_external_remove_address(struct pool_external *pool, void *slot);
 void *			pool_external_address(const struct pool_external *pool, const u32 index);
 /* return index of address */
 u32			pool_external_index(const struct pool_external *pool, const void *slot);
+
+#ifdef __cplusplus
+}
+#endif
 
 #endif

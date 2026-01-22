@@ -34,22 +34,22 @@ DEFINE_STACK(utf32);
 
 static void ui_command_static_assert(void)
 {
-	ds_static_assert(UI_CMD_LAYER_BITS
+	ds_StaticAssert(UI_CMD_LAYER_BITS
 			+ UI_CMD_DEPTH_BITS
 			+ UI_CMD_TEXTURE_BITS
 			== 32, "ui_cmd definitions should span whole 32 bits");
 
 	//TODO Show no overlap between masks
-	ds_static_assert((UI_CMD_LAYER_MASK & UI_CMD_DEPTH_MASK) == 0, "UI_CMD_*_MASK values should not overlap");
-	ds_static_assert((UI_CMD_LAYER_MASK & UI_CMD_TEXTURE_MASK) == 0, "UI_CMD_*_MASK values should not overlap");
-	ds_static_assert((UI_CMD_DEPTH_MASK & UI_CMD_TEXTURE_MASK) == 0, "UI_CMD_*_MASK values should not overlap");
+	ds_StaticAssert((UI_CMD_LAYER_MASK & UI_CMD_DEPTH_MASK) == 0, "UI_CMD_*_MASK values should not overlap");
+	ds_StaticAssert((UI_CMD_LAYER_MASK & UI_CMD_TEXTURE_MASK) == 0, "UI_CMD_*_MASK values should not overlap");
+	ds_StaticAssert((UI_CMD_DEPTH_MASK & UI_CMD_TEXTURE_MASK) == 0, "UI_CMD_*_MASK values should not overlap");
 
-	ds_static_assert(UI_CMD_LAYER_MASK
+	ds_StaticAssert(UI_CMD_LAYER_MASK
 			+ UI_CMD_DEPTH_MASK
 			+ UI_CMD_TEXTURE_MASK
 			== U32_MAX, "sum of ui_cmd masks should be U32");
 
-	ds_static_assert(TEXTURE_COUNT <= (UI_CMD_TEXTURE_MASK >> UI_CMD_TEXTURE_LOW_BIT), "texture mask must be able to contain all texture ids");
+	ds_StaticAssert(TEXTURE_COUNT <= (UI_CMD_TEXTURE_MASK >> UI_CMD_TEXTURE_LOW_BIT), "texture mask must be able to contain all texture ids");
 }
 
 /* Set to current ui being operated on */
@@ -119,7 +119,7 @@ struct ui_text_input *text_edit_stub_ptr(void)
 
 struct ui *ui_alloc(void)
 {
-	ds_static_assert(sizeof(struct ui_size) == 16, "Expected size");
+	ds_StaticAssert(sizeof(struct ui_size) == 16, "Expected size");
 
 	struct ui *ui = malloc(sizeof(struct ui));
 	memset(ui, 0, sizeof(struct ui));
@@ -353,7 +353,7 @@ void ui_text_input_mode_enable(void)
 		const u32 buflen = sizeof(g_ui->inter.text_internal_buf) / sizeof(u32);
 		u32 *buf = g_ui->inter.text_internal_buf;
 		node->input.text = utf32_copy_buffered(buf, buflen, node->input.text);
-		ds_assert(&node->input == text_edit);
+		ds_Assert(&node->input == text_edit);
 	}
 
 	g_ui->inter.text_edit_mode = 1;
@@ -950,7 +950,7 @@ static void ui_identify_hovered_node(void)
 	/* search floating subtree for deepest node we are hovering that is hashed */
 	u32 deepest_non_hashed_hover_index = index;
 	node = hierarchy_index_address(g_ui->node_hierarchy, index);
-	ds_assert((node->flags & (UI_NON_HASHED | UI_SKIP_HOVER_SEARCH)) == 0);
+	ds_Assert((node->flags & (UI_NON_HASHED | UI_SKIP_HOVER_SEARCH)) == 0);
 	index = node->header.first;
 	while (index != HI_NULL_INDEX)
 	{
@@ -972,7 +972,7 @@ static void ui_identify_hovered_node(void)
 	}
 
 	node = hierarchy_index_address(g_ui->node_hierarchy, deepest_non_hashed_hover_index);
-	ds_assert((node->flags & (UI_NON_HASHED | UI_SKIP_HOVER_SEARCH)) == 0);
+	ds_Assert((node->flags & (UI_NON_HASHED | UI_SKIP_HOVER_SEARCH)) == 0);
 	node->inter |= (UI_INTER_HOVER & node->flags);
 	g_ui->inter.node_hovered = node->id;
 
@@ -1067,7 +1067,7 @@ void ui_frame_end(void)
 	g_ui->inter.cursor_delta[0] = 0;
 	g_ui->inter.cursor_delta[1] = 0;
 
-	ds_assert(g_ui->stack_parent.next == 1);
+	ds_Assert(g_ui->stack_parent.next == 1);
 
 	struct ui_node *text_input = ui_node_lookup(&g_ui->inter.text_edit_id).address;	
 	if (text_input)
@@ -1370,14 +1370,14 @@ struct ui_node_cache ui_node_alloc_cached(const u64 flags, const utf8 id, const 
 				? hierarchy_index_address(g_ui->node_hierarchy, cache.index)
 				: hierarchy_index_address(g_ui->node_hierarchy, HI_ORPHAN_STUB_INDEX);
 
-	ds_assert(node->last_frame_touched != g_ui->frame);
+	ds_Assert(node->last_frame_touched != g_ui->frame);
 	struct ui_size size_x = stack_ui_size_top(g_ui->stack_ui_size + AXIS_2_X);
 	struct ui_size size_y = stack_ui_size_top(g_ui->stack_ui_size + AXIS_2_Y);
 
 	/* Cull any unit_sized nodes that are not visible except if they are being interacted with */
 	if (size_x.type == UI_SIZE_UNIT)
 	{
-		ds_assert(g_ui->stack_viewable[AXIS_2_X].next);
+		ds_Assert(g_ui->stack_viewable[AXIS_2_X].next);
 		implied_flags |= UI_ALLOW_VIOLATION_X;
 
 		const intv visible = stack_intv_top(g_ui->stack_viewable + AXIS_2_X);
@@ -1389,7 +1389,7 @@ struct ui_node_cache ui_node_alloc_cached(const u64 flags, const utf8 id, const 
 
 	if (size_y.type == UI_SIZE_UNIT)
 	{
-		ds_assert(g_ui->stack_viewable[AXIS_2_Y].next);
+		ds_Assert(g_ui->stack_viewable[AXIS_2_Y].next);
 		implied_flags |= UI_ALLOW_VIOLATION_Y;
 		
 		const intv visible = stack_intv_top(g_ui->stack_viewable + AXIS_2_Y);
@@ -1625,7 +1625,7 @@ struct ui_node_cache ui_node_alloc_cached(const u64 flags, const utf8 id, const 
 		? stack_f32_top(&g_ui->stack_corner_radius)
 		: 0.0f;
 	
-	ds_assert(node->semantic_size[AXIS_2_Y].type != UI_SIZE_TEXT || node->semantic_size[AXIS_2_X].type == UI_SIZE_TEXT);
+	ds_Assert(node->semantic_size[AXIS_2_Y].type != UI_SIZE_TEXT || node->semantic_size[AXIS_2_X].type == UI_SIZE_TEXT);
 
 	const struct ui_node_cache new_cache =
 	{
@@ -1697,7 +1697,7 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 
 	if (size_x.type == UI_SIZE_UNIT)
 	{
-		ds_assert(g_ui->stack_viewable[AXIS_2_X].next);
+		ds_Assert(g_ui->stack_viewable[AXIS_2_X].next);
 		node_flags |= UI_ALLOW_VIOLATION_X;
 
 		const intv visible = stack_intv_top(g_ui->stack_viewable + AXIS_2_X);
@@ -1709,7 +1709,7 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 
 	if (size_y.type == UI_SIZE_UNIT)
 	{
-		ds_assert(g_ui->stack_viewable[AXIS_2_Y].next);
+		ds_Assert(g_ui->stack_viewable[AXIS_2_Y].next);
 		node_flags |= UI_ALLOW_VIOLATION_Y;
 		
 		const intv visible = stack_intv_top(g_ui->stack_viewable + AXIS_2_Y);
@@ -1730,11 +1730,11 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 			key = utf8_hash(id);
 			hash_map_add(g_ui->node_map, key, slot.index);
 		}
-		ds_assert((flags & UI_NON_HASHED) == UI_NON_HASHED || id.len > 0);
+		ds_Assert((flags & UI_NON_HASHED) == UI_NON_HASHED || id.len > 0);
 	}
 	else
 	{
-		ds_assert(node->last_frame_touched != g_ui->frame);
+		ds_Assert(node->last_frame_touched != g_ui->frame);
 		key = node->key;
 		hierarchy_index_adopt_node_exclusive(g_ui->node_hierarchy, slot.index, stack_u32_top(&g_ui->stack_parent));
 		inter = ui_node_set_interactions(node, node_flags, inter_recursive_mask);
@@ -1937,7 +1937,7 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 		? stack_f32_top(&g_ui->stack_corner_radius)
 		: 0.0f;
 	
-	ds_assert(node->semantic_size[AXIS_2_Y].type != UI_SIZE_TEXT || node->semantic_size[AXIS_2_X].type == UI_SIZE_TEXT);
+	ds_Assert(node->semantic_size[AXIS_2_Y].type != UI_SIZE_TEXT || node->semantic_size[AXIS_2_X].type == UI_SIZE_TEXT);
 
 	return slot;
 }

@@ -22,10 +22,10 @@
 
 #include "ds_common.h"
 
-#if __OS__ == __WIN64__ || __OS__ == __LINUX__
+#if __DS_PLATFORM__ == __DS_WIN64__ || __DS_PLATFORM__ == __DS_LINUX__
 #include "GL/glcorearb.h"
 #include "GL/glext.h"
-#elif __OS__ == __WEB__
+#elif __DS_PLATFORM__ == __DS_WEB__
 #include "GLES3/gl3.h"
 #define APIENTRY	GL_APIENTRY
 #endif
