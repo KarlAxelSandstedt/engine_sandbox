@@ -117,7 +117,7 @@ static void internal_get_sprite_parameters(struct arena *mem, struct ssff_sprite
 
 				if (!in_table)
 				{
-					arena_push_packed_memcpy(mem, &px_color, sizeof(u32));
+					ArenaPushPackedMemcpy(mem, &px_color, sizeof(u32));
 					*color_count += 1;
 				}
 
@@ -166,15 +166,15 @@ void ssff_build(struct arena *mem, const u32 ssff_id)
 {
 	struct asset_ssff *info = g_asset_db->ssff[ssff_id];
 
-	arena_push_record(mem);
+	ArenaPushRecord(mem);
 	
-	void **pixel = arena_push(mem, info->png_count * sizeof(void *));
-	u32 *png_width = arena_push(mem, info->png_count * sizeof(u32));
-	u32 *png_height = arena_push(mem, info->png_count * sizeof(u32));
-	u32 *color_count = arena_push(mem, info->png_count * sizeof(u32));
-	u32 **color = arena_push(mem, info->png_count * sizeof(u32 *));
-	u32 *sprite_count = arena_push(mem, info->png_count * sizeof(u32)); 
-	struct ssff_sprite **sprite = arena_push(mem, info->png_count * sizeof(struct ssff_sprite *));
+	void **pixel = ArenaPush(mem, info->png_count * sizeof(void *));
+	u32 *png_width = ArenaPush(mem, info->png_count * sizeof(u32));
+	u32 *png_height = ArenaPush(mem, info->png_count * sizeof(u32));
+	u32 *color_count = ArenaPush(mem, info->png_count * sizeof(u32));
+	u32 **color = ArenaPush(mem, info->png_count * sizeof(u32 *));
+	u32 *sprite_count = ArenaPush(mem, info->png_count * sizeof(u32)); 
+	struct ssff_sprite **sprite = ArenaPush(mem, info->png_count * sizeof(struct ssff_sprite *));
 
 	for (u32 i = 0; i < info->png_count; ++i)
 	{
@@ -190,7 +190,7 @@ i32 wi, he, co;
 		ds_Assert(comp == 4);
 		ds_Assert(png_width[i] % info->png[i].sprite_width == 0);
 		sprite_count[i] = png_width[i] / info->png[i].sprite_width;
-		sprite[i] = arena_push_packed(mem, sprite_count[i] * sizeof(struct ssff_sprite));
+		sprite[i] = ArenaPushPacked(mem, sprite_count[i] * sizeof(struct ssff_sprite));
 		color[i] = (void *) mem->stack_ptr;
 		color_count[i] = 0;
 
@@ -200,13 +200,13 @@ i32 wi, he, co;
 		}
 	}
 
-	struct ssff_header *header = arena_push(mem, sizeof(struct ssff_header));
+	struct ssff_header *header = ArenaPush(mem, sizeof(struct ssff_header));
 	header->size = sizeof(struct ssff_header); 
 	header->collection_count = info->png_count;
 	header->collection_offset = sizeof(struct ssff_header);
 
 	header->size += header->collection_count * sizeof(struct ssff_collection);
-	struct ssff_collection *c = arena_push_packed(mem, header->collection_count * sizeof(struct ssff_collection));
+	struct ssff_collection *c = ArenaPushPacked(mem, header->collection_count * sizeof(struct ssff_collection));
 	for (u32 i = 0; i < header->collection_count; ++i)
 	{
 		c[i].color_count = color_count[i];
@@ -232,8 +232,8 @@ i32 wi, he, co;
 			: hb + 1;
 
 		header->size += c[i].color_count * sizeof(u32) + c[i].sprite_count * sizeof(struct ssff_sprite);
-		u32 *color_table = arena_push_packed(mem, c[i].color_count * sizeof(u32));
-		struct ssff_sprite *spr = arena_push_packed(mem, c[i].sprite_count * sizeof(struct ssff_sprite)); 
+		u32 *color_table = ArenaPushPacked(mem, c[i].color_count * sizeof(u32));
+		struct ssff_sprite *spr = ArenaPushPacked(mem, c[i].sprite_count * sizeof(struct ssff_sprite)); 
 		c[i].color_offset = (u32) ((u64) color_table - (u64) header);
 		c[i].sprite_offset = (u32) ((u64) spr - (u64) header);
 
@@ -263,7 +263,7 @@ i32 wi, he, co;
 			const u32 width = sprite[i][s].x1 - sprite[i][s].x0 + 1;
 			const u32 height = sprite[i][s].y1 - sprite[i][s].y0 + 1;
 			header->size += c[i].bit_depth*width*height / 8 + 1;
-			void *sprite_pixel = arena_push_packed(mem, c[i].bit_depth*width*height / 8 + 1);
+			void *sprite_pixel = ArenaPushPacked(mem, c[i].bit_depth*width*height / 8 + 1);
 			u32 *color_table = (u32 *) (((u8 *) header) + c[i].color_offset);
 			struct ssff_sprite *spr = (struct ssff_sprite *) (((u8 *) header) + c[i].sprite_offset);
 			spr[s].pixel_offset = (u32) ((u64) sprite_pixel - (u64) header);
@@ -306,12 +306,12 @@ i32 wi, he, co;
 		free(pixel[i]);
 	}
 	
-	arena_pop_record(mem);
+	ArenaPopRecord(mem);
 }
 
 void ssff_save(const struct asset_ssff *asset, const struct ssff_header *header)
 {
-	struct arena tmp = arena_alloc_1MB();
+	struct arena tmp = ArenaAlloc1MB();
 
 	struct file file = file_null();
 	if (file_try_create_at_cwd(&tmp, &file, asset->filepath, FILE_TRUNCATE) != FS_SUCCESS)
@@ -323,19 +323,19 @@ void ssff_save(const struct asset_ssff *asset, const struct ssff_header *header)
 	file_write_append(&file, (u8 *) header, header->size);
 	file_close(&file);
 
-	arena_free_1MB(&tmp);
+	ArenaFree1MB(&tmp);
 }
 
 #endif
 
 const struct ssff_header *ssff_load(struct asset_ssff *asset)
 {
-	struct arena tmp = arena_alloc_1MB();
+	struct arena tmp = ArenaAlloc1MB();
 
 	const struct ssff_header *header = (const struct ssff_header *) file_dump_at_cwd(&tmp, asset->filepath).data;
 	asset->loaded = (header) ? 1 : 0;
 
-	arena_free_1MB(&tmp);
+	ArenaFree1MB(&tmp);
 	return header;
 }
 
@@ -361,7 +361,7 @@ struct ssff_texture_return ssff_texture(struct arena *mem, const struct ssff_hea
 		const struct ssff_collection *c = (struct ssff_collection *)(((u8 *) ssff) + ssff->collection_offset) + i;
 		const u32 *color_table = (u32 *)(((u8 *) ssff) + c->color_offset);
 		const struct ssff_sprite *sprite = (struct ssff_sprite *)(((u8 *) ssff) + c->sprite_offset);
-		arena_push_packed(mem, c[i].sprite_count * sizeof(struct sprite));
+		ArenaPushPacked(mem, c[i].sprite_count * sizeof(struct sprite));
 		u32 x_offset = 0;
 		u32 y_offset = 0;
 		for (u32 j = 0; j < c[i].sprite_count; ++j)
@@ -463,7 +463,7 @@ void ssff_debug_print(FILE *out, const struct ssff_header *ssff)
 
 struct asset_ssff *asset_database_request_ssff(struct arena *tmp, const enum ssff_id id)
 {
-	arena_push_record(tmp);
+	ArenaPushRecord(tmp);
 	struct asset_ssff *asset = g_asset_db->ssff[id];
 #ifdef DS_DEV
 	if (!asset->valid)
@@ -492,7 +492,7 @@ struct asset_ssff *asset_database_request_ssff(struct arena *tmp, const enum ssf
 		asset->loaded = 1;
 	}
 
-	arena_pop_record(tmp);
+	ArenaPopRecord(tmp);
 	return asset;
 }
 

@@ -326,7 +326,7 @@ static void led_input_handler(struct led *led, struct ui_node *viewport)
 
 	for (u32 i = sys_win->ui->event_list.first; i != DLL_NULL; )
 	{
-		struct system_event *event = pool_address(&sys_win->ui->event_pool, i);
+		struct system_event *event = PoolAddress(&sys_win->ui->event_pool, i);
 		const u32 next = DLL_NEXT(event);
 		u32 event_consumed = 1;
 		if (event->type == SYSTEM_KEY_PRESSED)
@@ -358,7 +358,7 @@ static void led_input_handler(struct led *led, struct ui_node *viewport)
 		if (event_consumed)
 		{
 			dll_remove(&sys_win->ui->event_list, sys_win->ui->event_pool.buf, i);
-			pool_remove(&sys_win->ui->event_pool, i);
+			PoolRemove(&sys_win->ui->event_pool, i);
 		}
 		i = next;
 	}
@@ -499,8 +499,8 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 						const u32f32 hit = physics_pipeline_raycast_parameter(g_ui->mem_frame, &led->physics, &ray);
 						if (hit.f < F32_INFINITY)
 						{
-							const struct rigid_body *body = pool_address(&led->physics.body_pool, hit.u);	
-							const struct led_node *entity = pool_address(&led->node_pool, body->entity);
+							const struct rigid_body *body = PoolAddress(&led->physics.body_pool, hit.u);	
+							const struct led_node *entity = PoolAddress(&led->node_pool, body->entity);
 							const char *body_id = cstr_utf8(g_ui->mem_frame, entity->id);
 
 
@@ -1004,7 +1004,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 					//ui_list(&led->node_ui_list, "###%p", &led->node_ui_list)
 					//for (u32 i = led->node_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(node))
 					//{
-					//	node = gpool_address(&led->node_pool, i);
+					//	node = GPoolAddress(&led->node_pool, i);
 					//	ui_child_layout_axis(AXIS_2_X)
 					//	node->cache = ui_list_entry_alloc_cached(&led->node_ui_list, 
 					//			       	node->id,
@@ -1038,7 +1038,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 					//ui_list(&led->node_selected_ui_list, "###%p", &led->node_selected_ui_list)
 					//for (u32 i = led->node_selected_list.first; i != DLL_NULL; i = DLL2_NEXT(node))
 					//{
-					//	node = gpool_address(&led->node_pool, i);
+					//	node = GPoolAddress(&led->node_pool, i);
 					//	ui_child_layout_axis(AXIS_2_Y)
 					//	ui_parent(ui_list_entry_alloc_f(&led->node_selected_ui_list, "###%p_%u", &led->node_selected_ui_list, i).index)
 					//	{

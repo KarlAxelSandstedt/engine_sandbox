@@ -95,7 +95,7 @@ DECLARE_STACK_ALLOC(type)										\
 		.growable = growable,									\
 	};												\
 	stack.arr = (arena)										\
-		? arena_push(arena, sizeof(type)*length)						\
+		? ArenaPush(arena, sizeof(type)*length)						\
 		: malloc(sizeof(type)*length);								\
 	if (length > 0 && !stack.arr)									\
 	{												\
@@ -212,7 +212,7 @@ DECLARE_STACK_VEC_ALLOC(vectype)									\
 		.growable = growable,									\
 	};												\
 	stack.arr = (arena)										\
-		? arena_push(arena, sizeof(vectype)*length)					\
+		? ArenaPush(arena, sizeof(vectype)*length)					\
 		: malloc(sizeof(vectype)*length);							\
 	if (length > 0 && !stack.arr)									\
 	{												\

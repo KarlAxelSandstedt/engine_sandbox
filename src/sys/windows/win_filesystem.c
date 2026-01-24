@@ -358,7 +358,7 @@ struct ds_buffer win_file_dump(struct arena *mem, const char *path, const struct
 	}
 	else
 	{
-		buf.data = arena_push(mem, size.QuadPart);
+		buf.data = ArenaPush(mem, size.QuadPart);
 		if (buf.data)
 		{
 			DWORD bytes_read;
@@ -585,7 +585,7 @@ utf8 win_cwd_get(struct arena *mem)
 	utf8 str = utf8_empty();
 
 	const DWORD req_size = GetCurrentDirectory(0, NULL);
-	void *buf = arena_push(mem, req_size);
+	void *buf = ArenaPush(mem, req_size);
 	if (buf)
 	{
 		const DWORD len = GetCurrentDirectory(req_size, buf);
@@ -657,7 +657,7 @@ enum fs_error win_directory_push_entries(struct arena *mem, struct vector *vec, 
 	}
 	
 
-	arena_push_record(mem);
+	ArenaPushRecord(mem);
 	const u32 vec_record = vec->next;
 
 	enum fs_error ret = FS_SUCCESS;
@@ -689,7 +689,7 @@ enum fs_error win_directory_push_entries(struct arena *mem, struct vector *vec, 
 
 	if (ret != FS_SUCCESS)
 	{
-		arena_pop_record(mem);
+		ArenaPopRecord(mem);
 		vec->next = vec_record;
 	}
 

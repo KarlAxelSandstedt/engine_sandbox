@@ -160,7 +160,7 @@ void r_init(struct arena *mem_persistent, const u64 ns_tick, const u64 frame_siz
 	g_r_core->program[PROGRAM_LIGHTNING].buffer_shared_layout_setter = NULL;
 	g_r_core->program[PROGRAM_LIGHTNING].buffer_local_layout_setter = r_lightning_buffer_layout_setter;
 
-	g_r_core->frame = arena_alloc(frame_size); 
+	g_r_core->frame = ArenaAlloc(frame_size); 
 	if (g_r_core->frame.mem_size == 0)
 	{
 		log_string(T_SYSTEM, S_FATAL, "Failed to allocate renderer frame, exiting.");
@@ -197,12 +197,12 @@ void r_init(struct arena *mem_persistent, const u64 ns_tick, const u64 frame_siz
 
 	g_r_core->texture[TEXTURE_STUB].handle = 0;
 
-	arena_push_record(mem_persistent);
+	ArenaPushRecord(mem_persistent);
 	const struct asset_font *a_f = asset_database_request_font(&g_r_core->frame, FONT_DEFAULT_SMALL);
 	u32 w = a_f->font->pixmap_width;
 	u32 h = a_f->font->pixmap_height;
 	u8 *pixel8 = a_f->font->pixmap;
-	u32 *pixel32 = arena_push(mem_persistent, w*h*sizeof(u32));
+	u32 *pixel32 = ArenaPush(mem_persistent, w*h*sizeof(u32));
 	for (u32 i = 0; i < w*h; ++i)
 	{
 		pixel32[i] = ((u32) pixel8[i] << 24) + 0xffffff;
@@ -221,7 +221,7 @@ void r_init(struct arena *mem_persistent, const u64 ns_tick, const u64 frame_siz
 	w = a_f->font->pixmap_width;
 	h = a_f->font->pixmap_height;
 	pixel8 = a_f->font->pixmap;
-	pixel32 = arena_push(mem_persistent, w*h*sizeof(u32));
+	pixel32 = ArenaPush(mem_persistent, w*h*sizeof(u32));
 	for (u32 i = 0; i < w*h; ++i)
 	{
 		pixel32[i] = ((u32) pixel8[i] << 24) + 0xffffff;
@@ -236,7 +236,7 @@ void r_init(struct arena *mem_persistent, const u64 ns_tick, const u64 frame_siz
 	ds_glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	ds_glGenerateMipmap(GL_TEXTURE_2D);
 
-	arena_pop_record(mem_persistent);
+	ArenaPopRecord(mem_persistent);
 
 	struct asset_ssff *asset = asset_database_request_ssff(&g_r_core->frame, SSFF_LED_ID);
 	ds_glGenTextures(1, &g_r_core->texture[TEXTURE_LED].handle);
@@ -276,5 +276,5 @@ void r_core_flush(void)
 	vec3_set(stub3d->linear.angular_velocity, 0.0f, 0.0f, 0.0f);
 	stub3d->flags = 0;
 
-	gpool_flush(&g_r_core->unit_pool);
+	GPoolFlush(&g_r_core->unit_pool);
 }

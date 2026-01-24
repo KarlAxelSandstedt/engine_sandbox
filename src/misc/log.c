@@ -106,7 +106,7 @@ void log_init(struct arena *mem, const char *filepath)
 	severities[S_ERROR] = utf8_inline("error");
 	severities[S_FATAL] = utf8_inline("fatal");
 
-	g_log.msg = arena_push(mem, LOG_MAX_MESSAGES * sizeof(struct log_message));
+	g_log.msg = ArenaPush(mem, LOG_MAX_MESSAGES * sizeof(struct log_message));
 	g_log.tf = ticket_factory_init(mem, LOG_MAX_MESSAGES);
 	g_log.file = file_null();
 	file_try_create_at_cwd(mem, &g_log.file, filepath, FILE_TRUNCATE);

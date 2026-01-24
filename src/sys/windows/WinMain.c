@@ -66,7 +66,7 @@ int CALLBACK WinMain(HINSTANCE h_instance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 {
 	win_init_rng();
 
-	struct arena mem_persistent = arena_alloc(32*1024*1024);
+	struct arena mem_persistent = ArenaAlloc(32*1024*1024);
 	system_resources_init(&mem_persistent);
 	cmd_alloc();
 	ui_init_global_state();
@@ -103,7 +103,7 @@ int CALLBACK WinMain(HINSTANCE h_instance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	asset_database_cleanup();
 	cmd_free();
 	system_resources_cleanup();
-	arena_free(&mem_persistent);
+	ArenaFree(&mem_persistent);
 #endif
 	return 0;
 }

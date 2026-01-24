@@ -29,7 +29,7 @@ static utf8 utf8_substring(struct arena *mem, const utf8 *string, const u32 star
 	utf8 substring;
 	if (len)
 	{
-		substring.buf = arena_push_memcpy(mem, string->buf + start, len+1);
+		substring.buf = ArenaPushMemcpy(mem, string->buf + start, len+1);
 		substring.size = len+1;
 		substring.len = len;
 		substring.buf[len] = '\0';
@@ -45,7 +45,7 @@ static utf8 utf8_ascii_random(struct arena *mem, const u32 len)
 {
 	utf8 substring =
 	{
-		.buf = arena_push(mem, len+1),
+		.buf = ArenaPush(mem, len+1),
 		.size = len+1,
 		.len = len,
 	};
@@ -96,7 +96,7 @@ static struct test_output utf8_lookup_substring_randomizer(struct test_environme
 
 	for (u32 i = 0; i < 1000000; ++i)
 	{
-		arena_push_record(env->mem_1);
+		ArenaPushRecord(env->mem_1);
 
 		const u32 string_len = (u32) rng_u64_range(0, 20);
 		const u32 random_len = (u32) rng_u64_range(2, 4);
@@ -148,7 +148,7 @@ static struct test_output utf8_lookup_substring_randomizer(struct test_environme
 		TEST_EQUAL(substring_found, 1);
 		TEST_EQUAL(random_found, utf8_ascii_substring_naive(&string, &random));
 
-		arena_pop_record(env->mem_1);
+		ArenaPopRecord(env->mem_1);
 	}
 
 	return output;
@@ -302,7 +302,7 @@ static struct test_output dmg_strtod_utf8_f64_equivalence(struct test_environmen
 	u32 skipped = 0;
 	for (u32 i = 0; i < U32_MAX / 1000; ++i)
 	{
-		arena_push_record(env->mem_1);
+		ArenaPushRecord(env->mem_1);
 
 		const f64 d = ((b64) { .u = rng_u64() }).f;
 		const utf8 str = utf8_f64(env->mem_1, 0, d);
@@ -320,7 +320,7 @@ static struct test_output dmg_strtod_utf8_f64_equivalence(struct test_environmen
 			skipped += 1;
 		}
 
-		arena_pop_record(env->mem_1);
+		ArenaPopRecord(env->mem_1);
 	}
 
 	//fprintf(stderr, "Passed: %u, Skipped: %u\n", passed, skipped);
@@ -341,7 +341,7 @@ static struct test_output dmg_strtod_utf32_f64_equivalence(struct test_environme
 	u32 skipped = 0;
 	for (u32 i = 0; i < U32_MAX / 1000; ++i)
 	{
-		arena_push_record(env->mem_1);
+		ArenaPushRecord(env->mem_1);
 
 		const f64 d = ((b64) { .u = rng_u64() }).f;
 		const utf32 str = utf32_f64(env->mem_1, 0, d);
@@ -359,7 +359,7 @@ static struct test_output dmg_strtod_utf32_f64_equivalence(struct test_environme
 			skipped += 1;
 		}
 
-		arena_pop_record(env->mem_1);
+		ArenaPopRecord(env->mem_1);
 	}
 
 	//fprintf(stderr, "Passed: %u, Skipped: %u\n", passed, skipped);
@@ -454,7 +454,7 @@ static struct test_output utf8_utf32_u64_i64_equivalence(struct test_environment
 
 	for (u32 i = 0; i < U32_MAX / 1000; ++i)
 	{
-		arena_push_record(env->mem_1);
+		ArenaPushRecord(env->mem_1);
 
 		const b64 b = { .u = rng_u64() };
 
@@ -483,7 +483,7 @@ static struct test_output utf8_utf32_u64_i64_equivalence(struct test_environment
 		TEST_EQUAL(u2, b.u);
 		TEST_EQUAL(i2, b.i);
 
-		arena_pop_record(env->mem_1);
+		ArenaPopRecord(env->mem_1);
 	}
 
 	return output;

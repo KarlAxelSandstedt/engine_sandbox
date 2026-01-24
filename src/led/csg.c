@@ -31,9 +31,9 @@ struct csg csg_alloc(void)
 	struct csg csg;
 
 	csg.brush_db = string_database_alloc(NULL, 32, 32, struct csg_brush, GROWABLE);
-	csg.instance_pool = pool_alloc(NULL, 32, struct csg_instance, GROWABLE);
-	csg.node_pool = pool_alloc(NULL, 32, struct csg_instance, GROWABLE);
-	csg.frame = arena_alloc(1024*1024);
+	csg.instance_pool = PoolAlloc(NULL, 32, struct csg_instance, GROWABLE);
+	csg.node_pool = PoolAlloc(NULL, 32, struct csg_instance, GROWABLE);
+	csg.frame = ArenaAlloc(1024*1024);
 	csg.brush_marked_list = dll_init(struct csg_brush);
 	csg.instance_marked_list = dll_init(struct csg_instance);
 	csg.instance_non_marked_list = dll_init(struct csg_instance);
@@ -54,18 +54,18 @@ struct csg csg_alloc(void)
 void csg_dealloc(struct csg *csg)
 {
 	string_database_free(&csg->brush_db);
-	pool_dealloc(&csg->instance_pool);
-	pool_dealloc(&csg->node_pool);
-	arena_free(&csg->frame);
+	PoolDealloc(&csg->instance_pool);
+	PoolDealloc(&csg->node_pool);
+	ArenaFree(&csg->frame);
 	//dcel_allocator_dealloc(csg->dcel_allocator);
 }
 
 void csg_flush(struct csg *csg)
 {
 	string_database_flush(&csg->brush_db);
-	pool_flush(&csg->instance_pool);
-	pool_flush(&csg->node_pool);
-	arena_flush(&csg->frame);
+	PoolFlush(&csg->instance_pool);
+	PoolFlush(&csg->node_pool);
+	ArenaFlush(&csg->frame);
 	dll_flush(&csg->brush_marked_list);
 	dll_flush(&csg->instance_marked_list);
 	dll_flush(&csg->instance_non_marked_list);
@@ -102,7 +102,7 @@ static void csg_remove_marked_structs(struct csg *csg)
 
 		utf8 id = brush->id;
 		string_database_remove(&csg->brush_db, id);
-		thread_free_256B(id.buf);
+		ThreadFree256B(id.buf);
 	}
 
 	dll_flush(&csg->brush_marked_list);
@@ -115,7 +115,7 @@ void csg_main(struct csg *csg)
 	csg_apply_delta(csg);
 
 	/* (2) Safe to flush frame now */
-	arena_flush(&csg->frame);
+	ArenaFlush(&csg->frame);
 
 	/* (3) Remove markged csg structs */
 	csg_remove_marked_structs(csg);
@@ -129,13 +129,13 @@ struct slot csg_brush_add(struct csg *csg, const utf8 id)
 		return empty_slot; 
 	}
 
-	void *buf = thread_alloc_256B();
+	void *buf = ThreadAlloc256B();
 	const utf8 heap_id = utf8_copy_buffered(buf, 256, id);
 	struct slot slot = string_database_add_and_alias(&csg->brush_db, heap_id);
 	if (!slot.address)
 	{
 		log(T_CSG, S_WARNING, "Failed to create csg_brush, brush with id %k already exist.", &id);
-		thread_free_256B(buf);
+		ThreadFree256B(buf);
 	}
 	else
 	{

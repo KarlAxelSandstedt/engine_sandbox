@@ -87,7 +87,7 @@ static void gl_state_assert_texture_unit(void)
 			struct texture_unit_binding *binding = NULL;
 			for (u32 k = tx->binding_list.first; k != DLL_NULL; k = binding->dll_next)
 			{
- 				binding = pool_address(&g_binding_pool, k);
+ 				binding = PoolAddress(&g_binding_pool, k);
 				ds_Assert(binding->header.allocated);
 				if (binding->context == g_gl_state)
 				{
@@ -711,7 +711,7 @@ void ds_glDeleteTextures(const GLsizei count, const GLuint tx[])
 			struct texture_unit_binding *binding;
 			for (u32 k = tx_ptr->binding_list.first; k != DLL_NULL; k = DLL_NEXT(binding))
 			{
-				binding = pool_address(&g_binding_pool, k);
+				binding = PoolAddress(&g_binding_pool, k);
 				struct gl_state *local_state = array_list_intrusive_address(g_gl_state_list, binding->context);
 				ds_Assert(binding->tx_unit < g_gl_limits->tx_unit_count);
 				if (local_state->tx_unit[binding->tx_unit].gl_tx_2d_index == tx[i])
@@ -768,12 +768,12 @@ void ds_glBindTexture(const GLenum target, const GLuint tx)
 		struct gl_texture *texture = array_list_address(tx_list, prev_tx);
 		if (texture->binding_list.first == unit->binding)
 		{
-			struct texture_unit_binding *binding = pool_address(&g_binding_pool, unit->binding);
+			struct texture_unit_binding *binding = PoolAddress(&g_binding_pool, unit->binding);
 			texture->binding_list.first = binding->dll_next;
 		}
 		//fprintf(stderr, "context; %p\t DEL binding (UNIT,TEXTURE) : (%u,%u)\n", g_gl_state, gl_state->tx_unit_active, texture->name);
 		dll_remove(&texture->binding_list, g_binding_pool.buf, unit->binding);
-		pool_remove(&g_binding_pool, unit->binding);
+		PoolRemove(&g_binding_pool, unit->binding);
 		unit->binding = DLL_NULL;
 	}
 
@@ -783,7 +783,7 @@ void ds_glBindTexture(const GLenum target, const GLuint tx)
 		struct texture_unit_binding *binding;
 		for (u32 i = texture->binding_list.first; i != DLL_NULL; i = binding->dll_next)
 		{
-			binding = pool_address(&g_binding_pool, i);
+			binding = PoolAddress(&g_binding_pool, i);
 			if (binding->context == g_gl_state)
 			{
 				/* if binding->tx_unit == gl_state->tx_unit_active, then tx already bound to current unit, so prev_tx == tx */
@@ -805,7 +805,7 @@ void ds_glBindTexture(const GLenum target, const GLuint tx)
 					gl_state->tx_unit[binding->tx_unit].binding = DLL_NULL;
 
 					dll_remove(&texture->binding_list, g_binding_pool.buf, i);
-					pool_remove(&g_binding_pool, i);
+					PoolRemove(&g_binding_pool, i);
 					//fprintf(stderr, "context; %p\t DEL binding (UNIT,TEXTURE) : (%u,%u)\n", g_gl_state, binding->tx_unit, texture->name);
 				//}
 				break;
@@ -813,7 +813,7 @@ void ds_glBindTexture(const GLenum target, const GLuint tx)
 		}
 
 		struct slot slot;
-		slot = pool_add(&g_binding_pool);
+		slot = PoolAdd(&g_binding_pool);
 	 	dll_prepend(&texture->binding_list, g_binding_pool.buf, slot.index);
 		
 		binding = slot.address;
@@ -1110,11 +1110,11 @@ void gl_state_free(const u32 gl_state_index)
 
 			if (texture->binding_list.first == gl_state->tx_unit[i].binding)
 			{
-				struct texture_unit_binding *binding = pool_address(&g_binding_pool, texture->binding_list.first);
+				struct texture_unit_binding *binding = PoolAddress(&g_binding_pool, texture->binding_list.first);
 				texture->binding_list.first = binding->dll_next;
 			}
 			dll_remove(&texture->binding_list, g_binding_pool.buf, gl_state->tx_unit[i].binding);
-			pool_remove(&g_binding_pool, gl_state->tx_unit[i].binding);
+			PoolRemove(&g_binding_pool, gl_state->tx_unit[i].binding);
 		}
 	}
 
@@ -1139,12 +1139,12 @@ void gl_state_list_alloc(void)
 	const GLuint stub_index = array_list_reserve_index(tx_list);
 	ds_AssertString(stub_index == 0, "Reserve first index for stub, that we we can return 0 of *Texture calls to indicate error"); 
 	g_gl_state_list = array_list_intrusive_alloc(NULL, 8, sizeof(struct gl_state), ARRAY_LIST_GROWABLE);
-	g_binding_pool = pool_alloc(NULL, 192, struct texture_unit_binding, GROWABLE);
+	g_binding_pool = PoolAlloc(NULL, 192, struct texture_unit_binding, GROWABLE);
 }
 
 void gl_state_list_free(void)
 {
 	array_list_free(tx_list);
 	array_list_intrusive_free(g_gl_state_list);
-	pool_dealloc(&g_binding_pool);
+	PoolDealloc(&g_binding_pool);
 }

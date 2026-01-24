@@ -27,8 +27,8 @@ struct fifo_spsc *fifo_alloc(struct arena *mem)
 
 	if (mem)
 	{
-		q = arena_push(mem, sizeof(struct fifo_spsc));
-		q->a_first = arena_push(mem, sizeof(struct fifo_spsc_node));
+		q = ArenaPush(mem, sizeof(struct fifo_spsc));
+		q->a_first = ArenaPush(mem, sizeof(struct fifo_spsc_node));
 	}
 	else
 	{

@@ -44,7 +44,7 @@ struct vector vector_alloc(struct arena *mem, const u64 blocksize, const u32 len
 	};
 
 	v.data = (mem)
-		? arena_push(mem, blocksize*length)
+		? ArenaPush(mem, blocksize*length)
 		: malloc(blocksize*length);
 
 	if (!v.data)

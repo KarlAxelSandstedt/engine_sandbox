@@ -30,7 +30,7 @@ struct directory_navigator directory_navigator_alloc(const u32 initial_memory_st
 	{
 		.path = utf8_empty(),
 		.relative_path_to_file_map = hash_map_alloc(NULL, hash_size, initial_hash_index_size, HASH_GROWABLE),
-		.mem_string = arena_alloc(initial_memory_string_size),
+		.mem_string = ArenaAlloc(initial_memory_string_size),
 		.files = vector_alloc(NULL, sizeof(struct file), initial_hash_index_size, VECTOR_GROWABLE),
 	};
 
@@ -39,21 +39,21 @@ struct directory_navigator directory_navigator_alloc(const u32 initial_memory_st
 
 void directory_navigator_dealloc(struct directory_navigator *dn)
 {
-	arena_free(&dn->mem_string);
+	ArenaFree(&dn->mem_string);
 	hash_map_free(dn->relative_path_to_file_map);
 	vector_dealloc(&dn->files);
 }
 
 void directory_navigator_flush(struct directory_navigator *dn)
 {
-	arena_flush(&dn->mem_string);
+	ArenaFlush(&dn->mem_string);
 	hash_map_flush(dn->relative_path_to_file_map);
 	vector_flush(&dn->files);
 }
 
 u32 directory_navigator_lookup_substring(struct arena *mem, u32 **index, struct directory_navigator *dn, const utf8 substring)
 {
-	arena_push_record(&dn->mem_string);
+	ArenaPushRecord(&dn->mem_string);
 
 	struct kmp_substring kmp_substring = utf8_lookup_substring_init(&dn->mem_string, substring);
 	*index = (u32 *) mem->stack_ptr;
@@ -64,12 +64,12 @@ u32 directory_navigator_lookup_substring(struct arena *mem, u32 **index, struct 
 		const struct file *file = vector_address(&dn->files, i);
 		if (utf8_lookup_substring(&kmp_substring, file->path))
 		{
-			arena_push_packed_memcpy(mem, &i, sizeof(i));
+			ArenaPushPackedMemcpy(mem, &i, sizeof(i));
 			count += 1;
 		}
 	}
 
-	arena_pop_record(&dn->mem_string);
+	ArenaPopRecord(&dn->mem_string);
 	return count;
 }
 

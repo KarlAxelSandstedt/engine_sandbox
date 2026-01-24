@@ -210,7 +210,7 @@ if (brush->flags & (CSG_FLAG_CONSTANT | CSG_FLAG_DIRTY) == CSG_FLAG_NONE)
 	if (we_want_to_modify_data)
 	{
 		// delta == brush expect delta->delta = NULL and flags CONSTANT | DIRTY isn't set.
-		brush->delta = arena_push_and_memcpy(csg->frame, sizeof(struct brush), brush);
+		brush->delta = ArenaPush_and_memcpy(csg->frame, sizeof(struct brush), brush);
 
 		//Apply changes... 
 	}	
@@ -245,7 +245,7 @@ csg_update()               \\\\\\\\\\\\\\\\\
   INTERNAL OWNERSHIP OVER CSG_STATE_CHANGE  
   (We may modify structs directly)
 
-	arena_flush(csg.frame);
+	ArenaFlush(csg.frame);
 	csg.update_system_1();
 	....
 	csg.update_system_n();

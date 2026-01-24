@@ -76,7 +76,7 @@ void led_main(struct led *led, const u64 ns_delta)
 {
 	led->ns_delta = ns_delta * led->ns_delta_modifier;
 	led->ns += led->ns_delta;
-	arena_flush(&led->frame);
+	ArenaFlush(&led->frame);
 
 	if (!led->project.initialized)
 	{

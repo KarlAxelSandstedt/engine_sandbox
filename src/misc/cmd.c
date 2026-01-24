@@ -37,14 +37,14 @@ u32			  g_cmd_internal_debug_print_index;
 static void cmd_internal_debug_print(void)
 {
 	utf8_debug_print(g_queue->cmd_exec->arg[0].utf8);
-	thread_free_256B(g_queue->cmd_exec->arg[0].utf8.buf);
+	ThreadFree256B(g_queue->cmd_exec->arg[0].utf8.buf);
 }
 
 void cmd_alloc(void)
 {
 	g_name_to_cmd_f_map = hash_map_alloc(NULL, 128, 128, HASH_GROWABLE);
 	g_cmd_f = stack_cmd_function_alloc(NULL, 128, STACK_GROWABLE);
-	mem_persistent = arena_alloc_1MB();
+	mem_persistent = ArenaAlloc1MB();
 
 	const utf8 debug_print_str = utf8_inline("debug_print");
 	g_cmd_internal_debug_print_index = cmd_function_register(debug_print_str, 1, &cmd_internal_debug_print).index;
@@ -54,7 +54,7 @@ void cmd_free(void)
 {
 	hash_map_free(g_name_to_cmd_f_map);
 	stack_cmd_function_free(&g_cmd_f);
-	arena_free_1MB(&mem_persistent);
+	ArenaFree1MB(&mem_persistent);
 }
 
 struct cmd_queue *cmd_queue_alloc(void)
@@ -122,12 +122,12 @@ static void cmd_tokenize_string(struct cmd *cmd)
 	if (cmd->function == NULL)
 	{
 		cmd->function = g_cmd_f.arr + g_cmd_internal_debug_print_index;
-		u8 *buf = thread_alloc_256B();
+		u8 *buf = ThreadAlloc256B();
 		cmd->arg[0].utf8 = utf8_format_buffered(buf, 256, "Error in tokenizing %k: invalid command name", (char *) &cmd->string); 
 		return;
 	}
 
-	struct arena tmp_arena = arena_alloc_1MB();
+	struct arena tmp_arena = ArenaAlloc1MB();
 	while (1)
 	{
 		while (codepoints_left && (text[i] == ' ' || text[i] == '\t' || text[i] == '\n'))
@@ -143,7 +143,7 @@ static void cmd_tokenize_string(struct cmd *cmd)
 
 		if (token_count == cmd->function->args_count)
 		{
-			u8 *buf = thread_alloc_256B();
+			u8 *buf = ThreadAlloc256B();
 			cmd->arg[0].utf8 = utf8_format_buffered(buf, 256, "Error in tokenizing %k: command expects %u arguments.", &cmd->string, cmd->function->args_count); 
 			cmd->function = g_cmd_f.arr + g_cmd_internal_debug_print_index;
 			break;
@@ -167,7 +167,7 @@ static void cmd_tokenize_string(struct cmd *cmd)
 			if (text[i] != '"')
 			{
 				cmd->function = g_cmd_f.arr + g_cmd_internal_debug_print_index;
-				u8 *buf = thread_alloc_256B();
+				u8 *buf = ThreadAlloc256B();
 				cmd->arg[0].utf8 = utf8_format_buffered(buf, 256, "Error in tokenizing %k: non-closed string beginning.", &cmd->string); 
 				break;
 			}
@@ -267,7 +267,7 @@ static void cmd_tokenize_string(struct cmd *cmd)
 		if (ret.op_result != PARSE_SUCCESS)
 		{
 			cmd->function = g_cmd_f.arr + g_cmd_internal_debug_print_index;
-			u8 *buf = thread_alloc_256B();
+			u8 *buf = ThreadAlloc256B();
 			switch (ret.op_result)
 			{
 				case PARSE_UNDERFLOW: 
@@ -288,7 +288,7 @@ static void cmd_tokenize_string(struct cmd *cmd)
 			break;
 		}
 	}
-	arena_free_1MB(&tmp_arena);
+	ArenaFree1MB(&tmp_arena);
 }
 
 void cmd_queue_execute(void)

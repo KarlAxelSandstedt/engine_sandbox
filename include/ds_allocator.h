@@ -27,44 +27,157 @@ extern "C" {
 #include "ds_define.h"
 #include "ds_types.h"
 
-/****************************************** utils ****************************************/
+#define DEFAULT_MEMORY_ALIGNMENT	((u64) 8)
+
+/*
+Memory utils 
+============
+Memory utility tools. 
+*/
 
 /* Return 1 if n = 2*k for some k >= 0, otherwise return 0 */
 u32	PowerOfTwoCheck(const u64 n);
 /* Return smallest value 2^k >= n where k >= 0 */
 u64 	PowerOfTwoCeil(const u64 n);
 
-/************************************* heap allocator  *************************************/
-
-#define DEFAULT_MEMORY_ALIGNMENT	((u64) 8)
+/*
+memSlot: ds_Alloc return value containing the required information for any sequent ds_Realloc or ds_Free call.
+ */
+struct memSlot
+{
+	void *	address;	/* base memory address */
+	u64	size;		/* memory size (>= requested size)  */
+	u32	huge_pages;	/* huge memory pages were requested (Up to the kernel to decide) */
+};
 
 /*
-Heap allocation
-===============
-Heap allocation methods. Do not use free on any memory from ds_alloc and ds_alloc_aligned; use ds_free instead, 
-which properly frees aligned memory on the underlying platform.
+Thread-Safe block allocator
+===========================
+TODO: Thread-safe fixed size block allocator.
 */
 
 
-/* Return allocated heap memory aligned to DEFAULT_MEMORY_ALIGNMENT. On failure, return NULL. */
-void *	ds_Alloc(const u64 size);
-/* Return allocated heap memory aligned to the given POWER-OF-TWO value. On failure, return NULL. */
-void *	ds_AllocAligned(const u64 size, const u64 alignment);
-/* Free ds_alloc and ds_alloc_aligned memory. */
-void 	ds_Free(void *addr);
-
-/************************************* arena allocator  *************************************/
-
-struct allocation_array
+struct threadBlockAllocator
 {
-	void *	addr;
-	u64	len;
-	u64	mem_pushed;	/* NOTE: recorded pushed number of bytes to be used in arena_pop_packed(*) */
+	/* pads for 64 and 128 cachelines */
+	u8				pad1[DS_CACHE_LINE_UB];
+	ds_Align(DS_CACHE_LINE_UB) u64	a_next;
+	u8				pad2[DS_CACHE_LINE_UB];
+	u8 *				block;
+	u64				block_size;
+	u64				max_count;
+	struct memSlot			mem_slot;
 };
 
-struct arena_record
+/*==== block allocator ====*/
+
+//TODO UPDATE
+/* reserve virtual memory pages and initiate allocator */
+void 	ThreadBlockAllocatorAlloc(struct threadBlockAllocator *allocator, const u64 block_count, const u64 block_size);
+/* reserve virtual memory pages and initiate allocator */
+void	ThreadBlockAllocatorFree(struct threadBlockAllocator *allocator);
+/* Returns pointer to requested block, or NULL on out of memory */
+void *	ThreadBlockAlloc(struct threadBlockAllocator *allocator);
+/* Free block */
+void  	ThreadBlockFree(struct threadBlockAllocator *allocator, void *addr);
+
+
+/*==== User defined global block allocators ====*/
+
+//TODO UPDATE
+/* returns a 256B cache aligned block on success, NULL on out-of-memory */
+void *	ThreadAlloc256B(void);
+/* returns a 1MB cache aligned block on success, NULL on out-of-memory */
+void *	ThreadAlloc1MB(void);
+/* free a 256B block */
+void 	ThreadFree256B(void *addr);
+/* free a 1MB block */
+void 	ThreadFree1MB(void *addr);
+
+
+/*
+memConfig 
+=========
+TODO
+*/
+
+//TODO DOCUMENTATION
+struct memConfig
 {
-	struct arena_record *	prev;
+	struct threadBlockAllocator	block_allocator_256B;
+	struct threadBlockAllocator 	block_allocator_1MB;
+	u64				page_size;
+};
+
+//TODO DOCUMENTATION
+extern struct memConfig *g_mem_config;
+
+//TODO DOCUMENTATION
+void ds_MemApiInit(const u32 count_256B, const u32 count_1MB);
+
+
+/*
+Heap allocator
+==============
+Heap allocation methods. Do not use free on any memory from ds_alloc and ds_alloc_aligned; use ds_free instead, 
+which properly handles memSlot allocations. Note that, unlike Linux, Windows does not support overcommiting, so
+the total sum of virtual memory used in the system must be <= Memory Cap (Physical + ...).  Furthermore, Wasm 
+does not support virtual memory in any form, so it is even more constrained.  If needed, we can get around this 
+on Windows when using arenas by commiting pages manually in VirtualAlloc as they are needed.
+
+The API allows for HUGE_PAGE requests; this should be view as advising the platform of our memory usage, not as
+a requirement. 
+*/
+
+#define HUGE_PAGES	1
+#define NO_HUGE_PAGES	0
+
+/* 
+ * Return a memConfig->pagesize aligned allocation with at least size bytes. If huge_pages are set, the kernel
+ * is advised to use huge pages in the allocation. On success, the function sets the input memSlot and returns
+ * a non-NULL valid memory address. On failure, the function returns NULL, and sets slot->address = NULL and
+ * slot->size = 0;
+ */
+void *	ds_Alloc(struct memSlot *slot, const u64 size, const u32 huge_pages);
+/* 
+ * Reallocates a ds_Alloc memSlot, advising the kernel to use the same page policy for the new allocation. 
+ * On failure, the application fatally cleans up and exit. 
+ */
+void *	ds_Realloc(struct memSlot *slot, const u64 size);
+/*
+ * Free a ds_Alloc memSlot. 
+ */
+void	ds_Free(struct memSlot *slot);
+
+
+/*
+Arena allocator
+===============
+//TODO: Arena allocator used for stack-like memory management. 
+*/
+
+/*
+memArray: ArenaPushAlignedAll return value. To pop all memory acquired in the allocation, call
+	
+		ArenaPopPacked(arena, ret.mem_pushed).
+
+	If you wish to keep N elements in the array, then call
+
+		ArenaPopPacked(arena, sizeof(element_type) * (ret.len - N)).
+ */
+struct memArray
+{
+	void *	addr;
+	u64	len;		/* */
+	u64	mem_pushed;	/* NOTE: recorded pushed number of bytes to be used in ArenaPopPacked(*) */
+};
+
+/* Internal: Used to record an arena's state. The pushed records create a linked list in the arena, and
+ * 	by popping a record, the arena pops any allocations made after the most recently pushed record. 
+ */
+struct arenaRecord
+{
+	struct arenaRecord *	prev;
 	u64 			rec_mem_left;
 };
 
@@ -75,88 +188,49 @@ struct arena
 	u8 * 			stack_ptr;
 	u64 			mem_size;
 	u64 			mem_left;
-	struct arena_record *	record;		/* NULL == no record */
+	struct arenaRecord *	record;		/* NULL == no record */
+	struct memSlot		slot;
 };
 
 /* setup arena using global block allocator */
-struct arena	arena_alloc_1MB(void);
+struct arena	ArenaAlloc1MB(void);
 /*  global block allocator free wrapper */
-void		arena_free_1MB(struct arena *mem);
+void		ArenaFree1MB(struct arena *mem);
 
 /* Record arena memory position */
-void		arena_push_record(struct arena *ar);
+void		ArenaPushRecord(struct arena *ar);
 /* Return to last recorded memory position, given that recorded mem_left >= current mem_left. */
-void		arena_pop_record(struct arena *ar);
+void		ArenaPopRecord(struct arena *ar);
 /* Remove last recorded memory position */
-void 		arena_remove_record(struct arena *ar);
+void 		ArenaRemoveRecord(struct arena *ar);
 
 /* If allocation failed, return arena = { 0 } */
-struct arena	arena_alloc(const u64 size);
+struct arena	ArenaAlloc(const u64 size);
 /* free heap memory and set *ar = empty_arena */
-void		arena_free(struct arena *ar);
+void		ArenaFree(struct arena *ar);
 /* flush contents, reset stack to start of stack */
-void		arena_flush(struct arena* ar);	
+void		ArenaFlush(struct arena* ar);	
+
 /* pop arena memory */
-void 		arena_pop_packed(struct arena *ar, const u64 mem_to_pop);
+void 		ArenaPopPacked(struct arena *ar, const u64 mem_to_pop);
 
 /* Return address to aligned data of given size on success, otherwise return NULL. */
-void *		arena_push_aligned(struct arena *ar, const u64 size, const u64 alignment);
+void *		ArenaPushAligned(struct arena *ar, const u64 size, const u64 alignment);
 /* Return address to zeroed-out aligned data of given size on success, otherwise return NULL. */
-void *		arena_push_aligned_zero(struct arena *ar, const u64 size, const u64 alignment);
+void *		ArenaPushAlignedZero(struct arena *ar, const u64 size, const u64 alignment);
 /* Return address to aligned data of given size and copy [size] bytes of copy's content into it on success, 
  * otherwise return NULL. */
-void *		arena_push_aligned_memcpy(struct arena *ar, const void *copy, const u64 size, const u64 alignment);
-/* arena_push_alignement but we push the whole arena given a slot size, and return the number of slots aquired.  */
-struct allocation_array	arena_push_aligned_all(struct arena *ar, const u64 slot_size, const u64 alignment);
+void *		ArenaPushAlignedMemcpy(struct arena *ar, const void *copy, const u64 size, const u64 alignment);
+/* ArenaPush_alignement but we push the whole arena given a slot size, and return the number of slots aquired.  */
+struct memArray	ArenaPushAlignedAll(struct arena *ar, const u64 slot_size, const u64 alignment);
 
-#define		arena_push_packed(ar, size)			arena_push_aligned(ar, size, 1)
-#define		arena_push_packed_zero(ar, size)		arena_push_aligned_zero(ar, size, 1)
-#define		arena_push_packed_memcpy(ar, copy, size)	arena_push_aligned_memcpy(ar, copy, size, 1)
+#define		ArenaPushPacked(ar, size)		ArenaPushAligned(ar, size, 1)
+#define		ArenaPushPackedZero(ar, size)		ArenaPushAlignedZero(ar, size, 1)
+#define		ArenaPushPackedMemcpy(ar, copy, size)	ArenaPushAlignedMemcpy(ar, copy, size, 1)
 
-#define		arena_push(ar, size)				arena_push_aligned(ar, size, DEFAULT_MEMORY_ALIGNMENT)
-#define		arena_push_zero(ar, size)			arena_push_aligned_zero(ar, size, DEFAULT_MEMORY_ALIGNMENT)
-#define		arena_push_memcpy(ar, copy, size)		arena_push_aligned_memcpy(ar, copy, size, DEFAULT_MEMORY_ALIGNMENT)
-
-/************************************* Thread-Safe block allocator  *************************************/
-
-struct thread_block_allocator
-{
-	/* pads for 64 and 128 cachelines */
-	u64	a_next;
-	u8	pad2[120];
-	u8 *	block;
-	u64	block_size;
-	u64	max_count;
-	
-	//TODO parallel 
-	//ALLOCATOR_DEBUG_PARALLEL_INDEX_STRUCT
-};
-
-/*==== User defined global block allocators ====*/
-
-/* allocate global block allocators */
-void	global_thread_block_allocators_alloc(const u32 count_256B, const u32 count_1MB);
-/* free global block allocators */
-void	global_thread_block_allocators_free(void);
-/* returns a 256B cache aligned block on success, NULL on out-of-memory */
-void *	thread_alloc_256B(void);
-/* returns a 1MB cache aligned block on success, NULL on out-of-memory */
-void *	thread_alloc_1MB(void);
-/* free a 256B block */
-void 	thread_free_256B(void *addr);
-/* free a 1MB block */
-void 	thread_free_1MB(void *addr);
-
-/*==== block allocater ====*/
-
-/* reserve virtual memory pages and initiate allocator */
-struct thread_block_allocator *	thread_block_allocator_alloc(const u64 block_count, const u64 block_size);
-/* reserve virtual memory pages and initiate allocator */
-void				thread_block_allocator_free(struct thread_block_allocator *allocator);
-/* Returns pointer to requested block, or NULL on out of memory */
-void *				thread_block_alloc(struct thread_block_allocator *allocator);
-/* Free block */
-void  				thread_block_free(struct thread_block_allocator *allocator, void *addr);
+#define		ArenaPush(ar, size)			ArenaPushAligned(ar, size, DEFAULT_MEMORY_ALIGNMENT)
+#define		ArenaPushZero(ar, size)			ArenaPushAlignedZero(ar, size, DEFAULT_MEMORY_ALIGNMENT)
+#define		ArenaPushMemcpy(ar, copy, size)		ArenaPushAlignedMemcpy(ar, copy, size, DEFAULT_MEMORY_ALIGNMENT)
 
 /************************************* ring allocator *************************************/
 
@@ -170,23 +244,23 @@ struct ring
 };
 
 /* return an empty ring */
-struct ring 		ring_empty(void);	
+struct ring 	RingEmpty(void);	
 /* Allocated virtual memory wrapped ring buffer using mem_hint as a minimum memsize.
  * The final size depends on the page size of the underlying system. Returns the
  * allocated ring allocator on SUCCESS, or an empty allocator on FAILURE.*/
-struct ring 		ring_alloc(const u64 mem_hint);	
+struct ring 	RingAlloc(const u64 mem_hint);	
 /* free ring allocator resources */
-void 			ring_dealloc(struct ring *ring);			
+void 		RingDealloc(struct ring *ring);			
 /* flush ring memory and set offset to 0 */
-void			ring_flush(struct ring *ring);
+void		RingFlush(struct ring *ring);
 /* return allocaction[size], and do not advance the ring write offset on success; empty buffer on FAILURE. */
-struct ds_buffer 	ring_push_start(struct ring *ring, const u64 size);
+struct memSlot 	RingPushStart(struct ring *ring, const u64 size);
 /* return allocaction[size], and advance the ring write offset on success; empty buffer on FAILURE. */
-struct ds_buffer 	ring_push_end(struct ring *ring, const u64 size);
+struct memSlot 	RingPushEnd(struct ring *ring, const u64 size);
 /* release bytes in ring in fifo order. */
-void 			ring_pop_start(struct ring *ring, const u64 size); 
+void 		RingPopStart(struct ring *ring, const u64 size); 
 /* release bytes in ring in lifo order. */
-void 			ring_pop_end(struct ring *ring, const u64 size); 
+void 		RingPopEnd(struct ring *ring, const u64 size); 
 
 /*
 Pool Allocator
@@ -200,17 +274,19 @@ For unallocated slots, the variable represents an index < 0x7fffffff to the next
 The end of the free chain is represented by POOL_NULL.
 */
 
-#define POOL_NULL			0x7fffffff
-#define POOL_SLOT_STATE 		u32 slot_allocation_state
-#define POOL_SLOT_ALLOCATED(ptr)	((ptr)->slot_allocation_state & 0x80000000)
-#define POOL_SLOT_NEXT(ptr)		((ptr)->slot_allocation_state & 0x7fffffff)
-#define POOL_SLOT_GENERATION(ptr)	((ptr)->slot_generation_state)
+#define POOL_NULL		0x7fffffff
+#define POOL_SLOT_STATE 	u32 slot_allocation_state
+#define PoolSlotAllocated(ptr)	((ptr)->slot_allocation_state & 0x80000000)
+#define PoolSlotNext(ptr)	((ptr)->slot_allocation_state & 0x7fffffff)
+#define PoolSlotGeneration(ptr)	((ptr)->slot_generation_state)
 
 #define GENERATIONAL_POOL_SLOT_STATE	u32 slot_allocation_state;	\
 					u32 slot_generation_state
 
 struct pool
 {
+	struct memSlot mem_slot;	/* If heap allocated, address set to valid 
+					   address, otherwise NULL. 			*/
 	u64	slot_size;		/* size of struct containing POOL_SLOT_STATE 	*/
 	u64	slot_allocation_offset;	/* offset of pool_slot_state of struct 		*/
 	u64	slot_generation_offset; /* Optional: set if slots contain generations, 
@@ -221,38 +297,38 @@ struct pool
 	u32 	count_max;		/* max count used over the object's lifetime 	*/
 	u32 	next_free;		/* next free index if != U32_MAX 		*/
 	u32 	growable;
-	u32	heap_allocated;	
+
 };
 
-/* internal allocation of pool, use pool_alloc macro instead */
-struct pool 	pool_alloc_internal(struct arena *mem, const u32 length, const u64 slot_size, const u64 slot_allocation_offset, const u64 slot_generation_offset, const u32 growable);
+/* internal allocation of pool, use PoolAlloc macro instead */
+struct pool 	PoolAllocInternal(struct arena *mem, const u32 length, const u64 slot_size, const u64 slot_allocation_offset, const u64 slot_generation_offset, const u32 growable);
 /* allocation of pool; on error, an empty pool (length == 0), is returned.  */
-#define 	pool_alloc(mem, length, STRUCT, growable)	pool_alloc_internal(mem, length, sizeof(STRUCT), ((u64)&((STRUCT *)0)->slot_allocation_state), U64_MAX, growable)
+#define 	PoolAlloc(mem, length, STRUCT, growable)	PoolAllocInternal(mem, length, sizeof(STRUCT), ((u64)&((STRUCT *)0)->slot_allocation_state), U64_MAX, growable)
 /* dealloc pool */
-void		pool_dealloc(struct pool *pool);
+void		PoolDealloc(struct pool *pool);
 /* dealloc all slot allocations */
-void		pool_flush(struct pool *pool);
+void		PoolFlush(struct pool *pool);
 /* alloc new slot; on error return (NULL, U32_MAX) */
-struct slot	pool_add(struct pool *pool);
+struct slot	PoolAdd(struct pool *pool);
 /* remove slot given index */
-void		pool_remove(struct pool *pool, const u32 index);
+void		PoolRemove(struct pool *pool, const u32 index);
 /* remove slot given address */
-void		pool_remove_address(struct pool *pool, void *slot);
+void		PoolRemoveAddress(struct pool *pool, void *slot);
 /* return address of index */
-void *		pool_address(const struct pool *pool, const u32 index);
+void *		PoolAddress(const struct pool *pool, const u32 index);
 /* return index of address */
-u32		pool_index(const struct pool *pool, const void *slot);
+u32		PoolIndex(const struct pool *pool, const void *slot);
 
-#define gpool_alloc(mem, length, STRUCT, growable)	pool_alloc_internal(mem, length, sizeof(STRUCT), ((u64)&((STRUCT *)0)->slot_allocation_state), ((u64)&((STRUCT *)0)->slot_generation_state), growable)
-#define gpool_dealloc(pool_addr)			pool_dealloc(pool_addr)
-#define	gpool_flush(pool_addr)				pool_flush(pool_addr)
+#define GPoolAlloc(mem, length, STRUCT, growable)	PoolAllocInternal(mem, length, sizeof(STRUCT), ((u64)&((STRUCT *)0)->slot_allocation_state), ((u64)&((STRUCT *)0)->slot_generation_state), growable)
+#define GPoolDealloc(PoolAddr)				PoolDealloc(PoolAddr)
+#define	GPoolFlush(PoolAddr)				PoolFlush(PoolAddr)
 /* alloc new generational slot; on error		 return (NULL, U32_MAX) */
-struct slot						gpool_add_generational(struct pool *pool);
-#define gpool_add(pol_addr)				gpool_add_generational(pol_addr)
-#define	gpool_remove(pool_addr, index)			pool_remove(pool_addr, index)
-#define	gpool_remove_address(pool_addr, addr)		pool_remove_address(pool_addr, addr)
-#define gpool_address(pool_addr, index)			pool_address(pool_addr, index)
-#define gpool_index(pool_addr, addr)			pool_index(pool_addr, addr)
+struct slot	GPoolAdd_generational(struct pool *pool);
+#define GPoolAdd(pol_addr)				GPoolAdd_generational(pol_addr)
+#define	GPoolRemove(PoolAddr, index)			PoolRemove(PoolAddr, index)
+#define	GPoolRemove_address(PoolAddr, addr)		PoolRemoveAddress(PoolAddr, addr)
+#define GPoolAddress(PoolAddr, index)			PoolAddress(PoolAddr, index)
+#define GPoolIndex(PoolAddr, addr)			PoolIndex(PoolAddr, addr)
 
 /*
 Pool External Allocator 
@@ -261,7 +337,7 @@ An extension of the pool allocator to handle an outside buffer instead of an int
 cases when we want to pool C types such as f32, u32 or vec3.
 */
 
-struct pool_external
+struct poolExternal
 {
 	u64		slot_size;
 	void **		external_buf;
@@ -269,34 +345,34 @@ struct pool_external
 };
 
 /* allocation of pool; on error, an empty pool (length == 0), is returned.  */
-struct pool_external 	pool_external_alloc(void **external_buf, const u32 length, const u64 slot_size, const u32 growable);
-/* dealloc pool_external */
-void			pool_external_dealloc(struct pool_external *pool);
+struct poolExternal 	PoolExternalAlloc(void **external_buf, const u32 length, const u64 slot_size, const u32 growable);
+/* dealloc poolExternal */
+void			PoolExternalDealloc(struct poolExternal *pool);
 /* dealloc all slot allocations */
-void			pool_external_flush(struct pool_external *pool);
+void			PoolExternalFlush(struct poolExternal *pool);
 /* alloc new slot; on error return (NULL, U32_MAX) */
-struct slot		pool_external_add(struct pool_external *pool);
+struct slot		PoolExternalAdd(struct poolExternal *pool);
 /* remove slot given index */
-void			pool_external_remove(struct pool_external *pool, const u32 index);
+void			PoolExternalRemove(struct poolExternal *pool, const u32 index);
 /* remove slot given address */
-void			pool_external_remove_address(struct pool_external *pool, void *slot);
+void			PoolExternalRemoveAddress(struct poolExternal *pool, void *slot);
 /* return address of index */
-void *			pool_external_address(const struct pool_external *pool, const u32 index);
+void *			PoolExternalAddress(const struct poolExternal *pool, const u32 index);
 /* return index of address */
-u32			pool_external_index(const struct pool_external *pool, const void *slot);
+u32			PoolExternalIndex(const struct poolExternal *pool, const void *slot);
 
 /***************************** Address sanitizing and poisoning ***************************/
 
 #ifdef DS_ASAN
 #include "sanitizer/asan_interface.h"
 
-#define POISON_ADDRESS(addr, size)	ASAN_POISON_MEMORY_REGION((addr), (size))
-#define UNPOISON_ADDRESS(addr, size)	ASAN_UNPOISON_MEMORY_REGION((addr), (size))
+#define PoisonAddress(addr, size)	ASAN_POISON_MEMORY_REGION((addr), (size))
+#define UnpoisonAddress(addr, size)	ASAN_UNPOISON_MEMORY_REGION((addr), (size))
 
 #else
 
-#define POISON_ADDRESS(addr, size)		
-#define UNPOISON_ADDRESS(addr, size)
+#define PoisonAddress(addr, size)		
+#define UnpoisonAddress(addr, size)
 
 #endif
 

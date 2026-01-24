@@ -141,7 +141,7 @@ struct serialize_stream ss_alloc(struct arena *mem, const u64 bufsize)
 {
 	struct serialize_stream ss = { 0 };
 	ss.buf = (mem)
-		? arena_push(mem, bufsize)
+		? ArenaPush(mem, bufsize)
 		: malloc(bufsize);
 
 	if (ss.buf)

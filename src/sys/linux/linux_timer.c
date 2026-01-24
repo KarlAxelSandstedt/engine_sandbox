@@ -296,10 +296,10 @@ static void tsc_estimate_skew(struct arena *persistent)
 		.a_iteration_test = 0,
 	};
 
-	g_tsc_skew = arena_push_zero(persistent, data.logical_core_count*sizeof(u64));
-	arena_push_record(persistent);
-	data.tsc_reference = arena_push(persistent, data.iterations * sizeof(u64));
-	data.tsc_iterator = arena_push(persistent, data.iterations * sizeof(u64));
+	g_tsc_skew = ArenaPushZero(persistent, data.logical_core_count*sizeof(u64));
+	ArenaPushRecord(persistent);
+	data.tsc_reference = ArenaPush(persistent, data.iterations * sizeof(u64));
+	data.tsc_iterator = ArenaPush(persistent, data.iterations * sizeof(u64));
 
 	pthread_attr_t attr;
 	if (pthread_attr_init(&attr) != 0)
@@ -326,7 +326,7 @@ static void tsc_estimate_skew(struct arena *persistent)
 	void *garbage;
 	pthread_join(thread1, &garbage);
 	pthread_join(thread2, &garbage);
-	arena_pop_record(persistent);
+	ArenaPopRecord(persistent);
 }
 
 void time_init(struct arena *persistent)

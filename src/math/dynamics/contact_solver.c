@@ -66,16 +66,16 @@ void contact_solver_config_init(const u32 iteration_count, const u32 block_solve
 
 struct contact_solver *contact_solver_init_body_data(struct arena *mem, struct island *is, const f32 timestep)
 {
-	struct contact_solver *solver = arena_push(mem, sizeof(struct contact_solver));
+	struct contact_solver *solver = ArenaPush(mem, sizeof(struct contact_solver));
 
 	solver->bodies = is->bodies;
 	solver->timestep = timestep;
 	solver->body_count = is->body_count;
 	solver->contact_count = is->contact_count;
 
-	solver->Iw_inv = arena_push(mem, (is->body_count + 1) * sizeof(mat3));
-	solver->linear_velocity = arena_push(mem,  (is->body_count + 1) * sizeof(vec3));	/* last element is for static bodies with 0-value data */
-	solver->angular_velocity = arena_push(mem, (is->body_count + 1) * sizeof(vec3));
+	solver->Iw_inv = ArenaPush(mem, (is->body_count + 1) * sizeof(mat3));
+	solver->linear_velocity = ArenaPush(mem,  (is->body_count + 1) * sizeof(vec3));	/* last element is for static bodies with 0-value data */
+	solver->angular_velocity = ArenaPush(mem, (is->body_count + 1) * sizeof(vec3));
 
 	mat3ptr mi;
 	mat3 rot, tmp1, tmp2;
@@ -137,7 +137,7 @@ struct contact_solver *contact_solver_init_body_data(struct arena *mem, struct i
 
 void contact_solver_init_velocity_constraints(struct arena *mem, struct contact_solver *solver, const struct physics_pipeline *pipeline, const struct island *is)
 {
-	solver->vcs = arena_push(mem, solver->contact_count * sizeof(struct velocity_constraint));
+	solver->vcs = ArenaPush(mem, solver->contact_count * sizeof(struct velocity_constraint));
 
 	vec3 tmp1, tmp2, tmp3, tmp4;
 	vec3 vcp_Ic1[4]; 	/* Temporary storage for Inw(I_1)(r1 x n) */
@@ -148,8 +148,8 @@ void contact_solver_init_velocity_constraints(struct arena *mem, struct contact_
 	{			
 		struct velocity_constraint *vc = solver->vcs + i;
 
-		const struct rigid_body *b1 = pool_address(&pipeline->body_pool, is->contacts[i]->cm.i1);
-		const struct rigid_body *b2 = pool_address(&pipeline->body_pool, is->contacts[i]->cm.i2);
+		const struct rigid_body *b1 = PoolAddress(&pipeline->body_pool, is->contacts[i]->cm.i1);
+		const struct rigid_body *b2 = PoolAddress(&pipeline->body_pool, is->contacts[i]->cm.i2);
 			
 		const u32 b1_static = (b1->island_index == ISLAND_STATIC) ? 1 : 0; 
 		const u32 b2_static = (b2->island_index == ISLAND_STATIC) ? 1 : 0; 
@@ -185,7 +185,7 @@ void contact_solver_init_velocity_constraints(struct arena *mem, struct contact_
 		vc->block_solve = 0;
 		vc->restitution = f32_max(b1->restitution, b2->restitution);
 		vc->friction = f32_sqrt(b1_friction*b2_friction);
-		vc->vcps = arena_push(mem, vc->vcp_count * sizeof(struct velocity_constraint_point));
+		vc->vcps = ArenaPush(mem, vc->vcp_count * sizeof(struct velocity_constraint_point));
 
 		for (u32 j = 0; j < vc->vcp_count; ++j)
 		{
@@ -267,8 +267,8 @@ void contact_solver_init_velocity_constraints(struct arena *mem, struct contact_
 			{
 				case 2: 
 				{ 
-					vc->normal_mass = arena_push(mem, sizeof(mat2));
-					vc->inv_normal_mass = arena_push(mem, sizeof(mat2));
+					vc->normal_mass = ArenaPush(mem, sizeof(mat2));
+					vc->inv_normal_mass = ArenaPush(mem, sizeof(mat2));
 					
 					const f32 A11 = 1.0f / vc->vcps[0].normal_mass;
 					const f32 A22 = 1.0f / vc->vcps[1].normal_mass;
@@ -288,8 +288,8 @@ void contact_solver_init_velocity_constraints(struct arena *mem, struct contact_
 
 				case 3: 
 				{ 
-					vc->normal_mass = arena_push(mem, sizeof(mat3));
-					vc->inv_normal_mass = arena_push(mem, sizeof(mat3));
+					vc->normal_mass = ArenaPush(mem, sizeof(mat3));
+					vc->inv_normal_mass = ArenaPush(mem, sizeof(mat3));
 
 					const f32 A11 = 1.0f / vc->vcps[0].normal_mass;
 					const f32 A22 = 1.0f / vc->vcps[1].normal_mass;
@@ -315,8 +315,8 @@ void contact_solver_init_velocity_constraints(struct arena *mem, struct contact_
 
 				case 4: 
 				{ 
-					vc->normal_mass = arena_push(mem, sizeof(mat4));
-					vc->inv_normal_mass = arena_push(mem, sizeof(mat4));
+					vc->normal_mass = ArenaPush(mem, sizeof(mat4));
+					vc->inv_normal_mass = ArenaPush(mem, sizeof(mat4));
 
 					const f32 A11 = 1.0f / vc->vcps[0].normal_mass;
 					const f32 A22 = 1.0f / vc->vcps[1].normal_mass;

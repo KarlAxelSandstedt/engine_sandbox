@@ -74,7 +74,7 @@ static void main_loop(void)
 			asset_database_cleanup();
 			cmd_free();
 			system_resources_cleanup();
-			arena_free(&mem_persistent);
+			ArenaFree(&mem_persistent);
 			cleanup = 0;
 		}
 	}
@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
 	g_xoshiro_256_init(seed);
 	thread_xoshiro_256_init_sequence();
 
-	mem_persistent = arena_alloc(32*1024*1024);
+	mem_persistent = ArenaAlloc(32*1024*1024);
 	system_resources_init(&mem_persistent);
 	cmd_alloc();
 	ui_init_global_state();

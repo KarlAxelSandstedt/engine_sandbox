@@ -97,7 +97,7 @@ bvh raycasting
 ==============
 To implement raycast using external primitives, one can use the following code:
 
-	arena_push_record(mem);
+	ArenaPushRecord(mem);
 
 	struct bvh_raycast_info info = bvh_raycast_init(mem, bvh, ray);
 	while (info.hit_queue.count)
@@ -123,7 +123,7 @@ To implement raycast using external primitives, one can use the following code:
 		}
 	}
 
-	arena_pop_record(mem);
+	ArenaPopRecord(mem);
 */
 struct bvh_raycast_info
 {

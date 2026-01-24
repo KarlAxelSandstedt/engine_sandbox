@@ -1665,8 +1665,8 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 	clip_stack[0] = stack_vec3_alloc(mem_tmp, 2*inc_face->count + ref_face->count, NOT_GROWABLE);
 	clip_stack[1] = stack_vec3_alloc(mem_tmp, 2*inc_face->count + ref_face->count, NOT_GROWABLE);
 	u32 cur = 0;
-	vec3ptr ref_v = arena_push(mem_tmp, ref_face->count * sizeof(vec3));
-	vec3ptr cp = arena_push(mem_tmp, (2*inc_face->count + ref_face->count) * sizeof(vec3));
+	vec3ptr ref_v = ArenaPush(mem_tmp, ref_face->count * sizeof(vec3));
+	vec3ptr cp = ArenaPush(mem_tmp, (2*inc_face->count + ref_face->count) * sizeof(vec3));
 
 	for (u32 i = 0; i < ref_face->count; ++i)
 	{
@@ -1681,7 +1681,7 @@ static u32 hull_contact_internal_face_contact(struct arena *mem_tmp, struct cont
 	}
 
 	/* (4) clip incident_face to reference_face */
-	f32 *depth = arena_push(mem_tmp, (inc_face->count * 2 + ref_face->count) * sizeof(f32));
+	f32 *depth = ArenaPush(mem_tmp, (inc_face->count * 2 + ref_face->count) * sizeof(f32));
 
 	/*
 	 * Sutherland-Hodgman 3D polygon clipping
@@ -2086,7 +2086,7 @@ static u32 hull_contact(struct arena *tmp, struct collision_result *result, cons
 	 */
 
 	//TODO: Margins??
-	arena_push_record(tmp);
+	ArenaPushRecord(tmp);
 
 	mat3 rot1, rot2;
 	quat_to_mat3(rot1, b1->rotation);
@@ -2095,8 +2095,8 @@ static u32 hull_contact(struct arena *tmp, struct collision_result *result, cons
 	struct dcel *h1 = &((struct collision_shape *) string_database_address(pipeline->shape_db, b1->shape_handle))->hull;
 	struct dcel *h2 = &((struct collision_shape *) string_database_address(pipeline->shape_db, b2->shape_handle))->hull;
 
-	vec3ptr v1_world = arena_push(tmp, h1->v_count * sizeof(vec3));
-	vec3ptr v2_world = arena_push(tmp, h2->v_count * sizeof(vec3));
+	vec3ptr v1_world = ArenaPush(tmp, h1->v_count * sizeof(vec3));
+	vec3ptr v2_world = ArenaPush(tmp, h2->v_count * sizeof(vec3));
 
 	for (u32 i = 0; i < h1->v_count; ++i)
 	{
@@ -2117,8 +2117,8 @@ static u32 hull_contact(struct arena *tmp, struct collision_result *result, cons
 	u32 calculate = 1;
 	struct sat_cache *sat_cache = NULL;
 
-	const u32 bi1 = pool_index(&pipeline->body_pool, b1);
-	const u32 bi2 = pool_index(&pipeline->body_pool, b2);
+	const u32 bi1 = PoolIndex(&pipeline->body_pool, b1);
+	const u32 bi2 = PoolIndex(&pipeline->body_pool, b2);
 	ds_AssertString(bi1 < bi2, "Having these requirements spread all over the pipeline is bad, should\
 			standardize some place where we enforce this rule, if at all. Furthermore, we should\
 			consider better ways of creating body pair keys");
@@ -2275,7 +2275,7 @@ sat_cleanup:
 			: COLLISION_NONE;
 	}
 	
-	arena_pop_record(tmp);
+	ArenaPopRecord(tmp);
 	return colliding;
 }
 
@@ -2291,11 +2291,11 @@ static u32 tri_mesh_bvh_sphere_contact(struct arena *tmp, struct collision_resul
 	vec3_sub(bbox_transform.center, b2->position, b1->position);
 	vec3_set(bbox_transform.hw, sph->radius, sph->radius, sph->radius);
 
-	arena_push_record(tmp);
+	ArenaPushRecord(tmp);
 
 	const struct bvh *bvh = &mesh_bvh->bvh;
 	const struct bvh_node *node = (struct bvh_node *) bvh->tree.pool.buf;
-	struct allocation_array arr = arena_push_aligned_all(tmp, sizeof(struct bvh_node *), sizeof(struct bvh_node *));
+	struct memArray arr = ArenaPushAlignedAll(tmp, sizeof(struct bvh_node *), sizeof(struct bvh_node *));
 	const struct bvh_node **node_stack = arr.addr;
 
 	if (arr.len == 0)
@@ -2337,7 +2337,7 @@ static u32 tri_mesh_bvh_sphere_contact(struct arena *tmp, struct collision_resul
 		}
 	}
 
-	arena_pop_record(tmp);
+	ArenaPopRecord(tmp);
 
 	result->type = COLLISION_NONE;
 	return 0;

@@ -34,9 +34,9 @@ struct hash_map *hash_map_alloc(struct arena *mem, const u32 hash_len, const u32
 	if (mem)
 	{
 
-		map = arena_push(mem, sizeof(struct hash_map));
-		hash = arena_push(mem, actual_hash_len * sizeof(u32)); 
-		index = arena_push(mem, index_len * sizeof(u32)); 
+		map = ArenaPush(mem, sizeof(struct hash_map));
+		hash = ArenaPush(mem, actual_hash_len * sizeof(u32)); 
+		index = ArenaPush(mem, index_len * sizeof(u32)); 
 	}
 	else
 	{
@@ -111,13 +111,13 @@ struct hash_map *hash_map_deserialize(struct arena *mem, struct serialize_stream
 
 	if (mem)
 	{
-		arena_push_record(mem);
-		hash = arena_push(mem, hash_len * sizeof(u32));
-		index = arena_push(mem, index_len * sizeof(u32));
-		map = arena_push(mem, sizeof(struct hash_map));
+		ArenaPushRecord(mem);
+		hash = ArenaPush(mem, hash_len * sizeof(u32));
+		index = ArenaPush(mem, index_len * sizeof(u32));
+		map = ArenaPush(mem, sizeof(struct hash_map));
 		if (!map || !index || !hash)
 		{
-			arena_pop_record(mem);
+			ArenaPopRecord(mem);
 			return NULL;
 		}
 	}

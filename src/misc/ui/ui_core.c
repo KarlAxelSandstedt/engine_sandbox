@@ -125,17 +125,17 @@ struct ui *ui_alloc(void)
 	memset(ui, 0, sizeof(struct ui));
 	ui->node_hierarchy = hierarchy_index_alloc(NULL, INITIAL_UNIT_COUNT, sizeof(struct ui_node), GROWABLE);
 	ui->node_map = hash_map_alloc(NULL, U16_MAX, U16_MAX, GROWABLE);
-	ui->bucket_pool = pool_alloc(NULL, 64, struct ui_draw_bucket, GROWABLE);
+	ui->bucket_pool = PoolAlloc(NULL, 64, struct ui_draw_bucket, GROWABLE);
 	ui->bucket_list = dll_init(struct ui_draw_bucket);
 	ui->bucket_map = hash_map_alloc(NULL, 128, 128, GROWABLE);
-	ui->event_pool = pool_alloc(NULL, 32, struct system_event, GROWABLE);
+	ui->event_pool = PoolAlloc(NULL, 32, struct system_event, GROWABLE);
 	ui->event_list = dll_init(struct system_event);
 	ui->frame = 0;
 	ui->root = HI_ROOT_STUB_INDEX;
 	ui->node_count_prev_frame = 0;
 	ui->node_count_frame = 0;
-	ui->mem_frame_arr[0] = arena_alloc(64*1024*1024);
-	ui->mem_frame_arr[1] = arena_alloc(64*1024*1024);
+	ui->mem_frame_arr[0] = ArenaAlloc(64*1024*1024);
+	ui->mem_frame_arr[1] = ArenaAlloc(64*1024*1024);
 	ui->mem_frame = ui->mem_frame_arr + (ui->frame & 0x1);
 	ui->stack_parent = stack_u32_alloc(NULL, 32, GROWABLE);
 	ui->stack_sprite = stack_u32_alloc(NULL, 32, GROWABLE);
@@ -209,7 +209,7 @@ struct ui *ui_alloc(void)
 	ui->stack_recursive_interaction_flags.arr[0] = UI_FLAG_NONE;
 
 	/* setup stub bucket */
-	struct slot slot = pool_add(&ui->bucket_pool);
+	struct slot slot = PoolAdd(&ui->bucket_pool);
 	dll_append(&ui->bucket_list, ui->bucket_pool.buf, slot.index);
 	ui->bucket_cache = slot.index;
 	struct ui_draw_bucket *bucket = slot.address;
@@ -221,8 +221,8 @@ struct ui *ui_alloc(void)
 
 void ui_dealloc(struct ui *ui)
 {
-	arena_free(ui->mem_frame_arr + 0);
-	arena_free(ui->mem_frame_arr + 1);
+	ArenaFree(ui->mem_frame_arr + 0);
+	ArenaFree(ui->mem_frame_arr + 1);
 
 	stack_ui_text_selection_free(&ui->frame_stack_text_selection);
 	stack_f32_free(&ui->stack_pad);
@@ -259,8 +259,8 @@ void ui_dealloc(struct ui *ui)
 	stack_u32_free(&ui->stack_floating_depth);
 	stack_u32_free(&ui->stack_fixed_depth);
 	hash_map_free(ui->node_map);
-	pool_dealloc(&ui->event_pool);
-	pool_dealloc(&ui->bucket_pool);
+	PoolDealloc(&ui->event_pool);
+	PoolDealloc(&ui->bucket_pool);
 	hash_map_free(ui->bucket_map);
 	hierarchy_index_free(ui->node_hierarchy);
 	free(ui);
@@ -272,13 +272,13 @@ void ui_dealloc(struct ui *ui)
 
 static void ui_draw_bucket_add_node(const u32 cmd, const u32 index)
 {
-	struct ui_draw_bucket *bucket = pool_address(&g_ui->bucket_pool, g_ui->bucket_cache);
+	struct ui_draw_bucket *bucket = PoolAddress(&g_ui->bucket_pool, g_ui->bucket_cache);
 	if (bucket->cmd != cmd)
 	{
 		u32 bi = hash_map_first(g_ui->bucket_map, cmd);
 		for (; bi != HASH_NULL; bi = hash_map_next(g_ui->bucket_map, bi))
 		{
-			bucket = pool_address(&g_ui->bucket_pool, bi);
+			bucket = PoolAddress(&g_ui->bucket_pool, bi);
 			if (bucket->cmd == cmd)
 			{
 				break;
@@ -287,7 +287,7 @@ static void ui_draw_bucket_add_node(const u32 cmd, const u32 index)
 
 		if (bi == HASH_NULL)
 		{
-			struct slot slot = pool_add(&g_ui->bucket_pool);
+			struct slot slot = PoolAdd(&g_ui->bucket_pool);
 			bi = slot.index;
 			hash_map_add(g_ui->bucket_map, cmd, bi);
 			dll_append(&g_ui->bucket_list, g_ui->bucket_pool.buf, bi);
@@ -299,7 +299,7 @@ static void ui_draw_bucket_add_node(const u32 cmd, const u32 index)
 	}
 
 	struct ui_draw_node *tmp = bucket->list;
-	bucket->list = arena_push(g_ui->mem_frame, sizeof(struct ui_draw_node));
+	bucket->list = ArenaPush(g_ui->mem_frame, sizeof(struct ui_draw_node));
 	bucket->list->next = tmp;
 	bucket->list->index = index;
 	bucket->count += 1;
@@ -421,7 +421,7 @@ struct ui_text_input ui_text_input_alloc(struct arena *mem, const u32 max_len)
 
 static void ui_childsum_layout_size_and_prune_nodes(void)
 {
-	arena_push_record(g_ui->mem_frame);
+	ArenaPushRecord(g_ui->mem_frame);
 
 	//stack_u32 stack_free = stack_u32_alloc(g_ui->mem_frame, g_ui->node_count_prev_frame, 0);
 	stack_ptr stack_childsum_x = stack_ptr_alloc(g_ui->mem_frame, g_ui->node_count_frame, 0);
@@ -479,7 +479,7 @@ static void ui_childsum_layout_size_and_prune_nodes(void)
 		}
 	}
 
-	arena_pop_record(g_ui->mem_frame);
+	ArenaPopRecord(g_ui->mem_frame);
 }
 
 static void ui_node_solve_child_violation(struct ui_node *node, const enum axis_2 axis)
@@ -489,16 +489,16 @@ static void ui_node_solve_child_violation(struct ui_node *node, const enum axis_
 		return; 
 	}
 
-	arena_push_record(g_ui->mem_frame);
-	struct ui_node **child = arena_push(g_ui->mem_frame, node->header.child_count * sizeof(struct ui_node *));
-	f32 *new_size = arena_push(g_ui->mem_frame, node->header.child_count  * sizeof(f32));
-	u32 *shrink = arena_push(g_ui->mem_frame, node->header.child_count * sizeof(u32));
+	ArenaPushRecord(g_ui->mem_frame);
+	struct ui_node **child = ArenaPush(g_ui->mem_frame, node->header.child_count * sizeof(struct ui_node *));
+	f32 *new_size = ArenaPush(g_ui->mem_frame, node->header.child_count  * sizeof(f32));
+	u32 *shrink = ArenaPush(g_ui->mem_frame, node->header.child_count * sizeof(u32));
 	f32 child_size_sum = 0.0f;
 	u32 children_to_shrink = node->header.child_count;
 	u32 index = node->header.first;
 
 	u32 pad_fill_count = 0;
-	u32 *pad_fill_index = arena_push(g_ui->mem_frame, node->header.child_count * sizeof(u32));
+	u32 *pad_fill_index = ArenaPush(g_ui->mem_frame, node->header.child_count * sizeof(u32));
 
 	for (u32 i = 0; i < node->header.child_count; ++i)
 	{
@@ -623,12 +623,12 @@ static void ui_node_solve_child_violation(struct ui_node *node, const enum axis_
 		}
 	}
 
-	arena_pop_record(g_ui->mem_frame);
+	ArenaPopRecord(g_ui->mem_frame);
 }
 
 static void ui_solve_violations(void)
 {
-	struct arena tmp = arena_alloc_1MB();
+	struct arena tmp = ArenaAlloc1MB();
 	struct hierarchy_index_iterator	it = hierarchy_index_iterator_init(&tmp, g_ui->node_hierarchy, g_ui->root);
 	while(it.count)
 	{
@@ -639,12 +639,12 @@ static void ui_solve_violations(void)
 		ui_node_solve_child_violation(node, AXIS_2_Y);
 	}
 	hierarchy_index_iterator_release(&it);
-	arena_free_1MB(&tmp);
+	ArenaFree1MB(&tmp);
 }
 
 static void ui_layout_absolute_position(void)
 {
-	struct arena tmp = arena_alloc_1MB();
+	struct arena tmp = ArenaAlloc1MB();
 	struct hierarchy_index_iterator	it = hierarchy_index_iterator_init(&tmp, g_ui->node_hierarchy, g_ui->root);
 
 	struct ui_node *node = hierarchy_index_address(g_ui->node_hierarchy, g_ui->root);
@@ -753,7 +753,7 @@ static void ui_layout_absolute_position(void)
 	}
 
 	hierarchy_index_iterator_release(&it);
-	arena_free_1MB(&tmp);
+	ArenaFree1MB(&tmp);
 }
 
 static void inter_debug_print(const u64 inter)
@@ -840,13 +840,13 @@ void ui_frame_begin(const vec2u32 window_size, const struct ui_visual *base)
 {
 	g_ui->frame += 1;
 	g_ui->mem_frame = g_ui->mem_frame_arr + (g_ui->frame & 0x1);
-	arena_flush(g_ui->mem_frame);
+	ArenaFlush(g_ui->mem_frame);
 	dll_flush(&g_ui->bucket_list);
-	pool_flush(&g_ui->bucket_pool);
+	PoolFlush(&g_ui->bucket_pool);
 	hash_map_flush(g_ui->bucket_map);
 	
 	/* setup stub bucket */
-	struct slot slot = pool_add(&g_ui->bucket_pool);
+	struct slot slot = PoolAdd(&g_ui->bucket_pool);
 	dll_append(&g_ui->bucket_list, g_ui->bucket_pool.buf, slot.index);
 	g_ui->bucket_cache = slot.index;
 	struct ui_draw_bucket *bucket = slot.address;
@@ -1008,7 +1008,7 @@ static struct slot ui_text_selection_alloc(const struct ui_node *node, const vec
 void ui_frame_end(void)
 {	
 	dll_flush(&g_ui->event_list);
-	pool_flush(&g_ui->event_pool);
+	PoolFlush(&g_ui->event_pool);
 
 	ui_node_pop();
 

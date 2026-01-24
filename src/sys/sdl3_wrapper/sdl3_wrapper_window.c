@@ -297,7 +297,7 @@ static void sdl3_create_gl_context(struct native_window *native)
 
 static struct native_window *sdl3_wrapper_native_window_create(struct arena *mem, const char *title, const vec2u32 position, const vec2u32 size)
 {
-	struct native_window *native = arena_push(mem, sizeof(struct native_window));
+	struct native_window *native = ArenaPush(mem, sizeof(struct native_window));
 	native->sdl_win = SDL_CreateWindow(title, (i32) size[0], (i32) size[1], SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL);
 	if (native->sdl_win == NULL)
 	{
@@ -356,7 +356,7 @@ utf8 sdl3_wrapper_utf8_get_clipboard(struct arena *mem)
 			/* skip null */
 			size -= 1;
 
-			u8 *buf = arena_push_memcpy(mem, utf8_null.buf, size);
+			u8 *buf = ArenaPushMemcpy(mem, utf8_null.buf, size);
 			if (buf)
 			{
 				ret = (utf8) { .buf = buf, .len = len, .size = (u32) size };

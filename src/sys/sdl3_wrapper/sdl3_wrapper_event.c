@@ -35,7 +35,7 @@ u32 sdl3_wrapper_event_consume(struct system_event *event)
 			case SDL_EVENT_TEXT_INPUT:
 			{
 				event->type = SYSTEM_TEXT_INPUT;
-				//event->utf32 = decode_utf8_null_terminated_buffered(thread_alloc_256B(), 256 / 4, (u8 *) ev.text.text);
+				//event->utf32 = decode_utf8_null_terminated_buffered(ThreadAlloc256B(), 256 / 4, (u8 *) ev.text.text);
 				event->utf8.buf = (u8 *) ev.text.text;
 				event->utf8.len = 0;
 				u64 offset = 0;

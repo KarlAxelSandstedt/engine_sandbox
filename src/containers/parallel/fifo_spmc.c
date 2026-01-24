@@ -25,9 +25,9 @@ struct fifo_spmc *fifo_spmc_init(struct arena *mem_persistent, const u32 max_ent
 	ds_Assert(max_entry_count > 0 && PowerOfTwoCheck(max_entry_count));
 	struct fifo_spmc *q = NULL; 
 
-	q = arena_push(mem_persistent, sizeof(struct fifo_spmc));
+	q = ArenaPush(mem_persistent, sizeof(struct fifo_spmc));
 	q->max_entry_count = max_entry_count;
-	q->entries = arena_push(mem_persistent, q->max_entry_count * sizeof(struct fifo_spmc_entry));
+	q->entries = ArenaPush(mem_persistent, q->max_entry_count * sizeof(struct fifo_spmc_entry));
 	for (u32 i = 0; i < q->max_entry_count; ++i)
 	{
 		q->entries[i].in_use = 0;

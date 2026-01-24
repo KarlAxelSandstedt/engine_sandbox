@@ -287,9 +287,9 @@ u32 dbvh_insert(struct bvh *bvh, const u32 id, const struct AABB *bbox)
 		}
 	}
 
-	//struct arena tmp = arena_alloc_1MB();
+	//struct arena tmp = ArenaAlloc1MB();
 	//bvh_validate(&tmp, bvh);
-	//arena_free_1MB(&tmp);
+	//ArenaFree1MB(&tmp);
 
 	return leaf.index;
 }
@@ -343,9 +343,9 @@ void dbvh_remove(struct bvh *bvh, const u32 index)
 		}
 	}
 
-	//struct arena tmp = arena_alloc_1MB();
+	//struct arena tmp = ArenaAlloc1MB();
 	//bvh_validate(&tmp, bvh);
-	//arena_free_1MB(&tmp);
+	//ArenaFree1MB(&tmp);
 }
 
 u32 dbvh_internal_push_subtree_overlap_pairs(struct arena *mem, struct dbvh_overlap *stack, const u64 stack_len, const struct bvh *bvh, u32 subA, u32 subB)
@@ -373,7 +373,7 @@ u32 dbvh_internal_push_subtree_overlap_pairs(struct arena *mem, struct dbvh_over
 					overlap.id1 = nodes[subB].bt_left;	
 					overlap.id2 = nodes[subA].bt_left;	
 				}
-				arena_push_packed_memcpy(mem, &overlap, sizeof(overlap));
+				ArenaPushPackedMemcpy(mem, &overlap, sizeof(overlap));
 			}
 			else
 			{
@@ -424,11 +424,11 @@ struct dbvh_overlap *dbvh_push_overlap_pairs(struct arena *mem, u32 *count, cons
 	u32 b = nodes[bvh->tree.root].bt_right;
 	u32 q = U32_MAX;
 
-	struct arena tmp1 = arena_alloc_1MB();
-	struct arena tmp2 = arena_alloc_1MB();
+	struct arena tmp1 = ArenaAlloc1MB();
+	struct arena tmp2 = ArenaAlloc1MB();
 
-	struct allocation_array arr1 = arena_push_aligned_all(&tmp1, sizeof(struct dbvh_overlap), 4); 
-	struct allocation_array arr2 = arena_push_aligned_all(&tmp2, sizeof(struct dbvh_overlap), 4); 
+	struct memArray arr1 = ArenaPushAlignedAll(&tmp1, sizeof(struct dbvh_overlap), 4); 
+	struct memArray arr2 = ArenaPushAlignedAll(&tmp2, sizeof(struct dbvh_overlap), 4); 
 
 	struct dbvh_overlap *stack1 = arr1.addr;
 	struct dbvh_overlap *stack2 = arr2.addr;
@@ -467,20 +467,20 @@ struct dbvh_overlap *dbvh_push_overlap_pairs(struct arena *mem, u32 *count, cons
 		}
 	}
 
-	arena_free_1MB(&tmp1);
-	arena_free_1MB(&tmp2);
+	ArenaFree1MB(&tmp1);
+	ArenaFree1MB(&tmp2);
 
 	return (*count) ? overlaps : NULL;
 }
 
 void bvh_validate(struct arena *tmp, const struct bvh *bvh)
 {
-	arena_push_record(tmp);
+	ArenaPushRecord(tmp);
 	bt_validate(tmp, &bvh->tree);
 	if (bvh->tree.root == POOL_NULL) { return; }
 
 	const struct bvh_node *node = (struct bvh_node *) bvh->tree.pool.buf;
-	struct allocation_array arr = arena_push_aligned_all(tmp, sizeof(u32), 4);
+	struct memArray arr = ArenaPushAlignedAll(tmp, sizeof(u32), 4);
 	u32 *stack = arr.addr;
 	stack[0] = bvh->tree.root;
 	u32 sc = 1;
@@ -500,7 +500,7 @@ void bvh_validate(struct arena *tmp, const struct bvh *bvh)
 			sc += 2;
 		}
 	}
-	arena_pop_record(tmp);
+	ArenaPopRecord(tmp);
 }
 
 struct tri_mesh_bvh tri_mesh_bvh_construct(struct arena *mem, const struct tri_mesh *mesh, const u32 bin_count)
@@ -513,7 +513,7 @@ struct tri_mesh_bvh tri_mesh_bvh_construct(struct arena *mem, const struct tri_m
 
 	PROF_ZONE;
 
-	arena_push_record(mem);
+	ArenaPushRecord(mem);
 	const u32 max_node_count_required = 2*mesh->tri_count - 1;
 
 	struct tri_mesh_bvh mesh_bvh = 
@@ -524,25 +524,25 @@ struct tri_mesh_bvh tri_mesh_bvh_construct(struct arena *mem, const struct tri_m
 			.tree = bt_alloc(mem, max_node_count_required, struct bvh_node, NOT_GROWABLE),
 			.heap_allocated = 0,
 		},
-		.tri = arena_push(mem, mesh->tri_count*sizeof(u32)),
+		.tri = ArenaPush(mem, mesh->tri_count*sizeof(u32)),
 		.tri_count = mesh->tri_count,
 	};
 
-	arena_push_record(mem);
+	ArenaPushRecord(mem);
 	struct AABB *axis_bin_bbox[3];
 	u32 *axis_bin_tri_count[3];
 	u8 *centroid_bin_map[3];
-	centroid_bin_map[0] = arena_push(mem, mesh->tri_count*sizeof(u8));
-	centroid_bin_map[1] = arena_push(mem, mesh->tri_count*sizeof(u8));
-	centroid_bin_map[2] = arena_push(mem, mesh->tri_count*sizeof(u8));
-	axis_bin_bbox[0] = arena_push(mem, bin_count*sizeof(struct AABB));
-	axis_bin_bbox[1] = arena_push(mem, bin_count*sizeof(struct AABB));
-	axis_bin_bbox[2] = arena_push(mem, bin_count*sizeof(struct AABB));
-	axis_bin_tri_count[0] = arena_push(mem, bin_count*sizeof(u32));
-	axis_bin_tri_count[1] = arena_push(mem, bin_count*sizeof(u32));
-	axis_bin_tri_count[2] = arena_push(mem, bin_count*sizeof(u32));
-	struct AABB *bbox_tri = arena_push(mem, mesh->tri_count*sizeof(struct AABB));
-	struct allocation_array arr = arena_push_aligned_all(mem, sizeof(u32), 4);
+	centroid_bin_map[0] = ArenaPush(mem, mesh->tri_count*sizeof(u8));
+	centroid_bin_map[1] = ArenaPush(mem, mesh->tri_count*sizeof(u8));
+	centroid_bin_map[2] = ArenaPush(mem, mesh->tri_count*sizeof(u8));
+	axis_bin_bbox[0] = ArenaPush(mem, bin_count*sizeof(struct AABB));
+	axis_bin_bbox[1] = ArenaPush(mem, bin_count*sizeof(struct AABB));
+	axis_bin_bbox[2] = ArenaPush(mem, bin_count*sizeof(struct AABB));
+	axis_bin_tri_count[0] = ArenaPush(mem, bin_count*sizeof(u32));
+	axis_bin_tri_count[1] = ArenaPush(mem, bin_count*sizeof(u32));
+	axis_bin_tri_count[2] = ArenaPush(mem, bin_count*sizeof(u32));
+	struct AABB *bbox_tri = ArenaPush(mem, mesh->tri_count*sizeof(struct AABB));
+	struct memArray arr = ArenaPushAlignedAll(mem, sizeof(u32), 4);
 
 	u32 success = 1;
 	if (!mesh_bvh.bvh.tree.pool.length 
@@ -587,7 +587,7 @@ struct tri_mesh_bvh tri_mesh_bvh_construct(struct arena *mem, const struct tri_m
 	/* Process triangles from left to right, depth-first. */
 	while (sc--)
 	{
-		node = pool_address(&mesh_bvh.bvh.tree.pool, node_stack[sc]);
+		node = PoolAddress(&mesh_bvh.bvh.tree.pool, node_stack[sc]);
 		const u32 tri_first = node->bt_left;
 		const u32 tri_count = node->bt_right;
 		if (tri_count == 1)
@@ -730,14 +730,14 @@ struct tri_mesh_bvh tri_mesh_bvh_construct(struct arena *mem, const struct tri_m
 	}
 	
 end:
-	arena_pop_record(mem);
+	ArenaPopRecord(mem);
 	if (success)
 	{
-		arena_remove_record(mem);
+		ArenaRemoveRecord(mem);
 	}
 	else
 	{
-		arena_pop_record(mem);
+		ArenaPopRecord(mem);
 		const u64 size_required = max_node_count_required*sizeof(struct bvh_node) 
 			+ mesh->tri_count*sizeof(u32) 
 			+ mesh->tri_count*sizeof(struct AABB)
@@ -802,7 +802,7 @@ void bvh_raycast_test_and_push_children(struct bvh_raycast_info *info, const u32
 u32f32 tri_mesh_bvh_raycast(struct arena *tmp, const struct tri_mesh_bvh *mesh_bvh, const struct ray *ray)
 {
 	PROF_ZONE;
-	arena_push_record(tmp);
+	ArenaPushRecord(tmp);
 
 	const struct bvh *bvh = &mesh_bvh->bvh;
 	struct bvh_raycast_info info = bvh_raycast_init(tmp, bvh, ray);
@@ -834,7 +834,7 @@ u32f32 tri_mesh_bvh_raycast(struct arena *tmp, const struct tri_mesh_bvh *mesh_b
 		}
 	}
 
-	arena_pop_record(tmp);
+	ArenaPopRecord(tmp);
 
 	PROF_ZONE_END;
 	return info.hit;

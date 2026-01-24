@@ -147,14 +147,14 @@ static void run_performance_suite(struct performance_suite *suite)
 		rt_print_statistics(&tester, stdout);
 	}
 
-	struct arena mem = arena_alloc_1MB();
+	struct arena mem = ArenaAlloc1MB();
 	for (u32 i = 0; i < suite->parallel_test_count; ++i)
 	{
 		memset(&tester, 0, sizeof(tester));
 		fprintf(stdout, "\t::: %s ::: \n", suite->parallel_test[i].id);
 
-		arena_flush(&mem);
-		struct performance_test_caller_input *args = arena_push(&mem, g_task_ctx->worker_count * sizeof(struct performance_test_caller_input));
+		ArenaFlush(&mem);
+		struct performance_test_caller_input *args = ArenaPush(&mem, g_task_ctx->worker_count * sizeof(struct performance_test_caller_input));
 		u32 a_barrier;
 
 		for (u32 k = 0; k < g_task_ctx->worker_count; ++k)
@@ -170,7 +170,7 @@ static void run_performance_suite(struct performance_suite *suite)
 		do
 		{
 			rng_push_state();
-			arena_push_record(&mem);
+			ArenaPushRecord(&mem);
 			AtomicStoreRel32(&a_barrier, 0);
 			struct task_stream *stream = task_stream_init(&mem);
 			for (u32 k = 0; k < g_task_ctx->worker_count; ++k)
@@ -190,7 +190,7 @@ static void run_performance_suite(struct performance_suite *suite)
 			rt_end_time(&tester);
 
 			task_stream_cleanup(stream);		
-			arena_pop_record(&mem);
+			ArenaPopRecord(&mem);
 			rng_pop_state();
 		} while (rt_is_testing(&tester));
 
@@ -204,17 +204,17 @@ static void run_performance_suite(struct performance_suite *suite)
 
 		rt_print_statistics(&tester, stdout);
 	}
-	arena_free_1MB(&mem);
+	ArenaFree1MB(&mem);
 }
 
 void test_main(void)
 {
-	struct arena mem_1 = arena_alloc(16*1024*1024);
-	struct arena mem_2 = arena_alloc(1024*1024);
-	struct arena mem_3 = arena_alloc(1024*1024);
-	struct arena mem_4 = arena_alloc(1024*1024);
-	struct arena mem_5 = arena_alloc(1024*1024);
-	struct arena mem_6 = arena_alloc(1024*1024);
+	struct arena mem_1 = ArenaAlloc(16*1024*1024);
+	struct arena mem_2 = ArenaAlloc(1024*1024);
+	struct arena mem_3 = ArenaAlloc(1024*1024);
+	struct arena mem_4 = ArenaAlloc(1024*1024);
+	struct arena mem_5 = ArenaAlloc(1024*1024);
+	struct arena mem_6 = ArenaAlloc(1024*1024);
 
 	struct test_environment env = 
 	{

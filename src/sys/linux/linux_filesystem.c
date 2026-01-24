@@ -279,7 +279,7 @@ struct ds_buffer linux_file_dump(struct arena *mem, const char *path, const stru
 	if (mem)
 	{
 		record = *mem;
-		buf.data = arena_push(mem, (u64) stat.st_size);
+		buf.data = ArenaPush(mem, (u64) stat.st_size);
 	}
 	else
 	{
@@ -477,16 +477,16 @@ utf8 linux_cwd_get(struct arena *mem)
 	};
 
 	const u64 record = mem->mem_left;
-	cwd.buf = arena_push(mem, cwd.size);
+	cwd.buf = ArenaPush(mem, cwd.size);
 	while ((cwd.buf = (u8*) getcwd((char*) cwd.buf, cwd.size)) == NULL)
 	{
-		arena_pop_packed(mem, record - mem->mem_left);
+		ArenaPopPacked(mem, record - mem->mem_left);
 		cwd.size *= 2;	
 		if (errno != ENOMEM || cwd.size > mem->mem_left)
 		{
 			return utf8_empty();
 		}
-		cwd.buf = arena_push(mem, cwd.size);
+		cwd.buf = ArenaPush(mem, cwd.size);
 	}
 
 	u64 offset = 0;
@@ -534,7 +534,7 @@ enum fs_error linux_directory_push_entries(struct arena *mem, struct vector *vec
 		return FS_ERROR_UNSPECIFIED;
 	}
 
-	arena_push_record(mem);
+	ArenaPushRecord(mem);
 	const u32 vec_record = vec->next;
 	
 	file_status status;
@@ -560,7 +560,7 @@ enum fs_error linux_directory_push_entries(struct arena *mem, struct vector *vec
 
 	if (ret != FS_SUCCESS)
 	{
-		arena_pop_record(mem);
+		ArenaPopRecord(mem);
 		vec->next = vec_record;
 	}
 	closedir(dir_stream);

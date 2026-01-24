@@ -28,18 +28,18 @@ static struct r_mesh *debug_contact_manifold_segments_mesh(struct arena *mem, co
 	const struct contact_manifold *cm = pipeline->cm;
 	const u32 cm_count = pipeline->cm_count;
 
-	arena_push_record(mem);
+	ArenaPushRecord(mem);
 
 	const u32 vertex_count = 2*pipeline->cm_count;
 	struct r_mesh *mesh = NULL;
- 	struct r_mesh *tmp = arena_push(mem, sizeof(struct r_mesh));
-	u8 *vertex_data = arena_push(mem, vertex_count*L_COLOR_STRIDE);
+ 	struct r_mesh *tmp = ArenaPush(mem, sizeof(struct r_mesh));
+	u8 *vertex_data = ArenaPush(mem, vertex_count*L_COLOR_STRIDE);
 	if (!tmp || !vertex_data) 
 	{ 
-		arena_pop_record(mem);
+		ArenaPopRecord(mem);
 		goto end;
 	}
-	arena_remove_record(mem);
+	ArenaRemoveRecord(mem);
 
 	mesh = tmp;
 	mesh->index_count = 0;
@@ -105,19 +105,19 @@ static struct r_mesh *debug_contact_manifold_triangles_mesh(struct arena *mem, c
 	const struct contact_manifold *cm = pipeline->cm;
 	const u32 cm_count = pipeline->cm_count;
 
-	arena_push_record(mem);
+	ArenaPushRecord(mem);
 
 	u32 vertex_count = 6*pipeline->cm_count;
 
 	struct r_mesh *mesh = NULL;
- 	struct r_mesh *tmp = arena_push(mem, sizeof(struct r_mesh));
-	u8 *vertex_data = arena_push(mem, vertex_count*L_COLOR_STRIDE);
+ 	struct r_mesh *tmp = ArenaPush(mem, sizeof(struct r_mesh));
+	u8 *vertex_data = ArenaPush(mem, vertex_count*L_COLOR_STRIDE);
 	if (!tmp || !vertex_data) 
 	{ 
-		arena_pop_record(mem);
+		ArenaPopRecord(mem);
 		goto end;
 	}
-	arena_remove_record(mem);
+	ArenaRemoveRecord(mem);
 
 	mesh = tmp;
 	mesh->index_count = 0;
@@ -192,7 +192,7 @@ end:
 
 static struct r_mesh *debug_lines_mesh(struct arena *mem, const struct physics_pipeline *pipeline)
 {
-	arena_push_record(mem);
+	ArenaPushRecord(mem);
 
 	u32 vertex_count = 0;
 	for (u32 i = 0; i < pipeline->debug_count; ++i)
@@ -201,14 +201,14 @@ static struct r_mesh *debug_lines_mesh(struct arena *mem, const struct physics_p
 	}
 
 	struct r_mesh *mesh = NULL;
- 	struct r_mesh *tmp = arena_push(mem, sizeof(struct r_mesh));
-	u8 *vertex_data = arena_push(mem, vertex_count*L_COLOR_STRIDE);
+ 	struct r_mesh *tmp = ArenaPush(mem, sizeof(struct r_mesh));
+	u8 *vertex_data = ArenaPush(mem, vertex_count*L_COLOR_STRIDE);
 	if (!tmp || !vertex_data) 
 	{ 
-		arena_pop_record(mem);
+		ArenaPopRecord(mem);
 		goto end;
 	}
-	arena_remove_record(mem);
+	ArenaRemoveRecord(mem);
 
 	mesh = tmp;
 	mesh->index_count = 0;
@@ -239,17 +239,17 @@ end:
 
 static struct r_mesh *bounding_boxes_mesh(struct arena *mem, const struct physics_pipeline *pipeline, const vec4 color)
 {
-	arena_push_record(mem);
+	ArenaPushRecord(mem);
 	const u32 vertex_count = 3*8*pipeline->body_pool.count;
 	struct r_mesh *mesh = NULL;
- 	struct r_mesh *tmp = arena_push(mem, sizeof(struct r_mesh));
-	u8 *vertex_data = arena_push(mem, vertex_count * L_COLOR_STRIDE);
+ 	struct r_mesh *tmp = ArenaPush(mem, sizeof(struct r_mesh));
+	u8 *vertex_data = ArenaPush(mem, vertex_count * L_COLOR_STRIDE);
 	if (!tmp || !vertex_data) 
 	{ 
-		arena_pop_record(mem);
+		ArenaPopRecord(mem);
 		goto end;
 	}
-	arena_remove_record(mem);
+	ArenaRemoveRecord(mem);
 
 	mesh = tmp;
 	mesh->index_count = 0;
@@ -263,7 +263,7 @@ static struct r_mesh *bounding_boxes_mesh(struct arena *mem, const struct physic
 	struct rigid_body *body = NULL;
 	for (u32 i = pipeline->body_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(body))
 	{
-		body = pool_address(&pipeline->body_pool, i);
+		body = PoolAddress(&pipeline->body_pool, i);
 		struct AABB bbox = body->local_box;
 		vec3_translate(bbox.center, body->position);
 		const u64 bytes_written = AABB_push_lines_buffered(vertex_data, mem_left, &bbox, color);
@@ -280,16 +280,16 @@ static struct r_mesh *bvh_mesh(struct arena *mem, const struct bvh *bvh, const v
 	mat3 rot;
 	quat_to_mat3(rot, rotation);
 
-	arena_push_record(mem);
+	ArenaPushRecord(mem);
 	const u32 vertex_count = 3*8*bvh->tree.pool.count;
  	struct r_mesh *mesh = NULL;
-	struct r_mesh *tmp = arena_push(mem, sizeof(struct r_mesh));
-	u8 *vertex_data = arena_push(mem, vertex_count * L_COLOR_STRIDE);
+	struct r_mesh *tmp = ArenaPush(mem, sizeof(struct r_mesh));
+	u8 *vertex_data = ArenaPush(mem, vertex_count * L_COLOR_STRIDE);
 	if (!tmp || !vertex_data) 
 	{ 
 		goto end;
 	}
-	arena_remove_record(mem);
+	ArenaRemoveRecord(mem);
 
 	mesh = tmp;
 	mesh->index_count = 0;
@@ -299,8 +299,8 @@ static struct r_mesh *bvh_mesh(struct arena *mem, const struct bvh *bvh, const v
 	mesh->vertex_data = vertex_data;
 	mesh->local_stride = L_COLOR_STRIDE;
 
-	arena_push_record(mem);
-	struct allocation_array arr = arena_push_aligned_all(mem, sizeof(u32), 4); 
+	ArenaPushRecord(mem);
+	struct memArray arr = ArenaPushAlignedAll(mem, sizeof(u32), 4); 
 	u32 *stack = arr.addr;
 
 	u32 i = bvh->tree.root;
@@ -336,7 +336,7 @@ static struct r_mesh *bvh_mesh(struct arena *mem, const struct bvh *bvh, const v
 	}
 	ds_Assert(mem_left == 0);
 end:
-	arena_pop_record(mem);
+	ArenaPopRecord(mem);
 	return mesh;
 }
 
@@ -419,7 +419,7 @@ static void r_led_draw(const struct led *led)
 		struct rigid_body *body = NULL;
 		for (u32 i = led->physics.body_non_marked_list.first; i != DLL_NULL; i = DLL_NEXT(body))
 		{
-			body = pool_address(&led->physics.body_pool, i);
+			body = PoolAddress(&led->physics.body_pool, i);
 			if (body->shape_type != COLLISION_SHAPE_TRI_MESH)
 			{
 				continue;
@@ -724,8 +724,8 @@ void r_led_main(const struct led *led)
 		if (frames_elapsed_since_last_draw)
 		{
 			PROF_ZONE_NAMED("render frame");
-			arena_flush(&g_r_core->frame);
-			struct arena tmp = arena_alloc_1MB();
+			ArenaFlush(&g_r_core->frame);
+			struct arena tmp = ArenaAlloc1MB();
 
 			g_r_core->frames_elapsed += frames_elapsed_since_last_draw;
 
@@ -766,7 +766,7 @@ void r_led_main(const struct led *led)
 			/* NOTE: main context must be set in the case of creating new contexts sharing state. */
 			system_window_set_current_gl_context(g_process_root_window);
 
-			arena_free_1MB(&tmp);
+			ArenaFree1MB(&tmp);
 			PROF_ZONE_END;
 		}
 	}

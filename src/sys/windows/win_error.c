@@ -35,7 +35,7 @@ static void win_fatal_cleanup_and_exit(const u32 thread)
     		SYSTEMTIME local_time;
     		GetLocalTime(&local_time);
 
-		struct arena tmp = arena_alloc_1MB();
+		struct arena tmp = ArenaAlloc1MB();
 		const utf8 utf8_filename = utf8_format(&tmp, "%s_%s_latest.dmp"
 				, DS_EXECUTABLE_CSTR
 				, DS_VERSION_CSTR);
@@ -59,7 +59,7 @@ static void win_fatal_cleanup_and_exit(const u32 thread)
 			
 			file_close(&dump);
 		}
-		arena_free_1MB(&tmp);
+		ArenaFree1MB(&tmp);
 
 		log_shutdown();
 		exit(0);

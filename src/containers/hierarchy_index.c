@@ -30,11 +30,11 @@ struct hierarchy_index *hierarchy_index_alloc(struct arena *mem, const u32 lengt
 
 	if (mem)
 	{
-		arena_push_record(mem);
-		hi = arena_push(mem, sizeof(struct hierarchy_index));
+		ArenaPushRecord(mem);
+		hi = ArenaPush(mem, sizeof(struct hierarchy_index));
 		if (hi == NULL || (hi->list = array_list_alloc(mem, length, data_size, growable)) == NULL)
 		{	
-			arena_pop_record(mem);
+			ArenaPopRecord(mem);
 			hi = NULL;
 		}
 	}
@@ -169,11 +169,11 @@ void hierarchy_index_remove(struct arena *tmp, struct hierarchy_index *hi, const
 	ds_Assert(0 < node_index && node_index <= hi->list->max_count);
 
 	struct hierarchy_index_node *node = array_list_address(hi->list, node_index);
-	arena_push_record(tmp);
+	ArenaPushRecord(tmp);
 	/* remove any nodes it the node's sub-hierarchy */
 	if (node->first)
 	{
-		u32 *stack = arena_push(tmp, hi->list->max_count * sizeof(u32));
+		u32 *stack = ArenaPush(tmp, hi->list->max_count * sizeof(u32));
 		if (stack)
 		{
 			u32 sc = 1;
@@ -200,7 +200,7 @@ void hierarchy_index_remove(struct arena *tmp, struct hierarchy_index *hi, const
 			internal_hierarchy_index_remove_sub_hierarchy_recursive(hi, node);
 		}
 	}
-	arena_pop_record(tmp);
+	ArenaPopRecord(tmp);
 	
 	/* node is not a first or last child of its parent */
 	if (node->prev && node->next)
@@ -387,11 +387,11 @@ void hierarchy_index_apply_custom_free_and_remove(struct arena *tmp, struct hier
 	ds_Assert(0 < node_index && node_index <= hi->list->max_count);
 
 	struct hierarchy_index_node *node = array_list_address(hi->list, node_index);
-	arena_push_record(tmp);
+	ArenaPushRecord(tmp);
 	/* remove any nodes it the node's sub-hierarchy */
 	if (node->first)
 	{
-		u32 *stack = arena_push(tmp, hi->list->max_count * sizeof(u32));
+		u32 *stack = ArenaPush(tmp, hi->list->max_count * sizeof(u32));
 		if (stack)
 		{
 			u32 sc = 1;
@@ -419,7 +419,7 @@ void hierarchy_index_apply_custom_free_and_remove(struct arena *tmp, struct hier
 			ds_AssertString(0, "increase arena mem size");
 		}
 	}
-	arena_pop_record(tmp);
+	ArenaPopRecord(tmp);
 	
 	struct hierarchy_index_node *parent = array_list_address(hi->list, node->parent);
 	parent->child_count -= 1;
@@ -461,14 +461,14 @@ void *hierarchy_index_address(const struct hierarchy_index *hi, const u32 node_i
 struct hierarchy_index_iterator	hierarchy_index_iterator_init(struct arena *mem, struct hierarchy_index *hi, const u32 root)
 {
 	ds_Assert(mem);
-	arena_push_record(mem);
+	ArenaPushRecord(mem);
 
 	struct hierarchy_index_iterator it;
 	it.hi = hi;
 	it.mem = mem,
 	it.forced_malloc = 0;
 
-	struct allocation_array alloc = arena_push_aligned_all(mem, sizeof(u32), sizeof(u32));
+	struct memArray alloc = ArenaPushAlignedAll(mem, sizeof(u32), sizeof(u32));
 	it.stack_len = alloc.len;
 	it.stack = alloc.addr;
 
@@ -493,7 +493,7 @@ void hierarchy_index_iterator_release(struct hierarchy_index_iterator *it)
 	{
 		free(it->stack);
 	}
-	arena_pop_record(it->mem);
+	ArenaPopRecord(it->mem);
 }
 
 u32 hierarchy_index_iterator_peek(struct hierarchy_index_iterator *it)

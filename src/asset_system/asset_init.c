@@ -217,7 +217,7 @@ void led_ssff_set_sprite_parameters(struct asset_ssff *led_ssff, const struct ss
 
 static struct asset_ssff **internal_asset_ssff_array_init(struct arena *mem_persistent)
 {
-	struct asset_ssff **ssff = arena_push(mem_persistent, SSFF_COUNT * sizeof(struct asset_ssff *));
+	struct asset_ssff **ssff = ArenaPush(mem_persistent, SSFF_COUNT * sizeof(struct asset_ssff *));
 	if (ssff == NULL)
 	{
 		log_string(T_ASSET, S_FATAL, "Failed to alloc asset ssff array");
@@ -233,7 +233,7 @@ static struct asset_ssff **internal_asset_ssff_array_init(struct arena *mem_pers
 
 static struct asset_font **internal_asset_font_array_init(struct arena *mem_persistent)
 {
-	struct asset_font **font = arena_push(mem_persistent, SSFF_COUNT * sizeof(struct asset_font *));
+	struct asset_font **font = ArenaPush(mem_persistent, SSFF_COUNT * sizeof(struct asset_font *));
 	if (font == NULL)
 	{
 		log_string(T_ASSET, S_FATAL, "Failed to alloc asset font array");

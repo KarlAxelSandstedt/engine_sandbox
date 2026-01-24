@@ -23,7 +23,7 @@
 struct ticket_factory *ticket_factory_init(struct arena *mem, const u32 max_tickets)
 {
 	ds_Assert(max_tickets > 0 && PowerOfTwoCheck(max_tickets));
-	struct ticket_factory *tf = arena_push(mem, sizeof(struct ticket_factory));
+	struct ticket_factory *tf = ArenaPush(mem, sizeof(struct ticket_factory));
 
 	tf->max_tickets = max_tickets;
 	semaphore_init(&tf->available, max_tickets);

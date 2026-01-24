@@ -67,8 +67,8 @@ static u32 right_index(const u32 queue_index)
 static void min_queue_change_elements(struct min_queue * const queue, const u32 i1, const u32 i2)
 {
 	/* Update data queue indices */
-	struct queue_object *obj1 = pool_address(&queue->object_pool, queue->elements[i1].object_index);
-	struct queue_object *obj2 = pool_address(&queue->object_pool, queue->elements[i2].object_index);
+	struct queue_object *obj1 = PoolAddress(&queue->object_pool, queue->elements[i1].object_index);
+	struct queue_object *obj2 = PoolAddress(&queue->object_pool, queue->elements[i2].object_index);
 	obj1->queue_index = i2;
 	obj2->queue_index = i1;
 
@@ -156,13 +156,13 @@ struct min_queue min_queue_new(struct arena *arena, const u32 initial_length, co
 
 	if (arena)
 	{
-		queue.object_pool = pool_alloc(arena, initial_length, struct queue_object, !GROWABLE);
-		queue.elements = arena_push(arena, initial_length * sizeof(struct queue_element));
+		queue.object_pool = PoolAlloc(arena, initial_length, struct queue_object, !GROWABLE);
+		queue.elements = ArenaPush(arena, initial_length * sizeof(struct queue_element));
 		queue.heap_allocated = 0;
 	}
 	else
 	{
-		queue.object_pool = pool_alloc(NULL, initial_length, struct queue_object, !GROWABLE);
+		queue.object_pool = PoolAlloc(NULL, initial_length, struct queue_object, !GROWABLE);
 		queue.elements = malloc(initial_length * sizeof(struct queue_element));
 		queue.heap_allocated = 1;
 	}
@@ -182,7 +182,7 @@ void min_queue_free(struct min_queue * const queue)
 {
 	if (queue->heap_allocated)
 	{
-		pool_dealloc(&queue->object_pool);
+		PoolDealloc(&queue->object_pool);
 		free(queue->elements);
 	}
 }
@@ -190,7 +190,7 @@ void min_queue_free(struct min_queue * const queue)
 u32 min_queue_extract_min(struct min_queue * const queue)
 {
 	ds_AssertString(queue->object_pool.count > 0, "Queue should have elements to extract\n");
-	struct queue_object *obj = pool_address(&queue->object_pool, queue->elements[0].object_index);
+	struct queue_object *obj = PoolAddress(&queue->object_pool, queue->elements[0].object_index);
 	const u32 external_index = obj->external_index;
 	queue->elements[0].priority = FLT_MAX;
 
@@ -199,7 +199,7 @@ u32 min_queue_extract_min(struct min_queue * const queue)
 	/* Check coherence of the queue from the start */
 	min_queue_heapify_down(queue, 0);
 
-	pool_remove_address(&queue->object_pool, obj);
+	PoolRemoveAddress(&queue->object_pool, obj);
 
 	return external_index;
 }
@@ -208,7 +208,7 @@ u32 min_queue_insert(struct min_queue * const queue, const f32 priority, const u
 {
 	const u32 old_length = queue->object_pool.length;
 	const u32 queue_index = queue->object_pool.count;
-	struct slot slot = pool_add(&queue->object_pool);
+	struct slot slot = PoolAdd(&queue->object_pool);
 	if (old_length != queue->object_pool.length)
 	{
 		ds_Assert(queue->growable);
@@ -236,7 +236,7 @@ void min_queue_decrease_priority(struct min_queue * const queue, const u32 objec
 {
 	ds_AssertString(object_index < queue->object_pool.count, "Queue index should be withing queue bounds");
 
-	struct queue_object *obj = pool_address(&queue->object_pool, object_index);
+	struct queue_object *obj = PoolAddress(&queue->object_pool, object_index);
 	if (priority < queue->elements[obj->queue_index].priority) 
 	{
 		queue->elements[obj->queue_index].priority = priority;
@@ -246,7 +246,7 @@ void min_queue_decrease_priority(struct min_queue * const queue, const u32 objec
 
 void min_queue_flush(struct min_queue * const queue)
 {
-	pool_flush(&queue->object_pool);
+	PoolFlush(&queue->object_pool);
 }
 
 static void min_queue_fixed_heapify_up(struct min_queue_fixed * const queue, u32 queue_index)
@@ -314,7 +314,7 @@ struct min_queue_fixed min_queue_fixed_alloc(struct arena *mem, const u32 initia
 	if (mem)
 	{
 		queue.heap_allocated = 0;
-		queue.element = arena_push(mem, initial_length*sizeof(u32f32));
+		queue.element = ArenaPush(mem, initial_length*sizeof(u32f32));
 	}
 	else
 	{
@@ -335,7 +335,7 @@ struct min_queue_fixed min_queue_fixed_alloc_all(struct arena *mem)
 {
 	ds_Assert(mem);
 
-	struct allocation_array arr = arena_push_aligned_all(mem, sizeof(u32f32), 4);
+	struct memArray arr = ArenaPushAlignedAll(mem, sizeof(u32f32), 4);
 	struct min_queue_fixed queue =
 	{
 		.count = 0,

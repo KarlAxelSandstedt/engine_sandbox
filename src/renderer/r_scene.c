@@ -26,8 +26,8 @@ struct r_scene *g_scene = NULL;
 struct r_scene *r_scene_alloc(void)
 {
 	struct r_scene *scene = malloc(sizeof(struct r_scene));
-	scene->mem_frame_arr[0] = arena_alloc(64*1024*1024);
-	scene->mem_frame_arr[1] = arena_alloc(64*1024*1024);
+	scene->mem_frame_arr[0] = ArenaAlloc(64*1024*1024);
+	scene->mem_frame_arr[1] = ArenaAlloc(64*1024*1024);
 	scene->mem_frame = scene->mem_frame_arr + 0;
 	scene->frame = 0;
 
@@ -48,8 +48,8 @@ void r_scene_free(struct r_scene *scene)
 {
 	array_list_intrusive_free(scene->instance_list);
 	hash_map_free(scene->proxy3d_to_instance_map);
-	arena_free(scene->mem_frame_arr + 0),
-	arena_free(scene->mem_frame_arr + 1),
+	ArenaFree(scene->mem_frame_arr + 0),
+	ArenaFree(scene->mem_frame_arr + 1),
 	free(scene);
 }
 
@@ -71,7 +71,7 @@ void r_scene_frame_begin(void)
 	g_scene->cmd_frame_count = 0;
 	g_scene->frame_bucket_list = NULL;
 
-	arena_flush(g_scene->mem_frame);
+	ArenaFlush(g_scene->mem_frame);
 }
 
 /* merge unit [left, mid-1], [mid, right-1] => tmp => copy back to unit */
@@ -142,10 +142,10 @@ static void r_scene_sort_commands_and_prune_instances(void)
 {
 	PROF_ZONE;
 
-	g_scene->cmd_frame = arena_push(g_scene->mem_frame, g_scene->cmd_frame_count * sizeof(struct r_command));
-	arena_push_record(g_scene->mem_frame);
-	struct r_command *cmd_new = arena_push(g_scene->mem_frame, g_scene->cmd_new_count * sizeof(struct r_command));
-	struct r_command *cmd_tmp = arena_push(g_scene->mem_frame, g_scene->cmd_new_count * sizeof(struct r_command));
+	g_scene->cmd_frame = ArenaPush(g_scene->mem_frame, g_scene->cmd_frame_count * sizeof(struct r_command));
+	ArenaPushRecord(g_scene->mem_frame);
+	struct r_command *cmd_new = ArenaPush(g_scene->mem_frame, g_scene->cmd_new_count * sizeof(struct r_command));
+	struct r_command *cmd_tmp = ArenaPush(g_scene->mem_frame, g_scene->cmd_new_count * sizeof(struct r_command));
 	struct r_instance *new_instance = array_list_intrusive_address(g_scene->instance_list, g_scene->instance_new_first);
 	for (u32 i = 0; i < g_scene->cmd_new_count; ++i)
 	{
@@ -227,7 +227,7 @@ static void r_scene_sort_commands_and_prune_instances(void)
 			g_scene->cmd_cache[cache_i].allocated = 0;
 		}
 	}
-	arena_pop_record(g_scene->mem_frame);
+	ArenaPopRecord(g_scene->mem_frame);
 	R_SCENE_ASSERT_CMD_SORTED;
 	R_SCENE_ASSERT_INSTANCE_CMD_BIJECTION;
 
@@ -243,7 +243,7 @@ void r_buffer_constructor_reset(struct r_buffer_constructor *constructor)
 
 void r_buffer_constructor_buffer_alloc(struct r_buffer_constructor *constructor, const u32 c_new_l)
 {
-	struct r_buffer *buf = arena_push(g_scene->mem_frame, sizeof(struct r_buffer));
+	struct r_buffer *buf = ArenaPush(g_scene->mem_frame, sizeof(struct r_buffer));
 	buf->next = NULL;
 	buf->c_l = c_new_l;
 	buf->local_size = 0;
@@ -279,7 +279,7 @@ struct r_buffer **r_buffer_constructor_finish(struct r_buffer_constructor *const
 	struct r_buffer **array = NULL;
 	if (constructor->count)
 	{
-		array = arena_push(g_scene->mem_frame, constructor->count * sizeof(struct r_buffer *));
+		array = ArenaPush(g_scene->mem_frame, constructor->count * sizeof(struct r_buffer *));
 		u32 i = 0;
 		for (struct r_buffer *buf = constructor->first; buf; buf = buf->next)
 		{
@@ -335,7 +335,7 @@ void r_scene_generate_bucket_list(void)
 
 			begin_new_bucket = 0;
 			b->c_h = i-1;
-			b->next = arena_push(g_scene->mem_frame, sizeof(struct r_bucket));
+			b->next = ArenaPush(g_scene->mem_frame, sizeof(struct r_bucket));
 			ds_Assert(b->next);
 			b = b->next;
 			b->next = NULL;
@@ -417,9 +417,9 @@ static void r_scene_bucket_generate_draw_data(struct r_bucket *b)
 		{
 			case R_INSTANCE_UI:
 			{
-				buf->shared_data = arena_push(g_scene->mem_frame, buf->shared_size);
-				buf->local_data = arena_push(g_scene->mem_frame, buf->local_size);
-				buf->index_data = arena_push(g_scene->mem_frame, buf->index_count * sizeof(u32));
+				buf->shared_data = ArenaPush(g_scene->mem_frame, buf->shared_size);
+				buf->local_data = ArenaPush(g_scene->mem_frame, buf->local_size);
+				buf->index_data = ArenaPush(g_scene->mem_frame, buf->index_count * sizeof(u32));
 
 				u8 *shared_data = buf->shared_data;
 				u8 *local_data = buf->local_data;
@@ -693,7 +693,7 @@ static void r_scene_bucket_generate_draw_data(struct r_bucket *b)
 			{
 				const struct r_proxy3d *proxy = r_proxy3d_address(instance->unit);
 				const struct r_mesh *mesh = string_database_address(g_r_core->mesh_database, proxy->mesh);
-				buf->shared_data = arena_push(g_scene->mem_frame, buf->shared_size);
+				buf->shared_data = ArenaPush(g_scene->mem_frame, buf->shared_size);
 				buf->local_data = mesh->vertex_data;
 				buf->index_data = mesh->index_data;
 
@@ -716,7 +716,7 @@ static void r_scene_bucket_generate_draw_data(struct r_bucket *b)
 			{
 				buf->shared_data = NULL;
 				buf->index_data = NULL;
-				buf->local_data = arena_push(g_scene->mem_frame, buf->local_size);
+				buf->local_data = ArenaPush(g_scene->mem_frame, buf->local_size);
 				u8 *local_data = buf->local_data;
 				for (u32 i = buf->c_l; i <= buf->c_h; ++i)
 				{
@@ -776,7 +776,7 @@ struct r_instance *r_instance_add(const u32 unit, const u64 cmd)
 		g_scene->cmd_new_count += 1;
 
 		instance->unit = unit;
-		instance->cmd = arena_push(g_scene->mem_frame, sizeof(struct r_command));
+		instance->cmd = ArenaPush(g_scene->mem_frame, sizeof(struct r_command));
 		instance->cmd->key = cmd;
 		instance->cmd->instance = index;
 		instance->cmd->allocated = 1;
@@ -789,7 +789,7 @@ struct r_instance *r_instance_add(const u32 unit, const u64 cmd)
 		g_scene->cmd_new_count += 1;
 
 		instance->cmd->allocated = 0;
-		instance->cmd = arena_push(g_scene->mem_frame, sizeof(struct r_command));
+		instance->cmd = ArenaPush(g_scene->mem_frame, sizeof(struct r_command));
 		instance->cmd->key = cmd;
 		instance->cmd->instance = index;
 		instance->cmd->allocated = 1;
@@ -809,7 +809,7 @@ struct r_instance *r_instance_add_non_cached(const u64 cmd)
 	instance->header.next = g_scene->instance_new_first;	
 
 	g_scene->instance_new_first = index;
-	instance->cmd = arena_push(g_scene->mem_frame, sizeof(struct r_command));
+	instance->cmd = ArenaPush(g_scene->mem_frame, sizeof(struct r_command));
 	instance->cmd->key = cmd;
 	instance->cmd->instance = index;
 	instance->cmd->allocated = 1;

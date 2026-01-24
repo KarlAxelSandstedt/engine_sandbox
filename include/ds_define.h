@@ -45,12 +45,15 @@ extern "C" {
 
 #define __GAPI__ __DS_SDL3__
 
+#define DS_CACHE_LINE_UB		64
+
 #if defined(__EMSCRIPTEN__)
 
 	#define __DS_COMPILER__ __DS_EMSCRIPTEN__ 
 	#define DS_LITTLE_ENDIAN
-	#define dsThreadLocal	__thread
+	#define dsThreadLocal __thread
 	#define ds_StaticAssert(assertion, str)	_Static_assert(assertion, str)
+	#define ds_Align(alignment) __attribute__((aligned(alignment)))
 
 #elif defined(__GNUC__)
 
@@ -62,6 +65,7 @@ extern "C" {
 	#endif
 	#define dsThreadLocal	__thread
 	#define ds_StaticAssert(assertion, str)	_Static_assert(assertion, str)
+	#define ds_Align(alignment) __attribute__((aligned(alignment)))
 
 #elif defined(__clang__)
 
@@ -73,6 +77,7 @@ extern "C" {
 	#endif
 	#define dsThreadLocal	__thread
 	#define ds_StaticAssert(assertion, str)	_Static_assert(assertion, str)
+	#define ds_Align(alignment) __attribute__((aligned(alignment)))
 
 #elif defined(_MSC_VER)
 
@@ -80,6 +85,7 @@ extern "C" {
 	#define DS_LITTLE_ENDIAN
 	#define dsThreadLocal	__declspec(thread)
 	#define ds_StaticAssert(assertion, str)	static_assert(assertion, str)
+	#define ds_Align(alignment) __declspec(align(alignment)) 
 
 #endif
 

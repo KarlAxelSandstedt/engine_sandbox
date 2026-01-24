@@ -25,9 +25,9 @@ struct fifo_mpsc *fifo_mpsc_init(struct arena *mem, const u32 max_entry_count)
 	assert(max_entry_count > 0 && PowerOfTwoCheck(max_entry_count));
 	struct fifo_mpsc *q = NULL; 
 
-	q = arena_push(mem, sizeof(struct fifo_mpsc));
+	q = ArenaPush(mem, sizeof(struct fifo_mpsc));
 	q->max_entry_count = max_entry_count;
-	q->entries = arena_push(mem, q->max_entry_count * sizeof(struct fifo_mpsc_entry));
+	q->entries = ArenaPush(mem, q->max_entry_count * sizeof(struct fifo_mpsc_entry));
 	for (u32 i = 0; i < q->max_entry_count; ++i)
 	{
 		AtomicStoreRel32(&q->entries[i].a_pushed, 0);

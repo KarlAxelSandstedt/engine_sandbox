@@ -846,7 +846,7 @@ struct dcel dcel_box_stub(void)
 
 struct dcel dcel_box(struct arena *mem, const vec3 hw)
 {
-	vec3ptr box_vertex = arena_push(mem, 8*sizeof(vec3));
+	vec3ptr box_vertex = ArenaPush(mem, 8*sizeof(vec3));
 
 	vec3_set(box_vertex[0],  hw[0],  hw[1],  hw[2]); 
 	vec3_set(box_vertex[1],  hw[0],  hw[1], -hw[2]);	
@@ -1209,18 +1209,18 @@ static void ddcel_edge_set(struct ddcel_edge *edge, const u32 origin, const u32 
 
 static void ddcel_assert_topology(const struct ddcel *ddcel)
 {
-	struct arena tmp = arena_alloc_1MB();
+	struct arena tmp = ArenaAlloc1MB();
 
 	u32 face_count = 0;
 	u32 vertex_count = 0;
 
-	u32 *vertex_check = arena_push_zero(&tmp, ddcel->v_count * sizeof(u32));
-	u32 *edge_check = arena_push_zero(&tmp, ddcel->edge_pool.count * sizeof(u32));
-	u32 *face_check = arena_push_zero(&tmp, 3*ddcel->v_count * sizeof(u32));
+	u32 *vertex_check = ArenaPushZero(&tmp, ddcel->v_count * sizeof(u32));
+	u32 *edge_check = ArenaPushZero(&tmp, ddcel->edge_pool.count * sizeof(u32));
+	u32 *face_check = ArenaPushZero(&tmp, 3*ddcel->v_count * sizeof(u32));
 
 	for (u32 i = 0; i < ddcel->edge_pool.count; ++i)
 	{
-		if (POOL_SLOT_ALLOCATED(ddcel->e + i) && !edge_check[i])
+		if (PoolSlotAllocated(ddcel->e + i) && !edge_check[i])
 		{
 			face_count += 1;
 			u32 next;
@@ -1265,7 +1265,7 @@ static void ddcel_assert_topology(const struct ddcel *ddcel)
 
 	for (u32 i = 0; i < ddcel->face_pool.count_max; ++i)
 	{
-		if (POOL_SLOT_ALLOCATED(ddcel->f + i))
+		if (PoolSlotAllocated(ddcel->f + i))
 		{
 			vec3 diff;
 			vec3_sub(diff, center, ddcel->v[ddcel->e[ddcel->f[i].first].origin]);
@@ -1273,7 +1273,7 @@ static void ddcel_assert_topology(const struct ddcel *ddcel)
 		}
 	}
 
-	arena_free_1MB(&tmp);
+	ArenaFree1MB(&tmp);
 
 	ds_Assert(face_count >= 4);
 }
@@ -1356,23 +1356,23 @@ static void internal_convex_hull_tetrahedron_ddcel(struct ddcel *ddcel, const f3
 		ddcel->cv[2].index = tmp;
 	}
 
-	struct ddcel_face *f0 = pool_add(&ddcel->face_pool).address;
-	struct ddcel_face *f1 = pool_add(&ddcel->face_pool).address;
-	struct ddcel_face *f2 = pool_add(&ddcel->face_pool).address;
-	struct ddcel_face *f3 = pool_add(&ddcel->face_pool).address;
+	struct ddcel_face *f0 = PoolAdd(&ddcel->face_pool).address;
+	struct ddcel_face *f1 = PoolAdd(&ddcel->face_pool).address;
+	struct ddcel_face *f2 = PoolAdd(&ddcel->face_pool).address;
+	struct ddcel_face *f3 = PoolAdd(&ddcel->face_pool).address;
 
-	struct ddcel_edge *e0 = pool_add(&ddcel->edge_pool).address;
-	struct ddcel_edge *e1 = pool_add(&ddcel->edge_pool).address;
-	struct ddcel_edge *e2 = pool_add(&ddcel->edge_pool).address;
-	struct ddcel_edge *e3 = pool_add(&ddcel->edge_pool).address;
-	struct ddcel_edge *e4 = pool_add(&ddcel->edge_pool).address;
-	struct ddcel_edge *e5 = pool_add(&ddcel->edge_pool).address;
-	struct ddcel_edge *e6 = pool_add(&ddcel->edge_pool).address;
-	struct ddcel_edge *e7 = pool_add(&ddcel->edge_pool).address;
-	struct ddcel_edge *e8 = pool_add(&ddcel->edge_pool).address;
-	struct ddcel_edge *e9 = pool_add(&ddcel->edge_pool).address;
-	struct ddcel_edge *e10 = pool_add(&ddcel->edge_pool).address;
-	struct ddcel_edge *e11 = pool_add(&ddcel->edge_pool).address;
+	struct ddcel_edge *e0 = PoolAdd(&ddcel->edge_pool).address;
+	struct ddcel_edge *e1 = PoolAdd(&ddcel->edge_pool).address;
+	struct ddcel_edge *e2 = PoolAdd(&ddcel->edge_pool).address;
+	struct ddcel_edge *e3 = PoolAdd(&ddcel->edge_pool).address;
+	struct ddcel_edge *e4 = PoolAdd(&ddcel->edge_pool).address;
+	struct ddcel_edge *e5 = PoolAdd(&ddcel->edge_pool).address;
+	struct ddcel_edge *e6 = PoolAdd(&ddcel->edge_pool).address;
+	struct ddcel_edge *e7 = PoolAdd(&ddcel->edge_pool).address;
+	struct ddcel_edge *e8 = PoolAdd(&ddcel->edge_pool).address;
+	struct ddcel_edge *e9 = PoolAdd(&ddcel->edge_pool).address;
+	struct ddcel_edge *e10 = PoolAdd(&ddcel->edge_pool).address;
+	struct ddcel_edge *e11 = PoolAdd(&ddcel->edge_pool).address;
 
 	ddcel_face_set(f0, 0, 3);
 	ddcel_face_set(f1, 3, 3);
@@ -1433,7 +1433,7 @@ static void internal_convex_hull_tetrahedron_conflicts(struct ddcel *ddcel, cons
 			/* If point is "in front" of face, we have a conflict */
 			if (vec3_dot(ddcel->f[f_i].normal, b) > tol)
 			{
-				struct slot slot = pool_add(&ddcel->ce_pool);
+				struct slot slot = PoolAdd(&ddcel->ce_pool);
 				dll_append(&cv->ce_list, ddcel->ce_pool.buf, slot.index);
 				dll_append(&ddcel->f[f_i].ce_list, ddcel->ce_pool.buf, slot.index);
 
@@ -1477,11 +1477,11 @@ void convex_hull_iteration(struct ddcel *ddcel, const u32 cvi, const f32 tol)
 		for (u32 j = 0; j < ddcel->f[fi].count; ++j)
 		{
 			struct ddcel_edge *twin = ddcel->e + e->twin;
-			//fprintf(stderr, "horizon edge par (%u,%u)\n", pool_index(&ddcel->edge_pool, e), e->twin);
+			//fprintf(stderr, "horizon edge par (%u,%u)\n", PoolIndex(&ddcel->edge_pool, e), e->twin);
 			e->horizon += 1;
 			twin->horizon += 1;
 			ds_Assert(e->horizon <= 2 && twin->horizon <= 2);
-			ds_Assert(twin->twin == pool_index(&ddcel->edge_pool, e));
+			ds_Assert(twin->twin == PoolIndex(&ddcel->edge_pool, e));
 			e = ddcel->e + e->next;
 		}
 	}
@@ -1504,7 +1504,7 @@ void convex_hull_iteration(struct ddcel *ddcel, const u32 cvi, const f32 tol)
 			const u32 next = e->next;
 			if (e->horizon == 2)
 			{
-				pool_remove(&ddcel->edge_pool, ej);	
+				PoolRemove(&ddcel->edge_pool, ej);	
 			}
 			else
 			{
@@ -1560,8 +1560,8 @@ void convex_hull_iteration(struct ddcel *ddcel, const u32 cvi, const f32 tol)
 		struct ddcel_face *f_ccw = ddcel->f + ccw_face;
 		struct ddcel_face *f_twin = ddcel->f + twin_face;
 
-		struct slot se1 = pool_add(&ddcel->edge_pool);
-		struct slot se2 = pool_add(&ddcel->edge_pool);
+		struct slot se1 = PoolAdd(&ddcel->edge_pool);
+		struct slot se2 = PoolAdd(&ddcel->edge_pool);
 
 		struct ddcel_edge *e1 = se1.address;
 		struct ddcel_edge *e2 = se2.address;
@@ -1600,8 +1600,8 @@ void convex_hull_iteration(struct ddcel *ddcel, const u32 cvi, const f32 tol)
 				ddcel->hv[prev_horizon].edge1 = se1.index;
 				ddcel->hv[prev_horizon].edge2 = se2.index;
 
-				pool_remove(&ddcel->edge_pool, ddcel->e[edge].twin);
-				pool_remove(&ddcel->edge_pool, edge);
+				PoolRemove(&ddcel->edge_pool, ddcel->e[edge].twin);
+				PoolRemove(&ddcel->edge_pool, edge);
 				edge = ddcel->hv[horizon].edge_out;
 			} while (ddcel->hv[horizon].edge_out_twin_face == twin_face);
 
@@ -1614,7 +1614,7 @@ void convex_hull_iteration(struct ddcel *ddcel, const u32 cvi, const f32 tol)
 		}
 		else
 		{
-			struct slot sf = pool_add(&ddcel->face_pool);
+			struct slot sf = PoolAdd(&ddcel->face_pool);
 			//fprintf(stderr, "added face %u\n", sf.index);
 
 			const u32 e0i = ddcel->hv[horizon].edge_out;
@@ -1646,7 +1646,7 @@ void convex_hull_iteration(struct ddcel *ddcel, const u32 cvi, const f32 tol)
 					vec3_sub(diff, ddcel->v[ddcel->cv[ce->vertex].index], ddcel->v[e0->origin]);
 					if (vec3_dot(f->normal, diff) > tol)
 					{
-						struct slot slot = pool_add(&ddcel->ce_pool);
+						struct slot slot = PoolAdd(&ddcel->ce_pool);
 						dll_append(&f->ce_list, ddcel->ce_pool.buf, slot.index);
 						dll_append(&ddcel->cv[ce->vertex].ce_list, ddcel->ce_pool.buf, slot.index);
 
@@ -1670,7 +1670,7 @@ void convex_hull_iteration(struct ddcel *ddcel, const u32 cvi, const f32 tol)
 					vec3_sub(diff, ddcel->v[ddcel->cv[ce->vertex].index], ddcel->v[e0->origin]);
 					if (vec3_dot(f->normal, diff) > tol)
 					{
-						struct slot slot = pool_add(&ddcel->ce_pool);
+						struct slot slot = PoolAdd(&ddcel->ce_pool);
 						dll_append(&f->ce_list, ddcel->ce_pool.buf, slot.index);
 						dll_append(&ddcel->cv[ce->vertex].ce_list, ddcel->ce_pool.buf, slot.index);
 
@@ -1705,23 +1705,23 @@ void convex_hull_iteration(struct ddcel *ddcel, const u32 cvi, const f32 tol)
 
 			struct conflict_vertex *cvj = ddcel->cv + ce->vertex;
 			dll_remove(&cvj->ce_list, ddcel->ce_pool.buf, j);
-			pool_remove(&ddcel->ce_pool, j);
+			PoolRemove(&ddcel->ce_pool, j);
 
 			j = next;
 		}
-		pool_remove(&ddcel->face_pool, fi);
+		PoolRemove(&ddcel->face_pool, fi);
 		//fprintf(stderr, "removed face %u\n", fi);
 	}
 }
 
 struct dcel dcel_ddcel(struct arena *mem, const struct ddcel *ddcel)
 {
-	arena_push_record(mem);
+	ArenaPushRecord(mem);
 	struct dcel cpy =
 	{
-		.v = arena_push_memcpy(mem, ddcel->v, ddcel->v_count*sizeof(vec3)),
-		.e = arena_push(mem, ddcel->edge_pool.count*sizeof(struct dcel_edge)),
-		.f = arena_push(mem, ddcel->face_pool.count*sizeof(struct dcel_face)),
+		.v = ArenaPushMemcpy(mem, ddcel->v, ddcel->v_count*sizeof(vec3)),
+		.e = ArenaPush(mem, ddcel->edge_pool.count*sizeof(struct dcel_edge)),
+		.f = ArenaPush(mem, ddcel->face_pool.count*sizeof(struct dcel_face)),
 		.v_count = ddcel->v_count,
 		.e_count = ddcel->edge_pool.count,
 		.f_count = ddcel->face_pool.count,
@@ -1730,13 +1730,13 @@ struct dcel dcel_ddcel(struct arena *mem, const struct ddcel *ddcel)
 
 	if (cpy.v && cpy.e && cpy.f)
 	{
-		arena_push_record(mem);
-		u32 *emap = arena_push(mem, sizeof(u32) * ddcel->edge_pool.count_max);
+		ArenaPushRecord(mem);
+		u32 *emap = ArenaPush(mem, sizeof(u32) * ddcel->edge_pool.count_max);
 		u32 off = 0;
 		/* set dcel edge index into ddcel->edge.prev temporarily */
 		for (u32 fj = 0; fj < ddcel->face_pool.count_max; ++fj)
 		{
-			if (POOL_SLOT_ALLOCATED(ddcel->f + fj))
+			if (PoolSlotAllocated(ddcel->f + fj))
 			{
 				u32 next = ddcel->f[fj].first;
 				for (u32 ei = 0; ei < ddcel->f[fj].count; ++ei)
@@ -1752,7 +1752,7 @@ struct dcel dcel_ddcel(struct arena *mem, const struct ddcel *ddcel)
 		for (u32 fi = 0, fj = 0; fi < cpy.f_count; fj += 1)
 		{
 			ds_Assert(fj < ddcel->face_pool.count_max);
-			if (POOL_SLOT_ALLOCATED(ddcel->f + fj))
+			if (PoolSlotAllocated(ddcel->f + fj))
 			{
 				cpy.f[fi].count = ddcel->f[fj].count;
 				cpy.f[fi].first = off;
@@ -1771,12 +1771,12 @@ struct dcel dcel_ddcel(struct arena *mem, const struct ddcel *ddcel)
 
 		//dcel_print(&cpy);
 		//dcel_assert_topology(&cpy);
-		arena_pop_record(mem);
-		arena_remove_record(mem);
+		ArenaPopRecord(mem);
+		ArenaRemoveRecord(mem);
 	}
 	else
 	{
-		arena_pop_record(mem);
+		ArenaPopRecord(mem);
 		cpy = dcel_empty();
 	}
 
@@ -1788,20 +1788,20 @@ struct dcel dcel_convex_hull(struct arena *mem, const vec3ptr v, const u32 v_cou
 	struct dcel dcel = dcel_empty();
 	if (v_count < 4) { goto end; }	
 
-	struct arena tmp1 = arena_alloc_1MB();
-	struct arena tmp2 = arena_alloc_1MB();
+	struct arena tmp1 = ArenaAlloc1MB();
+	struct arena tmp2 = ArenaAlloc1MB();
 
 	const u32 edge_count_upper_bound = 6*v_count - 12;
 	const u32 face_count_upper_bound = 2*v_count - 4;
 	struct ddcel ddcel =
 	{
-		.face_pool = pool_alloc(&tmp1, 2*face_count_upper_bound, struct ddcel_face, NOT_GROWABLE),	/* add additional space for easier memory management */
-		.edge_pool = pool_alloc(&tmp1, 2+edge_count_upper_bound, struct ddcel_edge, NOT_GROWABLE),	/* add additional space for easier memory management */
+		.face_pool = PoolAlloc(&tmp1, 2*face_count_upper_bound, struct ddcel_face, NOT_GROWABLE),	/* add additional space for easier memory management */
+		.edge_pool = PoolAlloc(&tmp1, 2+edge_count_upper_bound, struct ddcel_edge, NOT_GROWABLE),	/* add additional space for easier memory management */
 		.v = v,
 		.v_count = v_count,
-		.ce_pool = pool_alloc(&tmp2, tmp2.mem_size / sizeof(struct conflict_edge), struct conflict_edge, NOT_GROWABLE),
-		.cv = arena_push(&tmp1, v_count * sizeof(struct conflict_vertex)),
-		.hv = arena_push(&tmp1, v_count * sizeof(struct horizon_vertex)),
+		.ce_pool = PoolAlloc(&tmp2, tmp2.mem_size / sizeof(struct conflict_edge), struct conflict_edge, NOT_GROWABLE),
+		.cv = ArenaPush(&tmp1, v_count * sizeof(struct conflict_vertex)),
+		.hv = ArenaPush(&tmp1, v_count * sizeof(struct horizon_vertex)),
 	};
 
 	ddcel.tmp1 = tmp1;
@@ -1843,8 +1843,8 @@ struct dcel dcel_convex_hull(struct arena *mem, const vec3ptr v, const u32 v_cou
 
 	dcel = dcel_ddcel(mem, &ddcel);	
 end:
-	arena_free_1MB(&tmp1);
-	arena_free_1MB(&tmp2);
+	ArenaFree1MB(&tmp1);
+	ArenaFree1MB(&tmp2);
 
 	return dcel;
 }

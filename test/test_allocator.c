@@ -82,21 +82,21 @@ void serial_block_allocator_test_256B(void *null)
 			if (!head || rng_u64_range(0, 1))
 			{
 				allocations_left -= 1;
-				struct list_node *tmp = thread_alloc_256B();
+				struct list_node *tmp = ThreadAlloc256B();
 				tmp->next = head;
 				head = tmp;
 			}
 			else
 			{
 				struct list_node *tmp = head->next;
-				thread_free_256B(head);
+				ThreadFree256B(head);
 				head = tmp;
 			}
 		}
 		else
 		{
 			struct list_node *tmp = head->next;
-			thread_free_256B(head);
+			ThreadFree256B(head);
 			head = tmp;
 		}
 	}
@@ -113,21 +113,21 @@ void block_allocator_stress_test_256B(void *void_input)
 			if (!head || rng_u64_range(0, 1))
 			{
 				input->allocations_left -= 1;
-				struct list_node *tmp = thread_alloc_256B();
+				struct list_node *tmp = ThreadAlloc256B();
 				tmp->next = head;
 				head = tmp;
 			}
 			else
 			{
 				struct list_node *tmp = head->next;
-				thread_free_256B(head);
+				ThreadFree256B(head);
 				head = tmp;
 			}
 		}
 		else
 		{
 			struct list_node *tmp = head->next;
-			thread_free_256B(head);
+			ThreadFree256B(head);
 			head = tmp;
 		}
 	}
@@ -144,7 +144,7 @@ void block_allocator_stress_test_1MB(void *void_input)
 		{
 			if (!head || rng_u64_range(0, 1))
 			{
-				struct list_node *tmp = thread_alloc_1MB();
+				struct list_node *tmp = ThreadAlloc1MB();
 				if (!tmp)
 				{
 					continue;
@@ -156,14 +156,14 @@ void block_allocator_stress_test_1MB(void *void_input)
 			else
 			{
 				struct list_node *tmp = head->next;
-				thread_free_1MB(head);
+				ThreadFree1MB(head);
 				head = tmp;
 			}
 		}
 		else
 		{
 			struct list_node *tmp = head->next;
-			thread_free_1MB(head);
+			ThreadFree1MB(head);
 			head = tmp;
 		}
 	}

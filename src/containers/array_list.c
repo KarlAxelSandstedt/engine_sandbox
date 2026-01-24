@@ -40,11 +40,11 @@ struct array_list *array_list_alloc(struct arena *mem, const u32 length, const u
 	if (mem)
 	{
 		ds_Assert(growable == 0);
-		arena_push_record(mem);
-		list = arena_push(mem, sizeof(struct array_list));
+		ArenaPushRecord(mem);
+		list = ArenaPush(mem, sizeof(struct array_list));
 		if (list)
 		{
-			list->slot = arena_push(mem, length * slot_size);
+			list->slot = ArenaPush(mem, length * slot_size);
 		}
 	}
 	else
@@ -70,7 +70,7 @@ struct array_list *array_list_alloc(struct arena *mem, const u32 length, const u
 	{
 		if (mem)
 		{
-			arena_pop_record(mem);
+			ArenaPopRecord(mem);
 		}
 		else
 		{
@@ -236,11 +236,11 @@ struct array_list_intrusive *array_list_intrusive_alloc(struct arena *mem, const
 	if (mem)
 	{
 		ds_Assert(growable == 0);
-		arena_push_record(mem);
-		list = arena_push(mem, sizeof(struct array_list_intrusive));
+		ArenaPushRecord(mem);
+		list = ArenaPush(mem, sizeof(struct array_list_intrusive));
 		if (list)
 		{
-			list->data = arena_push(mem, length*data_size);
+			list->data = ArenaPush(mem, length*data_size);
 		}
 	}
 	else
@@ -265,7 +265,7 @@ struct array_list_intrusive *array_list_intrusive_alloc(struct arena *mem, const
 	{
 		if (mem)
 		{
-			arena_pop_record(mem);
+			ArenaPopRecord(mem);
 		}
 		else
 		{

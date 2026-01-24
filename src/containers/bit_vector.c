@@ -46,7 +46,7 @@ struct bit_vec bit_vec_alloc(struct arena *mem, const u64 bit_count, const u64 c
 	};
 
 	bvec.bits = (mem)
-		? arena_push(mem, bvec.block_count * sizeof(u64))
+		? ArenaPush(mem, bvec.block_count * sizeof(u64))
 		: malloc(bvec.block_count * sizeof(u64));
 
 	if (bvec.bits == NULL)

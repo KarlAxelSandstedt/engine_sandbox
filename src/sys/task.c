@@ -28,7 +28,7 @@ u32 a_startup_complete = 0;
 
 static void worker_init(struct worker *w)
 {
-	w->mem_frame = arena_alloc_1MB();
+	w->mem_frame = ArenaAlloc1MB();
 }
 
 static void worker_exit(void *void_task)
@@ -41,7 +41,7 @@ static void task_run(struct task *task_info, struct worker *w)
 {
 	if (AtomicLoadAcq32(&w->a_mem_frame_clear))
 	{
-		arena_flush(&w->mem_frame);
+		ArenaFlush(&w->mem_frame);
 		AtomicStoreRel32(&w->a_mem_frame_clear, 0);
 	}
 
@@ -135,7 +135,7 @@ void task_context_init(struct arena *mem_persistent, const u32 thread_count)
 
 	*g_task_ctx = ctx;
 	g_task_ctx->bundle = task_bundle_init();
-	g_task_ctx->workers = arena_push(mem_persistent, thread_count * sizeof(struct worker));	
+	g_task_ctx->workers = ArenaPush(mem_persistent, thread_count * sizeof(struct worker));	
 	g_task_ctx->tasks = fifo_spmc_init(mem_persistent, TASK_MAX_COUNT);
 
 	for (u32 i = 0; i < thread_count; ++i)
@@ -180,7 +180,7 @@ void task_context_destroy(struct task_context *ctx)
 
 	for (u32 i = 0; i < ctx->worker_count; ++i)
 	{
-		arena_free_1MB(&ctx->workers[i].mem_frame);
+		ArenaFree1MB(&ctx->workers[i].mem_frame);
 	}
 
 	
@@ -198,8 +198,8 @@ struct task_bundle *task_bundle_split_range(struct arena *mem_task_lifetime, TAS
 	if (!splits) { return NULL; }
 
 	struct task_bundle *bundle = &g_task_ctx->bundle;
-	struct task_range *range = arena_push(mem_task_lifetime, splits * sizeof(struct task_range));
-	bundle->tasks = arena_push(mem_task_lifetime, splits * sizeof(struct task));
+	struct task_range *range = ArenaPush(mem_task_lifetime, splits * sizeof(struct task_range));
+	bundle->tasks = ArenaPush(mem_task_lifetime, splits * sizeof(struct task));
 	bundle->task_count = splits;
 
 	u64 offset = 0;
@@ -243,7 +243,7 @@ void task_bundle_release(struct task_bundle *bundle)
 
 struct task_stream *task_stream_init(struct arena *mem)
 {
-	struct task_stream *stream = arena_push(mem, sizeof(struct task_stream));
+	struct task_stream *stream = ArenaPush(mem, sizeof(struct task_stream));
 	AtomicStoreRel32(&stream->a_completed, 0);
 	stream->task_count = 0;
 
@@ -252,7 +252,7 @@ struct task_stream *task_stream_init(struct arena *mem)
 
 void task_stream_dispatch(struct arena *mem, struct task_stream *stream, TASK func, void *args)
 {
-	struct task *task = arena_push(mem, sizeof(struct task));
+	struct task *task = ArenaPush(mem, sizeof(struct task));
 	task->task = func;
 	task->input = args;
 	task->batch_type = TASK_BATCH_STREAM;

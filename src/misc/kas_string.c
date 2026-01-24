@@ -232,9 +232,9 @@ utf32 font_stream_substring_on_row(utf32 *text, u32 *x_new_offset, const struct 
 
 struct text_layout *utf32_text_layout(struct arena *mem, const utf32 *str, const f32 line_width, const u32 tab_size, const struct font *font)
 {
-	struct text_layout *layout = arena_push(mem, sizeof(struct text_layout));
+	struct text_layout *layout = ArenaPush(mem, sizeof(struct text_layout));
 	layout->line_count = 1;
-	layout->line = arena_push(mem, sizeof(struct text_line));
+	layout->line = ArenaPush(mem, sizeof(struct text_line));
 	layout->line->next = NULL;
 	layout->line->glyph_count = 0;
 	layout->line->glyph = (void *) mem->stack_ptr;
@@ -258,7 +258,7 @@ struct text_layout *utf32_text_layout(struct arena *mem, const utf32 *str, const
 			if (begin_new_line)
 			{
 				layout->line_count += 1;
-				line->next = arena_push(mem, sizeof(struct text_line));
+				line->next = ArenaPush(mem, sizeof(struct text_line));
 				line = line->next;
 				line->next = NULL;
 				line->glyph_count = 0;
@@ -271,7 +271,7 @@ struct text_layout *utf32_text_layout(struct arena *mem, const utf32 *str, const
 			utf32 sub = font_stream_substring_on_row(&word, &x_offset, font, x_offset, line_pixels);
 			for (u32 i = 0; i < sub.len; ++i)
 			{
-				arena_push_packed(mem, sizeof(struct text_glyph));
+				ArenaPushPacked(mem, sizeof(struct text_glyph));
 				line->glyph[line->glyph_count].x = x;
 				line->glyph[line->glyph_count].codepoint = sub.buf[i];
 				line->glyph_count += 1;
@@ -291,7 +291,7 @@ struct text_layout *utf32_text_layout(struct arena *mem, const utf32 *str, const
 				}
 				else
 				{
-					arena_push_packed(mem, sizeof(struct text_glyph));
+					ArenaPushPacked(mem, sizeof(struct text_glyph));
 					line->glyph[line->glyph_count].x = x_offset;
 					line->glyph[line->glyph_count].codepoint = (u32) '-';
 					line->glyph_count += 1;
@@ -309,9 +309,9 @@ struct text_layout *utf32_text_layout(struct arena *mem, const utf32 *str, const
 
 struct text_layout *utf32_text_layout_include_whitespace(struct arena *mem, const utf32 *str, const f32 line_width, const u32 tab_size, const struct font *font)
 {
-	struct text_layout *layout = arena_push(mem, sizeof(struct text_layout));
+	struct text_layout *layout = ArenaPush(mem, sizeof(struct text_layout));
 	layout->line_count = 1;
-	layout->line = arena_push(mem, sizeof(struct text_line));
+	layout->line = ArenaPush(mem, sizeof(struct text_line));
 	layout->line->next = NULL;
 	layout->line->glyph_count = 0;
 	layout->line->glyph = (void *) mem->stack_ptr;
@@ -334,7 +334,7 @@ struct text_layout *utf32_text_layout_include_whitespace(struct arena *mem, cons
 		u32 new_line = 0;
 		for (u32 i = 0; i < whitespace.len; ++i)
 		{
-			arena_push_packed(mem, sizeof(struct text_glyph));
+			ArenaPushPacked(mem, sizeof(struct text_glyph));
 			line->glyph[line->glyph_count].x = x_offset;
 			line->glyph[line->glyph_count].codepoint = whitespace.buf[i];
 			line->glyph_count += 1;
@@ -371,7 +371,7 @@ struct text_layout *utf32_text_layout_include_whitespace(struct arena *mem, cons
 			if (begin_new_line)
 			{	
 				layout->line_count += 1;
-				line->next = arena_push(mem, sizeof(struct text_line));
+				line->next = ArenaPush(mem, sizeof(struct text_line));
 				line = line->next;
 				line->next = NULL;
 				line->glyph_count = 0;
@@ -384,7 +384,7 @@ struct text_layout *utf32_text_layout_include_whitespace(struct arena *mem, cons
 			utf32 sub = font_stream_substring_on_row(&word, &x_offset, font, x_offset, line_pixels);
 			for (u32 i = 0; i < sub.len; ++i)
 			{
-				arena_push_packed(mem, sizeof(struct text_glyph));
+				ArenaPushPacked(mem, sizeof(struct text_glyph));
 				line->glyph[line->glyph_count].x = x;
 				line->glyph[line->glyph_count].codepoint = sub.buf[i];
 				line->glyph_count += 1;
@@ -404,7 +404,7 @@ struct text_layout *utf32_text_layout_include_whitespace(struct arena *mem, cons
 				}
 				else
 				{
-					arena_push_packed(mem, sizeof(struct text_glyph));
+					ArenaPushPacked(mem, sizeof(struct text_glyph));
 					line->glyph[line->glyph_count].x = x_offset;
 					line->glyph[line->glyph_count].codepoint = (u32) '-';
 					line->glyph_count += 1;
@@ -423,7 +423,7 @@ struct text_layout *utf32_text_layout_include_whitespace(struct arena *mem, cons
 char *cstr_utf8(struct arena *mem, const utf8 utf8)
 {	
 	const u64 size = utf8_size_required(utf8);
-	char *ret = arena_push(mem, size+1); 
+	char *ret = ArenaPush(mem, size+1); 
 	if (ret)
 	{
 		memcpy(ret, utf8.buf, size);
@@ -469,7 +469,7 @@ f32 f32_utf32(struct arena *tmp, const utf32 str)
 f64 f64_utf32(struct arena *tmp, const utf32 str)
 {
 	f64 ret = 0.0f;
-	char *buf = arena_push_packed(tmp, str.len+1);
+	char *buf = ArenaPushPacked(tmp, str.len+1);
 	if (buf)
 	{
 		for (u32 i = 0; i < str.len; ++i)
@@ -478,7 +478,7 @@ f64 f64_utf32(struct arena *tmp, const utf32 str)
 		}
 		buf[str.len] = '\0';
 		ret = dmg_strtod(buf, NULL);
-		arena_pop_packed(tmp, str.len+1);
+		ArenaPopPacked(tmp, str.len+1);
 	}
 	return ret;
 }
@@ -816,17 +816,17 @@ utf8 utf8_f32(struct arena *mem, const u32 decimals, const f32 val)
 utf8 utf8_f64(struct arena *mem, const u32 decimals, const f64 val)
 {
 	const u64 bufsize = mem->mem_left;
-	u8 *buf = arena_push_packed(mem, bufsize);
+	u8 *buf = ArenaPushPacked(mem, bufsize);
 
 	utf8 str = utf8_f64_buffered(buf, bufsize, decimals, val);
 	if (str.len)
 	{
 		str.size = str.len;
-		arena_pop_packed(mem, bufsize - str.size);
+		ArenaPopPacked(mem, bufsize - str.size);
 	}
 	else
 	{
-		arena_pop_packed(mem, bufsize);
+		ArenaPopPacked(mem, bufsize);
 	}
 
 	return str;
@@ -835,17 +835,17 @@ utf8 utf8_f64(struct arena *mem, const u32 decimals, const f64 val)
 utf8 utf8_u64(struct arena *mem, const u64 val)
 {
 	const u64 bufsize = mem->mem_left;
-	u8 *buf = arena_push_packed(mem, bufsize);
+	u8 *buf = ArenaPushPacked(mem, bufsize);
 
 	utf8 str = utf8_u64_buffered(buf, bufsize, val);
 	if (str.len)
 	{
 		str.size = str.len;
-		arena_pop_packed(mem, bufsize - str.size);
+		ArenaPopPacked(mem, bufsize - str.size);
 	}
 	else
 	{
-		arena_pop_packed(mem, bufsize);
+		ArenaPopPacked(mem, bufsize);
 	}
 
 	return str;
@@ -854,17 +854,17 @@ utf8 utf8_u64(struct arena *mem, const u64 val)
 utf8 utf8_i64(struct arena *mem, const i64 val)
 {
 	const u64 bufsize = mem->mem_left;
-	u8 *buf = arena_push_packed(mem, bufsize);
+	u8 *buf = ArenaPushPacked(mem, bufsize);
 
 	utf8 str = utf8_i64_buffered(buf, bufsize, val);
 	if (str.len)
 	{
 		str.size = str.len;
-		arena_pop_packed(mem, bufsize - str.size);
+		ArenaPopPacked(mem, bufsize - str.size);
 	}
 	else
 	{
-		arena_pop_packed(mem, bufsize);
+		ArenaPopPacked(mem, bufsize);
 	}
 
 	return str;
@@ -1061,17 +1061,17 @@ utf32 utf32_f32(struct arena *mem, const u32 decimals, const f32 val)
                                                                   
 utf32 utf32_f64(struct arena *mem, const u32 decimals, const f64 val)
 {
-	struct allocation_array alloc = arena_push_aligned_all(mem, sizeof(u32), sizeof(u32));
+	struct memArray alloc = ArenaPushAlignedAll(mem, sizeof(u32), sizeof(u32));
 
 	utf32 str = utf32_f64_buffered(alloc.addr, alloc.len, decimals, val);
 	if (str.len)
 	{
 		str.max_len = str.len;
-		arena_pop_packed(mem, (alloc.len-str.len)*sizeof(u32));
+		ArenaPopPacked(mem, (alloc.len-str.len)*sizeof(u32));
 	}
 	else
 	{
-		arena_pop_packed(mem, alloc.mem_pushed);
+		ArenaPopPacked(mem, alloc.mem_pushed);
 	}
 	
 	return str;
@@ -1079,17 +1079,17 @@ utf32 utf32_f64(struct arena *mem, const u32 decimals, const f64 val)
 
 utf32 utf32_u64(struct arena *mem, const u64 val)
 {
-	struct allocation_array alloc = arena_push_aligned_all(mem, sizeof(u32), sizeof(u32));
+	struct memArray alloc = ArenaPushAlignedAll(mem, sizeof(u32), sizeof(u32));
 
 	utf32 str = utf32_u64_buffered(alloc.addr, alloc.len, val);
 	if (str.len)
 	{
 		str.max_len = str.len;
-		arena_pop_packed(mem, (alloc.len-str.len)*sizeof(u32));
+		ArenaPopPacked(mem, (alloc.len-str.len)*sizeof(u32));
 	}
 	else
 	{
-		arena_pop_packed(mem, alloc.mem_pushed);
+		ArenaPopPacked(mem, alloc.mem_pushed);
 	}
 	
 	return str;
@@ -1098,17 +1098,17 @@ utf32 utf32_u64(struct arena *mem, const u64 val)
 
 utf32 utf32_i64(struct arena *mem, const i64 val)
 {
-	struct allocation_array alloc = arena_push_aligned_all(mem, sizeof(u32), sizeof(u32));
+	struct memArray alloc = ArenaPushAlignedAll(mem, sizeof(u32), sizeof(u32));
 
 	utf32 str = utf32_i64_buffered(alloc.addr, alloc.len, val);
 	if (str.len)
 	{
 		str.max_len = str.len;
-		arena_pop_packed(mem, (alloc.len-str.len)*sizeof(u32));
+		ArenaPopPacked(mem, (alloc.len-str.len)*sizeof(u32));
 	}
 	else
 	{
-		arena_pop_packed(mem, alloc.mem_pushed);
+		ArenaPopPacked(mem, alloc.mem_pushed);
 	}
 	
 	return str;
@@ -1128,7 +1128,7 @@ utf32 utf32_empty(void)
 
 utf8 utf8_alloc(struct arena *mem, const u64 bufsize)
 {
-	void *buf = arena_push(mem, bufsize);
+	void *buf = ArenaPush(mem, bufsize);
 	return (buf)
 		? (utf8) { .len = 0, .size = bufsize, .buf = buf }
 		: utf8_empty();
@@ -1141,7 +1141,7 @@ utf8 utf8_buffered(u8 buf[], const u64 bufsize)
 
 utf32 utf32_alloc(struct arena *mem, const u32 len)
 {
-	u32 *buf = arena_push(mem, len*sizeof(u32));
+	u32 *buf = ArenaPush(mem, len*sizeof(u32));
 	return (buf)
 		? (utf32) { .len = 0, .max_len = len, .buf = buf }
 		: utf32_empty();
@@ -1422,18 +1422,18 @@ utf8 utf8_format_buffered_variadic(u64 *reqsize, u8 *buf, const u64 bufsize, con
 utf8 utf8_format_variadic(struct arena *mem, const char *format, va_list args)
 {
 	const u64 mem_left = mem->mem_left;
-	void *buf = arena_push_packed(mem, mem->mem_left);
+	void *buf = ArenaPushPacked(mem, mem->mem_left);
 	u64 reqsize;
 	utf8 kstr = utf8_format_buffered_variadic(&reqsize, buf, mem_left, format, args);
 
 	if (kstr.len == 0)
        	{
-		arena_pop_packed(mem, mem_left);
+		ArenaPopPacked(mem, mem_left);
 		return utf8_empty();
 	}
 	
 	kstr.size = reqsize;
-	arena_pop_packed(mem, mem_left - reqsize);
+	ArenaPopPacked(mem, mem_left - reqsize);
 	return kstr;
 }
 
@@ -1442,19 +1442,19 @@ utf8 utf8_format(struct arena *mem, const char *format, ...)
 	const u64 mem_left = mem->mem_left;
 	va_list args;
 	va_start(args, format);
-	void *buf = arena_push_packed(mem, mem->mem_left);
+	void *buf = ArenaPushPacked(mem, mem->mem_left);
 	u64 reqsize;
 	utf8 kstr = utf8_format_buffered_variadic(&reqsize, buf, mem_left, format, args);
 	va_end(args);
 
 	if (kstr.len == 0)
        	{
-		arena_pop_packed(mem, mem_left);
+		ArenaPopPacked(mem, mem_left);
 		return utf8_empty();
 	}
 	
 	kstr.size = reqsize;
-	arena_pop_packed(mem, mem_left - reqsize);
+	ArenaPopPacked(mem, mem_left - reqsize);
 	return kstr;
 }
 
@@ -1524,12 +1524,12 @@ utf32 utf32_cstr_buffered(u32 buf[], const u64 buflen, const char *cstr)
 
 utf32 utf32_cstr(struct arena *mem, const char *cstr)
 {
-	struct allocation_array alloc = arena_push_aligned_all(mem, sizeof(u32), sizeof(u32));	
+	struct memArray alloc = ArenaPushAlignedAll(mem, sizeof(u32), sizeof(u32));	
 	utf32 ret = utf32_cstr_buffered(alloc.addr, alloc.len, cstr);
 	
 	(ret.len)
-		? arena_pop_packed(mem, sizeof(u32) * (ret.max_len - ret.len))
-		: arena_pop_packed(mem, alloc.mem_pushed);
+		? ArenaPopPacked(mem, sizeof(u32) * (ret.max_len - ret.len))
+		: ArenaPopPacked(mem, alloc.mem_pushed);
 
 	ret.max_len = ret.len;
 	return ret;
@@ -1607,7 +1607,7 @@ utf32 utf32_copy_buffered(u32 buf[], const u64 buflen, const utf32 str)
 utf32 utf32_utf8(struct arena *mem, const utf8 str)
 {
 	utf32 conv = utf32_empty();
-	u32 *buf = arena_push(mem, str.len*sizeof(u32));
+	u32 *buf = ArenaPush(mem, str.len*sizeof(u32));
 	if (buf)
 	{
 		u64 offset = 0;
@@ -1725,19 +1725,19 @@ utf8 utf8_utf32_buffered_null_terminated(u8 buf[], const u64 bufsize, const utf3
 utf8 utf8_utf32(struct arena *mem, const utf32 str32)
 {
 	const u64 bufsize = mem->mem_left;
-	u8 *buf = arena_push_packed(mem, bufsize);
+	u8 *buf = ArenaPushPacked(mem, bufsize);
 
 	u64 reqsize;
 	utf8 str = utf8_utf32_buffered_and_return_required_size(&reqsize, buf, bufsize, str32);
 	if (str.len)
 	{
 		str.size = reqsize;
-		arena_pop_packed(mem, bufsize - reqsize);
+		ArenaPopPacked(mem, bufsize - reqsize);
 	}
 	else
 	{
 		str = utf8_empty();
-		arena_pop_packed(mem, bufsize);
+		ArenaPopPacked(mem, bufsize);
 	}
 
 	return str;
@@ -1746,19 +1746,19 @@ utf8 utf8_utf32(struct arena *mem, const utf32 str32)
 utf8 utf8_utf32_null_terminated(struct arena *mem, const utf32 str32)
 {
 	const u64 bufsize = mem->mem_left;
-	u8 *buf = arena_push_packed(mem, bufsize);
+	u8 *buf = ArenaPushPacked(mem, bufsize);
 
 	u64 reqsize;
 	utf8 str = utf8_utf32_buffered_null_terminated_and_return_required_size(&reqsize, buf, bufsize, str32);
 	if (str.len)
 	{
 		str.size = reqsize;
-		arena_pop_packed(mem, bufsize - reqsize);
+		ArenaPopPacked(mem, bufsize - reqsize);
 	}
 	else
 	{
 		str = utf8_empty();
-		arena_pop_packed(mem, bufsize);
+		ArenaPopPacked(mem, bufsize);
 	}
 
 	return str;
@@ -1816,7 +1816,7 @@ struct kmp_substring utf8_lookup_substring_init(struct arena *mem, const utf8 st
 {
 	struct kmp_substring kmp;
 	kmp.substring = utf32_utf8(mem, str);
-	kmp.backtrack = arena_push(mem, kmp.substring.len*sizeof(u32));
+	kmp.backtrack = ArenaPush(mem, kmp.substring.len*sizeof(u32));
 
 	if (kmp.substring.len)
 	{

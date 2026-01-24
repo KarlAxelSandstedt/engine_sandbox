@@ -30,7 +30,7 @@ struct bt bt_alloc_internal(struct arena *mem, const u32 initial_length, const u
 		.right_offset = right_offset,
 		.heap_allocated = !mem,
 		.root = POOL_NULL,
-		.pool = pool_alloc_internal(mem, initial_length, slot_size, pool_slot_offset, U64_MAX, growable),
+		.pool = PoolAllocInternal(mem, initial_length, slot_size, pool_slot_offset, U64_MAX, growable),
 	};
 
 	return bt;
@@ -40,13 +40,13 @@ void bt_dealloc(struct bt *tree)
 {
 	if (tree->heap_allocated)
 	{
-		pool_dealloc(&tree->pool);
+		PoolDealloc(&tree->pool);
 	}
 }
 
 void bt_flush(struct bt *tree)
 {
-	pool_flush(&tree->pool);
+	PoolFlush(&tree->pool);
 	tree->root = POOL_NULL;
 }
 
@@ -59,9 +59,9 @@ void bt_validate(struct arena *tmp, const struct bt *tree)
 	}
 
 
-	arena_push_record(tmp);
+	ArenaPushRecord(tmp);
 	struct bit_vec traversed = bit_vec_alloc(tmp, tree->pool.length, 0, NOT_GROWABLE);
-	struct allocation_array arr = arena_push_aligned_all(tmp, sizeof(u32), 4);
+	struct memArray arr = ArenaPushAlignedAll(tmp, sizeof(u32), 4);
 	u32 *stack = arr.addr;
 	stack[0] = tree->root;
 	u32 sc = 1;
@@ -71,7 +71,7 @@ void bt_validate(struct arena *tmp, const struct bt *tree)
 	while (sc--)
 	{
 		node_count += 1;
-		u8 *addr = pool_address(&tree->pool, stack[sc]);
+		u8 *addr = PoolAddress(&tree->pool, stack[sc]);
 		u32 *alloc = (u32 *) (addr + tree->pool.slot_allocation_offset);
 		u32 *p = (u32 *) (addr + tree->parent_offset);
 		u32 *l = (u32 *) (addr + tree->left_offset);
@@ -83,7 +83,7 @@ void bt_validate(struct arena *tmp, const struct bt *tree)
 
 		if ((BT_PARENT_INDEX_MASK & (*p)) != POOL_NULL)
 		{
-			u8 *parent = pool_address(&tree->pool, BT_PARENT_INDEX_MASK & (*p));
+			u8 *parent = PoolAddress(&tree->pool, BT_PARENT_INDEX_MASK & (*p));
 			u32 *p_alloc = (u32 *) (parent + tree->pool.slot_allocation_offset);
 			u32 *p_p = (u32 *) (parent + tree->parent_offset);
 			u32 *p_l = (u32 *) (parent + tree->left_offset);
@@ -111,22 +111,22 @@ void bt_validate(struct arena *tmp, const struct bt *tree)
 	ds_Assert(leaf_count == actual_leaf_count);
 	ds_Assert(node_count == actual_node_count);
 
-	arena_pop_record(tmp);
+	ArenaPopRecord(tmp);
 }
 
 struct slot bt_node_add(struct bt *tree)
 {
-	return pool_add(&tree->pool);
+	return PoolAdd(&tree->pool);
 }
 
 void bt_node_remove(struct bt *tree, const u32 index)
 {
-	pool_remove(&tree->pool, BT_PARENT_INDEX_MASK & index);
+	PoolRemove(&tree->pool, BT_PARENT_INDEX_MASK & index);
 }
 
 struct slot bt_node_add_root(struct bt *tree)
 {
-	struct slot slot = pool_add(&tree->pool);
+	struct slot slot = PoolAdd(&tree->pool);
 	if (slot.index != POOL_NULL)
 	{
 		ds_Assert(tree->root == POOL_NULL);
@@ -139,14 +139,14 @@ struct slot bt_node_add_root(struct bt *tree)
 
 void bt_node_add_children(struct bt *tree, struct slot *left, struct slot *right, const u32 parent)
 {
-	*left = pool_add(&tree->pool);
-	*right = pool_add(&tree->pool);
+	*left = PoolAdd(&tree->pool);
+	*right = PoolAdd(&tree->pool);
 
 	if (!right->address)
 	{
 		if (left->address)
 		{
-			pool_remove(&tree->pool, left->index);
+			PoolRemove(&tree->pool, left->index);
 			*left = empty_slot;
 		}
 	}

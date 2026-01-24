@@ -47,7 +47,7 @@ void font_build(struct arena *mem, const enum font_id id)
 {
 	struct asset_font *asset = g_asset_db->font[id];
 
-	arena_push_record(mem);
+	ArenaPushRecord(mem);
 
 	FT_Face	face;
 	const u32 face_index = 0;
@@ -79,7 +79,7 @@ void font_build(struct arena *mem, const enum font_id id)
 	}
 
 	total_glyph_width += face->glyph->bitmap.width;
-	u8 *pixels = arena_push_memcpy(mem, face->glyph->bitmap.buffer, face->glyph->bitmap.width * face->glyph->bitmap.rows);
+	u8 *pixels = ArenaPushMemcpy(mem, face->glyph->bitmap.buffer, face->glyph->bitmap.width * face->glyph->bitmap.rows);
 	stack_ptr_push(&stack_pixels, pixels);
 	const u32 glyph_unknown_index = stack_glyph.next;
 	stack_font_glyph_push(&stack_glyph, (struct font_glyph)
@@ -104,7 +104,7 @@ void font_build(struct arena *mem, const enum font_id id)
 		}
 
 		total_glyph_width += face->glyph->bitmap.width;
-		pixels = arena_push_memcpy(mem, face->glyph->bitmap.buffer, face->glyph->bitmap.width * face->glyph->bitmap.rows);
+		pixels = ArenaPushMemcpy(mem, face->glyph->bitmap.buffer, face->glyph->bitmap.width * face->glyph->bitmap.rows);
 		stack_ptr_push(&stack_pixels, pixels);
 		stack_font_glyph_push(&stack_glyph, (struct font_glyph)
 			{
@@ -129,7 +129,7 @@ void font_build(struct arena *mem, const enum font_id id)
 		}
 
 		total_glyph_width += face->glyph->bitmap.width;
-		pixels = arena_push_memcpy(mem, face->glyph->bitmap.buffer, face->glyph->bitmap.width * face->glyph->bitmap.rows);
+		pixels = ArenaPushMemcpy(mem, face->glyph->bitmap.buffer, face->glyph->bitmap.width * face->glyph->bitmap.rows);
 		stack_ptr_push(&stack_pixels, pixels);
 		stack_font_glyph_push(&stack_glyph, (struct font_glyph)
 			{
@@ -141,7 +141,7 @@ void font_build(struct arena *mem, const enum font_id id)
 	}
 
 	const u32 hash_len = (u32) PowerOfTwoCeil(stack_glyph.next);
-	struct font *font = arena_push(mem, sizeof(struct font));
+	struct font *font = ArenaPush(mem, sizeof(struct font));
 	font->codepoint_to_glyph_map = hash_map_alloc(mem, hash_len, hash_len, !HASH_GROWABLE);
 	font->glyph_count = stack_glyph.next;
 	font->glyph_unknown_index = glyph_unknown_index;
@@ -181,7 +181,7 @@ void font_build(struct arena *mem, const enum font_id id)
 	}
 
 	font->pixmap_height = font->pixmap_width;
-	font->pixmap = arena_push(mem, font->pixmap_width * font->pixmap_height);
+	font->pixmap = ArenaPush(mem, font->pixmap_width * font->pixmap_height);
 	font->size = sizeof(u64) + 3*sizeof(f32) + 4*sizeof(u32)
 		+ stack_glyph.next * (2*sizeof(vec2i32) + 2*sizeof(u32) + 2*sizeof(vec2))
 		+ sizeof(u32) + hash_len*sizeof(u32)
@@ -231,12 +231,12 @@ void font_build(struct arena *mem, const enum font_id id)
 	font_serialize(asset, font);
 
 	FT_Done_Face(face);
-	arena_pop_record(mem);
+	ArenaPopRecord(mem);
 }
 
 void font_serialize(const struct asset_font *asset, const struct font *font)
 {
-	struct arena tmp = arena_alloc_1MB();
+	struct arena tmp = ArenaAlloc1MB();
 
 	struct file file = file_null();
 	if (file_try_create_at_cwd(&tmp, &file, asset->filepath, FILE_TRUNCATE) != FS_SUCCESS)
@@ -278,7 +278,7 @@ void font_serialize(const struct asset_font *asset, const struct font *font)
 	file_memory_unmap(buf, font->size);
 	file_close(&file);
 
-	arena_free_1MB(&tmp);
+	ArenaFree1MB(&tmp);
 }
 
 #endif
@@ -286,7 +286,7 @@ void font_serialize(const struct asset_font *asset, const struct font *font)
 const struct font *font_deserialize(struct asset_font *asset)
 {
 	//TODO remove later;
-	struct arena tmp = arena_alloc_1MB();
+	struct arena tmp = ArenaAlloc1MB();
 	struct file file = file_null();
 	file_try_open_at_cwd(&tmp, &file, asset->filepath, FILE_READ);
 	if (file.handle == FILE_HANDLE_INVALID)
@@ -342,7 +342,7 @@ const struct font *font_deserialize(struct asset_font *asset)
 	file_memory_unmap(buf, size);
 	file_close(&file);
 
-	arena_free_1MB(&tmp);
+	ArenaFree1MB(&tmp);
 	asset->loaded = 1;
 	return font;
 }
@@ -371,7 +371,7 @@ void font_debug_print(FILE *out, const struct font *font)
 
 struct asset_font *asset_database_request_font(struct arena *tmp, const enum font_id id)
 {
-	arena_push_record(tmp);
+	ArenaPushRecord(tmp);
 	struct asset_font *asset = g_asset_db->font[id];
 #ifdef DS_DEV
 	if (!asset->valid)
@@ -394,7 +394,7 @@ struct asset_font *asset_database_request_font(struct arena *tmp, const enum fon
 		//font_debug_print(stderr, asset->font);
 	}
 
-	arena_pop_record(tmp);
+	ArenaPopRecord(tmp);
 
 	return asset;
 }

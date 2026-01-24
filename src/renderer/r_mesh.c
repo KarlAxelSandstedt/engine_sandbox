@@ -166,10 +166,10 @@ void r_mesh_set_sphere(struct arena *mem, struct r_mesh *mesh, const f32 radius,
 
 	const u32 vertex_count = 2 + (num_strips - 1) * points_per_strip;
 	const u64 vertex_size = sizeof(vec3) + /*sizeof(vec4) */+ sizeof(vec3);
-	u8 *vertex_data = arena_push(mem, vertex_count * vertex_size);
+	u8 *vertex_data = ArenaPush(mem, vertex_count * vertex_size);
 
 	const u32 index_count = 2 * 3 * points_per_strip + (num_strips-1-1) * points_per_strip * 6;
-	u32 *index_data = arena_push(mem, index_count * sizeof(u32));
+	u32 *index_data = ArenaPush(mem, index_count * sizeof(u32));
 
 	u32 max_used = 0;
 	const vec3 translation = { 0.0f, 0.0f, 0.0f };
@@ -193,14 +193,14 @@ void r_mesh_set_capsule(struct arena *mem, struct r_mesh *mesh, const f32 half_h
 	//TODO
 	const u32 n_lat_cyl_slice = refinement;
 	
-	struct allocation_array arr = arena_push_aligned_all(mem, sizeof(vec3), 4);
+	struct memArray arr = ArenaPushAlignedAll(mem, sizeof(vec3), 4);
 	vec3ptr v = arr.addr;
 
 	//TODO
 	const u32 n = 2*n_lat_cap_slice*n_long_slice + n_lat_cyl_slice*n_long_slice + 2;
 	if (arr.len < n)
 	{
-		arena_pop_packed(mem, arr.mem_pushed);
+		ArenaPopPacked(mem, arr.mem_pushed);
 		r_mesh_set_stub_box(mesh);
 		return;
 	}
@@ -243,12 +243,12 @@ void r_mesh_set_capsule(struct arena *mem, struct r_mesh *mesh, const f32 half_h
 	}
 
 	ds_Assert(vi == n);
-	arena_pop_packed(mem, (arr.len - vi) * sizeof(vec3));
+	ArenaPopPacked(mem, (arr.len - vi) * sizeof(vec3));
 
-	struct arena tmp = arena_alloc_1MB();
+	struct arena tmp = ArenaAlloc1MB();
 	struct dcel dcel = dcel_convex_hull(&tmp, v, vi, 100.0f * F32_EPSILON);
 	r_mesh_set_hull(mem, mesh, &dcel);
-	arena_free_1MB(&tmp);
+	ArenaFree1MB(&tmp);
 }
 
 void r_mesh_set_hull(struct arena *mem, struct r_mesh *mesh, const struct dcel *hull)
@@ -274,15 +274,15 @@ void r_mesh_set_hull(struct arena *mem, struct r_mesh *mesh, const struct dcel *
                 vec3_copy(p1, hull->v[e1->origin]);
                 vec3_copy(p2, hull->v[e2->origin]);
 
-		arena_push_packed_memcpy(mem, p0, sizeof(vec3));
-		//arena_push_packed_memcpy(mem, color, sizeof(vec4));
-		arena_push_packed_memcpy(mem, normal, sizeof(vec3));
-		arena_push_packed_memcpy(mem, p1, sizeof(vec3));
-		//arena_push_packed_memcpy(mem, color, sizeof(vec4));
-		arena_push_packed_memcpy(mem, normal, sizeof(vec3));
-		arena_push_packed_memcpy(mem, p2, sizeof(vec3));
-		//arena_push_packed_memcpy(mem, color, sizeof(vec4));
-		arena_push_packed_memcpy(mem, normal, sizeof(vec3));
+		ArenaPushPackedMemcpy(mem, p0, sizeof(vec3));
+		//ArenaPushPackedMemcpy(mem, color, sizeof(vec4));
+		ArenaPushPackedMemcpy(mem, normal, sizeof(vec3));
+		ArenaPushPackedMemcpy(mem, p1, sizeof(vec3));
+		//ArenaPushPackedMemcpy(mem, color, sizeof(vec4));
+		ArenaPushPackedMemcpy(mem, normal, sizeof(vec3));
+		ArenaPushPackedMemcpy(mem, p2, sizeof(vec3));
+		//ArenaPushPackedMemcpy(mem, color, sizeof(vec4));
+		ArenaPushPackedMemcpy(mem, normal, sizeof(vec3));
 		mesh->vertex_count += 3;
 
 		const u32 tri_count = f->count - 2;
@@ -292,9 +292,9 @@ void r_mesh_set_hull(struct arena *mem, struct r_mesh *mesh, const struct dcel *
 			e2 = hull->e + f->first + ti + 2;
                 	vec3_copy(p2, hull->v[e2->origin]);
 
-			arena_push_packed_memcpy(mem, p2, sizeof(vec3));
-			//arena_push_packed_memcpy(mem, color, sizeof(vec4));
-			arena_push_packed_memcpy(mem, normal, sizeof(vec3));
+			ArenaPushPackedMemcpy(mem, p2, sizeof(vec3));
+			//ArenaPushPackedMemcpy(mem, color, sizeof(vec4));
+			ArenaPushPackedMemcpy(mem, normal, sizeof(vec3));
 		}
 	}
 
@@ -305,7 +305,7 @@ void r_mesh_set_hull(struct arena *mem, struct r_mesh *mesh, const struct dcel *
 	{
 		u32 indices[3] = { m_i + 0, m_i + 1, m_i + 2 };
 		u32 offset = 3;
-		arena_push_packed_memcpy(mem, indices, sizeof(indices));
+		ArenaPushPackedMemcpy(mem, indices, sizeof(indices));
 		mesh->index_count += 3;
 
 		struct dcel_face *f = hull->f + fi;
@@ -316,7 +316,7 @@ void r_mesh_set_hull(struct arena *mem, struct r_mesh *mesh, const struct dcel *
 			indices[1] = m_i + ti + 1;
 			indices[2] = m_i + ti + 2;
 
-			arena_push_packed_memcpy(mem, indices, sizeof(indices));
+			ArenaPushPackedMemcpy(mem, indices, sizeof(indices));
 			offset += 1;
 			mesh->index_count += 3;
 		}
@@ -347,15 +347,15 @@ void r_mesh_set_tri_mesh(struct arena *mem, struct r_mesh *mesh, const struct tr
 				tri_mesh->v[tri_mesh->tri[t][1]],
 				tri_mesh->v[tri_mesh->tri[t][2]]);
 
-		arena_push_packed_memcpy(mem, tri_mesh->v[tri_mesh->tri[t][0]], sizeof(vec3));
-		//arena_push_packed_memcpy(mem, color, sizeof(vec4));
-		arena_push_packed_memcpy(mem, normal, sizeof(vec3));
-		arena_push_packed_memcpy(mem, tri_mesh->v[tri_mesh->tri[t][1]], sizeof(vec3));
-		//arena_push_packed_memcpy(mem, color, sizeof(vec4));
-		arena_push_packed_memcpy(mem, normal, sizeof(vec3));
-		arena_push_packed_memcpy(mem, tri_mesh->v[tri_mesh->tri[t][2]], sizeof(vec3));
-		//arena_push_packed_memcpy(mem, color, sizeof(vec4));
-		arena_push_packed_memcpy(mem, normal, sizeof(vec3));
+		ArenaPushPackedMemcpy(mem, tri_mesh->v[tri_mesh->tri[t][0]], sizeof(vec3));
+		//ArenaPushPackedMemcpy(mem, color, sizeof(vec4));
+		ArenaPushPackedMemcpy(mem, normal, sizeof(vec3));
+		ArenaPushPackedMemcpy(mem, tri_mesh->v[tri_mesh->tri[t][1]], sizeof(vec3));
+		//ArenaPushPackedMemcpy(mem, color, sizeof(vec4));
+		ArenaPushPackedMemcpy(mem, normal, sizeof(vec3));
+		ArenaPushPackedMemcpy(mem, tri_mesh->v[tri_mesh->tri[t][2]], sizeof(vec3));
+		//ArenaPushPackedMemcpy(mem, color, sizeof(vec4));
+		ArenaPushPackedMemcpy(mem, normal, sizeof(vec3));
 	}
 
 	mesh->index_max_used = 0;

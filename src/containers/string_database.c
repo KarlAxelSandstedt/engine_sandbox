@@ -33,13 +33,13 @@ struct string_database	string_database_alloc_internal(struct arena *mem, const u
 	{
 		heap_allocated = 0;
 		hash = hash_map_alloc(mem, hash_size, index_size, 0);
-		pool = pool_alloc_internal(mem, index_size, data_size, pool_state_offset, U64_MAX, 0);
+		pool = PoolAllocInternal(mem, index_size, data_size, pool_state_offset, U64_MAX, 0);
 	}
 	else
 	{
 		heap_allocated = 1;
 		hash = hash_map_alloc(NULL, hash_size, index_size, growable);
-		pool = pool_alloc_internal(mem, index_size, data_size, pool_state_offset, U64_MAX, growable);
+		pool = PoolAllocInternal(mem, index_size, data_size, pool_state_offset, U64_MAX, growable);
 	}
 
 	if (!hash || !pool.length)
@@ -61,7 +61,7 @@ struct string_database	string_database_alloc_internal(struct arena *mem, const u
 	const utf8 stub_id = utf8_empty();
 	const u32 key = utf8_hash(stub_id);
 
-	struct slot slot = pool_add(&db.pool);
+	struct slot slot = PoolAdd(&db.pool);
 	hash_map_add(db.hash, key, slot.index);
 	struct string_database_node *node = slot.address;
 
@@ -80,7 +80,7 @@ void string_database_free(struct string_database *db)
 {
 	if (db->heap_allocated)
 	{
-		pool_dealloc(&db->pool);
+		PoolDealloc(&db->pool);
 		hash_map_free(db->hash);
 	}
 }
@@ -88,12 +88,12 @@ void string_database_free(struct string_database *db)
 void string_database_flush(struct string_database *db)
 {
 	hash_map_flush(db->hash);
-	pool_flush(&db->pool);
+	PoolFlush(&db->pool);
 	dll_flush(&db->allocated_dll);
 	const utf8 stub_id = utf8_empty();
 	const u32 key = utf8_hash(stub_id);
 
-	struct slot slot = pool_add(&db->pool);
+	struct slot slot = PoolAdd(&db->pool);
 	hash_map_add(db->hash, key, slot.index);
 	struct string_database_node *node = slot.address;
 
@@ -118,7 +118,7 @@ struct slot string_database_add(struct arena *mem_db_lifetime, struct string_dat
 	if (id.buf)
 	{
 		const u32 key = utf8_hash(copy);
-		struct slot slot = pool_add(&db->pool);
+		struct slot slot = PoolAdd(&db->pool);
 		hash_map_add(db->hash, key, slot.index);
 
 		utf8 *id_ptr = (utf8 *)(((u8 *) slot.address) + db->id_offset);
@@ -141,7 +141,7 @@ struct slot string_database_add_and_alias(struct string_database *db, const utf8
 		return slot;
 	}
 
-	slot = pool_add(&db->pool);
+	slot = PoolAdd(&db->pool);
 	const u32 key = utf8_hash(id);
 	hash_map_add(db->hash, key, slot.index);
 
@@ -164,7 +164,7 @@ void string_database_remove(struct string_database *db, const utf8 id)
 		ds_Assert(*(u32 *)((u8 *) slot.address + db->reference_count_offset) == 0);
 		const u32 key = utf8_hash(*(utf8 *)((u8 *) slot.address + db->id_offset));
 		hash_map_remove(db->hash, key, slot.index);
-		pool_remove(&db->pool, slot.index);
+		PoolRemove(&db->pool, slot.index);
 		dll_remove(&db->allocated_dll, db->pool.buf, slot.index);
 	}
 }
@@ -190,7 +190,7 @@ struct slot string_database_lookup(const struct string_database *db, const utf8 
 
 void *string_database_address(const struct string_database *db, const u32 handle)
 {
-	u8 *address = pool_address(&db->pool, handle);
+	u8 *address = PoolAddress(&db->pool, handle);
 	ds_Assert((*(u32 *)(address + db->pool.slot_allocation_offset)) & 0x80000000);
 	return address;
 }

@@ -55,7 +55,7 @@ static void *ds_thread_clone_start(void *void_thr)
 
 void ds_thread_master_init(struct arena *mem)
 {
-	self = arena_push(mem, sizeof(struct ds_thread));
+	self = ArenaPush(mem, sizeof(struct ds_thread));
 	self->tid = gettid();
 	self->index = 0;
 	PROF_THREAD_NAMED(thread_profiler_id[self->index]);
@@ -72,7 +72,7 @@ void ds_thread_clone(struct arena *mem, void (*start)(ds_thread *), void *args, 
 	ds_thread *thr = NULL;
 	if (mem)
 	{
-		thr = arena_push_aligned(mem, thr_size, g_arch_config->cacheline);
+		thr = ArenaPushAligned(mem, thr_size, g_arch_config->cacheline);
 	}
 	else
 	{

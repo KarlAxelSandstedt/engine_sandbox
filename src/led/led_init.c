@@ -49,11 +49,11 @@ void led_project_menu_dealloc(struct led_project_menu *menu)
 struct led *led_alloc(void)
 {
 	led_core_init_commands();
-	g_editor->mem_persistent = arena_alloc(16*1024*1024);
+	g_editor->mem_persistent = ArenaAlloc(16*1024*1024);
 
 	g_editor->window = system_process_root_window_alloc("Level Editor", vec2u32_inline(400,400), vec2u32_inline(1280, 720));
 
-	g_editor->frame = arena_alloc(16*1024*1024);
+	g_editor->frame = ArenaAlloc(16*1024*1024);
 	g_editor->project_menu = led_project_menu_alloc();
 	g_editor->running = 1;
 	g_editor->ns = time_ns();
@@ -103,7 +103,7 @@ struct led *led_alloc(void)
 	}
 	
 	g_editor->viewport_id = utf8_format(&sys_win->mem_persistent, "viewport_%u", g_editor->window);
-	g_editor->node_pool = gpool_alloc(NULL, 4096, struct led_node, GROWABLE);
+	g_editor->node_pool = GPoolAlloc(NULL, 4096, struct led_node, GROWABLE);
 	g_editor->node_map = hash_map_alloc(NULL, 4096, 4096, GROWABLE);
 	g_editor->node_marked_list = dll_init(struct led_node);
 	g_editor->node_non_marked_list = dll_init(struct led_node);
@@ -142,9 +142,9 @@ struct led *led_alloc(void)
 
 void led_dealloc(struct led *led)
 {
-	arena_free(&led->mem_persistent);
+	ArenaFree(&led->mem_persistent);
 	led_project_menu_dealloc(&led->project_menu);
 	csg_dealloc(&led->csg);
-	gpool_dealloc(&led->node_pool);
-	arena_free(&g_editor->frame);
+	GPoolDealloc(&led->node_pool);
+	ArenaFree(&g_editor->frame);
 }
