@@ -23,7 +23,7 @@
 #include <windows.h>
 #include "win_public.h"
 #include "sys_public.h"
-#include "log.h"
+#include "Log.h"
 
 /******************** win_thread.c ********************/
 
@@ -42,12 +42,12 @@ struct ds_thread
 
 /************************* win_error.c *************************/
 
-#define log_nt_status(severity, status)	_log_nt_status(severity, status, __func__, __FILE__, __LINE__)
+#define Log_nt_status(severity, status)	_log_nt_status(severity, status, __func__, __FILE__, __LINE__)
 #define _log_nt_status(severity, status, func, file, line)					\
 {												\
 	u8 _err_buf[ERROR_BUFSIZE];								\
 	const utf8 _err_str = utf8_nt_status_buffered(_err_buf, ERROR_BUFSIZE, status);		\
-	log(T_SYSTEM, severity, "At %s:%u in function %s - %k\n", file, line, func, &_err_str);	\
+	Log(T_SYSTEM, severity, "At %s:%u in function %s - %k\n", file, line, func, &_err_str);	\
 }
 
 /* thread safe NTSTATUS error message generation */

@@ -28,7 +28,7 @@
 #include "ds_common.h"
 #include "sys_common.h"
 #include "wasm_public.h"
-#include "log.h"
+#include "Log.h"
 
 /******************** wasm_thread.c ********************/
 

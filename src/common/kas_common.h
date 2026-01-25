@@ -35,7 +35,7 @@
 	#define PROF_THREAD_NAMED(str)
 #endif
 
-/*** logger definitions ***/
+/*** Logger definitions ***/
 #define DS_LOG		/* LOGGER ON */
 
 /*** assert library definitions ***/
@@ -88,7 +88,7 @@
 #include "ds_types.h"
 #include "ds_debug.h"
 
-/* system identifiers for logger, profiler ... */
+/* system identifiers for Logger, profiler ... */
 enum system_id
 {
 	T_SYSTEM,
@@ -105,7 +105,7 @@ enum system_id
 	T_COUNT
 };
 
-/* system identifiers for logger, profiler ... */
+/* system identifiers for Logger, profiler ... */
 enum severity_id
 {
 	S_SUCCESS,

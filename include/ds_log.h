@@ -31,24 +31,24 @@ extern "C" {
 #define LOG_MAX_MESSAGES		512
 #define LOG_MAX_MESSAGE_SIZE 		512
 
-void 	log_init(struct arena *mem, const char *filepath);
-void 	log_shutdown();
+void 	LogInit(struct arena *mem, const char *filepath);
+void 	LogShutdown();
 
 
 /**
- * log_write_message() - Generate a formatted string from the input string and the following arguments and write to the logger.
+ * LogWriteMessage() - Generate a formatted string from the input string and the following arguments and write to the Logger.
  */
-void 	log_write_message(const enum system_id system, const enum severity_id severity, const char *format, ... );
+void 	LogWriteMessage(const enum system_id system, const enum severity_id severity, const char *format, ... );
 
 #ifdef DS_LOG
 
-#define log_string(system, severity, msg, ...)		log_write_message(system, severity, msg)
-#define log(system, severity, msg, ...)			log_write_message(system, severity, msg, __VA_ARGS__)
+#define LogString(system, severity, msg, ...)		LogWriteMessage(system, severity, msg)
+#define Log(system, severity, msg, ...)			LogWriteMessage(system, severity, msg, __VA_ARGS__)
 
 #else
 
-#define log_string(system, severity, msg, ...)
-#define log(system, severity, msg, ...)
+#define LogString(system, severity, msg, ...)
+#define Log(system, severity, msg, ...)
 
 #endif
 

@@ -352,7 +352,7 @@ extern u64	(*time_ns_per_tick)(void);
 extern u64 	(*freq_rdtsc)(void);
 extern f64 	(*time_seconds_from_rdtsc)(const u64 ticks);
 
-/* g_tsc_skew[logical_core_count]: estimated skew from core 0.
+/* g_tsc_skew[Logical_core_count]: estimated skew from core 0.
  * given a tsc value from core c, its corresponding tsc value on core 0 is t_0 = t_c + skew,
  * so in code we get 
  * 			tsc_c = rdtscp(&core_c)
@@ -388,17 +388,6 @@ tid 	ds_thread_self_tid(void);
 u32	ds_thread_index(const ds_thread *thr);
 /* return index of caller */ 
 u32	ds_thread_self_index(void);
-
-/* Initiate the semaphore with a given value; NOTE: initiating an already initiated semphore is UB */
-void 	semaphore_init(semaphore *sem, const u32 val); 
-/* Destroy the given semaphore; NOTE: destroying a semaphore at which threads are waiting is UB */
-void 	semaphore_destroy(semaphore *sem);
-/* increment semaphore */
-void 	semaphore_post(semaphore *sem);	
-/* return 1 on successful lock aquisition, 0 otherwise. */
-u32 	semaphore_wait(semaphore *sem);	
-/* return 1 on successful lock aquisition, 0 otherwise. */
-u32 	semaphore_trywait(semaphore *sem);	
 
 /************************************************************************/
 /* 			       Task System				*/

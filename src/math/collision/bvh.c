@@ -393,7 +393,7 @@ u32 dbvh_internal_push_subtree_overlap_pairs(struct arena *mem, struct dbvh_over
 
 				if (q+1 >= stack_len)
 				{
-					log_string(T_PHYSICS, S_FATAL, "out-of-memory in arena based stack, increase arena size!");		
+					LogString(T_PHYSICS, S_FATAL, "out-of-memory in arena based stack, increase arena size!");		
 					fatal_cleanup_and_exit(ds_thread_self_tid());
 				}
 				continue;
@@ -444,7 +444,7 @@ struct dbvh_overlap *dbvh_push_overlap_pairs(struct arena *mem, u32 *count, cons
 			stack1[q].id2 = nodes[a].bt_right;	
 			if (q >= arr1.len)
 			{
-				log_string(T_PHYSICS, S_FATAL, "out-of-memory in arena based stack, increase arena size!");		
+				LogString(T_PHYSICS, S_FATAL, "out-of-memory in arena based stack, increase arena size!");		
 				fatal_cleanup_and_exit(ds_thread_self_tid());
 			}
 		}
@@ -743,7 +743,7 @@ end:
 			+ mesh->tri_count*sizeof(struct AABB)
 			+ 3*mesh->tri_count*sizeof(u8) 
 			+ 3*bin_count*(sizeof(struct AABB) + sizeof(u32));
-		log(T_SYSTEM, S_ERROR, "Failed to allocate bvh from triangle mesh, minimum size required: %lu\n", size_required);
+		Log(T_SYSTEM, S_ERROR, "Failed to allocate bvh from triangle mesh, minimum size required: %lu\n", size_required);
 		mesh_bvh = (struct tri_mesh_bvh) { 0 };
 	}
 
@@ -792,7 +792,7 @@ void bvh_raycast_test_and_push_children(struct bvh_raycast_info *info, const u32
 	{
 		if (info->hit_queue.count == info->hit_queue.length)
 		{
-			log_string(T_SYSTEM, S_FATAL, "distance queue in bvh_raycast OOM, aborting");
+			LogString(T_SYSTEM, S_FATAL, "distance queue in bvh_raycast OOM, aborting");
 			fatal_cleanup_and_exit(ds_thread_self_tid());
 		}
 		min_queue_fixed_push(&info->hit_queue, info->node[popped_tuple.u].bt_right, distance_right);

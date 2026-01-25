@@ -19,19 +19,19 @@
 
 #include "ds_base.h"
 
+#if defined(DS_LOG)
+
 #if __DS_PLATFORM__ == __DS_WEB__
 #include <emscripten/console.h>
 #endif
 
-#if defined(DS_LOG)
-
 /*
  * message_write:
- * 	if (!semaphore_trywait(msg_mem_left))	<--- if no mem, spin try to write to disk, until memory acquired
+ * 	if (!SemaphoreTryWait(msg_mem_left))	<--- if no mem, spin try to write to disk, until memory acquired
  * 	{
  *		message_write_batch_to_disk()
  * 	}
- *	semaphore_wait(msg_mem_left)
+ *	SemaphoreWait(msg_mem_left)
  * 	--------------------------------------- <-- we know there exist msg slot for thread, and that slot
  * 					            has had its memory pushed to disk. TODO: inspect assembly
  * 					            to ensure correct memory barriers, should be good enough
@@ -63,7 +63,7 @@
 static utf8 systems[T_COUNT];
 static utf8 severities[S_COUNT];
 
-struct log_message
+struct Log_message
 {
 	u64 	time;			/* ms */
 	u32 	system;
@@ -76,19 +76,19 @@ struct log_message
 	u32 	a_in_use_and_completed;	/* ready to be sent of to disk and reused */
 };
 
-struct log 
+struct Log 
 {
-	struct log_message *	msg;
-	struct ticket_factory *	tf;    			/* index factory */
+	struct Log_message *	msg;
+	struct ticketFactory 	tf;    			/* index factory */
 	u32 			a_writing_to_disk;
 	u32 			a_shutting_down;	/* when set, any further calls to message_write will immediately return */
 	u32 			has_file;		/* If not, simply skip file IO */ 
 	struct file 		file;
 };
 
-static struct log g_log;
+static struct Log g_log;
 
-void log_init(struct arena *mem, const char *filepath)
+void LogInit(struct arena *mem, const char *filepath)
 {
 	systems[T_SYSTEM] = Utf8Inline("System");
 	systems[T_RENDERER] = Utf8Inline("Renderer");
@@ -107,8 +107,8 @@ void log_init(struct arena *mem, const char *filepath)
 	severities[S_ERROR] = Utf8Inline("error");
 	severities[S_FATAL] = Utf8Inline("fatal");
 
-	g_log.msg = ArenaPush(mem, LOG_MAX_MESSAGES * sizeof(struct log_message));
-	g_log.tf = ticket_factory_init(mem, LOG_MAX_MESSAGES);
+	g_log.msg = ArenaPush(mem, LOG_MAX_MESSAGES * sizeof(struct Log_message));
+	TicketFactoryInit(&g_log.tf, mem, LOG_MAX_MESSAGES);
 	g_log.file = file_null();
 	file_try_create_at_cwd(mem, &g_log.file, filepath, FILE_TRUNCATE);
 	g_log.has_file = (g_log.file.handle != FILE_HANDLE_INVALID)
@@ -117,7 +117,7 @@ void log_init(struct arena *mem, const char *filepath)
 	AtomicStoreRel32(&g_log.a_writing_to_disk, 0);
 }
 
-static void log_try_write_to_disk(void)
+static void Log_try_write_to_disk(void)
 {
 	u32 desired = 0;
 	/* If we fail, try to write messages to disk and re-publish them  */
@@ -125,11 +125,11 @@ static void log_try_write_to_disk(void)
 	{
 		u32 count = 0;
 		/* we are the single owner of a_serve: sync with any previous disk-writer */
-		u32 serving = AtomicLoadAcq32(&g_log.tf->a_serve) % LOG_MAX_MESSAGES;
+		u32 serving = AtomicLoadAcq32(&g_log.tf.a_serve) % LOG_MAX_MESSAGES;
 		u32 completed = 1;
 		while (AtomicCompareExchangeAcq32(&g_log.msg[serving].a_in_use_and_completed, &completed, 0))
 		{
-			struct log_message *msg = g_log.msg + serving;
+			struct Log_message *msg = g_log.msg + serving;
 
 			if (g_log.has_file && msg->len)
 			{
@@ -139,7 +139,7 @@ static void log_try_write_to_disk(void)
 			count += 1;
 		}
 
-		ticket_factory_return_tickets(g_log.tf, count);
+		TicketFactoryReturnTickets(&g_log.tf, count);
 		AtomicStoreRel32(&g_log.a_writing_to_disk, 0);
 	}
 }
@@ -147,48 +147,48 @@ static void log_try_write_to_disk(void)
 static void internal_write_to_disk(void)
 {
 	/* spin until all tickets have finished and the messages have been written to disk */
-	while (AtomicLoadAcq32(&g_log.tf->a_serve) != AtomicLoadAcq32(&g_log.tf->a_next))
+	while (AtomicLoadAcq32(&g_log.tf.a_serve) != AtomicLoadAcq32(&g_log.tf.a_next))
 	{
-		log_try_write_to_disk();
+		Log_try_write_to_disk();
 	}
 }
 
-void log_shutdown()
+void LogShutdown()
 {
-	log_string(T_SYSTEM, S_NOTE, "Log system initiated shutdown");
+	LogString(T_SYSTEM, S_NOTE, "Log system initiated shutdown");
 
-	AtomicStoreRel32(&g_log.tf->a_open, 0);
+	AtomicStoreRel32(&g_log.tf.a_open, 0);
 	if (g_log.has_file)
 	{
 		internal_write_to_disk();
 		file_sync(&g_log.file);
 		file_close(&g_log.file);
 	}
-	ticket_factory_destroy(g_log.tf);
+	TicketFactoryDestroy(&g_log.tf);
 }
 
-void log_write_message(const enum system_id system, const enum severity_id severity, const char *format, ... )
+void LogWriteMessage(const enum system_id system, const enum severity_id severity, const char *format, ... )
 {
-	//TODO should perf log this 
+	//TODO should perf Log this 
 	
 	const u32 thread_id = ds_thread_self_tid();
 	/* spin until a new msg slot is up for grabs for us to publish */
 	u32 ticket;
 	u32 ret;
-	while (!(ret = ticket_factory_try_get_ticket(&ticket, g_log.tf)))
+	while (!(ret = TicketFactoryTryGetTicket(&ticket, &g_log.tf)))
 	{
 		/* If we fail to get a ticket after the shutdown process has started, 
 		 * we should probably just abort to keep it simple for now. We should
 		 * instead ensure that all threads have terminated before we even call
-		 * log_shutdown();
+		 * LogShutdown();
 		 */
-		log_try_write_to_disk();
+		Log_try_write_to_disk();
 	}
 
 	if (ret == TICKET_FACTORY_CLOSED) { return; }
 
 
-	struct log_message *msg = g_log.msg + (ticket % LOG_MAX_MESSAGES);
+	struct Log_message *msg = g_log.msg + (ticket % LOG_MAX_MESSAGES);
 
 	/* format message */
 	const u64 ms = time_ms();

@@ -178,7 +178,7 @@ void cmd_collision_box_add(void)
 	}
 	else
 	{
-		log_string(T_LED, S_WARNING, "Failed to allocate collision box: bad parameters");
+		LogString(T_LED, S_WARNING, "Failed to allocate collision box: bad parameters");
 	}
 }
 
@@ -199,7 +199,7 @@ void cmd_collision_dcel_add(void)
 	}
 	else
 	{
-		log_string(T_LED, S_WARNING, "Failed to allocate collision dcel: bad parameters");
+		LogString(T_LED, S_WARNING, "Failed to allocate collision dcel: bad parameters");
 	}
 }
 
@@ -220,7 +220,7 @@ void cmd_collision_tri_mesh_bvh_add(void)
 	}
 	else
 	{
-		log_string(T_LED, S_WARNING, "Failed to allocate collision tri_mesh: bad parameters");
+		LogString(T_LED, S_WARNING, "Failed to allocate collision tri_mesh: bad parameters");
 	}
 }
 
@@ -240,7 +240,7 @@ void cmd_collision_sphere_add(void)
 	}
 	else
 	{
-		log_string(T_LED, S_WARNING, "Failed to allocate collision sphere: bad parameters");
+		LogString(T_LED, S_WARNING, "Failed to allocate collision sphere: bad parameters");
 	}
 }
 
@@ -264,7 +264,7 @@ void cmd_collision_capsule_add(void)
 	}
 	else
 	{
-		log_string(T_LED, S_WARNING, "Failed to allocate collision capsule: bad parameters");
+		LogString(T_LED, S_WARNING, "Failed to allocate collision capsule: bad parameters");
 	}
 }
 
@@ -278,11 +278,11 @@ struct slot led_collision_shape_add(struct led *led, const struct collision_shap
 	struct slot slot = empty_slot;
 	if (!shape->id.len)
 	{
-		log_string(T_LED, S_WARNING, "Failed to allocate collision shape: shape->id must not be empty");
+		LogString(T_LED, S_WARNING, "Failed to allocate collision shape: shape->id must not be empty");
 	} 
 	else if (string_database_lookup(&led->cs_db, shape->id).index != STRING_DATABASE_STUB_INDEX) 
 	{
-		log_string(T_LED, S_WARNING, "Failed to allocate collision shape: shape with given id already exist");
+		LogString(T_LED, S_WARNING, "Failed to allocate collision shape: shape with given id already exist");
 	}
 	else
 	{ 
@@ -290,7 +290,7 @@ struct slot led_collision_shape_add(struct led *led, const struct collision_shap
 		const utf8 copy = Utf8CopyBuffered(buf, 256, shape->id);	
 		if (!copy.len)
 		{
-			log_string(T_LED, S_WARNING, "Failed to allocate collision shape: shape->id size must be <= 256B");
+			LogString(T_LED, S_WARNING, "Failed to allocate collision shape: shape->id size must be <= 256B");
 			ThreadFree256B(buf);
 		}
 		else
@@ -359,11 +359,11 @@ struct slot led_render_mesh_add(struct led *led, const utf8 id, const utf8 shape
 	struct slot slot = empty_slot;
 	if (!id.len)
 	{
-		log_string(T_LED, S_WARNING, "Failed to allocate render mesh: id must not be empty");
+		LogString(T_LED, S_WARNING, "Failed to allocate render mesh: id must not be empty");
 	} 
 	else if (string_database_lookup(&led->render_mesh_db, id).index != STRING_DATABASE_STUB_INDEX) 
 	{
-		log_string(T_LED, S_WARNING, "Failed to allocate render mesh: mesh with given id already exist");
+		LogString(T_LED, S_WARNING, "Failed to allocate render mesh: mesh with given id already exist");
 	}
 	else
 	{ 
@@ -371,7 +371,7 @@ struct slot led_render_mesh_add(struct led *led, const utf8 id, const utf8 shape
 		const utf8 copy = Utf8CopyBuffered(buf, 256, id);	
 		if (!copy.len)
 		{
-			log_string(T_LED, S_WARNING, "Failed to allocate render mesh: id size must be <= 256B");
+			LogString(T_LED, S_WARNING, "Failed to allocate render mesh: id size must be <= 256B");
 			ThreadFree256B(buf);
 		}
 		else
@@ -382,7 +382,7 @@ struct slot led_render_mesh_add(struct led *led, const utf8 id, const utf8 shape
 			struct slot ref = string_database_lookup(&led->cs_db, shape);
 			if (ref.index == STRING_DATABASE_STUB_INDEX)
 			{
-				log_string(T_LED, S_WARNING, "In render_mesh_add: shape not found, stub_shape chosen");
+				LogString(T_LED, S_WARNING, "In render_mesh_add: shape not found, stub_shape chosen");
 			}
 
 			struct system_window *sys_win = system_window_address(g_editor->window);
@@ -439,11 +439,11 @@ struct slot led_rigid_body_prefab_add(struct led *led, const utf8 id, const utf8
 	struct slot slot = empty_slot;	
 	if (!id.len)
 	{
-		log_string(T_LED, S_WARNING, "Failed to allocate rb_prefab: prefab->id must not be empty");
+		LogString(T_LED, S_WARNING, "Failed to allocate rb_prefab: prefab->id must not be empty");
 	} 
 	else if (string_database_lookup(&led->rb_prefab_db, id).index != STRING_DATABASE_STUB_INDEX) 
 	{
-		log_string(T_LED, S_WARNING, "Failed to allocate rb_prefab: prefab with given id already exist");
+		LogString(T_LED, S_WARNING, "Failed to allocate rb_prefab: prefab with given id already exist");
 	}
 	else
 	{ 
@@ -451,7 +451,7 @@ struct slot led_rigid_body_prefab_add(struct led *led, const utf8 id, const utf8
 		const utf8 copy = Utf8CopyBuffered(buf, 256, id);	
 		if (!copy.len)
 		{
-			log_string(T_LED, S_WARNING, "Failed to allocate rb_prefab: prefab->id size must be <= 256B");
+			LogString(T_LED, S_WARNING, "Failed to allocate rb_prefab: prefab->id size must be <= 256B");
 			ThreadFree256B(buf);
 		}
 		else
@@ -459,7 +459,7 @@ struct slot led_rigid_body_prefab_add(struct led *led, const utf8 id, const utf8
 			struct slot ref = string_database_reference(&led->cs_db, shape);
 			if (ref.index == STRING_DATABASE_STUB_INDEX)
 			{
-				log_string(T_LED, S_WARNING, "In rb_prefab: shape not found, stub_shape chosen");
+				LogString(T_LED, S_WARNING, "In rb_prefab: shape not found, stub_shape chosen");
 			}
 			slot = string_database_add_and_alias(&led->rb_prefab_db, copy);
 			struct rigid_body_prefab *prefab = slot.address;
@@ -499,11 +499,11 @@ struct slot led_node_add(struct led *led, const utf8 id)
 	struct slot slot = empty_slot;
 	if (!id.len)
 	{
-		log_string(T_LED, S_WARNING, "Failed to allocate led_node: id must not be empty");
+		LogString(T_LED, S_WARNING, "Failed to allocate led_node: id must not be empty");
 	} 
 	else if (led_node_lookup(led, id).address != STRING_DATABASE_STUB_INDEX) 
 	{
-		log_string(T_LED, S_WARNING, "Failed to allocate led_node: node with given id already exist");
+		LogString(T_LED, S_WARNING, "Failed to allocate led_node: node with given id already exist");
 	}
 	else
 	{ 
@@ -512,7 +512,7 @@ struct slot led_node_add(struct led *led, const utf8 id)
 		const u32 key = Utf8Hash(id);
 		if (!copy.len)
 		{
-			log_string(T_LED, S_WARNING, "Failed to allocate led_node: id size must be <= 256B");
+			LogString(T_LED, S_WARNING, "Failed to allocate led_node: id size must be <= 256B");
 			ThreadFree256B(buf);
 		} 
 		else
@@ -618,11 +618,11 @@ void led_node_set_position(struct led *led, const utf8 id, const vec3 position)
 	struct led_node *node = slot.address;
 	if (!node)
 	{
-		log(T_LED, S_WARNING, "Failed to set position of led node %k, node not found.", &id);
+		Log(T_LED, S_WARNING, "Failed to set position of led node %k, node not found.", &id);
 	}
 	else if (node->flags & LED_CONSTANT)
 	{
-		log(T_LED, S_WARNING, "Failed to set position of led node %k, node is constant.", &id);
+		Log(T_LED, S_WARNING, "Failed to set position of led node %k, node is constant.", &id);
 	}
 	else
 	{
@@ -636,18 +636,18 @@ void led_node_set_rb_prefab(struct led *led, const utf8 id, const utf8 prefab)
 	struct led_node *node = slot.address;
 	if (!node)
 	{
-		log(T_LED, S_WARNING, "Failed to set of led node %k, node not found.", &id);
+		Log(T_LED, S_WARNING, "Failed to set of led node %k, node not found.", &id);
 	}
 	else if (node->flags & LED_CONSTANT)
 	{
-		log(T_LED, S_WARNING, "Failed to set of led node %k, node is constant.", &id);
+		Log(T_LED, S_WARNING, "Failed to set of led node %k, node is constant.", &id);
 	}
 	else
 	{
 		slot = string_database_reference(&led->rb_prefab_db, prefab);
 		if (slot.index == STRING_DATABASE_STUB_INDEX)
 		{
-			log(T_LED, S_WARNING, "Failed to set of led node %k, prefab not found.", &id);
+			Log(T_LED, S_WARNING, "Failed to set of led node %k, prefab not found.", &id);
 		}
 		else
 		{
@@ -668,18 +668,18 @@ void led_node_set_csg_brush(struct led *led, const utf8 id, const utf8 brush)
 	struct led_node *node = slot.address;
 	if (!node)
 	{
-		log(T_LED, S_WARNING, "Failed to set of led node %k, node not found.", &id);
+		Log(T_LED, S_WARNING, "Failed to set of led node %k, node not found.", &id);
 	}
 	else if (node->flags & LED_CONSTANT)
 	{
-		log(T_LED, S_WARNING, "Failed to set of led node %k, node is constant.", &id);
+		Log(T_LED, S_WARNING, "Failed to set of led node %k, node is constant.", &id);
 	}
 	else
 	{
 		slot = string_database_reference(&led->csg.brush_db, brush);
 		if (slot.index == STRING_DATABASE_STUB_INDEX)
 		{
-			log(T_LED, S_WARNING, "Failed to set of led node %k, brush not found.", &id);
+			Log(T_LED, S_WARNING, "Failed to set of led node %k, brush not found.", &id);
 		}
 		else
 		{
@@ -700,11 +700,11 @@ void led_node_set_proxy3d(struct led *led, const utf8 id, const utf8 mesh, const
 	struct led_node *node = slot.address;
 	if (!node)
 	{
-		log(T_LED, S_WARNING, "Failed to set of led node %k, node not found.", &id);
+		Log(T_LED, S_WARNING, "Failed to set of led node %k, node not found.", &id);
 	}
 	else if (node->flags & LED_CONSTANT)
 	{
-		log(T_LED, S_WARNING, "Failed to set of led node %k, node is constant.", &id);
+		Log(T_LED, S_WARNING, "Failed to set of led node %k, node is constant.", &id);
 	}
 	else
 	{

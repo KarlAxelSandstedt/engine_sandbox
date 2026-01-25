@@ -35,7 +35,7 @@ struct fifo_spmc *fifo_spmc_init(struct arena *mem_persistent, const u32 max_ent
 	}
 
 	q->next_alloc = 0;
-	semaphore_init(&q->able_for_reservation, 0);
+	SemaphoreInit(&q->able_for_reservation, 0);
 	AtomicStoreRel32(&q->a_first, 0);
 
 	return q;
@@ -43,7 +43,7 @@ struct fifo_spmc *fifo_spmc_init(struct arena *mem_persistent, const u32 max_ent
 
 void fifo_spmc_destroy(struct fifo_spmc *q)
 {
-	semaphore_destroy(&q->able_for_reservation);
+	SemaphoreDestroy(&q->able_for_reservation);
 }
 
 void *fifo_spmc_pop(struct fifo_spmc *q)
@@ -104,7 +104,7 @@ u32 fifo_spmc_try_push(struct fifo_spmc *q, void *data)
 	q->entries[next].in_use = 1;
 	AtomicStoreRel64(&q->entries[next].data, data);
 	/* ACQ_SEQ */
-	semaphore_post(&q->able_for_reservation);
+	SemaphorePost(&q->able_for_reservation);
 
 	return 1;
 }

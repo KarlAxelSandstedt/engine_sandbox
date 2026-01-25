@@ -20,7 +20,7 @@
 #ifdef	DS_DEV
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-#undef log
+#undef Log
 #endif
 
 #include "asset_local.h"
@@ -183,7 +183,7 @@ void ssff_build(struct arena *mem, const u32 ssff_id)
 i32 wi, he, co;
 		if (!pixel[i])
 		{
-			log_string(T_SYSTEM, S_FATAL, stbi_failure_reason());
+			LogString(T_SYSTEM, S_FATAL, stbi_failure_reason());
 			ds_Assert(0);
 		}
 
@@ -316,7 +316,7 @@ void ssff_save(const struct asset_ssff *asset, const struct ssff_header *header)
 	struct file file = file_null();
 	if (file_try_create_at_cwd(&tmp, &file, asset->filepath, FILE_TRUNCATE) != FS_SUCCESS)
 	{
-		log_string(T_ASSET, S_FATAL, "Failed to create .ssff file handle");
+		LogString(T_ASSET, S_FATAL, "Failed to create .ssff file handle");
 		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 

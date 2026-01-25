@@ -95,7 +95,7 @@ void 			min_queue_fixed_dealloc(struct min_queue_fixed *queue);
 /* Flush queue resources */
 void			min_queue_fixed_flush(struct min_queue_fixed *queue);
 /* Debug print */
-void 			min_queue_fixed_print(FILE *log, const struct min_queue_fixed *queue);
+void 			min_queue_fixed_print(FILE *Log, const struct min_queue_fixed *queue);
 /* Push (id, priority) pair onto queue. */
 void 			min_queue_fixed_push(struct min_queue_fixed *queue, const u32 id, const f32 priority);
 /* pop minimum element */

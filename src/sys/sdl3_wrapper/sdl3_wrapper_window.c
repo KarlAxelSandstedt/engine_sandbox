@@ -71,7 +71,7 @@ static void sdl3_wrapper_native_window_gl_set_current(struct native_window *nati
 {
 	if (!SDL_GL_MakeCurrent(native->sdl_win, native->gl_context))
 	{
-		log_string(T_RENDERER, S_ERROR, SDL_GetError());
+		LogString(T_RENDERER, S_ERROR, SDL_GetError());
 	}	
 }
 
@@ -79,7 +79,7 @@ static void sdl3_wrapper_native_window_gl_swap_buffers(struct native_window *nat
 {
 	if (!SDL_GL_SwapWindow(native->sdl_win))
 	{
-		log_string(T_RENDERER, S_WARNING, SDL_GetError());
+		LogString(T_RENDERER, S_WARNING, SDL_GetError());
 	}
 }
 
@@ -92,7 +92,7 @@ static void sdl3_wrapper_native_cursor_show(struct native_window *native)
 {
 	if (!SDL_ShowCursor())
 	{
-		log_string(T_SYSTEM, S_WARNING, SDL_GetError());
+		LogString(T_SYSTEM, S_WARNING, SDL_GetError());
 	}
 }
 
@@ -100,7 +100,7 @@ static void sdl3_wrapper_native_cursor_hide(struct native_window *native)
 {
 	if (!SDL_HideCursor())
 	{
-		log_string(T_SYSTEM, S_WARNING, SDL_GetError());
+		LogString(T_SYSTEM, S_WARNING, SDL_GetError());
 	}
 }
 
@@ -110,7 +110,7 @@ static u32 sdl3_wrapper_native_cursor_lock(struct native_window *native)
 	if (!SDL_SetWindowRelativeMouseMode(native->sdl_win, 1))
 	{
 		lock = 0;
-		log_string(T_SYSTEM, S_WARNING, SDL_GetError());
+		LogString(T_SYSTEM, S_WARNING, SDL_GetError());
 	}
 
 	return lock;
@@ -122,7 +122,7 @@ static u32 sdl3_wrapper_native_cursor_unlock(struct native_window *native)
 	if (!SDL_SetWindowRelativeMouseMode(native->sdl_win, 0))
 	{
 		lock = 1;
-		log_string(T_SYSTEM, S_WARNING, SDL_GetError());
+		LogString(T_SYSTEM, S_WARNING, SDL_GetError());
 	}
 	
 	return lock;
@@ -140,7 +140,7 @@ void sdl3_wrapper_cursor_set_rect(struct native_window *native, const vec2 nat_p
 
 	if (!SDL_SetWindowMouseRect(native->sdl_win, &rect))
 	{
-		log_string(T_SYSTEM, S_WARNING, SDL_GetError());
+		LogString(T_SYSTEM, S_WARNING, SDL_GetError());
 	}
 }
 
@@ -148,7 +148,7 @@ void sdl3_wrapper_cursor_unset_rect(struct native_window *native)
 {
 	if (!SDL_SetWindowMouseRect(native->sdl_win, NULL))
 	{
-		log_string(T_SYSTEM, S_WARNING, SDL_GetError());
+		LogString(T_SYSTEM, S_WARNING, SDL_GetError());
 	}
 }
 
@@ -167,7 +167,7 @@ static void sdl3_wrapper_native_window_config_update(vec2u32 position, vec2u32 s
 	int w, h;
 	if (!SDL_GetWindowSize(native->sdl_win, &w, &h))
 	{
-		log_string(T_SYSTEM, S_FATAL, SDL_GetError());
+		LogString(T_SYSTEM, S_FATAL, SDL_GetError());
 		fatal_cleanup_and_exit(0);
 	}
 
@@ -175,7 +175,7 @@ static void sdl3_wrapper_native_window_config_update(vec2u32 position, vec2u32 s
        	int y = (int) position[1];
 	if (!SDL_GetWindowPosition(native->sdl_win, &x, &y))
 	{
-		log_string(T_SYSTEM, S_WARNING, SDL_GetError());
+		LogString(T_SYSTEM, S_WARNING, SDL_GetError());
 	}
 
 	size[0] = (u32) w;
@@ -188,7 +188,7 @@ static void sdl3_wrapper_native_window_fullscreen(struct native_window *native)
 {
 	if (!SDL_SetWindowFullscreen(native->sdl_win, 1))
 	{
-		log_string(T_SYSTEM, S_WARNING, SDL_GetError());
+		LogString(T_SYSTEM, S_WARNING, SDL_GetError());
 	}
 }
 
@@ -196,7 +196,7 @@ static void sdl3_wrapper_native_window_windowed(struct native_window *native)
 {
 	if (!SDL_SetWindowFullscreen(native->sdl_win, 0))
 	{
-		log_string(T_SYSTEM, S_WARNING, SDL_GetError());
+		LogString(T_SYSTEM, S_WARNING, SDL_GetError());
 	}
 }
 
@@ -204,7 +204,7 @@ static void sdl3_wrapper_native_window_bordered(struct native_window *native)
 {
 	if (!SDL_SetWindowBordered(native->sdl_win, 1))
 	{
-		log_string(T_SYSTEM, S_WARNING, SDL_GetError());
+		LogString(T_SYSTEM, S_WARNING, SDL_GetError());
 	}
 }
 
@@ -212,7 +212,7 @@ static void sdl3_wrapper_native_window_borderless(struct native_window *native)
 {
 	if (!SDL_SetWindowBordered(native->sdl_win, 0))
 	{
-		log_string(T_SYSTEM, S_WARNING, SDL_GetError());
+		LogString(T_SYSTEM, S_WARNING, SDL_GetError());
 	}
 }
 
@@ -241,7 +241,7 @@ void sdl3_wrapper_window_position_native_to_system(vec2 sys_pos, struct native_w
 	int w, h;
 	if (!SDL_GetWindowSize(native->sdl_win, &w, &h))
 	{
-		log_string(T_SYSTEM, S_FATAL, SDL_GetError());
+		LogString(T_SYSTEM, S_FATAL, SDL_GetError());
 		fatal_cleanup_and_exit(0);
 	}
 
@@ -254,7 +254,7 @@ void sdl3_wrapper_window_position_system_to_native(vec2 nat_pos, struct native_w
 	int w, h;
 	if (!SDL_GetWindowSize(native->sdl_win, &w, &h))
 	{
-		log_string(T_SYSTEM, S_FATAL, SDL_GetError());
+		LogString(T_SYSTEM, S_FATAL, SDL_GetError());
 		fatal_cleanup_and_exit(0);
 	}
 
@@ -266,7 +266,7 @@ static void sdl3_destroy_gl_context(struct native_window *native)
 {
 	if (!SDL_GL_DestroyContext(native->gl_context))
 	{
-		log_string(T_SYSTEM, S_FATAL, SDL_GetError());
+		LogString(T_SYSTEM, S_FATAL, SDL_GetError());
 		fatal_cleanup_and_exit(0);
 	}
 }
@@ -276,14 +276,14 @@ static void sdl3_create_gl_context(struct native_window *native)
 	native->gl_context = SDL_GL_CreateContext(native->sdl_win);
 	if (native->gl_context == NULL)
 	{
-		log_string(T_SYSTEM, S_FATAL, SDL_GetError());
+		LogString(T_SYSTEM, S_FATAL, SDL_GetError());
 		fatal_cleanup_and_exit(0);
 	}
 
 	/* turn off vsync for context (dont block on SWAP until window refresh (or something...) */
 	if (!SDL_GL_SetSwapInterval(0))
 	{
-		log_string(T_SYSTEM, S_FATAL, SDL_GetError());
+		LogString(T_SYSTEM, S_FATAL, SDL_GetError());
 		fatal_cleanup_and_exit(0);
 	}
 
@@ -301,7 +301,7 @@ static struct native_window *sdl3_wrapper_native_window_create(struct arena *mem
 	native->sdl_win = SDL_CreateWindow(title, (i32) size[0], (i32) size[1], SDL_WINDOW_RESIZABLE | SDL_WINDOW_OPENGL);
 	if (native->sdl_win == NULL)
 	{
-		log_string(T_SYSTEM, S_FATAL, SDL_GetError());
+		LogString(T_SYSTEM, S_FATAL, SDL_GetError());
 		fatal_cleanup_and_exit(0);
 	}
 
@@ -320,7 +320,7 @@ u32 sdl3_wrapper_enter_text_input_mode(struct native_window *native)
 	u32 success = 1;
 	if (!SDL_TextInputActive(native->sdl_win) && !SDL_StartTextInput(native->sdl_win))
 	{
-		log_string(T_SYSTEM, S_ERROR, SDL_GetError());
+		LogString(T_SYSTEM, S_ERROR, SDL_GetError());
 		success = 0;
 	}
 
@@ -332,7 +332,7 @@ u32 sdl3_wrapper_exit_text_input_mode(struct native_window *native)
 	u32 success = 1;
 	if (SDL_TextInputActive(native->sdl_win) && !SDL_StopTextInput(native->sdl_win))
 	{
-		log_string(T_SYSTEM, S_ERROR, SDL_GetError());
+		LogString(T_SYSTEM, S_ERROR, SDL_GetError());
 		success = 0;
 	}
 
@@ -365,7 +365,7 @@ utf8 sdl3_wrapper_utf8_get_clipboard(struct arena *mem)
 		}
 		else
 		{
-			log_string(T_SYSTEM, S_ERROR, SDL_GetError());
+			LogString(T_SYSTEM, S_ERROR, SDL_GetError());
 		}
 	}
 
@@ -376,7 +376,7 @@ void sdl3_wrapper_cstr_set_clipboard(const char *str)
 {
 	if (!SDL_SetClipboardText(str))
 	{
-		log_string(T_SYSTEM, S_ERROR, SDL_GetError());
+		LogString(T_SYSTEM, S_ERROR, SDL_GetError());
 	}
 }
 
@@ -384,7 +384,7 @@ void sdl3_wrapper_init(void)
 {
 	if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS))
 	{
-		log_string(T_SYSTEM, S_FATAL, SDL_GetError());
+		LogString(T_SYSTEM, S_FATAL, SDL_GetError());
 		fatal_cleanup_and_exit(0);
 	}
 
@@ -395,7 +395,7 @@ void sdl3_wrapper_init(void)
 		|| !SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3)
 		)
 	{
-		log_string(T_SYSTEM, S_FATAL, SDL_GetError());
+		LogString(T_SYSTEM, S_FATAL, SDL_GetError());
 		fatal_cleanup_and_exit(0);
 	}
 
@@ -404,7 +404,7 @@ void sdl3_wrapper_init(void)
 	SDL_GL_GetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, &minor);
 	if (major < 3 || minor < 3)
 	{
-		log_string(T_SYSTEM, S_FATAL, "Requires GL 3.3 or greater, exiting\n");
+		LogString(T_SYSTEM, S_FATAL, "Requires GL 3.3 or greater, exiting\n");
 		fatal_cleanup_and_exit(0);
 	}
 #elif __DS_PLATFORM__ == __DS_WEB__
@@ -415,7 +415,7 @@ void sdl3_wrapper_init(void)
 		|| !SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0)
 		)
 	{
-		log_string(T_SYSTEM, S_FATAL, SDL_GetError());
+		LogString(T_SYSTEM, S_FATAL, SDL_GetError());
 		fatal_cleanup_and_exit(0);
 	}
 
@@ -424,14 +424,14 @@ void sdl3_wrapper_init(void)
 	SDL_GL_GetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, &minor);
 	if (major < 3)
 	{
-		log_string(T_SYSTEM, S_FATAL, "Requires GLES 3.0 or greater, exiting\n");
+		LogString(T_SYSTEM, S_FATAL, "Requires GLES 3.0 or greater, exiting\n");
 		fatal_cleanup_and_exit(0);
 	}
 #endif
 	/* Must be done after initalizing the video driver but before creating any opengl windows */
 	if (!SDL_GL_LoadLibrary(NULL))
 	{
-		log_string(T_SYSTEM, S_FATAL, SDL_GetError());
+		LogString(T_SYSTEM, S_FATAL, SDL_GetError());
 		fatal_cleanup_and_exit(0);
 	}
 	native_window_create = &sdl3_wrapper_native_window_create;

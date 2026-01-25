@@ -136,7 +136,7 @@ void *ds_Realloc(struct memSlot *slot, const u64 size)
 	if (slot->address == MAP_FAILED || slot->address == NULL)
 	{
 		//TODO Crash
-		log_string(T_SYSTEM, S_FATAL, "Failed to reallocate memSlot in ds_Realloc, exiting.");
+		LogString(T_SYSTEM, S_FATAL, "Failed to reallocate memSlot in ds_Realloc, exiting.");
 		//fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 
@@ -201,7 +201,7 @@ void *ds_Realloc(struct memSlot *slot, const u64 size)
 	if (slot->address == MAP_FAILED)
 	{
 		//TODO Crash
-		log_string(T_SYSTEM, S_FATAL, "Failed to reallocate memSlot in ds_Realloc, exiting.");
+		LogString(T_SYSTEM, S_FATAL, "Failed to reallocate memSlot in ds_Realloc, exiting.");
 		//fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 
@@ -437,7 +437,7 @@ void ThreadBlockAllocatorAlloc(struct threadBlockAllocator *allocator, const u64
 	if (!allocator->block)
 	{
 		//TODO
-		log_string(T_SYSTEM, S_FATAL, "Failed to allocate block allocator->block");
+		LogString(T_SYSTEM, S_FATAL, "Failed to allocate block allocator->block");
 		//fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 	/* sync point (gen, index) = (0,0) */
@@ -614,14 +614,14 @@ struct ring RingAlloc(const u64 mem_hint)
 
 	if (ring.buf == MAP_FAILED)
 	{
-		log_string(T_SYSTEM, S_ERROR, "Failed to allocate ring allocator: %s", strerror(errno));
+		LogString(T_SYSTEM, S_ERROR, "Failed to allocate ring allocator: %s", strerror(errno));
 		return RingEmpty();
 	}
 	void *p1 = mmap(ring.buf, ring.mem_total, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
 	void *p2 = mmap(ring.buf + ring.mem_total, ring.mem_total, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
 	if (p1 == MAP_FAILED || p2 == MAP_FAILED)
 	{
-		log_string(T_SYSTEM, S_ERROR, "Failed to allocate ring allocator: %s", strerror(errno));
+		LogString(T_SYSTEM, S_ERROR, "Failed to allocate ring allocator: %s", strerror(errno));
 		return RingEmpty();
 	}
 
@@ -635,7 +635,7 @@ void RingDealloc(struct ring *ring)
 {
 	if (munmap(ring->buf, 2*ring->mem_total) == -1)
 	{
-		log(T_SYSTEM, S_ERROR, "%s:%d - %s", __FILE__, __LINE__, strerror(errno));
+		Log(T_SYSTEM, S_ERROR, "%s:%d - %s", __FILE__, __LINE__, strerror(errno));
 	}
 	*ring = RingEmpty();
 }
@@ -659,33 +659,33 @@ struct ring RingAlloc(const u64 mem_hint)
 	u8 *alloc = VirtualAlloc2(NULL, NULL, 2*bufsize, MEM_RESERVE | MEM_RESERVE_PLACEHOLDER, PAGE_NOACCESS, NULL, 0);
 	if (alloc == NULL)
 	{
-		log_system_error(S_ERROR);
+		Log_system_error(S_ERROR);
 		return RingEmpty();
 	}
 
 	if (!VirtualFree(alloc, bufsize, MEM_RELEASE | MEM_PRESERVE_PLACEHOLDER))
 	{
-		log_system_error(S_ERROR);
+		Log_system_error(S_ERROR);
 		return RingEmpty();
 	}
 
 	HANDLE map = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, (DWORD) (bufsize >> 32), (DWORD) ((u32) bufsize), NULL);
 	if (map == INVALID_HANDLE_VALUE)
 	{
-		log_system_error(S_ERROR);
+		Log_system_error(S_ERROR);
 		return RingEmpty();
 	}
 
 	u8 *buf = MapViewOfFile3(map, INVALID_HANDLE_VALUE, alloc, 0, bufsize, MEM_REPLACE_PLACEHOLDER, PAGE_READWRITE, NULL, 0);
 	if (buf == NULL)
 	{
-		log_system_error(S_ERROR);
+		Log_system_error(S_ERROR);
 		return RingEmpty();
 	}
 
 	if (MapViewOfFile3(map, INVALID_HANDLE_VALUE, alloc + bufsize, 0, bufsize, MEM_REPLACE_PLACEHOLDER, PAGE_READWRITE, NULL, 0) == NULL)
 	{
-		log_system_error(S_ERROR);
+		Log_system_error(S_ERROR);
 		return RingEmpty();
 	}
 
@@ -698,11 +698,11 @@ void RingDealloc(struct ring *ring)
 {
 	if (!UnmapViewOfFile(ring->buf))
 	{
-		log_system_error(S_ERROR);
+		Log_system_error(S_ERROR);
 	}
 	if (!UnmapViewOfFile(ring->buf + ring->mem_total))
 	{
-		log_system_error(S_ERROR);
+		Log_system_error(S_ERROR);
 	}
 	*ring = RingEmpty();
 }
@@ -817,7 +817,7 @@ static void PoolReallocInternal(struct pool *pool)
 	if (pool->length == length_max)
 	{
 		//TODO
-		log_string(T_SYSTEM, S_FATAL, "pool allocator full, exiting");
+		LogString(T_SYSTEM, S_FATAL, "pool allocator full, exiting");
 		//fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 	
@@ -832,7 +832,7 @@ static void PoolReallocInternal(struct pool *pool)
 	if (!pool->buf)
 	{
 		//TODO
-		log_string(T_SYSTEM, S_FATAL, "pool reallocation failed, exiting");
+		LogString(T_SYSTEM, S_FATAL, "pool reallocation failed, exiting");
 		//fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 
@@ -1031,7 +1031,7 @@ struct slot PoolExternalAdd(struct poolExternal *pool)
 			if (*pool->external_buf == NULL)
 			{
 				//TODO
-				log_string(T_SYSTEM, S_FATAL, "Failed to reallocate external pool buffer");
+				LogString(T_SYSTEM, S_FATAL, "Failed to reallocate external pool buffer");
 				//fatal_cleanup_and_exit(ds_thread_self_tid());
 			}
 			UnpoisonAddress(*pool->external_buf, pool->slot_size*old_length);

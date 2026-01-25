@@ -39,23 +39,23 @@ static void ds_arch_config_log(void)
 	const char *yes = "Y";
 	const char *no = "N";
 
-	log(T_SYSTEM, S_NOTE, "cpu signature - %k", &config.vendor_string);
-	log(T_SYSTEM, S_NOTE, "cpu - %k", &config.processor_string);
-	log(T_SYSTEM, S_NOTE, "logical core count - %u", config.logical_core_count);
-	log(T_SYSTEM, S_NOTE, "cacheline size - %luB", config.cacheline);
+	Log(T_SYSTEM, S_NOTE, "cpu signature - %k", &config.vendor_string);
+	Log(T_SYSTEM, S_NOTE, "cpu - %k", &config.processor_string);
+	Log(T_SYSTEM, S_NOTE, "Logical core count - %u", config.Logical_core_count);
+	Log(T_SYSTEM, S_NOTE, "cacheline size - %luB", config.cacheline);
 
-	log(T_SYSTEM, S_NOTE, "sse : Supported(%s)", (config.sse) ? yes : no);
-	log(T_SYSTEM, S_NOTE, "sse2 : Supported(%s)", (config.sse2) ? yes : no);
-	log(T_SYSTEM, S_NOTE, "sse3 : Supported(%s)", (config.sse3) ? yes : no);
-	log(T_SYSTEM, S_NOTE, "ssse3 : Supported(%s)", (config.ssse3) ? yes : no);
-	log(T_SYSTEM, S_NOTE, "sse4.1 : Supported(%s)", (config.sse4_1) ? yes : no);
-	log(T_SYSTEM, S_NOTE, "sse4.2 : Supported(%s)", (config.sse4_2) ? yes : no);
-	log(T_SYSTEM, S_NOTE, "avx : Supported(%s)", (config.avx) ? yes : no);
-	log(T_SYSTEM, S_NOTE, "avx2 : Supported(%s)", (config.avx2) ? yes : no);
-	log(T_SYSTEM, S_NOTE, "bmi1 : Supported(%s)", (config.bmi1) ? yes : no);
-	log(T_SYSTEM, S_NOTE, "rdtsc : Supported(%s)", (config.rdtsc) ? yes : no);
-	log(T_SYSTEM, S_NOTE, "rdtscp : Supported(%s)", (config.rdtscp) ? yes : no);
-	log(T_SYSTEM, S_NOTE, "tsc_invariant : Supported(%s)", (config.tsc_invariant) ? yes : no);
+	Log(T_SYSTEM, S_NOTE, "sse : Supported(%s)", (config.sse) ? yes : no);
+	Log(T_SYSTEM, S_NOTE, "sse2 : Supported(%s)", (config.sse2) ? yes : no);
+	Log(T_SYSTEM, S_NOTE, "sse3 : Supported(%s)", (config.sse3) ? yes : no);
+	Log(T_SYSTEM, S_NOTE, "ssse3 : Supported(%s)", (config.ssse3) ? yes : no);
+	Log(T_SYSTEM, S_NOTE, "sse4.1 : Supported(%s)", (config.sse4_1) ? yes : no);
+	Log(T_SYSTEM, S_NOTE, "sse4.2 : Supported(%s)", (config.sse4_2) ? yes : no);
+	Log(T_SYSTEM, S_NOTE, "avx : Supported(%s)", (config.avx) ? yes : no);
+	Log(T_SYSTEM, S_NOTE, "avx2 : Supported(%s)", (config.avx2) ? yes : no);
+	Log(T_SYSTEM, S_NOTE, "bmi1 : Supported(%s)", (config.bmi1) ? yes : no);
+	Log(T_SYSTEM, S_NOTE, "rdtsc : Supported(%s)", (config.rdtsc) ? yes : no);
+	Log(T_SYSTEM, S_NOTE, "rdtscp : Supported(%s)", (config.rdtscp) ? yes : no);
+	Log(T_SYSTEM, S_NOTE, "tsc_invariant : Supported(%s)", (config.tsc_invariant) ? yes : no);
 }
 
 static void internal_amd_determine_cache_attributes(void)
@@ -69,7 +69,7 @@ static void internal_amd_determine_cache_attributes(void)
 	if (config.cacheline == 0)
 	{
 		config.cacheline = 64;
-		log(T_SYSTEM, S_WARNING, "Failed to find cacheline size; defaulting to %luB", config.cacheline);
+		Log(T_SYSTEM, S_WARNING, "Failed to find cacheline size; defaulting to %luB", config.cacheline);
 	}
 }
 
@@ -283,7 +283,7 @@ static void internal_intel_determine_cache_attributes(const u32 largest_standard
 		if (config.cacheline == 0)
 		{
 			config.cacheline = 64;
-			log(T_SYSTEM, S_WARNING, 0, "Failed to find cacheline size; defaulting to %luB", config.cacheline);
+			Log(T_SYSTEM, S_WARNING, 0, "Failed to find cacheline size; defaulting to %luB", config.cacheline);
 		}
 	}
 }
@@ -379,7 +379,7 @@ u32 ds_arch_config_init(struct arena *mem)
 {
 	os_arch_init_func_ptrs();
 
-	config.logical_core_count = system_logical_core_count();
+	config.Logical_core_count = system_logical_core_count();
 	config.pagesize = system_pagesize(); 
 	config.cacheline = 64; //TODO
 	config.pid = system_pid();
@@ -425,7 +425,7 @@ u32 ds_arch_config_init(struct arena *mem)
 	}
 	else
 	{
-		log(T_SYSTEM, S_NOTE, 0, "cpu signature - %k [supported (N)]", &config.vendor_string);
+		Log(T_SYSTEM, S_NOTE, 0, "cpu signature - %k [supported (N)]", &config.vendor_string);
 		requirements_fullfilled = 0;
 	}
 #endif

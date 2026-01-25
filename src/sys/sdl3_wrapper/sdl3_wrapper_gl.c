@@ -77,7 +77,7 @@ SDL_FunctionPointer load_proc(const char *proc)
 	SDL_FunctionPointer fp = SDL_GL_GetProcAddress(proc); 				
 	if (fp == NULL) 									
 	{											
-		log(T_SYSTEM, S_ERROR, 0, "Failed to load %s: %s\n", proc, SDL_GetError());	
+		Log(T_SYSTEM, S_ERROR, 0, "Failed to load %s: %s\n", proc, SDL_GetError());	
 	}
 	return fp;
 }

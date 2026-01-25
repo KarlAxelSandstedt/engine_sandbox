@@ -54,14 +54,14 @@ static void win_fatal_cleanup_and_exit(const u32 thread)
 		{
 			if (!MiniDumpWriteDump(GetCurrentProcess(), GetCurrentProcessId(), dump.handle, MiniDumpWithFullMemory, NULL, NULL, NULL))
 			{
-				log_system_error(S_ERROR);
+				Log_system_error(S_ERROR);
 			}
 			
 			file_close(&dump);
 		}
 		ArenaFree1MB(&tmp);
 
-		log_shutdown();
+		LogShutdown();
 		exit(0);
 	}
 

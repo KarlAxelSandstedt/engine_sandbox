@@ -68,7 +68,7 @@ static void shader_source_and_compile(GLuint shader, const char *filepath)
 		GLsizei len = 0;
 		ds_glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &len);
 		ds_glGetShaderInfoLog(shader, len, &len, buf);
-		log(T_RENDERER, S_FATAL, "Failed to compile %s, %s", filepath, buf);
+		Log(T_RENDERER, S_FATAL, "Failed to compile %s, %s", filepath, buf);
 		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 }
@@ -95,7 +95,7 @@ void r_compile_shader(u32 *prg, const char *v_filepath, const char *f_filepath)
 		GLsizei len = 0;
 		ds_glGetProgramiv(*prg, GL_INFO_LOG_LENGTH, &len);
 		ds_glGetProgramInfoLog(*prg, len, &len, buf);
-		log(T_RENDERER, S_FATAL, "Failed to Link program: %s", buf);
+		Log(T_RENDERER, S_FATAL, "Failed to Link program: %s", buf);
 		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 
@@ -163,14 +163,14 @@ void r_init(struct arena *mem_persistent, const u64 ns_tick, const u64 frame_siz
 	g_r_core->frame = ArenaAlloc(frame_size); 
 	if (g_r_core->frame.mem_size == 0)
 	{
-		log_string(T_SYSTEM, S_FATAL, "Failed to allocate renderer frame, exiting.");
+		LogString(T_SYSTEM, S_FATAL, "Failed to allocate renderer frame, exiting.");
 		fatal_cleanup_and_exit(0);
 	}
 
 	g_r_core->proxy3d_hierarchy = hierarchy_index_alloc(NULL, core_unit_count, sizeof(struct r_proxy3d), HI_GROWABLE);
 	if (g_r_core->proxy3d_hierarchy == NULL)
 	{
-		log_string(T_SYSTEM, S_FATAL, "Failed to allocate r_core unit hierarchy, exiting.");
+		LogString(T_SYSTEM, S_FATAL, "Failed to allocate r_core unit hierarchy, exiting.");
 		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 

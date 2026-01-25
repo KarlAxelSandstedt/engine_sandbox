@@ -1117,7 +1117,7 @@ VISIBILITY_MASK_AXIS: Consider the case when we have a child that is straddling 
 
 UNIT_INTERVAL_AXIS: The node's size and position is dependant on its unit interval and some visible interval. The question is: Do we want this flag, or do we
 		    or would it be simpler to create an additional size type?  It seems reasonable to go with the SIZE_UNIT case instead of what would become
-		    a SIZE_PERC_PARENT + UNIT_INTERVAL case, as it most likely simplifies logic throughout the core.  Most importantly, not going with the 
+		    a SIZE_PERC_PARENT + UNIT_INTERVAL case, as it most likely simplifies Logic throughout the core.  Most importantly, not going with the 
 		    second case means we don't introduce implicit size types in our code that overwrites to current one. The workflow using case 1 becomes
 		    something like:
 

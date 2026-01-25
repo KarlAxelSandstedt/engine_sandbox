@@ -1,6 +1,6 @@
 /*
 ==========================================================================
-    Copyright (C) 2025,2026 Axel Sandstedt 
+    Copyright (C) 2025, 2026 Axel Sandstedt 
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,34 +17,31 @@
 ==========================================================================
 */
 
+#include "ds_base.h"
 #include "ticket_factory.h"
-#include "ds_math.h"
 
-struct ticket_factory *ticket_factory_init(struct arena *mem, const u32 max_tickets)
+void TicketFactoryInit(struct ticketFactory *tf, const u32 max_tickets)
 {
 	ds_Assert(max_tickets > 0 && PowerOfTwoCheck(max_tickets));
-	struct ticket_factory *tf = ArenaPush(mem, sizeof(struct ticket_factory));
 
 	tf->max_tickets = max_tickets;
-	semaphore_init(&tf->available, max_tickets);
+	SemaphoreInit(&tf->available, max_tickets);
 	AtomicStoreRel32(&tf->a_serve, 0);
 	AtomicStoreRel32(&tf->a_next, 0);
 	AtomicStoreRel32(&tf->a_open, 1);
-
-	return tf;
 }
 
-void ticket_factory_destroy(struct ticket_factory *tf)
+void TicketFactoryDestroy(struct ticketFactory *tf)
 {
-	semaphore_destroy(&tf->available);
+	SemaphoreDestroy(&tf->available);
 }
 
-u32 ticket_factory_try_get_ticket(u32 *ticket, struct ticket_factory *tf)
+u32 TicketFactoryTryGetTicket(u32 *ticket, struct ticketFactory *tf)
 {
 	if (!AtomicLoadAcq32(&tf->a_open)) { return TICKET_FACTORY_CLOSED; }
 
 	u32 got_ticket = 0;
-	if (semaphore_trywait(&tf->available))
+	if (SemaphoreTryWait(&tf->available))
 	{
 		got_ticket = 1;
 		*ticket = AtomicFetchAddRlx32(&tf->a_next, 1);
@@ -53,24 +50,24 @@ u32 ticket_factory_try_get_ticket(u32 *ticket, struct ticket_factory *tf)
 	return got_ticket;
 }
 
-u32 ticket_factory_get_ticket(struct ticket_factory *tf)
+u32 TicketFactoryGetTicket(struct ticketFactory *tf)
 {
 	u32 ticket;
-	while (!ticket_factory_try_get_ticket(&ticket, tf));
+	while (!TicketFactoryTryGetTicket(&ticket, tf));
 
 	return ticket;
 }
 
-void ticket_factory_return_tickets(struct ticket_factory *tf, const u32 count)
+void TicketFactoryReturnTickets(struct ticketFactory *tf, const u32 count)
 {
-	assert(count <= tf->max_tickets);
-	assert(count <= ((u32) AtomicLoadRlx32(&tf->a_next) - (u32) AtomicLoadRlx32(&tf->a_serve)));
-	assert(((u32) AtomicLoadRlx32(&tf->a_next) - (u32) AtomicLoadRlx32(&tf->a_serve)) <= tf->max_tickets);
+	ds_Assert(count <= tf->max_tickets);
+	ds_Assert(count <= ((u32) AtomicLoadRlx32(&tf->a_next) - (u32) AtomicLoadRlx32(&tf->a_serve)));
+	ds_Assert(((u32) AtomicLoadRlx32(&tf->a_next) - (u32) AtomicLoadRlx32(&tf->a_serve)) <= tf->max_tickets);
 
 	/* sync_point */
 	const u32 serve = AtomicFetchAddRel32(&tf->a_serve, count);
 	for (u32 i = 0; i < count; ++i)
 	{
-		semaphore_post(&tf->available);
+		SemaphorePost(&tf->available);
 	}	
 }

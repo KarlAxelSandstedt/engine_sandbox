@@ -123,8 +123,8 @@ struct physics_pipeline	physics_pipeline_alloc(struct arena *mem, const u32 init
 #ifdef DS_PHYSICS_DEBUG
 	struct task_stream *stream = task_stream_init(&pipeline.frame);
 
-	pipeline.debug_count = g_arch_config->logical_core_count;
-	pipeline.debug = malloc(g_arch_config->logical_core_count * sizeof(struct collision_debug));
+	pipeline.debug_count = g_arch_config->Logical_core_count;
+	pipeline.debug = malloc(g_arch_config->Logical_core_count * sizeof(struct collision_debug));
 	for (u32 i = 0; i < pipeline.debug_count; ++i)
 	{
 		pipeline.debug[i].stack_segment = stack_visual_segment_alloc(NULL, 1024, GROWABLE);

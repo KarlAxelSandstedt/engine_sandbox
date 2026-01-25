@@ -28,7 +28,7 @@
 #include "ds_common.h"
 #include "sys_common.h"
 #include "linux_public.h"
-#include "log.h"
+#include "Log.h"
 
 /******************** linux_thread.c ********************/
 

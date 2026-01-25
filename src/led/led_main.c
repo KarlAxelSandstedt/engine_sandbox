@@ -54,11 +54,11 @@ void led_project_menu_main(struct led *led)
 		}
 		else if (ret == FS_PATH_INVALID)
 		{
-			log(T_SYSTEM, S_ERROR, "Could not enter folder %k, bad path.", &led->root_folder.path);
+			Log(T_SYSTEM, S_ERROR, "Could not enter folder %k, bad path.", &led->root_folder.path);
 		}
 		else
 		{
-			log(T_SYSTEM, S_ERROR, "Unhandled error when entering folder %k.", &led->root_folder.path);
+			Log(T_SYSTEM, S_ERROR, "Unhandled error when entering folder %k.", &led->root_folder.path);
 		}
 	}
 

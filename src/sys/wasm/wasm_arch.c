@@ -30,18 +30,18 @@ u64  		(*system_pagesize)(void);
 pid		(*system_pid)(void);
 
 /*
- * returns number of logical (threads) available for the user
+ * returns number of Logical (threads) available for the user
  */
 static u32 wasm_logical_core_count(void)
 {
 	//u32 count = (u32) emscripten_navigator_hardware_concurrency();
-	///* returns navigator.hardwareConcurrency (logical threads aviable for the user agent), on 0, no support. */
+	///* returns navigator.hardwareConcurrency (Logical threads aviable for the user agent), on 0, no support. */
 	//if (count == 0) 
 	//{ 
-	//	log_string(T_SYSTEM, S_WARNING, 0, "navigator.hardwareConcurrency = 0, threading not supported.");
+	//	LogString(T_SYSTEM, S_WARNING, 0, "navigator.hardwareConcurrency = 0, threading not supported.");
 	//	count = 1; 
 	//}
-	//log(T_SYSTEM, S_NOTE, 0, "thread count : %u", count);
+	//Log(T_SYSTEM, S_NOTE, 0, "thread count : %u", count);
 	//return count;
 
 	errno = 0;
@@ -49,7 +49,7 @@ static u32 wasm_logical_core_count(void)
 	if (errno != 0)
 	{
 		LOG_SYSTEM_ERROR(S_ERROR);	
-		log_string(T_SYSTEM, S_WARNING, "Failed to retrieve number of logical cores, defaulting to 2");
+		LogString(T_SYSTEM, S_WARNING, "Failed to retrieve number of Logical cores, defaulting to 2");
 		count = 2;
 	}
 

@@ -80,7 +80,7 @@ void *virtual_memory_reserve(const u64 size)
 	void *addr = VirtualAlloc(NULL, size, MEM_COMMIT | MEM_RESERVE, PAGE_READWRITE);
 	if (addr == NULL)
 	{
-		log_system_error(S_ERROR);	
+		Log_system_error(S_ERROR);	
 	}
 
 	return addr;
@@ -91,6 +91,6 @@ void virtual_memory_release(void *addr, const u64 garbage)
 {
 	if (VirtualFree(addr, 0, MEM_RELEASE) == 0)
 	{
-		log_system_error(S_ERROR);	
+		Log_system_error(S_ERROR);	
 	}
 }

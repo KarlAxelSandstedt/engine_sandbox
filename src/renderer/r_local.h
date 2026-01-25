@@ -21,7 +21,7 @@
 #define __R_LOCAL_H__
 
 #include "sys_public.h"
-#include "log.h"
+#include "Log.h"
 #include "r_public.h"
 #include "hierarchy_index.h"
 #include "bit_vector.h"

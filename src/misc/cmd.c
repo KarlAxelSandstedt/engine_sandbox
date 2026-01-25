@@ -22,7 +22,7 @@
 #include "cmd.h"
 #include "hash_map.h"
 #include "ds_vector.h"
-#include "log.h"
+#include "Log.h"
 #include "sys_public.h"
 
 DECLARE_STACK(cmd_function);

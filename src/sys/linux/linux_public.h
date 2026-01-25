@@ -33,7 +33,7 @@
 #include <stdarg.h>
 #include <signal.h>
 #include <errno.h>
-#include "log.h"
+#include "Log.h"
 
 #define ERROR_BUFSIZE	512
 #define LOG_SYSTEM_ERROR(severity)		_LOG_SYSTEM_ERROR_CODE(severity, errno, __func__, __FILE__, __LINE__)
@@ -42,7 +42,7 @@
 {														\
 	u8 _err_buf[ERROR_BUFSIZE];										\
 	const utf8 _err_str = utf8_system_error_code_string_buffered(_err_buf, ERROR_BUFSIZE, code);		\
-	log(T_SYSTEM, severity, "At %s:%u in function %s - %k", file, line, func, &_err_str);			\
+	Log(T_SYSTEM, severity, "At %s:%u in function %s - %k", file, line, func, &_err_str);			\
 }
 
 /* thread safe system error message generation */
@@ -77,10 +77,5 @@ void 	os_arch_init_func_ptrs(void);
 typedef pid_t			pid;
 typedef pid_t			tid;
 typedef struct ds_thread 	ds_thread;
-
-/********************  linux_sync_primitives.c	********************/
-
-#include <semaphore.h>
-typedef sem_t semaphore;
 
 #endif

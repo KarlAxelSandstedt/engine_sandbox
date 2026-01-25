@@ -24,7 +24,7 @@
 #include "array_list.h"
 #include "allocator.h"
 
-/* root stub is an internal node of the hierarchy; using this we can simplify logic and have a nice "NULL" index to use */
+/* root stub is an internal node of the hierarchy; using this we can simplify Logic and have a nice "NULL" index to use */
 #define HI_ROOT_STUB_INDEX	0
 #define	HI_NULL_INDEX		0	
 #define HI_STATIC		0

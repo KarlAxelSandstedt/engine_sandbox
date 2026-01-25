@@ -1163,7 +1163,7 @@ static void internal_write_9_le_straddling(u8 *ptr, const u32 byte_lower_mask_si
 //};
 //
 ///* 
-// * internal_write_le_partial_table: function table to write a logical value (register) as little endian to stream
+// * internal_write_le_partial_table: function table to write a Logical value (register) as little endian to stream
 // *
 // * USAGE:  table[aligned/straddling][bytes_touched] 
 // */

@@ -18,7 +18,7 @@
 */
 
 #include "sys_public.h"
-#include "log.h"
+#include "Log.h"
 #include "ds_random.h"
 
 struct task_context t_ctx;
@@ -59,7 +59,7 @@ static void task_run(struct task *task_info, struct worker *w)
 			struct task_bundle *bundle = task_info->batch;
 			if (AtomicSubFetchSeqCst32(&bundle->a_tasks_left, 1) == 0)
 			{
-				semaphore_post(&bundle->bundle_completed);
+				SemaphorePost(&bundle->bundle_completed);
 			}
 		} break;
 
@@ -80,12 +80,12 @@ void task_main(ds_thread *thr)
 
 	w->thr = thr;
 	AtomicFetchAddSeqCst32(&a_startup_complete, 1);
-	log_string(T_SYSTEM, S_NOTE, "task_worker setup finalized");
+	LogString(T_SYSTEM, S_NOTE, "task_worker setup finalized");
 
 	while (1)
 	{
 		/* If there is work, we plow through it continuously */
-		while (semaphore_trywait(&g_task_ctx->tasks->able_for_reservation))
+		while (SemaphoreTryWait(&g_task_ctx->tasks->able_for_reservation))
 		{
 			task_run(fifo_spmc_pop(g_task_ctx->tasks), w);
 		}
@@ -93,7 +93,7 @@ void task_main(ds_thread *thr)
 		/* No more work, we go to sleep and wait until we aquire new work.
 		 * Spurious wake ups may happen, so we keep this in a loop.
 		 */
-		while (!semaphore_wait(&g_task_ctx->tasks->able_for_reservation));
+		while (!SemaphoreWait(&g_task_ctx->tasks->able_for_reservation));
 
 		task_run(fifo_spmc_pop(g_task_ctx->tasks), w);
 	};
@@ -102,7 +102,7 @@ void task_main(ds_thread *thr)
 void task_main_master_run_available_jobs(void)
 {
 	struct worker *master = g_task_ctx->workers + 0;
-	while (semaphore_trywait(&g_task_ctx->tasks->able_for_reservation))
+	while (SemaphoreTryWait(&g_task_ctx->tasks->able_for_reservation))
 	{
 		task_run(fifo_spmc_pop(g_task_ctx->tasks), master);
 	}
@@ -111,13 +111,13 @@ void task_main_master_run_available_jobs(void)
 static struct task_bundle task_bundle_init()
 {
 	struct task_bundle bundle = { 0 };
-	semaphore_init(&bundle.bundle_completed, 0);
+	SemaphoreInit(&bundle.bundle_completed, 0);
 	return bundle;
 }
 
 static void task_bundle_destroy(struct task_bundle *bundle)
 {
-	semaphore_destroy(&bundle->bundle_completed);
+	SemaphoreDestroy(&bundle->bundle_completed);
 }
 
 void task_context_init(struct arena *mem_persistent, const u32 thread_count)
@@ -131,7 +131,7 @@ void task_context_init(struct arena *mem_persistent, const u32 thread_count)
 		.worker_count = thread_count,
 	};
 
-	log(T_SYSTEM, S_NOTE, "Task system worker count: %u", thread_count);
+	Log(T_SYSTEM, S_NOTE, "Task system worker count: %u", thread_count);
 
 	*g_task_ctx = ctx;
 	g_task_ctx->bundle = task_bundle_init();
@@ -233,7 +233,7 @@ struct task_bundle *task_bundle_split_range(struct arena *mem_task_lifetime, TAS
 
 void task_bundle_wait(struct task_bundle *bundle)
 {
-	while (!semaphore_wait(&bundle->bundle_completed));
+	while (!SemaphoreWait(&bundle->bundle_completed));
 }
 
 void task_bundle_release(struct task_bundle *bundle)

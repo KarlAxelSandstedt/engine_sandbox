@@ -60,7 +60,7 @@ static u32 linux_logical_core_count(void)
 	if (errno != 0)
 	{
 		LOG_SYSTEM_ERROR(S_ERROR);	
-		log_string(T_SYSTEM, S_WARNING, "Failed to retrieve number of logical cores, defaulting to 2");
+		LogString(T_SYSTEM, S_WARNING, "Failed to retrieve number of Logical cores, defaulting to 2");
 		count = 2;
 	}
 

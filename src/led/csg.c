@@ -19,7 +19,7 @@
 
 #include "csg.h"
 #include "sys_public.h"
-#include "log.h"
+#include "Log.h"
 
 /*
 global command identifiers
@@ -125,7 +125,7 @@ struct slot csg_brush_add(struct csg *csg, const utf8 id)
 {
 	if (id.size > 256)
 	{
-		log(T_CSG, S_WARNING, "Failed to create csg_brush, id %k requires size > 256B.", &id);
+		Log(T_CSG, S_WARNING, "Failed to create csg_brush, id %k requires size > 256B.", &id);
 		return empty_slot; 
 	}
 
@@ -134,7 +134,7 @@ struct slot csg_brush_add(struct csg *csg, const utf8 id)
 	struct slot slot = string_database_add_and_alias(&csg->brush_db, heap_id);
 	if (!slot.address)
 	{
-		log(T_CSG, S_WARNING, "Failed to create csg_brush, brush with id %k already exist.", &id);
+		Log(T_CSG, S_WARNING, "Failed to create csg_brush, brush with id %k already exist.", &id);
 		ThreadFree256B(buf);
 	}
 	else

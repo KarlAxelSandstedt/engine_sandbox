@@ -18,7 +18,7 @@
 */
 
 #include "sys_local.h"
-#include "log.h"
+#include "Log.h"
 #include "dtoa.h"
 
 static struct ds_sys_env g_sys_env_storage = { 0 };
@@ -30,7 +30,7 @@ void ds_sys_env_init(struct arena *mem)
 	g_sys_env->cwd = file_null();
 	if (cwd_set(mem, ".") != FS_SUCCESS)
 	{
-		log_string(T_SYSTEM, S_FATAL, "Failed to open the current working directory");
+		LogString(T_SYSTEM, S_FATAL, "Failed to open the current working directory");
 		fatal_cleanup_and_exit(0);
 	}
 }
@@ -43,23 +43,23 @@ void system_resources_init(struct arena *mem)
  	ds_sys_env_init(mem);
 	ds_thread_master_init(mem);
 	time_init(mem);
-	log_init(mem, "log.txt");
+	LogInit(mem, "Log.txt");
 
 	if (!ds_arch_config_init(mem))
 	{
-		log_string(T_SYSTEM, S_FATAL, "Unsupported instrincs required");
+		LogString(T_SYSTEM, S_FATAL, "Unsupported instrincs required");
 		fatal_cleanup_and_exit(0);
 	}
 
 	/* must initalize stuff in multithreaded dtoa/strtod */
-	dmg_dtoa_init(g_arch_config->logical_core_count);
+	dmg_dtoa_init(g_arch_config->Logical_core_count);
 
 #if __DS_PLATFORM__ != __DS_WEB__
-	log(T_SYSTEM, S_NOTE, "clock resolution (us): %3f", (f64) time_ns_per_tick() / 1000.0);
-	log(T_SYSTEM, S_NOTE, "rdtsc estimated frequency (GHz): %3f", (f32) freq_rdtsc() / 1000000000);
-	for (u32 i = 0; i < g_arch_config->logical_core_count; ++i)
+	Log(T_SYSTEM, S_NOTE, "clock resolution (us): %3f", (f64) time_ns_per_tick() / 1000.0);
+	Log(T_SYSTEM, S_NOTE, "rdtsc estimated frequency (GHz): %3f", (f32) freq_rdtsc() / 1000000000);
+	for (u32 i = 0; i < g_arch_config->Logical_core_count; ++i)
 	{
-		log(T_SYSTEM, S_NOTE, "core %u tsc skew (reltive to core 0): %lu", i, g_tsc_skew[i]);
+		Log(T_SYSTEM, S_NOTE, "core %u tsc skew (reltive to core 0): %lu", i, g_tsc_skew[i]);
 	}
 #endif
 
@@ -72,7 +72,7 @@ void system_resources_init(struct arena *mem)
 
 	global_thread_block_allocators_alloc(count_256B, count_1MB);
 	system_graphics_init();
-	task_context_init(mem, g_arch_config->logical_core_count);
+	task_context_init(mem, g_arch_config->Logical_core_count);
 }
 
 void system_resources_cleanup(void)
@@ -81,5 +81,5 @@ void system_resources_cleanup(void)
 	system_graphics_destroy();
 	global_thread_block_allocators_free();
 
-	log_shutdown();
+	LogShutdown();
 }

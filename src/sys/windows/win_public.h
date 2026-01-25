@@ -28,15 +28,15 @@
 
 #include <intrin.h>
 #include <stdarg.h>
-#include "log.h"
+#include "Log.h"
 
 #define ERROR_BUFSIZE	512				
-#define log_system_error(severity)	_log_system_error(severity, __func__, __FILE__, __LINE__)
+#define Log_system_error(severity)	_log_system_error(severity, __func__, __FILE__, __LINE__)
 #define _log_system_error(severity, func, file, line)						\
 {												\
 	u8 _err_buf[ERROR_BUFSIZE];								\
 	const utf8 _err_str = utf8_system_error_buffered(_err_buf, ERROR_BUFSIZE);		\
-	log(T_SYSTEM, severity, "At %s:%u in function %s - %k\n", file, line, func, &_err_str);	\
+	Log(T_SYSTEM, severity, "At %s:%u in function %s - %k\n", file, line, func, &_err_str);	\
 }
 
 /* thread safe last system error message generation */
@@ -68,24 +68,8 @@ typedef DWORD				pid;
 typedef DWORD				tid;
 typedef struct ds_thread		ds_thread;
 
-/************************* win_sync_primitives.c *************************/
-
-typedef HANDLE semaphore;
-
 /************************* win_arch.c *************************/
 
 void os_arch_init_func_ptrs(void);
-
-/******************** kernel_tracer.c  ********************/
-
-struct kernel_tracer
-{
-	u32 	buffer_count;
-};
-
-/* stub: returns NULL */
-struct kernel_tracer *	kernel_tracer_init(struct arena *mem);
-/* stub: does nothing */
-void 			kernel_tracer_shutdown(struct kernel_tracer *kt);
 
 #endif

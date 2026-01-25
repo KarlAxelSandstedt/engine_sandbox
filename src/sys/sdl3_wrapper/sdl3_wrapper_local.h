@@ -22,7 +22,7 @@
 
 #include "SDL3/SDL.h"
 
-#undef log_write_message
+#undef LogWriteMessage
 
 #include "sys_common.h"
 #include "sys_gl.h"

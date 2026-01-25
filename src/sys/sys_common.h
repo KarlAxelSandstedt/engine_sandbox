@@ -51,7 +51,7 @@ struct ds_arch_config
 	utf8	processor_string;
 
 	enum arch_type 	type;
-	u32		logical_core_count;
+	u32		Logical_core_count;
 	pid		pid;
 
 	u64		pagesize;	/* bytes */

@@ -18,7 +18,7 @@
 */
 
 #include "asset_local.h"
-#include "log.h"
+#include "Log.h"
 
 struct sprite sprite_storage[SPRITE_COUNT];
 struct sprite *g_sprite = sprite_storage;
@@ -220,7 +220,7 @@ static struct asset_ssff **internal_asset_ssff_array_init(struct arena *mem_pers
 	struct asset_ssff **ssff = ArenaPush(mem_persistent, SSFF_COUNT * sizeof(struct asset_ssff *));
 	if (ssff == NULL)
 	{
-		log_string(T_ASSET, S_FATAL, "Failed to alloc asset ssff array");
+		LogString(T_ASSET, S_FATAL, "Failed to alloc asset ssff array");
 		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 
@@ -236,7 +236,7 @@ static struct asset_font **internal_asset_font_array_init(struct arena *mem_pers
 	struct asset_font **font = ArenaPush(mem_persistent, SSFF_COUNT * sizeof(struct asset_font *));
 	if (font == NULL)
 	{
-		log_string(T_ASSET, S_FATAL, "Failed to alloc asset font array");
+		LogString(T_ASSET, S_FATAL, "Failed to alloc asset font array");
 		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 

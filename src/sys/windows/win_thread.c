@@ -75,7 +75,7 @@ void ds_thread_clone(struct arena *mem, void (*start)(ds_thread *), void *args, 
 
 	if (thr == NULL)
 	{
-		log_string(T_SYSTEM, S_FATAL, "Failed to alloc thread memory, aborting.");
+		LogString(T_SYSTEM, S_FATAL, "Failed to alloc thread memory, aborting.");
 		fatal_cleanup_and_exit(GetCurrentThreadId());
 	}
 
@@ -94,7 +94,7 @@ void ds_thread_clone(struct arena *mem, void (*start)(ds_thread *), void *args, 
 	thr->native = CreateThread(lpThreadAttributes, stack_size, ds_thread_clone_start, thr, dwCreationFlags, NULL);
 	if (!thr->native)
 	{
-		log_system_error(S_FATAL);
+		Log_system_error(S_FATAL);
 		fatal_cleanup_and_exit(0);
 	}
 }
@@ -113,12 +113,12 @@ void ds_thread_wait(const ds_thread *thr)
 	{
 		if (ret == WAIT_FAILED)
 		{
-			log_system_error(S_FATAL);
+			Log_system_error(S_FATAL);
 			fatal_cleanup_and_exit(0);
 		}
 		else
 		{
-			log_string(T_SYSTEM, S_ERROR, "Unexpected disruption of thread wait in ds_thread_wait\n");
+			LogString(T_SYSTEM, S_ERROR, "Unexpected disruption of thread wait in ds_thread_wait\n");
 			return;
 		}
 	}
@@ -126,13 +126,13 @@ void ds_thread_wait(const ds_thread *thr)
 	DWORD garbage;
 	if (!GetExitCodeThread(thr->native, &garbage))
 	{
-		log_system_error(S_ERROR);
+		Log_system_error(S_ERROR);
 		return;
 	}
 
 	if (!CloseHandle(thr->native))
 	{
-		log_system_error(S_ERROR);
+		Log_system_error(S_ERROR);
 	}
 
 	return;

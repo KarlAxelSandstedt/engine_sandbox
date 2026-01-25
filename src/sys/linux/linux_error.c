@@ -57,7 +57,7 @@ static void linux_fatal_cleanup_and_exit(const u32 thread)
 			free(strings);
 		}
 
-		log_shutdown();
+		LogShutdown();
 		exit(1);
 	}
 
@@ -98,7 +98,7 @@ utf8 utf8_system_error_code_string_buffered(u8 *buf, const u32 bufsize, const u3
 	err_str.len = strnlen((char *) err_str.buf, ERROR_BUFSIZE);
 	if (err_str.len == ERROR_BUFSIZE)
 	{
-		log(T_SYSTEM, S_ERROR, "strnlen failed to determine string length in %s, most likely due to no null-termination? Fix.", __func__);
+		Log(T_SYSTEM, S_ERROR, "strnlen failed to determine string length in %s, most likely due to no null-termination? Fix.", __func__);
 		return Utf8Empty();
 	}
 

@@ -21,7 +21,7 @@
 #define __SYSTEM_LOCAL_H__
 
 #include "sys_public.h"
-#include "log.h"
+#include "Log.h"
 
 #if __GAPI__ == __DS_SDL3__
 #include "sdl3_wrapper_public.h"
@@ -34,7 +34,7 @@
 /* cpu x86 querying */
 extern void 	(*ds_cpuid)(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, const u32 function);
 extern void 	(*ds_cpuid_ex)(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, const u32 function, const u32 subfunction);
-/* return logical core count  */
+/* return Logical core count  */
 extern u32  	(*system_logical_core_count)(void);
 /* return system pagesize */
 extern u64	(*system_pagesize)(void);

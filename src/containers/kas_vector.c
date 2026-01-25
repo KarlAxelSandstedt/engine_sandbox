@@ -49,7 +49,7 @@ struct vector vector_alloc(struct arena *mem, const u64 blocksize, const u32 len
 
 	if (!v.data)
 	{
-		log_string(T_SYSTEM, S_FATAL, "Failed to allocate vector");
+		LogString(T_SYSTEM, S_FATAL, "Failed to allocate vector");
 		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 
@@ -71,7 +71,7 @@ struct slot vector_push(struct vector *v)
 			v->data = realloc(v->data, v->length*v->blocksize);
 			if (!v->data)
 			{
-				log_string(T_SYSTEM, S_FATAL, "Failed to resize vector");
+				LogString(T_SYSTEM, S_FATAL, "Failed to resize vector");
 				fatal_cleanup_and_exit(ds_thread_self_tid());
 			}
 		}

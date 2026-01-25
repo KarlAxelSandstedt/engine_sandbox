@@ -157,7 +157,7 @@ struct ping_pong_data
 {
 	u32	a_lock;
 	u32	a_iteration_test;
-	u32	logical_core_count;
+	u32	Logical_core_count;
 	u32	iterations;
 	u64 *	tsc_reference;
 	u64 *	tsc_iterator;
@@ -177,13 +177,13 @@ DWORD WINAPI ping_pong_reference(void *data_void)
 	
 	if (!SetThreadGroupAffinity(thread, &affinity, NULL))
 	{
-		log_string(T_SYSTEM, S_FATAL, "Failed to set thread affinity in tsc_estimate_skew, exiting.");	
+		LogString(T_SYSTEM, S_FATAL, "Failed to set thread affinity in tsc_estimate_skew, exiting.");	
 		fatal_cleanup_and_exit(0);
 	}
 
 	u32 c;
 	g_tsc_skew[0] = 0;
-	for (u32 core = 1; core < data->logical_core_count; ++core)
+	for (u32 core = 1; core < data->Logical_core_count; ++core)
 	{
 		AtomicStoreRel32(&data->a_iteration_test, 1);
 
@@ -219,7 +219,7 @@ DWORD WINAPI ping_pong_core_iterator(void *data_void)
 	const HANDLE thread = GetCurrentThread();
 
 	u32 c;
-	for (u32 core = 1; core < data->logical_core_count; ++core)
+	for (u32 core = 1; core < data->Logical_core_count; ++core)
 	{
 		GROUP_AFFINITY affinity = { 0 };
 		affinity.Group = core / 64;
@@ -227,7 +227,7 @@ DWORD WINAPI ping_pong_core_iterator(void *data_void)
 		
 		if (!SetThreadGroupAffinity(thread, &affinity, NULL))
 		{
-			log_string(T_SYSTEM, S_FATAL, "Failed to set thread affinity in tsc_estimate_skew, exiting.");	
+			LogString(T_SYSTEM, S_FATAL, "Failed to set thread affinity in tsc_estimate_skew, exiting.");	
 			fatal_cleanup_and_exit(0);
 		}
 
@@ -281,13 +281,13 @@ static void tsc_estimate_skew(struct arena *persistent)
 
 	struct ping_pong_data data =
 	{
-		.logical_core_count = (u32) info.dwNumberOfProcessors,
+		.Logical_core_count = (u32) info.dwNumberOfProcessors,
 		.iterations = 100000,
 		.a_lock = 0,
 		.a_iteration_test = 0,
 	};
 
-	g_tsc_skew = ArenaPushZero(persistent, data.logical_core_count*sizeof(u64));
+	g_tsc_skew = ArenaPushZero(persistent, data.Logical_core_count*sizeof(u64));
 	ArenaPushRecord(persistent);
 	data.tsc_reference = ArenaPush(persistent, data.iterations * sizeof(u64));
 	data.tsc_iterator = ArenaPush(persistent, data.iterations * sizeof(u64));
@@ -299,7 +299,7 @@ static void tsc_estimate_skew(struct arena *persistent)
 	HANDLE iter = CreateThread(lpThreadAttributes, dwStackSize, ping_pong_core_iterator, (void *) &data, dwCreationFlags, NULL);
 	if (!ref || !iter)
 	{
-		log_system_error(S_FATAL);
+		Log_system_error(S_FATAL);
 		fatal_cleanup_and_exit(0);
 	}
 
@@ -308,7 +308,7 @@ static void tsc_estimate_skew(struct arena *persistent)
 	const u32 res2 = WaitForSingleObject(iter, INFINITE);
 	if (res1 != WAIT_OBJECT_0 || res2 != WAIT_OBJECT_0)
 	{
-		log_system_error(S_FATAL);
+		Log_system_error(S_FATAL);
 		fatal_cleanup_and_exit(0);
 	}
 

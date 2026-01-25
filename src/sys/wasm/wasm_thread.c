@@ -81,7 +81,7 @@ void ds_thread_clone(struct arena *mem, void (*start)(ds_thread *), void *args, 
 
 	if (thr == NULL)
 	{
-		log_string(T_SYSTEM, S_FATAL, "Failed to alloc thread memory, aborting.");
+		LogString(T_SYSTEM, S_FATAL, "Failed to alloc thread memory, aborting.");
 		fatal_cleanup_and_exit(gettid());
 	}
 
@@ -138,7 +138,7 @@ void ds_thread_wait(const ds_thread *thr)
 	i32 status = pthread_join(thr->pthread, &garbage);
 	if (status != 0)
 	{
-		log_string(T_SYSTEM, S_FATAL, "Failed to alloc thread memory, aborting.");
+		LogString(T_SYSTEM, S_FATAL, "Failed to alloc thread memory, aborting.");
 		fatal_cleanup_and_exit(gettid());
 	}
 }

@@ -26,7 +26,7 @@
 /*
    ====== SERIALIZE_STREAM PARTIAL BYTE READING ======
 
- 	  When we want to read n < 8 bits from a byte, we read from the "logical high bit downwards, i.e. 
+ 	  When we want to read n < 8 bits from a byte, we read from the "Logical high bit downwards, i.e. 
  	  		
     	  					         HEAD
     	 						  V
@@ -62,8 +62,8 @@
 			=>	buf[0|1] = [ b8 b7 b6 b5 b4 b3 b2 b1 b0 | b15 b14 b13 b12 b11 b10 b9 ]	(LE)
 			=>	buf[0|1] = [ b8 b7 b6 b5 b4 b3 b2 b1 b0 | b15 b14 b13 b12 b11 b10 b9 ]  (BE)
 		
-			I.e. LE_write(register) => invert logical byte order
-			I.e. BE_write(register) =>        logical byte order
+			I.e. LE_write(register) => invert Logical byte order
+			I.e. BE_write(register) =>        Logical byte order
 
 		similarly, in the read example, from our register's perspective what happens is:
 		
@@ -136,7 +136,7 @@ u64			ss_bits_left(const struct serialize_stream *ss);
 
 /*
  * TODO: CHECK / TRUNCATE b8 val upper bits to zero that are not to be written in functions calling ss_write****
- * 	This simplifies logic in write methods
+ * 	This simplifies Logic in write methods
  */
 
 /*	read / write aligned byte(s): 

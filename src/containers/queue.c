@@ -171,7 +171,7 @@ struct min_queue min_queue_new(struct arena *arena, const u32 initial_length, co
 
 	if (queue.object_pool.length == 0 || queue.elements == NULL)
 	{
-		log_string(T_SYSTEM, S_FATAL, "Failed to allocate min queue, exiting.");
+		LogString(T_SYSTEM, S_FATAL, "Failed to allocate min queue, exiting.");
 		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 		
@@ -215,7 +215,7 @@ u32 min_queue_insert(struct min_queue * const queue, const f32 priority, const u
 		queue->elements = realloc(queue->elements, queue->object_pool.length * sizeof(struct queue_element));
 		if (queue->elements == NULL)
 		{
-			log_string(T_SYSTEM, S_FATAL, "Failed to reallocate min queue, exiting.");
+			LogString(T_SYSTEM, S_FATAL, "Failed to reallocate min queue, exiting.");
 			fatal_cleanup_and_exit(ds_thread_self_tid());
 		}
 	}
@@ -324,7 +324,7 @@ struct min_queue_fixed min_queue_fixed_alloc(struct arena *mem, const u32 initia
 
 	if (queue.element == NULL)
 	{
-		log_string(T_SYSTEM, S_FATAL, "Failed to allocate min_queue_fixed memory, exiting.");
+		LogString(T_SYSTEM, S_FATAL, "Failed to allocate min_queue_fixed memory, exiting.");
 		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 
@@ -361,15 +361,15 @@ void min_queue_fixed_flush(struct min_queue_fixed *queue)
 	queue->count = 0;
 }
 
-void min_queue_fixed_print(FILE *log, const struct min_queue_fixed *queue)
+void min_queue_fixed_print(FILE *Log, const struct min_queue_fixed *queue)
 {
-	fprintf(log, "min queue_fixed %p: ", queue);
-	fprintf(log, "{ ");
+	fprintf(Log, "min queue_fixed %p: ", queue);
+	fprintf(Log, "{ ");
 	for (u32 i = 0; i < queue->count; ++i)
 	{
-		fprintf(log, "(%u,%f), ", queue->element[i].u, queue->element[i].f);
+		fprintf(Log, "(%u,%f), ", queue->element[i].u, queue->element[i].f);
 	}
-	fprintf(log, "}\n");
+	fprintf(Log, "}\n");
 
 
 }
@@ -384,7 +384,7 @@ void min_queue_fixed_push(struct min_queue_fixed *queue, const u32 id, const f32
 			queue->element = realloc(queue->element, queue->length*sizeof(u32f32));
 			if (queue->element == NULL)
 			{
-				log_string(T_SYSTEM, S_FATAL, "Failed to reallocate min_queue_fixed memory, exiting.");
+				LogString(T_SYSTEM, S_FATAL, "Failed to reallocate min_queue_fixed memory, exiting.");
 				fatal_cleanup_and_exit(ds_thread_self_tid());
 			}
 		}	

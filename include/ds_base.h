@@ -55,7 +55,7 @@ extern "C" {
 		if (assertion) { }										\
 		else												\
 		{												\
-			log(T_ASSERT, S_FATAL, "assertion failed at %s:%u in function %s", file, line, func);	\
+			Log(T_ASSERT, S_FATAL, "assertion failed at %s:%u in function %s", file, line, func);	\
 			Breakpoint(1);										\
  			fatal_cleanup_and_exit(ds_thread_self_tid());						\
 		}
@@ -64,7 +64,7 @@ extern "C" {
 		if (assertion) { }			     							\
 		else												\
 		{												\
-			log(T_ASSERT, S_FATAL, "assertion failed at %s:%u in function %s - %s", file, line, func, cstr); \
+			Log(T_ASSERT, S_FATAL, "assertion failed at %s:%u in function %s - %s", file, line, func, cstr); \
 			Breakpoint(1);										\
  			fatal_cleanup_and_exit(ds_thread_self_tid());						\
 		}
@@ -75,7 +75,7 @@ extern "C" {
 		{												\
 			u8 __msg_buf[LOG_MAX_MESSAGE_SIZE];							\
 			const utf8 __fmsg = Utf8FormatBuffered(__msg_buf, LOG_MAX_MESSAGE_SIZE, msg, __VA_ARGS__); \
-			log(T_ASSERT, S_FATAL, "assertion failed at %s:%u in function %s - %k", file, line, func, &__fmsg); \
+			Log(T_ASSERT, S_FATAL, "assertion failed at %s:%u in function %s - %k", file, line, func, &__fmsg); \
 			Breakpoint(1);										\
  			fatal_cleanup_and_exit(ds_thread_self_tid());						\
 		}

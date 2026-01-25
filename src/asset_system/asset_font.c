@@ -30,7 +30,7 @@ void internal_freetype_init(void)
 {
 	if (FT_Init_FreeType(&g_ft_library))
 	{
-		log_string(T_ASSET, S_FATAL, "Failed to initiate freetype2 library");
+		LogString(T_ASSET, S_FATAL, "Failed to initiate freetype2 library");
 		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 }
@@ -54,14 +54,14 @@ void font_build(struct arena *mem, const enum font_id id)
 	u32 error = FT_New_Face(g_ft_library, (const char *) asset->ttf->filepath, face_index, &face);
 	if (error)
 	{
-		log_string(T_ASSET, S_FATAL, "Failed to initiate freetype face");
+		LogString(T_ASSET, S_FATAL, "Failed to initiate freetype face");
 		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 
 	error = FT_Set_Pixel_Sizes(face, 0, asset->pixel_glyph_height);
 	if (error)
 	{
-		log_string(T_ASSET, S_FATAL, "Failed to set freetype pixel size");
+		LogString(T_ASSET, S_FATAL, "Failed to set freetype pixel size");
 		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 
@@ -75,7 +75,7 @@ void font_build(struct arena *mem, const enum font_id id)
 	error = FT_Load_Char(face, 0, FT_LOAD_DEFAULT | FT_LOAD_FORCE_AUTOHINT | FT_LOAD_TARGET_NORMAL | FT_RENDER_MODE_NORMAL);
 	if (error)
 	{
-		log_string(T_ASSET, S_FATAL, "Failed to load not-found-glyph");
+		LogString(T_ASSET, S_FATAL, "Failed to load not-found-glyph");
 	}
 
 	total_glyph_width += face->glyph->bitmap.width;
@@ -99,7 +99,7 @@ void font_build(struct arena *mem, const enum font_id id)
 		error = FT_Load_Char(face, c, FT_LOAD_RENDER | FT_LOAD_TARGET_NORMAL);
 		if (error)
 		{
-			log_string(T_ASSET, S_ERROR, "Failed to load glyph");
+			LogString(T_ASSET, S_ERROR, "Failed to load glyph");
 			continue;
 		}
 
@@ -124,7 +124,7 @@ void font_build(struct arena *mem, const enum font_id id)
 		error = FT_Load_Char(face, c, FT_LOAD_RENDER | FT_LOAD_TARGET_NORMAL | FT_RENDER_MODE_NORMAL);
 		if (error)
 		{
-			log_string(T_ASSET, S_ERROR, "Failed to load glyph");
+			LogString(T_ASSET, S_ERROR, "Failed to load glyph");
 			continue;
 		}
 
@@ -241,7 +241,7 @@ void font_serialize(const struct asset_font *asset, const struct font *font)
 	struct file file = file_null();
 	if (file_try_create_at_cwd(&tmp, &file, asset->filepath, FILE_TRUNCATE) != FS_SUCCESS)
 	{
-		log_string(T_ASSET, S_FATAL, "Failed to create .font file");
+		LogString(T_ASSET, S_FATAL, "Failed to create .font file");
 		fatal_cleanup_and_exit(ds_thread_self_tid());
 	}
 

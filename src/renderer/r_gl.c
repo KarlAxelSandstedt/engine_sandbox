@@ -687,7 +687,7 @@ void ds_glGenTextures(const GLsizei count, GLuint tx[])
 		if (tx_ptr->name == 0)
 		{
 			array_list_remove_index(tx_list, tx[i]);
-			log_string(T_RENDERER, S_ERROR, "GL internal; glGenTexture failed");
+			LogString(T_RENDERER, S_ERROR, "GL internal; glGenTexture failed");
 			break;
 		}
 
@@ -869,7 +869,7 @@ void ds_glTexImage2D(const GLenum target,
 
 	if (tx->width < 0 || max_size < tx->width || tx->height < 0 || max_size < tx->height)
 	{
-		log(T_RENDERER, S_ERROR, 
+		Log(T_RENDERER, S_ERROR, 
 				"(glTexImage2D) (width, height) =  (%i, %i) must both be in range [0, %i]", 
 				tx->width, tx->height, max_size);
 		tx->width = 0;
@@ -1024,7 +1024,7 @@ u32 gl_state_alloc(void)
 		gl_state->func.glGetIntegerv(GL_MAX_VARYING_VECTORS, (GLint *) &g_gl_limits->max_varying_vectors);
 		gl_state->func.glGetIntegerv(GL_MAX_ELEMENT_INDEX, (GLint *) &g_gl_limits->max_element_index);
 	
-		log(T_RENDERER, S_NOTE, "               \n\
+		Log(T_RENDERER, S_NOTE, "               \n\
 			        GL Vendor           - %s\n\
 				GL Renderer         - %s\n\
 				GL Version          - %s\n\
@@ -1034,7 +1034,7 @@ u32 gl_state_alloc(void)
 				, gl_state->func.glGetString(GL_VERSION)
 				, gl_state->func.glGetString(GL_SHADING_LANGUAGE_VERSION));
 
-		log(T_RENDERER, S_NOTE, "opengl limits:\
+		Log(T_RENDERER, S_NOTE, "opengl limits:\
 				\n\tGL_MAX_COMBINED_TEXTURE_IMAGE_UNITS: %u\
 				\n\tGL_MAX_TEXTURE_IMAGE_UNITS:          %u\
 				\n\tGL_MAX_VERTEX_TEXTURE_IMAGE_UNITS:   %u\

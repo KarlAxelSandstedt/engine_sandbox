@@ -266,7 +266,7 @@ typedef enum box_corner
 	BOX_CORNER_COUNT
 } box_corner;
 
-/* system identifiers for logger, profiler ... */
+/* system identifiers for Logger, profiler ... */
 enum system_id
 {
 	T_SYSTEM,
@@ -283,7 +283,7 @@ enum system_id
 	T_COUNT
 };
 
-/* system identifiers for logger, profiler ... */
+/* system identifiers for Logger, profiler ... */
 enum severity_id
 {
 	S_SUCCESS,
