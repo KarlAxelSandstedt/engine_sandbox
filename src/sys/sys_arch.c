@@ -77,7 +77,7 @@ static void internal_amd_determine_cache_attributes(void)
 static u32 internal_get_amd_arch_config(struct arena *mem)
 {
 	config.type = ARCH_AMD64;
-	config.processor_string = utf8_empty();
+	config.processor_string = Utf8Empty();
 
 	u32 eax, ebx, edx, ecx;
 	ds_cpuid(&eax, &ebx, &ecx, &edx, 0);
@@ -154,7 +154,7 @@ static u32 internal_get_amd_arch_config(struct arena *mem)
 		buf[(i-2) * 16 + 12] = (u8) ((edx      ) & 0xff);
 	}
 	buf[48] = '\0';
-	config.processor_string = utf8_cstr(mem, (char *) buf);
+	config.processor_string = Utf8Cstr(mem, (char *) buf);
 
 
 	ds_arch_config_log();
@@ -291,7 +291,7 @@ static void internal_intel_determine_cache_attributes(const u32 largest_standard
 static u32 internal_get_intel_arch_config(struct arena *mem)
 {
 	config.type = ARCH_INTEL64;
-	config.processor_string = utf8_empty();
+	config.processor_string = Utf8Empty();
 
 	u32 eax, ebx, edx, ecx;
 	ds_cpuid(&eax, &ebx, &ecx, &edx, 0);
@@ -368,7 +368,7 @@ static u32 internal_get_intel_arch_config(struct arena *mem)
 		buf[(i-2) * 16 + 12] = (u8) ((edx      ) & 0xff);
 	}
 	buf[48] = '\0';
-	config.processor_string = utf8_cstr(mem, (char *) buf);
+	config.processor_string = Utf8Cstr(mem, (char *) buf);
 
 	ds_arch_config_log();
 
@@ -386,13 +386,13 @@ u32 ds_arch_config_init(struct arena *mem)
 
 	u32 requirements_fullfilled = 1;
 #if __DS_PLATFORM__ == __DS_WEB__
-	config.vendor_string = utf8_inline("Web Browser (TODO)");
-	config.processor_string = utf8_inline("Web CPU (TODO)");
+	config.vendor_string = Utf8Inline("Web Browser (TODO)");
+	config.processor_string = Utf8Inline("Web CPU (TODO)");
 	//TODO check SIMD support 
 	ds_arch_config_log();
 #else
-	const utf8 amd =    utf8_inline("AuthenticAMD");
-	const utf8 intel =  utf8_inline("GenuineIntel");
+	const utf8 amd =    Utf8Inline("AuthenticAMD");
+	const utf8 intel =  Utf8Inline("GenuineIntel");
 
 	u32 eax, ebx, ecx, edx;
 	ds_cpuid(&eax, &ebx, &ecx, &edx, 0);
@@ -414,12 +414,12 @@ u32 ds_arch_config_init(struct arena *mem)
 		'\0',
 	};
 
-	config.vendor_string = utf8_cstr(mem, (char *) buf);
-	if (utf8_equivalence(config.vendor_string, amd))
+	config.vendor_string = Utf8Cstr(mem, (char *) buf);
+	if (Utf8Equivalence(config.vendor_string, amd))
 	{
 		requirements_fullfilled = internal_get_amd_arch_config(mem);
 	}
-	else if (utf8_equivalence(config.vendor_string, intel))
+	else if (Utf8Equivalence(config.vendor_string, intel))
 	{
 		requirements_fullfilled = internal_get_intel_arch_config(mem);
 	}

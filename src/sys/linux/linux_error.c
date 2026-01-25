@@ -92,14 +92,14 @@ utf8 utf8_system_error_code_string_buffered(u8 *buf, const u32 bufsize, const u3
 			ds_Assert(0 && "increase system error string buffer size!");
 		}
 
-		return utf8_empty();
+		return Utf8Empty();
 	}
 
 	err_str.len = strnlen((char *) err_str.buf, ERROR_BUFSIZE);
 	if (err_str.len == ERROR_BUFSIZE)
 	{
 		log(T_SYSTEM, S_ERROR, "strnlen failed to determine string length in %s, most likely due to no null-termination? Fix.", __func__);
-		return utf8_empty();
+		return Utf8Empty();
 	}
 
 	return err_str;

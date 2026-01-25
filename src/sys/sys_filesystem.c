@@ -21,14 +21,14 @@
 
 struct file file_null(void)
 {
-	return (struct file) { .handle = FILE_HANDLE_INVALID, .path = utf8_empty(), .type = FILE_NONE };
+	return (struct file) { .handle = FILE_HANDLE_INVALID, .path = Utf8Empty(), .type = FILE_NONE };
 }
 
 struct directory_navigator directory_navigator_alloc(const u32 initial_memory_string_size, const u32 hash_size, const u32 initial_hash_index_size)
 {
 	struct directory_navigator dn =
 	{
-		.path = utf8_empty(),
+		.path = Utf8Empty(),
 		.relative_path_to_file_map = hash_map_alloc(NULL, hash_size, initial_hash_index_size, HASH_GROWABLE),
 		.mem_string = ArenaAlloc(initial_memory_string_size),
 		.files = vector_alloc(NULL, sizeof(struct file), initial_hash_index_size, VECTOR_GROWABLE),
@@ -55,14 +55,14 @@ u32 directory_navigator_lookup_substring(struct arena *mem, u32 **index, struct 
 {
 	ArenaPushRecord(&dn->mem_string);
 
-	struct kmp_substring kmp_substring = utf8_lookup_substring_init(&dn->mem_string, substring);
+	struct kmpSubstring kmp_substring = Utf8LookupSubstringInit(&dn->mem_string, substring);
 	*index = (u32 *) mem->stack_ptr;
 	u32 count = 0;
 
 	for (u32 i = 0; i < dn->files.next; ++i)
 	{
 		const struct file *file = vector_address(&dn->files, i);
-		if (utf8_lookup_substring(&kmp_substring, file->path))
+		if (Utf8LookupSubstring(&kmp_substring, file->path))
 		{
 			ArenaPushPackedMemcpy(mem, &i, sizeof(i));
 			count += 1;
@@ -75,12 +75,12 @@ u32 directory_navigator_lookup_substring(struct arena *mem, u32 **index, struct 
 
 u32 directory_navigator_lookup(const struct directory_navigator *dn, const utf8 filename)
 {
-	const u32 key = utf8_hash(filename);
+	const u32 key = Utf8Hash(filename);
 	u32 index = HASH_NULL;
 	for (u32 i = hash_map_first(dn->relative_path_to_file_map, key); i != HASH_NULL; i = hash_map_next(dn->relative_path_to_file_map, i))
 	{
 		const struct file *file = vector_address(&dn->files, i);
-		if (utf8_equivalence(filename, file->path))
+		if (Utf8Equivalence(filename, file->path))
 		{
 			index = i;
 			break;
@@ -95,7 +95,7 @@ enum fs_error directory_navigator_enter_and_alias_path(struct directory_navigato
 	directory_navigator_flush(dn);
 
 	struct file dir = file_null();
-	const enum fs_error ret = directory_try_open_at_cwd(&dn->mem_string, &dir, cstr_utf8(&dn->mem_string, path));
+	const enum fs_error ret = directory_try_open_at_cwd(&dn->mem_string, &dir, CstrUtf8(&dn->mem_string, path));
 	if (ret == FS_SUCCESS)
 	{
 		dn->path = path;
@@ -103,7 +103,7 @@ enum fs_error directory_navigator_enter_and_alias_path(struct directory_navigato
 		for (u32 i = 0; i < dn->files.next; ++i)
 		{
 			const struct file *entry = vector_address(&dn->files, i);
-			const u32 key = utf8_hash(entry->path);
+			const u32 key = Utf8Hash(entry->path);
 			hash_map_add(dn->relative_path_to_file_map, key, i);
 		}
 	}

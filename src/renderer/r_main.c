@@ -345,7 +345,7 @@ static void r_led_draw(const struct led *led)
 	PROF_ZONE;
 
 	//{
-	//	struct slot slot = string_database_lookup(&led->render_mesh_db, utf8_inline("rm_map"));
+	//	struct slot slot = string_database_lookup(&led->render_mesh_db, Utf8Inline("rm_map"));
 	//	ds_Assert(slot.index != STRING_DATABASE_STUB_INDEX);
 	//	if (slot.index != STRING_DATABASE_STUB_INDEX)
 	//	{

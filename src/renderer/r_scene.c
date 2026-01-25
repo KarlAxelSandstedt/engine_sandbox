@@ -492,7 +492,7 @@ static void r_scene_bucket_generate_draw_data(struct r_bucket *b)
 							global_offset[0] = f32_round(global_offset[0]);
 							global_offset[1] = f32_round(global_offset[1]);
 
-							struct text_line *line = n->layout_text->line;
+							struct textLine *line = n->layout_text->line;
 							for (u32 l = 0; l < n->layout_text->line_count; ++l, line = line->next)
 							{
 								vec2 global_baseline =
@@ -588,7 +588,7 @@ static void r_scene_bucket_generate_draw_data(struct r_bucket *b)
 							global_offset[0] = f32_round(global_offset[0]);
 							global_offset[1] = f32_round(global_offset[1]);
 
-							struct text_line *line = sel->layout->line;
+							struct textLine *line = sel->layout->line;
 							ds_Assert(sel->layout->line_count == 1);
 							ds_Assert(sel->high <= line->glyph_count + 1);
 

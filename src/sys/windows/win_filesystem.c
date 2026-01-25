@@ -100,7 +100,7 @@ u32 win_system_user_is_admin(void)
 
 u32 win_utf8_path_is_relative(const utf8 path)
 {
-	const u32 req_size = (u32) utf8_size_required(path);
+	const u32 req_size = (u32) Utf8SizeRequired(path);
 	WCHAR w_path[MAX_PATH];
 	const int len_relative = MultiByteToWideChar(CP_UTF8, 0, (char *) path.buf, req_size, w_path, MAX_PATH);
 	u32 relative = 0;
@@ -168,7 +168,7 @@ enum fs_error win_file_try_create(struct arena *mem, struct file *file, const ch
 
 	if (err == FS_SUCCESS)
 	{
-		file->path = utf8_cstr(mem, filename);
+		file->path = Utf8Cstr(mem, filename);
 		file->type = FILE_REGULAR;
 	}
 
@@ -224,7 +224,7 @@ enum fs_error win_file_try_open(struct arena *mem, struct file *file, const char
 
 	if (err == FS_SUCCESS)
 	{
-		file->path = utf8_cstr(mem, filename);
+		file->path = Utf8Cstr(mem, filename);
 		file->type = FILE_DIRECTORY;
 	}
 
@@ -279,7 +279,7 @@ enum fs_error win_directory_try_create(struct arena *mem, struct file *dir, cons
 
 	if (err == FS_SUCCESS)
 	{
-		dir->path = utf8_cstr(mem, filename);
+		dir->path = Utf8Cstr(mem, filename);
 		dir->type = FILE_DIRECTORY;
 	}
 
@@ -330,7 +330,7 @@ enum fs_error win_directory_try_open(struct arena *mem, struct file *dir, const 
 
 	if (err == FS_SUCCESS)
 	{
-		dir->path = utf8_cstr(mem, filename);
+		dir->path = Utf8Cstr(mem, filename);
 		dir->type = FILE_DIRECTORY;
 	}
 
@@ -582,7 +582,7 @@ void win_file_memory_sync_unmap(void *addr, const u64 length)
 
 utf8 win_cwd_get(struct arena *mem)
 {
-	utf8 str = utf8_empty();
+	utf8 str = Utf8Empty();
 
 	const DWORD req_size = GetCurrentDirectory(0, NULL);
 	void *buf = ArenaPush(mem, req_size);
@@ -675,7 +675,7 @@ enum fs_error win_directory_push_entries(struct arena *mem, struct vector *vec, 
 			break;
 		}
 
-		file->path = utf8_cstr(mem, cstr_filename);
+		file->path = Utf8Cstr(mem, cstr_filename);
 		if (file_status_path(&status, cstr_filename, dir) != FS_SUCCESS)
 		{
 			ret = FS_ERROR_UNSPECIFIED;

@@ -92,7 +92,7 @@ void system_process_events(void)
 				text_edit_event = 1;
 				sys_win->cmd_queue->regs[0].u32 = 0;
 				sys_win->cmd_queue->regs[1].u32 = key_modifiers;
-				sys_win->cmd_queue->regs[2].utf8 = utf8_copy(sys_win->ui->mem_frame, event.utf8);
+				sys_win->cmd_queue->regs[2].utf8 = Utf8Copy(sys_win->ui->mem_frame, event.utf8);
 			} break;
 
 			case SYSTEM_SCROLL:
@@ -150,7 +150,7 @@ void system_process_events(void)
 							text_edit_event = 1;
 							sys_win->cmd_queue->regs[0].u32 = DS_RIGHT;
 							sys_win->cmd_queue->regs[1].u32 = key_modifiers;
-							sys_win->cmd_queue->regs[2].utf8 = utf8_empty();
+							sys_win->cmd_queue->regs[2].utf8 = Utf8Empty();
 						} break;
 					
 						case DS_LEFT:
@@ -158,7 +158,7 @@ void system_process_events(void)
 							text_edit_event = 1;
 							sys_win->cmd_queue->regs[0].u32 = DS_LEFT;
 							sys_win->cmd_queue->regs[1].u32 = key_modifiers;
-							sys_win->cmd_queue->regs[2].utf8 = utf8_empty();
+							sys_win->cmd_queue->regs[2].utf8 = Utf8Empty();
 						} break;
 
 						case DS_DELETE:
@@ -166,7 +166,7 @@ void system_process_events(void)
 							text_edit_event = 1;
 							sys_win->cmd_queue->regs[0].u32 = DS_DELETE;
 							sys_win->cmd_queue->regs[1].u32 = key_modifiers;
-							sys_win->cmd_queue->regs[2].utf8 = utf8_empty();
+							sys_win->cmd_queue->regs[2].utf8 = Utf8Empty();
 						} break;
 
 						case DS_HOME:
@@ -174,7 +174,7 @@ void system_process_events(void)
 							text_edit_event = 1;
 							sys_win->cmd_queue->regs[0].u32 = DS_HOME;
 							sys_win->cmd_queue->regs[1].u32 = key_modifiers;
-							sys_win->cmd_queue->regs[2].utf8 = utf8_empty();
+							sys_win->cmd_queue->regs[2].utf8 = Utf8Empty();
 						} break;
 
 						case DS_END:
@@ -182,7 +182,7 @@ void system_process_events(void)
 							text_edit_event = 1;
 							sys_win->cmd_queue->regs[0].u32 = DS_END;
 							sys_win->cmd_queue->regs[1].u32 = key_modifiers;
-							sys_win->cmd_queue->regs[2].utf8 = utf8_empty();
+							sys_win->cmd_queue->regs[2].utf8 = Utf8Empty();
 						} break;
 
 						case DS_BACKSPACE:
@@ -190,7 +190,7 @@ void system_process_events(void)
 							text_edit_event = 1;
 							sys_win->cmd_queue->regs[0].u32 = DS_BACKSPACE;
 							sys_win->cmd_queue->regs[1].u32 = key_modifiers;
-							sys_win->cmd_queue->regs[2].utf8 = utf8_empty();
+							sys_win->cmd_queue->regs[2].utf8 = Utf8Empty();
 						} break;
 
 						case DS_X:
@@ -200,7 +200,7 @@ void system_process_events(void)
 								text_edit_event = 1;
 								sys_win->cmd_queue->regs[0].u32 = DS_X;
 								sys_win->cmd_queue->regs[1].u32 = key_modifiers;
-								sys_win->cmd_queue->regs[2].utf8 = utf8_empty();
+								sys_win->cmd_queue->regs[2].utf8 = Utf8Empty();
 							}
 						} break;
 
@@ -211,7 +211,7 @@ void system_process_events(void)
 								text_edit_event = 1;
 								sys_win->cmd_queue->regs[0].u32 = DS_C;
 								sys_win->cmd_queue->regs[1].u32 = key_modifiers;
-								sys_win->cmd_queue->regs[2].utf8 = utf8_empty();
+								sys_win->cmd_queue->regs[2].utf8 = Utf8Empty();
 							}	
 						} break;
 

@@ -24,7 +24,7 @@ u32 led_filename_valid(const utf8 filename)
 	u32 valid = 1;
 	for (u32 i = 0; i < filename.len; ++i)
 	{
-		if (is_wordbreak(filename.buf[i]))
+		if (WordbreakCheck(filename.buf[i]))
 		{
 			valid = 0;
 			break;

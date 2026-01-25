@@ -97,7 +97,7 @@ static void led_project_menu_ui(struct led *led, const struct ui_visual *visual)
 			ui_width(ui_size_text(F32_INFINITY, 1.0f))
 			ui_node_alloc_f(UI_DRAW_TEXT, "search:##bar");
 			
-			const utf8 tmp = utf8_inline("Text Window (TODO)");
+			const utf8 tmp = Utf8Inline("Text Window (TODO)");
 			ui_width(ui_size_text(F32_INFINITY, 0.0f))
 			ui_node_alloc_f(UI_DRAW_TEXT | UI_DRAW_BORDER, "%k##_bar", &tmp);
 		}
@@ -111,7 +111,7 @@ static void led_project_menu_ui(struct led *led, const struct ui_visual *visual)
 
 			if ((ui_button_f(UI_DRAW_TEXT | UI_DRAW_BORDER | UI_DRAW_BACKGROUND | UI_DRAW_ROUNDED_CORNERS, "New Project") & UI_INTER_LEFT_CLICK) && menu->popup_new_project.state == UI_POPUP_STATE_NULL)
 			{
-				ui_popup_utf8_input(&menu->popup_new_project, &menu->utf8_new_project, &menu->input_line_new_project, utf8_inline("Please enter the new project's name"), utf8_inline("New Project:"), "New Project", visual);
+				ui_popup_utf8_input(&menu->popup_new_project, &menu->utf8_new_project, &menu->input_line_new_project, Utf8Inline("Please enter the new project's name"), Utf8Inline("New Project:"), "New Project", visual);
 			} 
 			else if (menu->popup_new_project.state == UI_POPUP_STATE_PENDING_VERIFICATION)
 			{
@@ -129,7 +129,7 @@ static void led_project_menu_ui(struct led *led, const struct ui_visual *visual)
 					struct system_window *project_window = system_window_address(led->window);
 					enum fs_error err;
 
-					const char *cstr_project_name = cstr_utf8(g_ui->mem_frame, menu->utf8_new_project);
+					const char *cstr_project_name = CstrUtf8(g_ui->mem_frame, menu->utf8_new_project);
 					err = directory_try_create(&project_window->mem_persistent, &led->project.folder, cstr_project_name, &led->root_folder);
 					if (err != FS_SUCCESS)
 					{
@@ -154,7 +154,7 @@ static void led_project_menu_ui(struct led *led, const struct ui_visual *visual)
 				
 				if (error_string)
 				{
-					ui_popup_utf8_display(&menu->popup_new_project_extra, utf8_cstr(g_ui->mem_frame, error_string), "Error Message", visual);
+					ui_popup_utf8_display(&menu->popup_new_project_extra, Utf8Cstr(g_ui->mem_frame, error_string), "Error Message", visual);
 					menu->popup_new_project.state = UI_POPUP_STATE_RUNNING;
 				}
 			}
@@ -477,7 +477,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 			ui_text_align_y(ALIGN_TOP)
 			{
 				struct slot slot;
-				const utf32 external_text = utf32_cstr(g_ui->mem_frame, "Viewport");
+				const utf32 external_text = Utf32Cstr(g_ui->mem_frame, "Viewport");
 
 				slot = ui_node_alloc(UI_DRAW_BORDER | UI_INTER_FLAGS, &led->viewport_id);
 				if (slot.index != HI_ORPHAN_STUB_INDEX)
@@ -501,7 +501,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 						{
 							const struct rigid_body *body = PoolAddress(&led->physics.body_pool, hit.u);	
 							const struct led_node *entity = PoolAddress(&led->node_pool, body->entity);
-							const char *body_id = cstr_utf8(g_ui->mem_frame, entity->id);
+							const char *body_id = CstrUtf8(g_ui->mem_frame, entity->id);
 
 
 							ui_fixed_x(g_ui->inter.cursor_position[0])
@@ -555,7 +555,7 @@ static void led_ui(struct led *led, const struct ui_visual *visual)
 					new_shape_id = ui_field_utf8_f("Add Collision Shape...###new_shape");
 					if (new_shape_id.len)
 					{
-						utf8_debug_print(new_shape_id);
+						Utf8DebugPrint(new_shape_id);
 						g_queue->cmd_exec->arg[0].utf8 = new_shape_id;
 						cmd_submit_f(g_ui->mem_frame, "collision_shape_add \"%k\"", &new_shape_id);
 					}

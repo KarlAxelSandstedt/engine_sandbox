@@ -58,15 +58,15 @@ struct string_database	string_database_alloc_internal(struct arena *mem, const u
 	db.allocated_next_offset = allocated_next_offset;
 	db.allocated_dll = dll_init_internal(data_size, allocated_prev_offset, allocated_next_offset);
 
-	const utf8 stub_id = utf8_empty();
-	const u32 key = utf8_hash(stub_id);
+	const utf8 stub_id = Utf8Empty();
+	const u32 key = Utf8Hash(stub_id);
 
 	struct slot slot = PoolAdd(&db.pool);
 	hash_map_add(db.hash, key, slot.index);
 	struct string_database_node *node = slot.address;
 
 	utf8 *id = (utf8 *)(((u8 *) slot.address) + db.id_offset);
-	*id = utf8_empty();
+	*id = Utf8Empty();
 
 	u32 *reference_count = (u32 *)(((u8 *) slot.address) + db.reference_count_offset);
 	*reference_count = 0;
@@ -90,8 +90,8 @@ void string_database_flush(struct string_database *db)
 	hash_map_flush(db->hash);
 	PoolFlush(&db->pool);
 	dll_flush(&db->allocated_dll);
-	const utf8 stub_id = utf8_empty();
-	const u32 key = utf8_hash(stub_id);
+	const utf8 stub_id = Utf8Empty();
+	const u32 key = Utf8Hash(stub_id);
 
 	struct slot slot = PoolAdd(&db->pool);
 	hash_map_add(db->hash, key, slot.index);
@@ -114,10 +114,10 @@ struct slot string_database_add(struct arena *mem_db_lifetime, struct string_dat
 		return slot;
 	}
 
-	utf8 id = utf8_copy(mem_db_lifetime, copy);
+	utf8 id = Utf8Copy(mem_db_lifetime, copy);
 	if (id.buf)
 	{
-		const u32 key = utf8_hash(copy);
+		const u32 key = Utf8Hash(copy);
 		struct slot slot = PoolAdd(&db->pool);
 		hash_map_add(db->hash, key, slot.index);
 
@@ -142,7 +142,7 @@ struct slot string_database_add_and_alias(struct string_database *db, const utf8
 	}
 
 	slot = PoolAdd(&db->pool);
-	const u32 key = utf8_hash(id);
+	const u32 key = Utf8Hash(id);
 	hash_map_add(db->hash, key, slot.index);
 
 	utf8 *id_ptr = (utf8 *)(((u8 *) slot.address) + db->id_offset);
@@ -162,7 +162,7 @@ void string_database_remove(struct string_database *db, const utf8 id)
 	if (slot.index != STRING_DATABASE_STUB_INDEX)
 	{
 		ds_Assert(*(u32 *)((u8 *) slot.address + db->reference_count_offset) == 0);
-		const u32 key = utf8_hash(*(utf8 *)((u8 *) slot.address + db->id_offset));
+		const u32 key = Utf8Hash(*(utf8 *)((u8 *) slot.address + db->id_offset));
 		hash_map_remove(db->hash, key, slot.index);
 		PoolRemove(&db->pool, slot.index);
 		dll_remove(&db->allocated_dll, db->pool.buf, slot.index);
@@ -171,13 +171,13 @@ void string_database_remove(struct string_database *db, const utf8 id)
 
 struct slot string_database_lookup(const struct string_database *db, const utf8 id)
 {
-	const u32 key = utf8_hash(id);
+	const u32 key = Utf8Hash(id);
 	struct slot slot = { .index = STRING_DATABASE_STUB_INDEX, .address = db->pool.buf };
 	for (u32 i = hash_map_first(db->hash, key); i != HASH_NULL; i = hash_map_next(db->hash, i))
 	{
 		u8 *address = string_database_address(db, i);
 		utf8 *id_ptr = (utf8 *) (address + db->id_offset);
-		if (utf8_equivalence(id, *id_ptr))
+		if (Utf8Equivalence(id, *id_ptr))
 		{
 			slot.index = i;
 			slot.address = address;

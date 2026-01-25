@@ -90,22 +90,22 @@ static struct log g_log;
 
 void log_init(struct arena *mem, const char *filepath)
 {
-	systems[T_SYSTEM] = utf8_inline("System");
-	systems[T_RENDERER] = utf8_inline("Renderer");
-	systems[T_PHYSICS] = utf8_inline("Physics");
-	systems[T_ASSET] = utf8_inline("Asset");
-	systems[T_UTILITY] = utf8_inline("Utility");
-	systems[T_PROFILER] = utf8_inline("Profiler");
-	systems[T_ASSERT] = utf8_inline("Assert");
-	systems[T_GAME] = utf8_inline("Game");
-	systems[T_UI] = utf8_inline("Ui");
-	systems[T_LED] = utf8_inline("Led");
+	systems[T_SYSTEM] = Utf8Inline("System");
+	systems[T_RENDERER] = Utf8Inline("Renderer");
+	systems[T_PHYSICS] = Utf8Inline("Physics");
+	systems[T_ASSET] = Utf8Inline("Asset");
+	systems[T_UTILITY] = Utf8Inline("Utility");
+	systems[T_PROFILER] = Utf8Inline("Profiler");
+	systems[T_ASSERT] = Utf8Inline("Assert");
+	systems[T_GAME] = Utf8Inline("Game");
+	systems[T_UI] = Utf8Inline("Ui");
+	systems[T_LED] = Utf8Inline("Led");
 
-	severities[S_SUCCESS] = utf8_inline("success");
-	severities[S_NOTE] = utf8_inline("note");
-	severities[S_WARNING] = utf8_inline("warning");
-	severities[S_ERROR] = utf8_inline("error");
-	severities[S_FATAL] = utf8_inline("fatal");
+	severities[S_SUCCESS] = Utf8Inline("success");
+	severities[S_NOTE] = Utf8Inline("note");
+	severities[S_WARNING] = Utf8Inline("warning");
+	severities[S_ERROR] = Utf8Inline("error");
+	severities[S_FATAL] = Utf8Inline("fatal");
 
 	g_log.msg = ArenaPush(mem, LOG_MAX_MESSAGES * sizeof(struct log_message));
 	g_log.tf = ticket_factory_init(mem, LOG_MAX_MESSAGES);
@@ -202,13 +202,13 @@ void log_write_message(const enum system_id system, const enum severity_id sever
 	u64 req_size;
 	va_list args;
 	va_start(args, format);
-	utf8 formatted = utf8_format_buffered_variadic(&req_size, buf, LOG_MAX_MESSAGE_SIZE, format, args);
+	utf8 formatted = Utf8FormatBufferedVariadic(&req_size, buf, LOG_MAX_MESSAGE_SIZE, format, args);
 	va_end(args);
 
 #if __DS_PLATFORM__ == __DS_WEB__
-	utf8 str = utf8_format_buffered(msg->buf, LOG_MAX_MESSAGE_SIZE-1, "[%lu.%lu%lu%lus] %k %k - Thread %u: %k",
+	utf8 str = Utf8FormatBuffered(msg->buf, LOG_MAX_MESSAGE_SIZE-1, "[%lu.%lu%lu%lus] %k %k - Thread %u: %k",
 #else
-	utf8 str = utf8_format_buffered(msg->buf, LOG_MAX_MESSAGE_SIZE-1, "[%lu.%lu%lu%lus] %k %k - Thread %u: %k\n",
+	utf8 str = Utf8FormatBuffered(msg->buf, LOG_MAX_MESSAGE_SIZE-1, "[%lu.%lu%lu%lus] %k %k - Thread %u: %k\n",
 #endif
 		ms / 1000,
 		(ms / 100) % 10,
@@ -218,7 +218,7 @@ void log_write_message(const enum system_id system, const enum severity_id sever
 		severities + severity,
 		thread_id,
 		&formatted);
-	msg->size_req = utf8_size_required(str);
+	msg->size_req = Utf8SizeRequired(str);
 	msg->len = str.len;
 	msg->buf[msg->size_req] = '\0';
 

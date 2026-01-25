@@ -28,6 +28,7 @@ extern "C" {
 #include "ds_types.h"
 #include "ds_atomic.h"
 #include "ds_allocator.h"
+#include "ds_string.h"
 #include "ds_log.h"
 
 #ifdef DS_PROFILE
@@ -73,7 +74,7 @@ extern "C" {
 		else												\
 		{												\
 			u8 __msg_buf[LOG_MAX_MESSAGE_SIZE];							\
-			const utf8 __fmsg = utf8_format_buffered(__msg_buf, LOG_MAX_MESSAGE_SIZE, msg, __VA_ARGS__); \
+			const utf8 __fmsg = Utf8FormatBuffered(__msg_buf, LOG_MAX_MESSAGE_SIZE, msg, __VA_ARGS__); \
 			log(T_ASSERT, S_FATAL, "assertion failed at %s:%u in function %s - %k", file, line, func, &__fmsg); \
 			Breakpoint(1);										\
  			fatal_cleanup_and_exit(ds_thread_self_tid());						\

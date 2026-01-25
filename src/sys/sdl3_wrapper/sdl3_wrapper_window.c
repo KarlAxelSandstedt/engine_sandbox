@@ -341,7 +341,7 @@ u32 sdl3_wrapper_exit_text_input_mode(struct native_window *native)
 
 utf8 sdl3_wrapper_utf8_get_clipboard(struct arena *mem)
 {
-	utf8 ret = utf8_empty();
+	utf8 ret = Utf8Empty();
 	if (SDL_HasClipboardText())
 	{	
 		utf8 utf8_null =  { .buf = (u8*) SDL_GetClipboardText() };
@@ -349,7 +349,7 @@ utf8 sdl3_wrapper_utf8_get_clipboard(struct arena *mem)
 		{
 			u32 len = 0;
 			u64 size = 0;
-			while (utf8_read_codepoint(&size, &utf8_null, size))
+			while (Utf8ReadCodepoint(&size, &utf8_null, size))
 			{
 				len += 1;
 			}

@@ -29,12 +29,12 @@ struct led_project_menu	led_project_menu_alloc(void)
 	{
 		.projects_folder_allocated = 0,
 		.projects_folder_refresh = 0,
-		.selected_path = utf8_empty(),
+		.selected_path = Utf8Empty(),
 		.dir_nav = directory_navigator_alloc(4096, 64, 64),
 		.dir_list = ui_list_init(AXIS_2_Y, 200.0f, 24.0f, UI_SELECTION_UNIQUE),
 		.window = HI_NULL_INDEX,
 		.popup_new_project = ui_popup_null(),
-		.utf8_new_project = utf8_empty(),
+		.utf8_new_project = Utf8Empty(),
 		.input_line_new_project = ui_text_input_empty(),
 	};
 
@@ -102,7 +102,7 @@ struct led *led_alloc(void)
 		}
 	}
 	
-	g_editor->viewport_id = utf8_format(&sys_win->mem_persistent, "viewport_%u", g_editor->window);
+	g_editor->viewport_id = Utf8Format(&sys_win->mem_persistent, "viewport_%u", g_editor->window);
 	g_editor->node_pool = GPoolAlloc(NULL, 4096, struct led_node, GROWABLE);
 	g_editor->node_map = hash_map_alloc(NULL, 4096, 4096, GROWABLE);
 	g_editor->node_marked_list = dll_init(struct led_node);
@@ -130,7 +130,7 @@ struct led *led_alloc(void)
 	shape_stub->hull = dcel_box(&sys_win->mem_persistent, vec3_inline(0.5f, 0.5f, 0.5f));
 
 	struct rigid_body_prefab *prefab_stub = string_database_address(&g_editor->rb_prefab_db, STRING_DATABASE_STUB_INDEX);
-	prefab_stub->shape = string_database_reference(&g_editor->cs_db, utf8_inline("")).index;
+	prefab_stub->shape = string_database_reference(&g_editor->cs_db, Utf8Inline("")).index;
 	prefab_stub->density = 1.0f;
 	prefab_stub->restitution = 0.0f;
 	prefab_stub->friction = 0.0f;

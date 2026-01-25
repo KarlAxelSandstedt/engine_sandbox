@@ -126,8 +126,8 @@ extern "C" {
 	
 	/********************  Overflow Checking ********************/
 	
-	#define	u64_AddReturnOverflow(dst_addr, src1, src2)		__builtin_add_overflow(src1, src2, dst_addr)
-	#define	u64_MulReturnOverflow(dst_addr, src1, src2)		__builtin_mul_overflow(src1, src2, dst_addr)
+	#define	U64AddReturnOverflow(dst_addr, src1, src2)		__builtin_add_overflow(src1, src2, dst_addr)
+	#define	U64MulReturnOverflow(dst_addr, src1, src2)		__builtin_mul_overflow(src1, src2, dst_addr)
 	
 	/********************  Bit Manipulation ********************/
 	
@@ -277,9 +277,9 @@ extern "C" {
 	
 	/******************************************** Overflow Checking ********************************************/
 	
-	#define u64_AddReturnOverflow(dst_addr, src1, src2)	((u64) _addcarry_u64(0, src1, src2, dst_addr))
+	#define U64AddReturnOverflow(dst_addr, src1, src2)	((u64) _addcarry_u64(0, src1, src2, dst_addr))
 	
-	__forceinline u64 u64_MulReturnOverflow(u64 *dst, const u64 src1, const u64 src2)
+	__forceinline u64 U64MulReturnOverflow(u64 *dst, const u64 src1, const u64 src2)
 	{
 		u64 high;
 		*dst = _umul128(src1, src2, &high);	

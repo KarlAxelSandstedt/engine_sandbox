@@ -122,7 +122,7 @@ enum fs_error wasm_file_try_create(struct arena *mem, struct file *file, const c
 	{
 		file_status status;
 		file_status_file(&status, file);
-		file->path = utf8_cstr(mem, filename);
+		file->path = Utf8Cstr(mem, filename);
 		file->type = file_status_type(&status);
 	}
 
@@ -160,7 +160,7 @@ enum fs_error wasm_file_try_open(struct arena *mem, struct file *file, const cha
 
 	if (err == FS_SUCCESS)
 	{
-		file->path = utf8_cstr(mem, filename);
+		file->path = Utf8Cstr(mem, filename);
 		file->type = FILE_REGULAR;
 	}
 
@@ -211,7 +211,7 @@ enum fs_error wasm_file_try_create_at_cwd(struct arena *mem, struct file *file, 
 	{
 		.handle = AT_FDCWD,
 		.type = FILE_DIRECTORY,
-		.path = utf8_empty(),
+		.path = Utf8Empty(),
 	};
 
 	return wasm_file_try_create(mem, file, filename, &cwd, truncate);
@@ -223,7 +223,7 @@ enum fs_error wasm_file_try_open_at_cwd(struct arena *mem, struct file *file, co
 	{
 		.handle = AT_FDCWD,
 		.type = FILE_DIRECTORY,
-		.path = utf8_empty(),
+		.path = Utf8Empty(),
 	};
 
 	return wasm_file_try_open(mem, file, filename, &cwd, writeable);
@@ -235,7 +235,7 @@ enum fs_error wasm_directory_try_create_at_cwd(struct arena *mem, struct file *d
 	{
 		.handle = AT_FDCWD,
 		.type = FILE_DIRECTORY,
-		.path = utf8_empty(),
+		.path = Utf8Empty(),
 	};
 
 	return wasm_directory_try_create(mem, dir, filename, &cwd);
@@ -483,7 +483,7 @@ utf8 wasm_cwd_get(struct arena *mem)
 		cwd.size *= 2;	
 		if (errno != ENOMEM || cwd.size > mem->mem_left)
 		{
-			return utf8_empty();
+			return Utf8Empty();
 		}
 		cwd.buf = ArenaPush(mem, cwd.size);
 	}
@@ -491,7 +491,7 @@ utf8 wasm_cwd_get(struct arena *mem)
 	u64 offset = 0;
 	while (1)
 	{
-		const u32 codepoint = utf8_read_codepoint(&offset, &cwd, offset);
+		const u32 codepoint = Utf8ReadCodepoint(&offset, &cwd, offset);
 		if (codepoint == '\0')
 		{
 			break;
@@ -541,7 +541,7 @@ enum fs_error wasm_directory_push_entries(struct arena *mem, struct vector *vec,
 	while ((ent = readdir(dir_stream)) != NULL)
 	{
 		struct file *file = vector_push(vec).address;
-		file->path = utf8_cstr(mem, ent->d_name);
+		file->path = Utf8Cstr(mem, ent->d_name);
 		if (file->path.len == 0)
 		{
 			ret = FS_BUFFER_TO_SMALL;

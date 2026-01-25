@@ -36,7 +36,7 @@ u32			  g_cmd_internal_debug_print_index;
 
 static void cmd_internal_debug_print(void)
 {
-	utf8_debug_print(g_queue->cmd_exec->arg[0].utf8);
+	Utf8DebugPrint(g_queue->cmd_exec->arg[0].utf8);
 	ThreadFree256B(g_queue->cmd_exec->arg[0].utf8.buf);
 }
 
@@ -46,7 +46,7 @@ void cmd_alloc(void)
 	g_cmd_f = stack_cmd_function_alloc(NULL, 128, STACK_GROWABLE);
 	mem_persistent = ArenaAlloc1MB();
 
-	const utf8 debug_print_str = utf8_inline("debug_print");
+	const utf8 debug_print_str = Utf8Inline("debug_print");
 	g_cmd_internal_debug_print_index = cmd_function_register(debug_print_str, 1, &cmd_internal_debug_print).index;
 }
 
@@ -104,14 +104,14 @@ static void cmd_tokenize_string(struct cmd *cmd)
 
 	while (codepoints_left && (text[i] == ' ' || text[i] == '\t' || text[i] == '\n'))
 	{
-		utf8_read_codepoint(&i, &cmd->string, i);
+		Utf8ReadCodepoint(&i, &cmd->string, i);
 		codepoints_left -= 1;
 	}
 
 	token_start = text;
 	while (codepoints_left && (text[i] != ' ' && text[i] != '\t' && text[i] != '\n'))
 	{
-		utf8_read_codepoint(&i, &cmd->string, i);
+		Utf8ReadCodepoint(&i, &cmd->string, i);
 		token_length += 1;
 		codepoints_left -= 1;
 	}
@@ -123,7 +123,7 @@ static void cmd_tokenize_string(struct cmd *cmd)
 	{
 		cmd->function = g_cmd_f.arr + g_cmd_internal_debug_print_index;
 		u8 *buf = ThreadAlloc256B();
-		cmd->arg[0].utf8 = utf8_format_buffered(buf, 256, "Error in tokenizing %k: invalid command name", (char *) &cmd->string); 
+		cmd->arg[0].utf8 = Utf8FormatBuffered(buf, 256, "Error in tokenizing %k: invalid command name", (char *) &cmd->string); 
 		return;
 	}
 
@@ -144,7 +144,7 @@ static void cmd_tokenize_string(struct cmd *cmd)
 		if (token_count == cmd->function->args_count)
 		{
 			u8 *buf = ThreadAlloc256B();
-			cmd->arg[0].utf8 = utf8_format_buffered(buf, 256, "Error in tokenizing %k: command expects %u arguments.", &cmd->string, cmd->function->args_count); 
+			cmd->arg[0].utf8 = Utf8FormatBuffered(buf, 256, "Error in tokenizing %k: command expects %u arguments.", &cmd->string, cmd->function->args_count); 
 			cmd->function = g_cmd_f.arr + g_cmd_internal_debug_print_index;
 			break;
 		}
@@ -159,7 +159,7 @@ static void cmd_tokenize_string(struct cmd *cmd)
 			token_start += 1;
 			while (codepoints_left && text[i] != '"')
 			{
-				utf8_read_codepoint(&i, &cmd->string, i);	
+				Utf8ReadCodepoint(&i, &cmd->string, i);	
 				token_length += 1;
 				codepoints_left -= 1;
 			}
@@ -168,7 +168,7 @@ static void cmd_tokenize_string(struct cmd *cmd)
 			{
 				cmd->function = g_cmd_f.arr + g_cmd_internal_debug_print_index;
 				u8 *buf = ThreadAlloc256B();
-				cmd->arg[0].utf8 = utf8_format_buffered(buf, 256, "Error in tokenizing %k: non-closed string beginning.", &cmd->string); 
+				cmd->arg[0].utf8 = Utf8FormatBuffered(buf, 256, "Error in tokenizing %k: non-closed string beginning.", &cmd->string); 
 				break;
 			}
 				
@@ -233,7 +233,7 @@ static void cmd_tokenize_string(struct cmd *cmd)
 		}
 
 		token_string = (utf8) { .buf = token_start, .len = token_length, .size = token_length };
-		struct parse_retval ret = { .op_result = PARSE_SUCCESS };
+		struct parseRetval ret = { .op_result = PARSE_SUCCESS };
 		switch (token_type)
 		{
 			case CMD_TOKEN_STRING:
@@ -243,19 +243,19 @@ static void cmd_tokenize_string(struct cmd *cmd)
 
 			case CMD_TOKEN_I64:
 			{
-				ret = i64_utf8(token_string);
+				ret = I64Utf8(token_string);
 				cmd->arg[token_count++].i64 = ret.i64;
 			} break;
 
 			case CMD_TOKEN_U64:
 			{
-				ret = u64_utf8(token_string);
+				ret = U64Utf8(token_string);
 				cmd->arg[token_count++].u64 = ret.u64;
 			} break;
 
 			case CMD_TOKEN_F64:
 			{
-				cmd->arg[token_count++].f64 = f64_utf8(&tmp_arena, token_string);
+				cmd->arg[token_count++].f64 = F64Utf8(&tmp_arena, token_string);
 			} break;
 
 			case CMD_TOKEN_INVALID:
@@ -272,17 +272,17 @@ static void cmd_tokenize_string(struct cmd *cmd)
 			{
 				case PARSE_UNDERFLOW: 
 				{ 
-					cmd->arg[0].utf8 = utf8_format_buffered(buf, 256, "Error in tokenizing %k: signed integer underflow in argument %u", &cmd->string, token_count); 
+					cmd->arg[0].utf8 = Utf8FormatBuffered(buf, 256, "Error in tokenizing %k: signed integer underflow in argument %u", &cmd->string, token_count); 
 				} break;
 
 				case PARSE_OVERFLOW: 
 				{ 
-					cmd->arg[0].utf8 = utf8_format_buffered(buf, 256, "Error in tokenizing %k: integer overflow in argument %u", &cmd->string, token_count); 
+					cmd->arg[0].utf8 = Utf8FormatBuffered(buf, 256, "Error in tokenizing %k: integer overflow in argument %u", &cmd->string, token_count); 
 				} break;
 
 				case PARSE_STRING_INVALID: 
 				{ 
-					g_queue->cmd_exec->arg[0].utf8 = utf8_format_buffered(buf, 256, "Error in tokenizing %k: unexpected character in argument %k", &cmd->string, &token_string); 
+					g_queue->cmd_exec->arg[0].utf8 = Utf8FormatBuffered(buf, 256, "Error in tokenizing %k: unexpected character in argument %k", &cmd->string, &token_string); 
 				} break;
 			}
 			break;
@@ -300,7 +300,7 @@ void cmd_queue_execute(void)
 		next = g_queue->cmd_exec->header.next;
 		if (g_queue->cmd_exec->args_type == CMD_ARGS_TOKEN)
 		{
-			//utf8_debug_print(g_queue->cmd_exec->string);
+			//Utf8DebugPrint(g_queue->cmd_exec->string);
 			cmd_tokenize_string(g_queue->cmd_exec);
 		}
 
@@ -338,7 +338,7 @@ struct slot cmd_function_register(const utf8 name, const u32 args_count, void (*
 		slot.address = g_cmd_f.arr + g_cmd_f.next;
 		stack_cmd_function_push(&g_cmd_f, cmd_f);
 	
-		const u32 key = utf8_hash(name);
+		const u32 key = Utf8Hash(name);
 		hash_map_add(g_name_to_cmd_f_map, key, slot.index);
 	}
 	else
@@ -351,11 +351,11 @@ struct slot cmd_function_register(const utf8 name, const u32 args_count, void (*
 
 struct slot cmd_function_lookup(const utf8 name)
 {
-	const u32 key = utf8_hash(name);
+	const u32 key = Utf8Hash(name);
 	struct slot slot = { .index = hash_map_first(g_name_to_cmd_f_map, key), .address = NULL };
 	for (; slot.index != U32_MAX; slot.index = hash_map_next(g_name_to_cmd_f_map, slot.index))
 	{
-		if (utf8_equivalence(g_cmd_f.arr[slot.index].name, name))
+		if (Utf8Equivalence(g_cmd_f.arr[slot.index].name, name))
 		{
 			slot.address = g_cmd_f.arr + slot.index;
 			break;
@@ -370,7 +370,7 @@ void cmd_submit_f(struct arena *mem, const char *format, ...)
 	va_list args;
 	va_start(args, format);
 
-	cmd_submit_utf8(utf8_format_variadic(mem, format, args));
+	cmd_submit_utf8(Utf8FormatVariadic(mem, format, args));
 
 	va_end(args);
 }
@@ -380,7 +380,7 @@ void cmd_queue_submit_f(struct arena *mem, struct cmd_queue *queue, const char *
 	va_list args;
 	va_start(args, format);
 
-	cmd_queue_submit_utf8(queue, utf8_format_variadic(mem, format, args));
+	cmd_queue_submit_utf8(queue, Utf8FormatVariadic(mem, format, args));
 
 	va_end(args);
 }
@@ -475,7 +475,7 @@ void cmd_queue_submit_f_next_frame(struct arena *mem, struct cmd_queue *queue, c
 	va_list args;
 	va_start(args, format);
 
-	cmd_queue_submit_utf8_next_frame(queue, utf8_format_variadic(mem, format, args));
+	cmd_queue_submit_utf8_next_frame(queue, Utf8FormatVariadic(mem, format, args));
 
 	va_end(args);
 }
@@ -485,7 +485,7 @@ void cmd_submit_f_next_frame(struct arena *mem, const char *format, ...)
 	va_list args;
 	va_start(args, format);
 
-	cmd_queue_submit_utf8_next_frame(g_queue, utf8_format_variadic(mem, format, args));
+	cmd_queue_submit_utf8_next_frame(g_queue, Utf8FormatVariadic(mem, format, args));
 
 	va_end(args);
 }

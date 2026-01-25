@@ -39,7 +39,7 @@ u32 sdl3_wrapper_event_consume(struct system_event *event)
 				event->utf8.buf = (u8 *) ev.text.text;
 				event->utf8.len = 0;
 				u64 offset = 0;
-				while (utf8_read_codepoint(&offset, &event->utf8, offset))
+				while (Utf8ReadCodepoint(&offset, &event->utf8, offset))
 				{
 					event->utf8.len += 1;
 				}

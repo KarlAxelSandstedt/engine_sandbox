@@ -393,7 +393,7 @@ struct ui_node;
 typedef struct ui_text_selection
 {
 	const struct ui_node *	node;
-	struct text_layout *	layout;
+	struct textLayout *	layout;
 	vec4			color;
 	u32			low;
 	u32			high;
@@ -697,7 +697,7 @@ void		ui_frame_end(void);				/* end ui frame 		*/
 								   to the node into the text edit buffer and select
 								   the whole string. */
 #define		UI_TEXT_ATTACHED		((u64) 1 << 39) /* text is attached to node */
-#define		UI_TEXT_ALLOW_OVERFLOW		((u64) 1 << 40) /* calculate text_layout using an infinite line width  */
+#define		UI_TEXT_ALLOW_OVERFLOW		((u64) 1 << 40) /* calculate textLayout using an infinite line width  */
 #define		UI_TEXT_EXTERNAL		((u64) 1 << 41) /* Ignore any text given in node identifier string
 								   at allocation and instead pick text from top of 
 								   stack_text_external */
@@ -717,7 +717,7 @@ void		ui_frame_end(void);				/* end ui frame 		*/
 
 /******************** Implicit control flags (DO NOT SET THESE YOURSELF!) ********************/
 #define		UI_NON_HASHED			((u64) 1 << 55)	/* Non-hashed node; => non-interactable  */
-#define		UI_TEXT_LAYOUT_POSTPONED	((u64) 1 << 56) /* text_layout is calculated after violation solving  */
+#define		UI_TEXT_LAYOUT_POSTPONED	((u64) 1 << 56) /* textLayout is calculated after violation solving  */
 #define		UI_PAD				((u64) 1 << 57) /* padding node */
 #define		UI_PAD_FILL			((u64) 1 << 58)	/* pad size such that parent node size is completely 
 								   used up by children */
@@ -751,7 +751,7 @@ struct ui_node
 	enum alignment_x	text_align_x;
 	enum alignment_y	text_align_y;
 	vec2			text_pad;
-	struct text_layout *	layout_text;
+	struct textLayout *	layout_text;
 
 	/* building position (relative) and size (in pixels); not taking into account the hierarchy */
 	vec2		layout_position;	
@@ -959,8 +959,8 @@ void	ui_external_text_push(const utf32 text);
 void	ui_external_text_set(const utf32 text);
 void	ui_external_text_pop();
 
-void	ui_external_text_layout_push(struct text_layout *text_layout, const utf32 text);
-void	ui_external_text_layout_set(struct text_layout *text_layout, const utf32 text);
+void	ui_external_text_layout_push(struct textLayout *textLayout, const utf32 text);
+void	ui_external_text_layout_set(struct textLayout *textLayout, const utf32 text);
 void	ui_external_text_layout_pop();
 
 void	ui_external_text_input_push(struct ui_text_input *text_input);
@@ -1299,7 +1299,7 @@ we need several values. The process looks like
 	(node->size_type[X] == TEXT || node->size_type[T] == TEXT)
  	=> 
 	{ 
-		node->text_layout = text_layout_calulcations
+		node->textLayout = textLayout_calulcations
 		node->size[0] = (node->size_type[X] == TEXT)
 			? text_size[0]
 			: normal_size_calculation(X)
@@ -1312,7 +1312,7 @@ we need several values. The process looks like
 	(node->size_type[X] != TEXT && node->size_type[T] != TEXT)
  	=> 
 	{ 
-		node->text_layout = NULL;
+		node->textLayout = NULL;
 		node->flag = FLAG_TEXT_LAYOUT_POSTPONED
 		node->size = normal_size_calculation(X) 
 		node->size = normal_size_calculation(Y) 
@@ -1327,7 +1327,7 @@ we need several values. The process looks like
 		line_width = (FLAG_TEXT_ALLOW_LINE_OVERFLOW)
 			   ? F32_INFINITY
 			   : f32_max(node->pixel_size[0] - 2.0f-pad[0], 0.0f);
-		node->text_layout = text_layout_calulcations
+		node->textLayout = textLayout_calulcations
 	
 	
 

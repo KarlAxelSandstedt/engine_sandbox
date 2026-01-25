@@ -30,7 +30,7 @@ f32 ui_field_f32(const f32 value, const intv range, const utf8 formatted)
 	f32 ret = value;
 	if (node->input.focused && g_ui->inter.key_pressed[DS_ENTER])
 	{
-		const f32 parse_value = f32_utf32(g_ui->mem_frame, node->input.text);
+		const f32 parse_value = F32Utf32(g_ui->mem_frame, node->input.text);
 		if (!f32_test_nan(parse_value))
 		{
 			ret = f32_clamp(parse_value, range.low, range.high);
@@ -53,7 +53,7 @@ u64 ui_field_u64(const u64 value, const intvu64 range, const utf8 formatted)
 	u64 ret = value;
 	if ((node->inter & UI_INTER_FOCUS) && g_ui->inter.key_pressed[DS_ENTER])
 	{
-		struct parse_retval parse = u64_utf32(node->input.text);
+		struct parseRetval parse = U64Utf32(node->input.text);
 		if (parse.op_result != PARSE_STRING_INVALID) 
 		{ 
 			if (parse.op_result == PARSE_OVERFLOW || range.high < parse.u64)
@@ -83,7 +83,7 @@ i64 ui_field_i64(const i64 value, const intvi64 range, const utf8 formatted)
 	i64 ret = value;
 	if ((node->inter & UI_INTER_FOCUS) && g_ui->inter.key_pressed[DS_ENTER])
 	{
-		struct parse_retval parse = i64_utf32(node->input.text);
+		struct parseRetval parse = I64Utf32(node->input.text);
 		if (parse.op_result != PARSE_STRING_INVALID) 
 		{ 
 			if (parse.op_result == PARSE_UNDERFLOW || parse.i64 < range.low)
@@ -111,10 +111,10 @@ utf8 ui_field_utf8(const utf8 formatted)
 	struct slot slot = ui_node_alloc(UI_INTER_LEFT_CLICK | UI_INTER_FOCUS_FLAGS | UI_TEXT_EDIT | UI_TEXT_EDIT_INTER_BUF_ON_FOCUS | UI_DRAW_BORDER | UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW, &formatted);
 	struct ui_node *node = slot.address;
 
-	utf8 ret = utf8_empty();
+	utf8 ret = Utf8Empty();
 	if ((node->inter & UI_INTER_FOCUS) && g_ui->inter.key_clicked[DS_ENTER])
 	{
-		ret = utf8_utf32(g_ui->mem_frame, node->input.text);
+		ret = Utf8Utf32(g_ui->mem_frame, node->input.text);
 		cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_disable \"%k\"", &node->id);
 	}
 
@@ -126,7 +126,7 @@ f32 ui_field_f32_f(const f32 value, const intv range, const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
-	const utf8 id = utf8_format_variadic(g_ui->mem_frame, fmt, args);
+	const utf8 id = Utf8FormatVariadic(g_ui->mem_frame, fmt, args);
 	va_end(args);
 
 	return ui_field_f32(value, range, id);
@@ -136,7 +136,7 @@ u64 ui_field_u64_f(const u64 value, const intvu64 range, const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
-	const utf8 id = utf8_format_variadic(g_ui->mem_frame, fmt, args);
+	const utf8 id = Utf8FormatVariadic(g_ui->mem_frame, fmt, args);
 	va_end(args);
 
 	return ui_field_u64(value, range, id);
@@ -146,7 +146,7 @@ i64 ui_field_i64_f(const i64 value, const intvi64 range, const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
-	const utf8 id = utf8_format_variadic(g_ui->mem_frame, fmt, args);
+	const utf8 id = Utf8FormatVariadic(g_ui->mem_frame, fmt, args);
 	va_end(args);
 
 	return ui_field_i64(value, range, id);
@@ -156,7 +156,7 @@ utf8 ui_field_utf8_f(const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
-	const utf8 id = utf8_format_variadic(g_ui->mem_frame, fmt, args);
+	const utf8 id = Utf8FormatVariadic(g_ui->mem_frame, fmt, args);
 	va_end(args);
 
 	return ui_field_utf8(id);
@@ -182,7 +182,7 @@ void ui_list_push(struct ui_list *list, const char *format, ...)
 {	
 	va_list args;
 	va_start(args, format);
-	utf8 id = utf8_format_variadic(g_ui->mem_frame, format, args);
+	utf8 id = Utf8FormatVariadic(g_ui->mem_frame, format, args);
 	va_end(args);
 
 	list->cache_count = list->frame_count;
@@ -298,7 +298,7 @@ struct slot ui_list_entry_alloc_f(struct ui_list *list, const char *format, ...)
 {
 	va_list args;
 	va_start(args, format);
-	utf8 id = utf8_format_variadic(g_ui->mem_frame, format, args);
+	utf8 id = Utf8FormatVariadic(g_ui->mem_frame, format, args);
 	va_end(args);
 
 	return ui_list_entry_alloc(list, id);
@@ -319,7 +319,7 @@ struct ui_node_cache ui_list_entry_alloc_cached(struct ui_list *list, const utf8
 	ui_size(list->axis, ui_size_unit(intv_entry))
 	ui_size(1-list->axis, ui_size_perc(1.0f))
 	ui_recursive_interaction(rec_flags)
-	new_cache = ui_node_alloc_cached(UI_INTER_RECURSIVE_ROOT | UI_UNIT_POSITIVE_DOWN | UI_DRAW_BORDER, id, utf8_empty(), cache);
+	new_cache = ui_node_alloc_cached(UI_INTER_RECURSIVE_ROOT | UI_UNIT_POSITIVE_DOWN | UI_DRAW_BORDER, id, Utf8Empty(), cache);
 
 	struct ui_node *node = new_cache.frame_node;
 	if (node->inter & UI_INTER_SELECT)
@@ -519,7 +519,7 @@ void ui_timeline_row_push(struct timeline_config *config, const u32 row, const c
 
 	va_list args;
 	va_start(args, title_format);
-	utf8 title = utf8_format_variadic(g_ui->mem_frame, title_format, args);
+	utf8 title = Utf8FormatVariadic(g_ui->mem_frame, title_format, args);
 	va_end(args);
 	
 	ui_width(ui_size_perc(1.0f))
@@ -635,7 +635,7 @@ u64 ui_button_f(const u64 flags, const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
-	utf8 id = utf8_format_variadic(g_ui->mem_frame, fmt, args);
+	utf8 id = Utf8FormatVariadic(g_ui->mem_frame, fmt, args);
 	va_end(args);
 
 	struct ui_node *button = ui_node_alloc(UI_INTER_LEFT_CLICK | flags, &id).address;
@@ -646,18 +646,18 @@ void ui_cmd_console(struct cmd_console *console, const char *fmt, ...)
 {
 	va_list args;
 	va_start(args, fmt);
-	utf8 id = utf8_format_variadic(g_ui->mem_frame, fmt, args);
+	utf8 id = Utf8FormatVariadic(g_ui->mem_frame, fmt, args);
 	va_end(args);
 
 	struct slot slot;
 	struct ui_node *line;
 	ui_flags(UI_DRAW_BACKGROUND | UI_DRAW_BORDER | UI_DRAW_ROUNDED_CORNERS)
-	slot = ui_text_input(&console->prompt, utf32_utf8(g_ui->mem_frame, utf8_inline("Command Line...")), id);
+	slot = ui_text_input(&console->prompt, Utf32Utf8(g_ui->mem_frame, Utf8Inline("Command Line...")), id);
 	line = slot.address;
 
 	if ((line->inter & UI_INTER_FOCUS) && g_ui->inter.key_clicked[DS_ENTER])
 	{
-		cmd_submit_utf8(utf8_utf32(g_ui->mem_frame, console->prompt.text));
+		cmd_submit_utf8(Utf8Utf32(g_ui->mem_frame, console->prompt.text));
 		cmd_submit_f(g_ui->mem_frame, "ui_text_input_flush \"%k\"", &line->id);
 	}
 }
@@ -713,7 +713,7 @@ void ui_popup_build(void)
 					ui_flags(UI_DRAW_BORDER | UI_DRAW_ROUNDED_CORNERS)
 					ui_width(ui_size_perc(1.0f))
 					ui_text_align_x(ALIGN_LEFT)
-					line = ui_text_input_f(popup->prompt, utf32_empty(), "###popup_input_%u", popup->window).address;
+					line = ui_text_input_f(popup->prompt, Utf32Empty(), "###popup_input_%u", popup->window).address;
 						
 					if (line->inter & UI_INTER_LEFT_CLICK)
 					{
@@ -723,7 +723,7 @@ void ui_popup_build(void)
 					if ((line->inter & UI_INTER_FOCUS) && g_ui->inter.key_clicked[DS_ENTER] && popup->state != UI_POPUP_STATE_PENDING_VERIFICATION)
 					{
 						cmd_submit_f(g_ui->mem_frame, "ui_text_input_mode_disable \"%k\"", &line->id);
-						*popup->input = utf8_utf32_buffered(popup->input->buf, popup->input->size, popup->prompt->text);
+						*popup->input = Utf8Utf32Buffered(popup->input->buf, popup->input->size, popup->prompt->text);
 						popup->state = UI_POPUP_STATE_PENDING_VERIFICATION;
 					}
 
@@ -806,7 +806,7 @@ void ui_popup_utf8_display(struct ui_popup *popup, const utf8 display, const cha
 		if (popup->window != HI_NULL_INDEX)
 		{
 			struct system_window *win = system_window_address(popup->window);
-			popup->display1 = utf8_copy(&win->mem_persistent, display);
+			popup->display1 = Utf8Copy(&win->mem_persistent, display);
 			popup->type = UI_POPUP_UTF8_DISPLAY;
 			popup->state = UI_POPUP_STATE_RUNNING,
 
@@ -825,8 +825,8 @@ void ui_popup_utf8_input(struct ui_popup *popup, utf8 *input, struct ui_text_inp
 		if (popup->window != HI_NULL_INDEX)
 		{
 			struct system_window *win = system_window_address(popup->window);
-			popup->display1 = utf8_copy(&win->mem_persistent, description);
-			popup->display2 = utf8_copy(&win->mem_persistent, prefix);
+			popup->display1 = Utf8Copy(&win->mem_persistent, description);
+			popup->display2 = Utf8Copy(&win->mem_persistent, prefix);
 			popup->type = UI_POPUP_UTF8_INPUT;
 			popup->state = UI_POPUP_STATE_RUNNING;
 			popup->prompt = line;
@@ -848,9 +848,9 @@ void ui_popup_choice(struct ui_popup *popup, const utf8 description, const utf8 
 		{
 			struct system_window *win = system_window_address(popup->window);
 
-			popup->display1 = utf8_copy(&win->mem_persistent, description);
-			popup->display2 = utf8_copy(&win->mem_persistent, positive);
-			popup->display3 = utf8_copy(&win->mem_persistent, negative);
+			popup->display1 = Utf8Copy(&win->mem_persistent, description);
+			popup->display2 = Utf8Copy(&win->mem_persistent, positive);
+			popup->display3 = Utf8Copy(&win->mem_persistent, negative);
 			popup->type = UI_POPUP_CHOICE;
 			popup->state = UI_POPUP_STATE_RUNNING;
 			popup->yes = 0;
@@ -876,8 +876,8 @@ void ui_text_op(void)
 	/* start constructing text operation */ 
 	struct text_op op =
 	{
-		.str_copy = utf32_empty(),
-		.str_replace = utf32_empty(),
+		.str_copy = Utf32Empty(),
+		.str_replace = Utf32Empty(),
 		.cursor_new = g_ui->inter.text_edit->cursor,
 		.mark_new = g_ui->inter.text_edit->mark,
 	};
@@ -897,7 +897,7 @@ void ui_text_op(void)
 	if (replace.len)
 	{
 		const u64 len_left = edit->max_len - edit->len;
-		op.str_replace = utf32_utf8(g_ui->mem_frame, replace);
+		op.str_replace = Utf32Utf8(g_ui->mem_frame, replace);
 		if (len_left < op.str_replace.len)
 		{
 			op.str_replace.len = len_left;
@@ -916,8 +916,8 @@ void ui_text_op(void)
 				{
 					if (key_ctrl)
 					{
-						for (; op.cursor_new && is_wordbreak(edit->buf[op.cursor_new-1]); op.cursor_new -= 1);
-						for (; op.cursor_new && !is_wordbreak(edit->buf[op.cursor_new-1]); op.cursor_new -= 1);
+						for (; op.cursor_new && WordbreakCheck(edit->buf[op.cursor_new-1]); op.cursor_new -= 1);
+						for (; op.cursor_new && !WordbreakCheck(edit->buf[op.cursor_new-1]); op.cursor_new -= 1);
 					}
 					else
 					{
@@ -939,8 +939,8 @@ void ui_text_op(void)
 				{
 					if (key_ctrl)
 					{
-						for (; op.cursor_new < edit->len && !is_wordbreak(edit->buf[op.cursor_new]); op.cursor_new += 1);
-						for (; op.cursor_new < edit->len && is_wordbreak(edit->buf[op.cursor_new]); op.cursor_new += 1);
+						for (; op.cursor_new < edit->len && !WordbreakCheck(edit->buf[op.cursor_new]); op.cursor_new += 1);
+						for (; op.cursor_new < edit->len && WordbreakCheck(edit->buf[op.cursor_new]); op.cursor_new += 1);
 					}
 					else
 					{
@@ -964,8 +964,8 @@ void ui_text_op(void)
 					if (key_ctrl)
 					{
 						/* backtrack any leading wordbreakers, until we reach the end of a word */
-						for (; op.low && is_wordbreak(edit->buf[op.low-1]); op.low -= 1);
-						for (; op.low && !is_wordbreak(edit->buf[op.low-1]); op.low -= 1);
+						for (; op.low && WordbreakCheck(edit->buf[op.low-1]); op.low -= 1);
+						for (; op.low && !WordbreakCheck(edit->buf[op.low-1]); op.low -= 1);
 					}
 					else
 					{
@@ -986,8 +986,8 @@ void ui_text_op(void)
 				{
 					if (key_ctrl)
 					{
-						for (; op.high < edit->len && !is_wordbreak(edit->buf[op.high]); op.high += 1);
-						for (; op.high < edit->len && is_wordbreak(edit->buf[op.high]); op.high += 1);
+						for (; op.high < edit->len && !WordbreakCheck(edit->buf[op.high]); op.high += 1);
+						for (; op.high < edit->len && WordbreakCheck(edit->buf[op.high]); op.high += 1);
 					}
 					else
 					{
@@ -1048,7 +1048,7 @@ void ui_text_op(void)
 	/* do any potential clipboard setting before we potentially begin editting the string */
 	if (op.str_copy.len)
 	{
-		cstr_set_clipboard((const char *) utf8_utf32_null_terminated(g_ui->mem_frame, op.str_copy).buf);
+		cstr_set_clipboard((const char *) Utf8Utf32NullTerminated(g_ui->mem_frame, op.str_copy).buf);
 	}
 
 	/* apply text operation */
@@ -1117,7 +1117,7 @@ struct slot ui_text_input_f(struct ui_text_input *input, const utf32 unfocused_t
 {
 	va_list args;
 	va_start(args, fmt);
-	utf8 id = utf8_format_variadic(g_ui->mem_frame, fmt, args);
+	utf8 id = Utf8FormatVariadic(g_ui->mem_frame, fmt, args);
 	va_end(args);
 
 	return ui_text_input(input, unfocused_text, id);
@@ -1178,7 +1178,7 @@ u32 ui_dropdown_menu_f(struct ui_dropdown_menu *menu, const char *format, ...)
 {
 	va_list args;
 	va_start(args, format);
-	utf8 id = utf8_format_variadic(g_ui->mem_frame, format, args);
+	utf8 id = Utf8FormatVariadic(g_ui->mem_frame, format, args);
 	va_end(args);
 
 	return ui_dropdown_menu(menu, id);
@@ -1230,7 +1230,7 @@ struct slot ui_dropdown_menu_entry_f(struct ui_dropdown_menu *menu, const char *
 {
 	va_list args;
 	va_start(args, format);
-	utf8 id = utf8_format_variadic(g_ui->mem_frame, format, args);
+	utf8 id = Utf8FormatVariadic(g_ui->mem_frame, format, args);
 	va_end(args);
 
 	return ui_dropdown_menu_entry(menu, id);

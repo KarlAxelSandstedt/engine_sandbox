@@ -61,12 +61,12 @@ u32	cmd_ui_popup_build;
 
 void ui_init_global_state(void)
 {
-	cmd_function_register(utf8_inline("timeline_drag"), 4, &timeline_drag);
-	cmd_function_register(utf8_inline("ui_text_input_mode_enable"), 2, &ui_text_input_mode_enable);
-	cmd_function_register(utf8_inline("ui_text_input_flush"), 1, &ui_text_input_flush);
-	cmd_function_register(utf8_inline("ui_text_input_mode_disable"), 1, &ui_text_input_mode_disable);
-	cmd_ui_text_op = cmd_function_register(utf8_inline("ui_text_op"), 3, &ui_text_op).index;
-	cmd_ui_popup_build = cmd_function_register(utf8_inline("ui_popup_build"), 2, &ui_popup_build).index;
+	cmd_function_register(Utf8Inline("timeline_drag"), 4, &timeline_drag);
+	cmd_function_register(Utf8Inline("ui_text_input_mode_enable"), 2, &ui_text_input_mode_enable);
+	cmd_function_register(Utf8Inline("ui_text_input_flush"), 1, &ui_text_input_flush);
+	cmd_function_register(Utf8Inline("ui_text_input_mode_disable"), 1, &ui_text_input_mode_disable);
+	cmd_ui_text_op = cmd_function_register(Utf8Inline("ui_text_op"), 3, &ui_text_op).index;
+	cmd_ui_popup_build = cmd_function_register(Utf8Inline("ui_popup_build"), 2, &ui_popup_build).index;
 }
 
 struct ui_visual ui_visual_init(const vec4 background_color
@@ -172,15 +172,15 @@ struct ui *ui_alloc(void)
 	ui->stack_pad = stack_f32_alloc(NULL, 8, GROWABLE);
 	ui->frame_stack_text_selection = stack_ui_text_selection_alloc(NULL, 128, GROWABLE);
 
-	ui->inter.node_hovered = utf8_empty();
+	ui->inter.node_hovered = Utf8Empty();
 	ui->inter.text_edit_mode = 0;
-	ui->inter.text_edit_id = utf8_empty();
+	ui->inter.text_edit_id = Utf8Empty();
 	ui->inter.text_edit = text_edit_stub_ptr();
 
 	/* setup root stub values */
 	stack_u32_push(&ui->stack_parent, HI_ROOT_STUB_INDEX);
 	struct ui_node *stub = hierarchy_index_address(ui->node_hierarchy, HI_ROOT_STUB_INDEX);
-	stub->id = utf8_empty();
+	stub->id = Utf8Empty();
 	stub->semantic_size[AXIS_2_X] = ui_size_pixel(0.0f, 0.0f);
 	stub->semantic_size[AXIS_2_Y] = ui_size_pixel(0.0f, 0.0f);
 	stub->child_layout_axis = AXIS_2_X;
@@ -192,7 +192,7 @@ struct ui *ui_alloc(void)
 	stub->last_frame_touched = U64_MAX;
 
 	struct ui_node *orphan_root = hierarchy_index_address(ui->node_hierarchy, HI_ORPHAN_STUB_INDEX);
-	orphan_root->id = utf8_empty();
+	orphan_root->id = Utf8Empty();
 	orphan_root->semantic_size[AXIS_2_X] = ui_size_pixel(0.0f, 0.0f);
 	orphan_root->semantic_size[AXIS_2_Y] = ui_size_pixel(0.0f, 0.0f);
 	orphan_root->child_layout_axis = AXIS_2_X;
@@ -314,7 +314,7 @@ static struct slot ui_root_f(const char *format, ...)
 {
 	va_list args;
 	va_start(args, format);
-	utf8 id = utf8_format_variadic(g_ui->mem_frame, format, args);
+	utf8 id = Utf8FormatVariadic(g_ui->mem_frame, format, args);
 	va_end(args);
 
 	return ui_node_alloc(UI_FLAG_NONE, &id);
@@ -352,12 +352,12 @@ void ui_text_input_mode_enable(void)
 	{
 		const u32 buflen = sizeof(g_ui->inter.text_internal_buf) / sizeof(u32);
 		u32 *buf = g_ui->inter.text_internal_buf;
-		node->input.text = utf32_copy_buffered(buf, buflen, node->input.text);
+		node->input.text = Utf32CopyBuffered(buf, buflen, node->input.text);
 		ds_Assert(&node->input == text_edit);
 	}
 
 	g_ui->inter.text_edit_mode = 1;
-	g_ui->inter.text_edit_id = utf8_copy(g_ui->mem_frame, id);
+	g_ui->inter.text_edit_id = Utf8Copy(g_ui->mem_frame, id);
 	g_ui->inter.text_edit = text_edit;
 	g_ui->inter.text_edit->focused = 1;
 
@@ -373,7 +373,7 @@ void ui_text_input_mode_enable(void)
 void ui_text_input_mode_disable(void)
 {
 	const utf8 id = g_queue->cmd_exec->arg[0].utf8;
-	if (utf8_equivalence(id, g_ui->inter.text_edit_id))
+	if (Utf8Equivalence(id, g_ui->inter.text_edit_id))
 	{
 		system_window_text_input_mode_disable();
 		struct ui_node *node = ui_node_lookup(&g_ui->inter.text_edit_id).address;
@@ -384,7 +384,7 @@ void ui_text_input_mode_disable(void)
 		}
 
 		g_ui->inter.text_edit_mode = 0;
-		g_ui->inter.text_edit_id = utf8_empty();
+		g_ui->inter.text_edit_id = Utf8Empty();
 		g_ui->inter.text_edit->focused = 0;
 		g_ui->inter.text_edit = text_edit_stub_ptr();
 	}
@@ -393,7 +393,7 @@ void ui_text_input_mode_disable(void)
 void ui_text_input_flush(void)
 {
 	const utf8 id = g_queue->cmd_exec->arg[0].utf8;
-	if (utf8_equivalence(g_ui->inter.text_edit_id, id))
+	if (Utf8Equivalence(g_ui->inter.text_edit_id, id))
 	{
 		g_ui->inter.text_edit->text.len = 0;
 		g_ui->inter.text_edit->cursor = 0;
@@ -403,17 +403,17 @@ void ui_text_input_flush(void)
 
 struct ui_text_input ui_text_input_empty(void)
 {
-	return (struct ui_text_input) { .focused = 0, .cursor = 0, .mark = 0, .text = utf32_empty() };
+	return (struct ui_text_input) { .focused = 0, .cursor = 0, .mark = 0, .text = Utf32Empty() };
 }
 
 struct ui_text_input ui_text_input_buffered(u32 buf[], const u32 len)
 {
-	return (struct ui_text_input) { .focused = 0, .cursor = 0, .mark = 0, .text = utf32_buffered(buf, len) };
+	return (struct ui_text_input) { .focused = 0, .cursor = 0, .mark = 0, .text = Utf32Buffered(buf, len) };
 }
 
 struct ui_text_input ui_text_input_alloc(struct arena *mem, const u32 max_len)
 {
-	utf32 text = utf32_alloc(mem, max_len);
+	utf32 text = Utf32Alloc(mem, max_len);
 	return (text.max_len)
 		? (struct ui_text_input) { .focused = 0, .cursor = 0, .mark = 0, .text = text }
 		: ui_text_input_empty();
@@ -747,7 +747,7 @@ static void ui_layout_absolute_position(void)
 				const f32 line_width = (child->flags & UI_TEXT_ALLOW_OVERFLOW)
 					? F32_INFINITY
 					: f32_max(0.0f, child->pixel_size[0] - 2.0f*child->text_pad[0]);
-				child->layout_text = utf32_text_layout(g_ui->mem_frame, &child->input.text, line_width, TAB_SIZE, child->font);
+				child->layout_text = Utf32TextLayout(g_ui->mem_frame, &child->input.text, line_width, TAB_SIZE, child->font);
 			}
 		}
 	}
@@ -812,7 +812,7 @@ static u64 ui_node_set_interactions(const struct ui_node *node, const u64 inter_
 				break;
 			}
 
-			//utf8_debug_print(ancestor->id);
+			//Utf8DebugPrint(ancestor->id);
 			//fprintf(stderr, "\n\tSTART: ");
 			//inter_debug_print(ancestor->inter);
 
@@ -943,7 +943,7 @@ static void ui_identify_hovered_node(void)
 
 	if (index == HI_NULL_INDEX)
 	{
-		g_ui->inter.node_hovered = utf8_empty();
+		g_ui->inter.node_hovered = Utf8Empty();
 		return;
 	}
 	
@@ -991,7 +991,7 @@ static struct slot ui_text_selection_alloc(const struct ui_node *node, const vec
 	const struct ui_text_selection selection = 
 	{
 		.node = node,
-		.layout = utf32_text_layout_include_whitespace(g_ui->mem_frame, &node->input.text, line_width, TAB_SIZE, node->font),
+		.layout = Utf32TextLayoutIncludeWhitespace(g_ui->mem_frame, &node->input.text, line_width, TAB_SIZE, node->font),
 		.color = { color[0], color[1], color[2], color[3], },
 		.low = low,
 		.high = high,
@@ -1195,7 +1195,7 @@ static u32 internal_ui_pad(const u64 flags, const f32 value, const enum ui_size_
 	struct ui_node *parent = hierarchy_index_address(g_ui->node_hierarchy, parent_index);
 	const u32 non_layout_axis = 1 - parent->child_layout_axis;
 
-	node->id = utf8_empty();
+	node->id = Utf8Empty();
 	node->flags = flags | stack_u64_top(&g_ui->stack_flags) | UI_DEBUG_FLAGS;
 	node->last_frame_touched = g_ui->frame;
 	node->semantic_size[parent->child_layout_axis] = (type == UI_SIZE_PIXEL)
@@ -1228,7 +1228,7 @@ static u32 internal_ui_pad(const u64 flags, const f32 value, const enum ui_size_
 		ui_draw_bucket_add_node(draw_key, slot.index);
 	}
 
-	node->input.text = utf32_empty();
+	node->input.text = Utf32Empty();
 	node->font = NULL;
 	node->layout_text = NULL;
 
@@ -1299,7 +1299,7 @@ u32 ui_pad_fill(void)
 
 struct slot ui_node_alloc_non_hashed(const u64 flags)
 {
-	const utf8 id = utf8_empty();
+	const utf8 id = Utf8Empty();
 	return ui_node_alloc(flags | UI_NON_HASHED, &id);
 }
 
@@ -1312,12 +1312,12 @@ struct slot ui_node_lookup(const utf8 *id)
 {
 	struct slot slot = { .address = NULL, .index = U32_MAX };
 	struct ui_node *node;
-	const u32 key = utf8_hash(*id);
+	const u32 key = Utf8Hash(*id);
 	u32 index = hash_map_first(g_ui->node_map, key);
 	for (; index != HASH_NULL; index = hash_map_next(g_ui->node_map, index))
 	{
 		node = hierarchy_index_address(g_ui->node_hierarchy, index);
-		if (utf8_equivalence(node->id, *id))
+		if (Utf8Equivalence(node->id, *id))
 		{
 			slot.address = node;
 			slot.index = index;
@@ -1414,7 +1414,7 @@ struct ui_node_cache ui_node_alloc_cached(const u64 flags, const utf8 id, const 
 	struct slot slot;
 	if (cache.last_frame_touched+1 != g_ui->frame)
 	{
-		key = utf8_hash(id);
+		key = Utf8Hash(id);
 		slot = hierarchy_index_add(g_ui->node_hierarchy, stack_u32_top(&g_ui->stack_parent));
 		node = slot.address;
 		hash_map_add(g_ui->node_map, key, slot.index);
@@ -1491,8 +1491,8 @@ struct ui_node_cache ui_node_alloc_cached(const u64 flags, const utf8 id, const 
 					if (node->flags & UI_TEXT_EDIT_COPY_ON_FOCUS)
 					{
 						utf32 copy = (node->flags & (UI_TEXT_EXTERNAL | UI_TEXT_EXTERNAL_LAYOUT))
-							? utf32_copy(g_ui->mem_frame, stack_utf32_top(&g_ui->stack_external_text))
-							: utf32_utf8(g_ui->mem_frame, text);
+							? Utf32Copy(g_ui->mem_frame, stack_utf32_top(&g_ui->stack_external_text))
+							: Utf32Utf8(g_ui->mem_frame, text);
 
 						if (copy.len)
 						{
@@ -1533,7 +1533,7 @@ struct ui_node_cache ui_node_alloc_cached(const u64 flags, const utf8 id, const 
 			{
 				node->input.text = (node->flags & UI_TEXT_EXTERNAL)
 					? stack_utf32_top(&g_ui->stack_external_text)
-					: utf32_utf8(g_ui->mem_frame, text);
+					: Utf32Utf8(g_ui->mem_frame, text);
 
 				/* TODO wonky, would be nice to have it in immediate calculations, but wonky there as well... */
 				if (node->semantic_size[AXIS_2_X].type == UI_SIZE_TEXT)
@@ -1541,7 +1541,7 @@ struct ui_node_cache ui_node_alloc_cached(const u64 flags, const utf8 id, const 
 					node->semantic_size[AXIS_2_X].line_width = (node->flags & UI_TEXT_ALLOW_OVERFLOW)
 						? F32_INFINITY
 						: node->semantic_size[AXIS_2_X].line_width;
-					node->layout_text = utf32_text_layout(g_ui->mem_frame, &node->input.text, node->semantic_size[AXIS_2_X].line_width, TAB_SIZE, node->font);
+					node->layout_text = Utf32TextLayout(g_ui->mem_frame, &node->input.text, node->semantic_size[AXIS_2_X].line_width, TAB_SIZE, node->font);
 				}
 				else
 				{
@@ -1556,7 +1556,7 @@ struct ui_node_cache ui_node_alloc_cached(const u64 flags, const utf8 id, const 
 	}
 	else
 	{
-		node->input.text = utf32_empty();
+		node->input.text = Utf32Empty();
 		vec4_set(node->sprite_color, 0.0f, 0.0f, 0.0f, 0.0f);
 		node->font = NULL;
 		node->layout_text = NULL;
@@ -1654,7 +1654,7 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 	u32 text_len = formatted->len;
 	for (u32 i = 0; i < formatted->len; ++i)
 	{
-		const u32 codepoint = utf8_read_codepoint(&offset, formatted, offset);
+		const u32 codepoint = Utf8ReadCodepoint(&offset, formatted, offset);
 		if (codepoint == '#')
 		{
 			hash_count += 1;
@@ -1727,7 +1727,7 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 		node = slot.address;
 		if ((flags & UI_NON_HASHED) == 0)
 		{
-			key = utf8_hash(id);
+			key = Utf8Hash(id);
 			hash_map_add(g_ui->node_map, key, slot.index);
 		}
 		ds_Assert((flags & UI_NON_HASHED) == UI_NON_HASHED || id.len > 0);
@@ -1804,8 +1804,8 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 					if (node->flags & UI_TEXT_EDIT_COPY_ON_FOCUS)
 					{
 						utf32 copy = (node->flags & (UI_TEXT_EXTERNAL | UI_TEXT_EXTERNAL_LAYOUT))
-							? utf32_copy(g_ui->mem_frame, stack_utf32_top(&g_ui->stack_external_text))
-							: utf32_utf8(g_ui->mem_frame, (utf8) { .buf = formatted->buf, .len = text_len, .size = formatted->size });
+							? Utf32Copy(g_ui->mem_frame, stack_utf32_top(&g_ui->stack_external_text))
+							: Utf32Utf8(g_ui->mem_frame, (utf8) { .buf = formatted->buf, .len = text_len, .size = formatted->size });
 
 						if (copy.len)
 						{
@@ -1845,7 +1845,7 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 			{
 				node->input.text = (node->flags & UI_TEXT_EXTERNAL)
 					? stack_utf32_top(&g_ui->stack_external_text)
-					: utf32_utf8(g_ui->mem_frame, (utf8) { .buf = formatted->buf, .len = text_len, .size = formatted->size });
+					: Utf32Utf8(g_ui->mem_frame, (utf8) { .buf = formatted->buf, .len = text_len, .size = formatted->size });
 
 				/* TODO wonky, would be nice to have it in immediate calculations, but wonky there as well... */
 				if (node->semantic_size[AXIS_2_X].type == UI_SIZE_TEXT)
@@ -1853,7 +1853,7 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 					node->semantic_size[AXIS_2_X].line_width = (node->flags & UI_TEXT_ALLOW_OVERFLOW)
 						? F32_INFINITY
 						: node->semantic_size[AXIS_2_X].line_width;
-					node->layout_text = utf32_text_layout(g_ui->mem_frame, &node->input.text, node->semantic_size[AXIS_2_X].line_width, TAB_SIZE, node->font);
+					node->layout_text = Utf32TextLayout(g_ui->mem_frame, &node->input.text, node->semantic_size[AXIS_2_X].line_width, TAB_SIZE, node->font);
 				}
 				else
 				{
@@ -1868,7 +1868,7 @@ struct slot ui_node_alloc(const u64 flags, const utf8 *formatted)
 	}
 	else
 	{
-		node->input.text = utf32_empty();
+		node->input.text = Utf32Empty();
 		vec4_set(node->sprite_color, 0.0f, 0.0f, 0.0f, 0.0f);
 		node->font = NULL;
 		node->layout_text = NULL;
@@ -1946,7 +1946,7 @@ struct slot ui_node_alloc_f(const u64 flags, const char *format, ...)
 {
 	va_list args;
 	va_start(args, format);
-	utf8 id = utf8_format_variadic(g_ui->mem_frame, format, args);
+	utf8 id = Utf8FormatVariadic(g_ui->mem_frame, format, args);
 	va_end(args);
 
 	return ui_node_alloc(flags, &id);
@@ -2305,13 +2305,13 @@ void ui_external_text_pop(void)
 	stack_utf32_pop(&g_ui->stack_external_text);
 }
 
-void ui_external_text_layout_push(struct text_layout *layout, const utf32 text)
+void ui_external_text_layout_push(struct textLayout *layout, const utf32 text)
 {
 	stack_ptr_push(&g_ui->stack_external_text_layout, layout);
 	stack_utf32_push(&g_ui->stack_external_text, text);
 }
 
-void ui_external_text_layout_set(struct text_layout *layout, const utf32 text)
+void ui_external_text_layout_set(struct textLayout *layout, const utf32 text)
 {
 	stack_ptr_set(&g_ui->stack_external_text_layout, layout);
 	stack_utf32_set(&g_ui->stack_external_text, text);

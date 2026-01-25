@@ -54,7 +54,7 @@ void r_ui_draw(struct ui *ui)
 			{
 				const struct ui_node *n = hierarchy_index_address(ui->node_hierarchy, draw_node->index);
 				draw_node = draw_node->next;
-				struct text_line *line = n->layout_text->line;
+				struct textLine *line = n->layout_text->line;
 				for (u32 l = 0; l < n->layout_text->line_count; ++l)
 				{
 					total_glyph_count += line->glyph_count;

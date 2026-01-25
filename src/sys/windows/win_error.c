@@ -36,10 +36,10 @@ static void win_fatal_cleanup_and_exit(const u32 thread)
     		GetLocalTime(&local_time);
 
 		struct arena tmp = ArenaAlloc1MB();
-		const utf8 utf8_filename = utf8_format(&tmp, "%s_%s_latest.dmp"
+		const utf8 utf8_filename = Utf8Format(&tmp, "%s_%s_latest.dmp"
 				, DS_EXECUTABLE_CSTR
 				, DS_VERSION_CSTR);
-		//const utf8 utf8_filename = utf8_format(&tmp, "%s_%s_%u%u%u_%u%u%u.dmp", 
+		//const utf8 utf8_filename = Utf8Format(&tmp, "%s_%s_%u%u%u_%u%u%u.dmp", 
     		//           "engine_sandbox",
 		//	   "0_1", 
     		//           local_time.wYear,
@@ -48,7 +48,7 @@ static void win_fatal_cleanup_and_exit(const u32 thread)
     		//           local_time.wHour, 
 		//	   local_time.wMinute,
 		//	   local_time.wSecond);
-    		const char *filename = cstr_utf8(&tmp, utf8_filename);
+    		const char *filename = CstrUtf8(&tmp, utf8_filename);
 		struct file dump = file_null();
 		if (file_try_create_at_cwd(&tmp, &dump, filename, FILE_TRUNCATE) == FS_SUCCESS)
 		{
@@ -93,12 +93,12 @@ utf8 utf8_system_error_buffered(u8 *buf, const u32 bufsize)
 					 (DWORD) bufsize,
 					 NULL);
 
-	return (err_str.len > 0) ? err_str : utf8_empty();
+	return (err_str.len > 0) ? err_str : Utf8Empty();
 }
 
 utf8 utf8_nt_status_buffered(u8 *buf, const u32 bufsize, const NTSTATUS status)
 {
-	utf8 str = utf8_empty();
+	utf8 str = Utf8Empty();
 
 	HMODULE nt_handle;
 	GetModuleHandleEx(0, "ntdll.dll", &nt_handle);

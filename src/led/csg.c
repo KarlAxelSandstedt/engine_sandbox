@@ -130,7 +130,7 @@ struct slot csg_brush_add(struct csg *csg, const utf8 id)
 	}
 
 	void *buf = ThreadAlloc256B();
-	const utf8 heap_id = utf8_copy_buffered(buf, 256, id);
+	const utf8 heap_id = Utf8CopyBuffered(buf, 256, id);
 	struct slot slot = string_database_add_and_alias(&csg->brush_db, heap_id);
 	if (!slot.address)
 	{
