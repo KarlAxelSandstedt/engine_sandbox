@@ -266,6 +266,36 @@ typedef enum box_corner
 	BOX_CORNER_COUNT
 } box_corner;
 
+/* system identifiers for logger, profiler ... */
+enum system_id
+{
+	T_SYSTEM,
+	T_RENDERER,
+	T_PHYSICS,
+	T_CSG,
+	T_ASSET,
+	T_UTILITY,
+	T_PROFILER,
+	T_ASSERT,
+	T_GAME,
+	T_UI,
+	T_LED,
+	T_COUNT
+};
+
+/* system identifiers for logger, profiler ... */
+enum severity_id
+{
+	S_SUCCESS,
+	S_NOTE,
+	S_WARNING,
+	S_ERROR,
+	S_FATAL,
+	S_COUNT
+};
+
+
+
 #ifdef __cplusplus
 }
 #endif

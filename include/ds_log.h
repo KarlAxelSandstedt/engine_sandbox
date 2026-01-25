@@ -1,6 +1,6 @@
 /*
 ==========================================================================
-    Copyright (C) 2025 Axel Sandstedt 
+    Copyright (C) 2025, 2026 Axel Sandstedt 
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,17 +17,19 @@
 ==========================================================================
 */
 
-#ifndef __DS_LOG_H__
-#define __DS_LOG_H__
+#ifndef __DREAMSCAPE_LOG_H__
+#define __DREAMSCAPE_LOG_H__
 
-#include "ds_common.h"
+#ifdef __cplusplus
+extern "C" { 
+#endif
+
+#include <stdarg.h>
+
+#include "ds_allocator.h"
 
 #define LOG_MAX_MESSAGES		512
 #define LOG_MAX_MESSAGE_SIZE 		512
-
-#include <stdarg.h>
-#include "allocator.h"
-#include "ds_string.h"
 
 void 	log_init(struct arena *mem, const char *filepath);
 void 	log_shutdown();
@@ -48,6 +50,10 @@ void 	log_write_message(const enum system_id system, const enum severity_id seve
 #define log_string(system, severity, msg, ...)
 #define log(system, severity, msg, ...)
 
+#endif
+
+#ifdef __cplusplus
+} 
 #endif
 
 #endif

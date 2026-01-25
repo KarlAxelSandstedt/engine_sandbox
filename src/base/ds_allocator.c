@@ -23,7 +23,6 @@
 
 #endif
 
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -357,7 +356,6 @@ void ThreadBlockAllocatorAlloc(struct threadBlockAllocator *allocator, const u64
 	ds_StaticAssert(LOCAL_FREE_LOW <= LOCAL_FREE_HIGH, "");
 	ds_StaticAssert(1 <= LOCAL_FREE_LOW, "");
 
-	allocator->max_count = block_count;
 	const u64 mod = (block_size % DS_CACHE_LINE_UB);
 	u64 actual_block_size = (mod)
 		? DS_CACHE_LINE_UB + block_size + (DS_CACHE_LINE_UB - mod)
@@ -365,6 +363,10 @@ void ThreadBlockAllocatorAlloc(struct threadBlockAllocator *allocator, const u64
 
 	allocator->block_size = actual_block_size;
 	allocator->block = ds_Alloc(&allocator->mem_slot, block_count * allocator->block_size, HUGE_PAGES);
+
+	const u64 actual_block_count = allocator->mem_slot.size / actual_block_size;
+	allocator->max_count = actual_block_count;
+
 	ds_AssertString(((u64) allocator->block & (DS_CACHE_LINE_UB-1)) == 0, "allocator block array should be cacheline aligned");
 	if (!allocator->block)
 	{

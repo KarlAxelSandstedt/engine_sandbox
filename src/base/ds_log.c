@@ -1,6 +1,6 @@
 /*
 ==========================================================================
-    Copyright (C) 2025 Axel Sandstedt 
+    Copyright (C) 2025, 2026 Axel Sandstedt 
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,12 +17,13 @@
 ==========================================================================
 */
 
-#include "ds_common.h"
+#include "ds_base.h"
+
 #if __DS_PLATFORM__ == __DS_WEB__
 #include <emscripten/console.h>
 #endif
-#include "log.h"
-#include "sys_public.h"
+
+#if defined(DS_LOG)
 
 /*
  * message_write:
@@ -235,3 +236,5 @@ void log_write_message(const enum system_id system, const enum severity_id sever
 	/* sync-point, msg ready for writing */
 	AtomicStoreRel32(&msg->a_in_use_and_completed, 1);
 }
+
+#endif

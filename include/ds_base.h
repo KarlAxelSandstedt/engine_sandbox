@@ -28,6 +28,7 @@ extern "C" {
 #include "ds_types.h"
 #include "ds_atomic.h"
 #include "ds_allocator.h"
+#include "ds_log.h"
 
 #ifdef DS_PROFILE
 	#include "tracy/TracyC.h"
@@ -93,34 +94,6 @@ extern "C" {
 
 #define GROWABLE	1
 #define NOT_GROWABLE	0
-
-/* system identifiers for logger, profiler ... */
-enum system_id
-{
-	T_SYSTEM,
-	T_RENDERER,
-	T_PHYSICS,
-	T_CSG,
-	T_ASSET,
-	T_UTILITY,
-	T_PROFILER,
-	T_ASSERT,
-	T_GAME,
-	T_UI,
-	T_LED,
-	T_COUNT
-};
-
-/* system identifiers for logger, profiler ... */
-enum severity_id
-{
-	S_SUCCESS,
-	S_NOTE,
-	S_WARNING,
-	S_ERROR,
-	S_FATAL,
-	S_COUNT
-};
 
 #ifdef __cplusplus
 } 
