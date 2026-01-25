@@ -19,3 +19,15 @@ endif ()
 if (DS_LOG)
 	target_compile_definitions(DreamscapeDefine INTERFACE DS_LOG)
 endif ()
+
+if (DS_ASAN)
+	target_compile_definitions(DreamscapeDefine INTERFACE DS_ASAN)
+endif ()
+
+if (DS_TSAN)
+	target_compile_definitions(DreamscapeDefine INTERFACE DS_TSAN)
+endif ()
+
+if (DS_UBSAN)
+	target_compile_definitions(DreamscapeDefine INTERFACE DS_UBSAN)
+endif ()

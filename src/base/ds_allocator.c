@@ -65,8 +65,7 @@ u64 PowerOfTwoCeil(const u64 n)
 
 static void ds_MemApiInitShared(const u32 count_256B, const u32 count_1MB)
 {
-	ds_StaticAssert(((u64) &g_mem_config_storage.block_allocator_256B.a_next % DS_CACHE_LINE_UB) == 0, "Expected Alignment");
-	ds_StaticAssert(((u64) &g_mem_config_storage.block_allocator_1MB.a_next % DS_CACHE_LINE_UB) == 0, "Expected Alignment");
+	ds_StaticAssert(((u64) &((struct threadBlockAllocator *) 0)->a_next % DS_CACHE_LINE_UB) == 0, "Expected Alignment");
 	ThreadBlockAllocatorAlloc(&g_mem_config->block_allocator_256B, count_256B, 256);
 	ThreadBlockAllocatorAlloc(&g_mem_config->block_allocator_1MB, count_1MB, 1024*1024);
 }
@@ -77,7 +76,7 @@ void ds_MemApiShutdown(void)
 	ThreadBlockAllocatorFree(&g_mem_config->block_allocator_1MB);
 }
 
-#if __DS_PLATFORM__ == __DS_LINUX__ || __DS_PLATFORM__ == __DS_WEB__
+#if __DS_PLATFORM__ == __DS_LINUX__
 
 #include <unistd.h>
 #include <sys/mman.h>
@@ -152,8 +151,75 @@ void ds_Free(struct memSlot *slot)
 	slot->huge_pages = 0;
 }
 
+#elif __DS_PLATFORM__ == __DS_WEB__
 
+#include <unistd.h>
+#include <sys/mman.h>
+
+void ds_MemApiInit(const u32 count_256B, const u32 count_1MB)
+{
+	g_mem_config->page_size = getpagesize();
+	ds_MemApiInitShared(count_256B, count_1MB);
+}
+
+void *ds_Alloc(struct memSlot *slot, const u64 size, const u32 garbage)
+{
+	ds_Assert(size); 
+
+	const u64 mod = size & (g_mem_config->page_size - 1);
+	u64 size_used = (mod) 
+		? size + g_mem_config->page_size - mod
+		: size;
+	void *addr = mmap(NULL, size_used, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	if (addr == MAP_FAILED)
+	{
+		addr = NULL;
+		size_used = 0;
+	}
+
+	slot->address = addr;
+	slot->size = size_used;
+	slot->huge_pages = 0;
+
+	ds_Assert(((u64) &slot->address) % g_mem_config->page_size == 0);
+
+	return slot->address;
+}
+
+void *ds_Realloc(struct memSlot *slot, const u64 size)
+{
+	ds_Assert(size > slot->size);
+
+	struct memSlot newSlot;
+	if (ds_Alloc(&newSlot, size, 0))
+	{
+		memcpy(newSlot.address, slot->address, slot->size);
+	}
+	ds_Free(slot);
+	*slot = newSlot;
+	
+	if (slot->address == MAP_FAILED)
+	{
+		//TODO Crash
+		log_string(T_SYSTEM, S_FATAL, "Failed to reallocate memSlot in ds_Realloc, exiting.");
+		//fatal_cleanup_and_exit(ds_thread_self_tid());
+	}
+
+	return slot->address;
+}
+
+void ds_Free(struct memSlot *slot)
+{
+	munmap(slot->address, slot->size);	
+	slot->address = NULL;
+	slot->size = 0;
+	slot->huge_pages = 0;
+}
 #elif __DS_PLATFORM__ == __DS_WIN64__
+
+#elif 
+
+#error
 
 #endif
 
@@ -442,7 +508,8 @@ void *ThreadBlockAlloc(struct threadBlockAllocator *allocator)
 	enum threadAllocRet ret;
 
 	u64 a_next = AtomicLoadAcq64(&allocator->a_next);
-	while ((ret = ThreadBlockTryAlloc(&addr, &a_next, allocator)) == ALLOCATOR_FAILURE);
+	while ((ret = ThreadBlockTryAlloc(&addr, &a_next, allocator)) == ALLOCATOR_FAILURE)
+		;
 
 	ds_Assert(ret != ALLOCATOR_OUT_OF_MEMORY);
 

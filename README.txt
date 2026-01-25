@@ -7,7 +7,7 @@ Installing on Windows
 Installing on Linux 
 Compiling on Windows
 Compiling on Linux
-CMake Library Options
+CMake Library Usage and Options
 License
 
 
@@ -95,27 +95,39 @@ option(DS_DEBUG "Enable Debug information and assertions, ds_Assert, ..." ON):
 	DS_DEBUG builds the library with debug information. Furthermore, it turns on
 	general debug macros such as ds_Assert, Breakpoint(condition). Defaults to ON.
 
-option(DS_ASAN "Compile the library with Asan, and enable custom poisoning code" OFF):
-
-	DS_ASAN builds the library with Asan address sanitizing. If the user wishes to
-	use Asan, the user should compile his or her code with Asan, AND set DS_ASAN;
-	this is important as it enabled custom address poisoning code for both public
-	and internal APIs. Defaults to OFF. Since sanitizing is costly, it is
-	recommended to also set DS_OPTIMIZE to ON.
-
-option(DS_ASAN "Compile the library with Asan, and enable custom poisoning code" OFF):
-
-	DS_ASAN builds the library with Asan address sanitizing. If the user wishes to
-	use Asan, the user should compile his or her code with Asan, AND set DS_ASAN;
-	this is important as it enabled custom address poisoning code for both public
-	and internal APIs. Defaults to OFF. Since sanitizing is costly, it is
-	recommended to also set DS_OPTIMIZE to ON.
-
-option(DS_PROFILE)
+option(DS_PROFILE "Enable internal Tracy profiling points and provide Tracy wrapper. "OFF")
 
 	DS_PROFILE turns the Tracy Profiler on or off depending on the set value and
 	enables the Dreamscape profiling API wrapping Tracy. Furthermore, if the option
 	is enabled, Tracy profile zones within the library is enabled.
+
+option(DS_LOG "DS_LOG enabled the logging API and internal logging points in the library." ON)
+
+	DS_LOG builds the library with internal logging, and provides the loggin API
+	to the user.
+
+option(DS_ASAN "Compile the library with address sanitizing, and enable custom poisoning code" OFF):
+
+	DS_ASAN builds the library with address sanitizing. If the user wishes to use
+	Asan, the user should compile his or her code with Asan, AND set DS_ASAN; this
+ 	is important as it enabled custom address poisoning code for both public and
+ 	internal APIs. Defaults to OFF. Since sanitizing is costly, it is recommended
+ 	to also set DS_OPTIMIZE to ON.
+
+option(DS_TSAN "Compile the library with thread sanitizing" OFF):
+
+	DS_TSAN builds the library with thread sanitizing. If the user wishes to
+	use Tsan, the user should compile his or her code with Tsan, AND set DS_TSAN.
+	Defaults to OFF. Since sanitizing is costly, it is recommended to also set 
+	DS_OPTIMIZE to ON.
+
+option(DS_UBSAN "Compile the library with undefined behaviour sanitizing" OFF):
+
+	DS_UBSAN builds the library with undefined behaviour sanitizing. If the user
+	wishes to use Ubsan, the user should compile his or her code with Ubsan, AND 
+	set DS_UBSAN.  Defaults to OFF. Since sanitizing is costly, it is recommended
+ 	to also set DS_OPTIMIZE to ON.
+
 
 License
 =======

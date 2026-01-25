@@ -6,16 +6,20 @@ set(CPACK_PACKAGE_MINOR "1")
 set(CPACK_PACKAGE_PATCH "2")
 set(CPACK_PACKAGE_VERSION "${CPACK_PACKAGE_MAJOR}.${CPACK_PACKAGE_MINOR}.${CPACK_PACKAGE_PATCH}")
 
-option(DS_PROFILE "DS_PROFILE enables internal profiling and the profiling API wrapping the Tracy Profiler API." 
-		OFF)
-
 option(DS_OPTIMIZE "DS_OPTIMIZE enables compiler optimization flags in the library. Defaults 
 		    to OFF." 
 		OFF)
+
 option(DS_DEBUG "DS_DEBUG builds the library with debug information. Furthermore, it turns on
 	         general debug macros such as ds_Assert, ds_Breakpoint(cond) by defining. 
 		 Defaults to ON."
 		ON)
+
+option(DS_PROFILE "DS_PROFILE enables internal profiling and the profiling API wrapping the Tracy Profiler API." 
+		OFF)
+
+option(DS_LOG "DS_LOG enabled the logging API and internal logging points in the library." ON)
+
 option(DS_ASAN "DS_ASAN builds the library with Asan address sanitizing. If the user wishes to
 		use Asan, the user should compile his or her code with Asan, AND set DS_ASAN;
 		this is important as it enabled custom address poisoning code for both public
@@ -23,7 +27,17 @@ option(DS_ASAN "DS_ASAN builds the library with Asan address sanitizing. If the 
 		recommended to also set DS_OPTIMIZE to ON."
 		OFF)
 
-option(DS_LOG "DS_LOG enabled the logging API and internal logging points in the library." ON)
+option(DS_TSAN "DS_TSAN builds the library with thread sanitizing. If the user wishes to
+		use Tsan, the user should compile his or her code with Tsan, AND set DS_TSAN.
+		Defaults to OFF. Since sanitizing is costly, it is recommended to also set 
+		DS_OPTIMIZE to ON."
+		OFF)
+
+option(DS_UBSAN "DS_UBSAN builds the library with undefined behaviour sanitizing. If the user
+		 wishes to use Ubsan, the user should compile his or her code with Ubsan, AND 
+		 set DS_UBSAN.  Defaults to OFF. Since sanitizing is costly, it is recommended
+ 		 to also set DS_OPTIMIZE to ON."
+		 OFF)
 
 set(DS_INCLUDE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(DS_SRC_PATH "${CMAKE_CURRENT_SOURCE_DIR}/src")
@@ -37,6 +51,17 @@ if (DS_PROFILE)
 endif ()
 
 if (DEFINED EMSCRIPTEN)
+
+	if (DS_ASAN)
+		add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+		add_link_options(-fsanitize=address)
+	endif ()
+
+	if (DS_UBSAN)
+		add_compile_options(-fsanitize=undefined -fno-omit-frame-pointer)
+		add_link_options(-fsanitize=undefined)
+	endif ()
+
 	if (DS_DEBUG)
 		add_compile_options(-W -Wall -Wno-switch -Wno-unused-parameter -Wno-unused-variable -Wno-unused-function)
 		# Add debug information and C<->wasm mapping
@@ -46,7 +71,9 @@ if (DEFINED EMSCRIPTEN)
 		# high overhead; check every memory reference?
 		add_link_options(-sASSERTIONS=2)
 		add_link_options(-sSTACK_OVERFLOW_CHECK=2)
-		add_link_options(-sSAFE_HEAP=1)
+		if (NOT DS_ASAN)
+			add_link_options(-sSAFE_HEAP=1)
+		endif ()
 	else ()
 		add_link_options(-sASSERTIONS=0)
 		# low overhead; end-of-frame checking?
@@ -60,6 +87,21 @@ if (DEFINED EMSCRIPTEN)
 	endif ()	
 	
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+
+	if (DS_ASAN)
+		add_compile_options(-fsanitize=address -fno-omit-frame-pointer)
+		add_link_options(-fsanitize=address)
+	endif ()
+
+	if (DS_UBSAN)
+		add_compile_options(-fsanitize=undefined -fno-omit-frame-pointer)
+		add_link_options(-fsanitize=undefined)
+	endif ()
+
+	if (DS_TSAN)
+		add_compile_options(-fsanitize=thread -fno-omit-frame-pointer)
+		add_link_options(-fsanitize=thread)
+	endif ()
 
 	if (DS_DEBUG)
 		add_compile_options(-gdwarf -W -Wall -Wextra)
@@ -77,6 +119,11 @@ elseif (CMAKE_SYSTEM_NAME STREQUAL "Linux")
 	add_compile_options(-mfpmath=sse)
 
 elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+
+	if (DS_ASAN)
+		add_compile_options(/fsanitize=address)
+		add_link_options(/incremental:no)
+	endif ()
 
 	if (DS_DEBUG)
 		add_compile_definitions(DS_DEBUG)

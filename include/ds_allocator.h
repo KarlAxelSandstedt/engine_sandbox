@@ -321,9 +321,9 @@ u32		PoolIndex(const struct pool *pool, const void *slot);
 #define GPoolAlloc(mem, length, STRUCT, growable)	PoolAllocInternal(mem, length, sizeof(STRUCT), ((u64)&((STRUCT *)0)->slot_allocation_state), ((u64)&((STRUCT *)0)->slot_generation_state), growable)
 #define GPoolDealloc(PoolAddr)				PoolDealloc(PoolAddr)
 #define	GPoolFlush(PoolAddr)				PoolFlush(PoolAddr)
-/* alloc new generational slot; on error		 return (NULL, U32_MAX) */
-struct slot	GPoolAdd_generational(struct pool *pool);
-#define GPoolAdd(pol_addr)				GPoolAdd_generational(pol_addr)
+/* Alloc new generational slot. On error return (NULL, U32_MAX) */
+struct slot	GPoolAddGenerational(struct pool *pool);
+#define GPoolAdd(pol_addr)				GPoolAddGenerational(pol_addr)
 #define	GPoolRemove(PoolAddr, index)			PoolRemove(PoolAddr, index)
 #define	GPoolRemove_address(PoolAddr, addr)		PoolRemoveAddress(PoolAddr, addr)
 #define GPoolAddress(PoolAddr, index)			PoolAddress(PoolAddr, index)
