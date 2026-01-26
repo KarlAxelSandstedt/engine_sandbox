@@ -50,7 +50,7 @@ static void *ds_thread_clone_start(void *void_thr)
 	thr->gtid = getpid();
 	thr->tid = gettid();
 	thr->index = AtomicFetchAddRlx32(&a_index_counter, 1);
-	PROF_THREAD_NAMED(thread_profiler_id[thr->index]);
+	ProfThreadNamed(thread_profiler_id[thr->index]);
 	thr->start(thr);
 
 	return NULL;
@@ -63,7 +63,7 @@ void ds_thread_master_init(struct arena *mem)
 	self->gtid = getpid();
 	self->tid = gettid();
 	self->index = 0;
-	PROF_THREAD_NAMED(thread_profiler_id[self->index]);
+	ProfThreadNamed(thread_profiler_id[self->index]);
 }
 
 void ds_thread_clone(struct arena *mem, void (*start)(ds_thread *), void *args, const u64 stack_size)
@@ -87,7 +87,7 @@ void ds_thread_clone(struct arena *mem, void (*start)(ds_thread *), void *args, 
 	if (thr == NULL)
 	{
 		LogString(T_SYSTEM, S_FATAL, "Failed to alloc thread memory, aborting.");
-		fatal_cleanup_and_exit(gettid());
+		FatalCleanupAndExit(gettid());
 	}
 
 	ds_Assert((u64) thr % g_arch_config->cacheline == 0);
@@ -103,14 +103,14 @@ void ds_thread_clone(struct arena *mem, void (*start)(ds_thread *), void *args, 
 	pthread_attr_t attr;
 	if (pthread_attr_init(&attr) != 0)
 	{
-		LOG_SYSTEM_ERROR(S_FATAL);	
-		fatal_cleanup_and_exit(gettid());
+		LogSystemError(S_FATAL);	
+		FatalCleanupAndExit(gettid());
 	}
 
 	if (pthread_attr_setstacksize(&attr, thr->stack_size) != 0)
 	{
-		LOG_SYSTEM_ERROR(S_FATAL);	
-		fatal_cleanup_and_exit(gettid());
+		LogSystemError(S_FATAL);	
+		FatalCleanupAndExit(gettid());
 	}
 
 	size_t real_size;
@@ -119,14 +119,14 @@ void ds_thread_clone(struct arena *mem, void (*start)(ds_thread *), void *args, 
 
 	if (pthread_create(&thr->pthread, &attr, ds_thread_clone_start, thr) != 0)
 	{
-		LOG_SYSTEM_ERROR(S_FATAL);	
-		fatal_cleanup_and_exit(gettid());
+		LogSystemError(S_FATAL);	
+		FatalCleanupAndExit(gettid());
 	}
 
 	if (pthread_attr_destroy(&attr) != 0)
 	{
-		LOG_SYSTEM_ERROR(S_FATAL);	
-		fatal_cleanup_and_exit(gettid());
+		LogSystemError(S_FATAL);	
+		FatalCleanupAndExit(gettid());
 	}
 }
 
@@ -144,7 +144,7 @@ void ds_thread_wait(const ds_thread *thr)
 	if (status != 0)
 	{
 		LogString(T_SYSTEM, S_FATAL, "Failed to alloc thread memory, aborting.");
-		fatal_cleanup_and_exit(gettid());
+		FatalCleanupAndExit(gettid());
 	}
 }
 

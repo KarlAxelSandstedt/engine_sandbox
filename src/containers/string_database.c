@@ -45,7 +45,7 @@ struct string_database	string_database_alloc_internal(struct arena *mem, const u
 	if (!hash || !pool.length)
 	{
 		LogString(T_SYSTEM, S_FATAL, "Failed to allocate string_database");
-		fatal_cleanup_and_exit(ds_thread_self_tid());
+		FatalCleanupAndExit(ds_thread_self_tid());
 	}
 
 	db.hash = hash;

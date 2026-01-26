@@ -54,6 +54,7 @@ extern "C" {
 	#define dsThreadLocal __thread
 	#define ds_StaticAssert(assertion, str)	_Static_assert(assertion, str)
 	#define ds_Align(alignment) __attribute__((aligned(alignment)))
+	#undef DS_PROFILE
 
 #elif defined(__GNUC__)
 
@@ -102,7 +103,8 @@ extern "C" {
 	
 	#elif __DS_PLATFORM__ == __DS_WEB__
 
-		#define Breakpoint(condition) if (!(condition)) { } else { raise(SIGTRAP); }
+		void emscripten_debugger(void);
+		#define Breakpoint(condition) if (!(condition)) { } else { emscripten_debugger(); }
 
 	#elif __DS_PLATFORM__ == __DS_WIN64__
 

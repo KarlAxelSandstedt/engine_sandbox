@@ -224,7 +224,7 @@ struct nll nll_alloc_internal(struct arena *mem,
 	if (!net.pool.length)
 	{
 		LogString(T_SYSTEM, S_FATAL, "Failed to allocate net list");
-		fatal_cleanup_and_exit(ds_thread_self_tid());
+		FatalCleanupAndExit(ds_thread_self_tid());
 	}
 
 	struct slot slot = PoolAdd(&net.pool);

@@ -1,6 +1,6 @@
 /*
 ==========================================================================
-    Copyright (C) 2025 Axel Sandstedt 
+    Copyright (C) 2026 Axel Sandstedt 
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,26 +17,26 @@
 ==========================================================================
 */
 
-#ifndef __WIN_LOCAL_H__
-#define __WIN_LOCAL_H__
+#ifndef __DREAMSCAPE_ERROR_H__
+#define __DREAMSCAPE_ERROR_H__
 
-#include <windows.h>
-#include "win_public.h"
-#include "sys_public.h"
-#include "Log.h"
+#ifdef __cplusplus
+extern "C" { 
+#endif
 
-/******************** win_thread.c ********************/
+#include <errno.h>
 
-struct ds_thread
-{
-	void		(*start)(ds_thread *);	/* beginning of execution for thread */
-	void 		*args;			/* thread arguments */
-	void 		*ret;			/* adress to returned value, if any */
-	u64		ret_size;		/* size of returned value */
-	u64		stack_size;		/* size of stack (not counting protected page at bottom) */
-	u32		index;			/* thread index, used for accessing thread data in arrays  */
-	DWORD		tid;			/* native thread id (pid_t on linux) */
-	HANDLE		native;			/* native thread handle */
-};
+#include "ds_string.h"
+
+/* Generate stacktrace and shutdown log gracefully, then exits */
+void 	FatalCleanupAndExit(void);
+
+/* thread safe last system error or code message generation */
+utf8	Utf8SystemErrorCodeStringBuffered(u8 *buf, const u32 bufsize, const u32 code);
+
+
+#ifdef __cplusplus
+} 
+#endif
 
 #endif

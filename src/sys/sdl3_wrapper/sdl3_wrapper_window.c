@@ -168,7 +168,7 @@ static void sdl3_wrapper_native_window_config_update(vec2u32 position, vec2u32 s
 	if (!SDL_GetWindowSize(native->sdl_win, &w, &h))
 	{
 		LogString(T_SYSTEM, S_FATAL, SDL_GetError());
-		fatal_cleanup_and_exit(0);
+		FatalCleanupAndExit(0);
 	}
 
 	int x = (int) position[0];
@@ -242,7 +242,7 @@ void sdl3_wrapper_window_position_native_to_system(vec2 sys_pos, struct native_w
 	if (!SDL_GetWindowSize(native->sdl_win, &w, &h))
 	{
 		LogString(T_SYSTEM, S_FATAL, SDL_GetError());
-		fatal_cleanup_and_exit(0);
+		FatalCleanupAndExit(0);
 	}
 
 	sys_pos[0] = nat_pos[0];
@@ -255,7 +255,7 @@ void sdl3_wrapper_window_position_system_to_native(vec2 nat_pos, struct native_w
 	if (!SDL_GetWindowSize(native->sdl_win, &w, &h))
 	{
 		LogString(T_SYSTEM, S_FATAL, SDL_GetError());
-		fatal_cleanup_and_exit(0);
+		FatalCleanupAndExit(0);
 	}
 
 	nat_pos[0] = sys_pos[0];
@@ -267,7 +267,7 @@ static void sdl3_destroy_gl_context(struct native_window *native)
 	if (!SDL_GL_DestroyContext(native->gl_context))
 	{
 		LogString(T_SYSTEM, S_FATAL, SDL_GetError());
-		fatal_cleanup_and_exit(0);
+		FatalCleanupAndExit(0);
 	}
 }
 
@@ -277,14 +277,14 @@ static void sdl3_create_gl_context(struct native_window *native)
 	if (native->gl_context == NULL)
 	{
 		LogString(T_SYSTEM, S_FATAL, SDL_GetError());
-		fatal_cleanup_and_exit(0);
+		FatalCleanupAndExit(0);
 	}
 
 	/* turn off vsync for context (dont block on SWAP until window refresh (or something...) */
 	if (!SDL_GL_SetSwapInterval(0))
 	{
 		LogString(T_SYSTEM, S_FATAL, SDL_GetError());
-		fatal_cleanup_and_exit(0);
+		FatalCleanupAndExit(0);
 	}
 
 	static u64 once = 1;
@@ -302,7 +302,7 @@ static struct native_window *sdl3_wrapper_native_window_create(struct arena *mem
 	if (native->sdl_win == NULL)
 	{
 		LogString(T_SYSTEM, S_FATAL, SDL_GetError());
-		fatal_cleanup_and_exit(0);
+		FatalCleanupAndExit(0);
 	}
 
 	sdl3_create_gl_context(native);
@@ -385,7 +385,7 @@ void sdl3_wrapper_init(void)
 	if (!SDL_Init(SDL_INIT_VIDEO | SDL_INIT_EVENTS))
 	{
 		LogString(T_SYSTEM, S_FATAL, SDL_GetError());
-		fatal_cleanup_and_exit(0);
+		FatalCleanupAndExit(0);
 	}
 
 #if __DS_PLATFORM__ == __DS_LINUX__ || __DS_PLATFORM__ == __DS_WIN64__
@@ -396,7 +396,7 @@ void sdl3_wrapper_init(void)
 		)
 	{
 		LogString(T_SYSTEM, S_FATAL, SDL_GetError());
-		fatal_cleanup_and_exit(0);
+		FatalCleanupAndExit(0);
 	}
 
 	i32 major, minor;
@@ -405,7 +405,7 @@ void sdl3_wrapper_init(void)
 	if (major < 3 || minor < 3)
 	{
 		LogString(T_SYSTEM, S_FATAL, "Requires GL 3.3 or greater, exiting\n");
-		fatal_cleanup_and_exit(0);
+		FatalCleanupAndExit(0);
 	}
 #elif __DS_PLATFORM__ == __DS_WEB__
 	SDL_SetHint(SDL_HINT_OPENGL_ES_DRIVER, "1");
@@ -416,7 +416,7 @@ void sdl3_wrapper_init(void)
 		)
 	{
 		LogString(T_SYSTEM, S_FATAL, SDL_GetError());
-		fatal_cleanup_and_exit(0);
+		FatalCleanupAndExit(0);
 	}
 
 	i32 major, minor;
@@ -425,14 +425,14 @@ void sdl3_wrapper_init(void)
 	if (major < 3)
 	{
 		LogString(T_SYSTEM, S_FATAL, "Requires GLES 3.0 or greater, exiting\n");
-		fatal_cleanup_and_exit(0);
+		FatalCleanupAndExit(0);
 	}
 #endif
 	/* Must be done after initalizing the video driver but before creating any opengl windows */
 	if (!SDL_GL_LoadLibrary(NULL))
 	{
 		LogString(T_SYSTEM, S_FATAL, SDL_GetError());
-		fatal_cleanup_and_exit(0);
+		FatalCleanupAndExit(0);
 	}
 	native_window_create = &sdl3_wrapper_native_window_create;
 	native_window_destroy = &sdl3_wrapper_native_window_destroy;

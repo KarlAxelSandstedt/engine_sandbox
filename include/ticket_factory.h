@@ -25,7 +25,7 @@
 #define TICKET_FACTORY_CLOSED	U32_MAX
 
 /*
- * multiple ticket producers with a maximum ticket count. It is up to the user to determine
+ * multiple ticket consumers with a maximum ticket count. It is up to the user to determine
  * when a batch of tickets should be returned, or "served".
  */
 struct ticketFactory
@@ -37,11 +37,13 @@ struct ticketFactory
 	u32 		max_tickets;	/* debug */
 };
 
+/* Initalize ticket factory address */
 void 	TicketFactoryInit(struct ticketFactory *tf, const u32 max_tickets);
+/* Destroy ticket factory */
 void	TicketFactoryDestroy(struct ticketFactory *tf);
-/* returns 0 on no ticket, 1 on ticket acquisition, or TICKET_FACTORY_CLOSED when no more tickets can be retrieved  */
+/* Returns 0 on no ticket, 1 on ticket acquisition, or TICKET_FACTORY_CLOSED when no more tickets can be retrieved  */
 u32	TicketFactoryTryGetTicket(u32 *ticket, struct ticketFactory *tf);
-/* UNDEFINED BEHAVIOUR WHEN TICKET_FACTORY_CLOSED! wait on semaphore until we return a ticket  */
+/* Wait on semaphore until we return a ticket.  UNDEFINED BEHAVIOUR when TICKET_FACTORY_CLOSED! */
 u32	TicketFactoryGetTicket(struct ticketFactory *tf);
 /* puts ticket range [a_serve, a_serve + count) up for use again  */
 void	TicketFactoryReturnTickets(struct ticketFactory *tf, const u32 count);

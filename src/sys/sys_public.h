@@ -40,15 +40,6 @@
 #endif
 
 /************************************************************************/
-/* 				Memory Allocation			*/
-/************************************************************************/
-
-/* returns reserved page aligned virtual memory on success, NULL on failure. */
-void *	virtual_memory_reserve(const u64 size);
-/* free reserved virtual memory */
-void 	virtual_memory_release(void *addr, const u64 size);
-
-/************************************************************************/
 /* 				System Environment			*/
 /************************************************************************/
 
@@ -318,47 +309,6 @@ extern utf8			(*cwd_get)(struct arena *mem);
  *	DS_FS_UNSPECIFIED on unexpected error.
  */
 extern enum fs_error		(*cwd_set)(struct arena *mem, const char *path);
-
-/************************************************************************/
-/* 			system timers and clocks			*/
-/************************************************************************/
-
-#if (__COMPILER__ == __EMSCRIPTEN__)
-#elif (__COMPILER__ == __DS_GCC__)
-	#include <x86intrin.h>
-	#define	rdtsc()			__rdtsc()
-	/* RDTSC + Read OS dependent IA32_TSC_AUX. All previous instructions finsish (RW finish?) before rdtscp is run. */
-	#define	rdtscp(core_addr)	__rdtscp(core_addr)
-#elif (__COMPILER__ == __DS_MSVC__)
-	#include <intrin.h>
-	#define	rdtsc()			__rdtsc()
-	/* RDTSC + Read OS dependent IA32_TSC_AUX. All previous instructions finsish (RW finish?) before rdtscp is run. */
-	#define	rdtscp(core_addr)	__rdtscp(core_addr)
-#endif
-
-void		time_init(struct arena *persistent);
-extern u64	(*time_ns_start)(void);					/* return origin of process time in sys time */
-extern u64	(*time_s)(void);					/* seconds since start */
-extern u64	(*time_ms)(void); 					/* milliseconds since start */
-extern u64	(*time_us)(void); 					/* microseconds since start */
-extern u64	(*time_ns)(void); 					/* nanoseconds since start */
-extern u64 	(*time_ns_from_tsc)(const u64 tsc);			/* determine time elapsed from timer initialisation start in ns using hw tsc */
-extern u64	(*time_tsc_from_ns)(const u64 ns);			/* determine time elapsed from timer initialisation start in hw tsc using ns */
-extern u64	(*time_ns_from_tsc_truth_source)(const u64 tsc, const u64 ns_truth, const u64 cc_truth); /* determine time elapsed from timer initialisation start in ns using hw tsc, with additional truth pair (ns, tsc) in order to reduce error) */
-extern u64	(*time_tsc_from_ns_truth_source)(const u64 ns, const u64 ns_truth, const u64 cc_truth);  /* determine time elapsed from timer initialisation start in hw tsc using ns  with additional truth pair (ns, tsc) in order to reduce error) */
-extern u64 	(*ns_from_tsc)(const u64 tsc);				/* transform tsc to corresponding ns */
-extern u64	(*tsc_from_ns)(const u64 ns);				/* transform ns to corresponding tsc */
-extern u64	(*time_ns_per_tick)(void);
-extern u64 	(*freq_rdtsc)(void);
-extern f64 	(*time_seconds_from_rdtsc)(const u64 ticks);
-
-/* g_tsc_skew[Logical_core_count]: estimated skew from core 0.
- * given a tsc value from core c, its corresponding tsc value on core 0 is t_0 = t_c + skew,
- * so in code we get 
- * 			tsc_c = rdtscp(&core_c)
- * 			tsc_0 = core_c + g_tsc_skew[c];
- */
-extern u64 *	g_tsc_skew;
 
 /************************************************************************/
 /* 			Threads and Synchronization			*/

@@ -1,6 +1,6 @@
 /*
 ==========================================================================
-    Copyright (C) 2025 Axel Sandstedt 
+    Copyright (C) 2025, 2026 Axel Sandstedt 
 
     This program is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -17,7 +17,120 @@
 ==========================================================================
 */
 
-#include "sys_local.h"
+#include "ds_base.h"
+
+struct ds_arch_config config = { 0 };
+const struct ds_arch_config *g_arch_config = &config;
+
+#if __DS_PLATFORM__ == __DS_LINUX__ || __DS_PLATFORM__ == __DS_WEB__
+
+#if __DS_PLATFORM__ == __DS_WEB__
+
+#define  __get_cpuid(f,a,b,c,d)		0
+#define  __get_cpuid_count(f,s,a,b,c,d)	0
+
+#else
+
+#include <cpuid.h>
+
+#endif
+
+#include <unistd.h>
+#include <sys/sysinfo.h>
+
+void ds_cpuid(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, const u32 function)
+{
+	const int supported = __get_cpuid(function, eax, ebx, ecx, edx);
+	if (!supported)
+	{
+		*eax = 0;
+		*ebx = 0;
+		*ecx = 0;
+		*edx = 0;
+	}
+}
+
+void ds_cpuid_ex(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, const u32 function, const u32 subfunction)
+{
+	const int supported = __get_cpuid_count(function, subfunction, eax, ebx, ecx, edx);
+	if (!supported)
+	{
+		*eax = 0;
+		*ebx = 0;
+		*ecx = 0;
+		*edx = 0;
+	}
+}
+
+u32 system_logical_core_count(void)
+{
+	errno = 0;
+	long count = sysconf(_SC_NPROCESSORS_ONLN);
+	if (errno != 0)
+	{
+		LogSystemError(S_ERROR);	
+		LogString(T_SYSTEM, S_WARNING, "Failed to retrieve number of Logical cores, defaulting to 2");
+		count = 2;
+	}
+
+	return (u32) count;
+}
+
+u64 system_pagesize(void)
+{
+	return (u64) getpagesize();
+}
+
+pid system_pid(void)
+{
+	return getpid();
+}
+
+#elif __DS_PLATFORM__ == __DS_WIN64__
+
+#include "local.h"
+#include <intrin.h>
+
+void ds_cpuid(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, const u32 function)
+{
+	int regs[4];		
+	__cpuid(regs, function);
+	*eax = (u32) regs[0];	
+	*ebx = (u32) regs[1];	
+	*ecx = (u32) regs[2];	
+	*edx = (u32) regs[3];	
+}
+
+void ds_cpuid_ex(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, const u32 function, const u32 subfunction)
+{
+	int regs[4];				
+	__cpuidex(regs, function, subfunction);
+	*eax = (u32) regs[0];			
+	*ebx = (u32) regs[1];			
+	*ecx = (u32) regs[2];			
+	*edx = (u32) regs[3];
+}
+
+u32 system_logical_core_count(void)
+{
+	SYSTEM_INFO info;
+	GetSystemInfo(&info);
+	return (u32) info.dwNumberOfProcessors;
+}
+
+u64 system_pagesize(void)
+{
+	SYSTEM_INFO info;
+	GetSystemInfo(&info);
+	return info.dwPageSize;
+}
+
+pid system_pid(void)
+{
+	return GetCurrentProcessId();
+}
+
+#endif
 
 /**
  * Intel references:
@@ -31,9 +144,6 @@
  * 	- AMD64 Architecture Programmer’s Manual, Volume 3 Appendix D,E
  */
 
-struct ds_arch_config config = { 0 };
-const struct ds_arch_config *g_arch_config = &config;
-
 static void ds_arch_config_log(void)
 {
 	const char *yes = "Y";
@@ -41,7 +151,7 @@ static void ds_arch_config_log(void)
 
 	Log(T_SYSTEM, S_NOTE, "cpu signature - %k", &config.vendor_string);
 	Log(T_SYSTEM, S_NOTE, "cpu - %k", &config.processor_string);
-	Log(T_SYSTEM, S_NOTE, "Logical core count - %u", config.Logical_core_count);
+	Log(T_SYSTEM, S_NOTE, "logical core count - %u", config.logical_core_count);
 	Log(T_SYSTEM, S_NOTE, "cacheline size - %luB", config.cacheline);
 
 	Log(T_SYSTEM, S_NOTE, "sse : Supported(%s)", (config.sse) ? yes : no);
@@ -60,7 +170,7 @@ static void ds_arch_config_log(void)
 
 static void internal_amd_determine_cache_attributes(void)
 {
-	u32 eax, ebx, ecx, edx, no_report = 0;
+	u32 eax, ebx, ecx, edx;
 	const u32 cache_func = (1u << 31) + 5;
 	ds_cpuid(&eax, &ebx, &ecx, &edx, cache_func);
 
@@ -377,12 +487,10 @@ static u32 internal_get_intel_arch_config(struct arena *mem)
 
 u32 ds_arch_config_init(struct arena *mem)
 {
-	os_arch_init_func_ptrs();
-
-	config.Logical_core_count = system_logical_core_count();
+	config.logical_core_count = system_logical_core_count();
 	config.pagesize = system_pagesize(); 
-	config.cacheline = 64; //TODO
 	config.pid = system_pid();
+	config.cacheline = 64; //TODO
 
 	u32 requirements_fullfilled = 1;
 #if __DS_PLATFORM__ == __DS_WEB__

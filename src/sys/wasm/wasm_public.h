@@ -28,28 +28,6 @@
 #include "allocator.h"
 #include "ds_string.h"
 
-/******************** wasm_error.c ********************/
-
-#include <stdarg.h>
-#include <signal.h>
-#include <errno.h>
-#include "Log.h"
-
-#define ERROR_BUFSIZE	512
-#define LOG_SYSTEM_ERROR(severity)		_LOG_SYSTEM_ERROR_CODE(severity, errno, __func__, __FILE__, __LINE__)
-#define LOG_SYSTEM_ERROR_CODE(severity, code)	_LOG_SYSTEM_ERROR_CODE(severity, code, __func__, __FILE__, __LINE__)
-#define _LOG_SYSTEM_ERROR_CODE(severity, code, func, file, line)						\
-{														\
-	u8 _err_buf[ERROR_BUFSIZE];										\
-	const utf8 _err_str = utf8_system_error_code_string_buffered(_err_buf, ERROR_BUFSIZE, code);		\
-	Log(T_SYSTEM, severity, "At %s:%u in function %s - %k", file, line, func, &_err_str);			\
-}
-
-/* thread safe system error message generation */
-utf8	utf8_system_error_code_string_buffered(u8 *buf, const u32 bufsize, const u32 code);
-
-void 	init_error_handling_func_ptrs(void);
-
 /******************** wasm_arch.c ********************/
 
 void os_arch_init_func_ptrs(void);

@@ -82,13 +82,13 @@ int CALLBACK WinMain(HINSTANCE h_instance, HINSTANCE hPrevInstance, LPSTR lpCmdL
 	u64 old_time = editor->ns;
 	while (editor->running)
 	{
-		PROF_FRAME_MARK;
+		ProfFrameMark;
 
 		system_free_tagged_windows();
 
 		task_context_frame_clear();
 
-		const u64 new_time = time_ns();
+		const u64 new_time = ds_TimeNs();
 		const u64 ns_tick = new_time - old_time;
 		old_time = new_time;
 

@@ -18,6 +18,7 @@
 */
 
 #include "ds_semaphore.h"
+#include "ds_log.h"
 
 #if __DS_PLATFORM__ == __DS_LINUX__ || __DS_PLATFORM__ == __DS_WEB__
 
@@ -36,9 +37,8 @@ void SemaphoreInit(semaphore *sem, const u32 val)
 	if (sem_init(sem, SEM_NOT_SHARED, val) == -1)
 #endif
 	{
-		//TODO
-		//LOG_SYSTEM_ERROR(S_FATAL);
-		//fatal_cleanup_and_exit(0);
+		LogSystemError(S_FATAL);
+		FatalCleanupAndExit();
 	}
 }
 
@@ -46,9 +46,8 @@ void SemaphoreDestroy(semaphore *sem)
 {
 	if (sem_destroy(sem) == -1)
 	{
-		//TODO
-		//LOG_SYSTEM_ERROR(S_FATAL);
-		//fatal_cleanup_and_exit(0);
+		LogSystemError(S_FATAL);
+		FatalCleanupAndExit();
 	}	
 }
 
@@ -56,9 +55,8 @@ void SemaphorePost(semaphore *sem)
 {
 	if (sem_post(sem) == -1)
 	{
-		//TODO
-		//LOG_SYSTEM_ERROR(S_FATAL);
-		//fatal_cleanup_and_exit(0);
+		LogSystemError(S_FATAL);
+		FatalCleanupAndExit();
 	}
 }
 
@@ -69,9 +67,8 @@ u32 SemaphoreWait(semaphore *sem)
 	{
 		if (errno == EINVAL)
 		{
-			//TODO
-			//LOG_SYSTEM_ERROR(S_FATAL);
-			//fatal_cleanup_and_exit(0);
+			LogSystemError(S_FATAL);
+			FatalCleanupAndExit();
 		}	
 
 		success = 0;
@@ -87,9 +84,8 @@ u32 SemaphoreTryWait(semaphore *sem)
 	{
 		if (errno == EINVAL)
 		{
-			//TODO
-			//LOG_SYSTEM_ERROR(S_FATAL);
-			//fatal_cleanup_and_exit(0);
+			LogSystemError(S_FATAL);
+			FatalCleanupAndExit();
 		}	
 
 		success = 0;
@@ -108,9 +104,8 @@ void SemaphoreInit(semaphore *sem, const u32 val)
 	*sem = CreateSemaphoreA(lpSemaphoreAttributes, val, SEM_MAX, NULL);
 	if (*sem == NULL)
 	{
-		//TODO
-		//Log_system_error(S_FATAL);
-		//fatal_cleanup_and_exit(0);
+		LogSystemError(S_FATAL);
+		FatalCleanupAndExit();
 	}
 }
 
@@ -120,9 +115,8 @@ void SemaphoreDestroy(semaphore *sem)
 	 * while we are closing it? */
 	if (!CloseHandle(*sem))
 	{
-		//TODO
-		//Log_system_error(S_FATAL);
-		//fatal_cleanup_and_exit(0);
+		LogSystemError(S_FATAL);
+		FatalCleanupAndExit();
 	}
 }
 
@@ -131,9 +125,8 @@ void SemaphorePost(semaphore *sem)
 	u32 sem_val;
 	if (!ReleaseSemaphore(*sem, 1, &sem_val))
 	{
-		//TODO
-		//Log_system_error(S_FATAL);
-		//fatal_cleanup_and_exit(0);
+		LogSystemError(S_FATAL);
+		FatalCleanupAndExit();
 	}
 }
 
@@ -142,9 +135,8 @@ u32 SemaphoreWait(semaphore *sem)
 	DWORD ret = WaitForSingleObjectEx(*sem, INFINITE, FALSE);
 	if (ret != WAIT_OBJECT_0)
 	{
-		//TODO
-		//Log_system_error(S_FATAL);
-		//fatal_cleanup_and_exit(0);
+		LogSystemError(S_FATAL);
+		FatalCleanupAndExit();
 	}
 
 	return 1;
@@ -163,9 +155,8 @@ u32 SemaphoreTryWait(semaphore *sem)
 		}
 		else
 		{
-			//TODO
-			//Log_system_error(S_FATAL);
-			//fatal_cleanup_and_exit(0);
+			LogSystemError(S_FATAL);
+			FatalCleanupAndExit();
 		}
 	}
 

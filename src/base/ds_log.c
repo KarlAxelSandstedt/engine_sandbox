@@ -83,7 +83,7 @@ struct Log
 	u32 			a_writing_to_disk;
 	u32 			a_shutting_down;	/* when set, any further calls to message_write will immediately return */
 	u32 			has_file;		/* If not, simply skip file IO */ 
-	struct file 		file;
+	FILE *			file;
 };
 
 static struct Log g_log;
@@ -108,12 +108,9 @@ void LogInit(struct arena *mem, const char *filepath)
 	severities[S_FATAL] = Utf8Inline("fatal");
 
 	g_log.msg = ArenaPush(mem, LOG_MAX_MESSAGES * sizeof(struct Log_message));
-	TicketFactoryInit(&g_log.tf, mem, LOG_MAX_MESSAGES);
-	g_log.file = file_null();
-	file_try_create_at_cwd(mem, &g_log.file, filepath, FILE_TRUNCATE);
-	g_log.has_file = (g_log.file.handle != FILE_HANDLE_INVALID)
-			? 1
-			: 0;
+	TicketFactoryInit(&g_log.tf, LOG_MAX_MESSAGES);
+	g_log.file = fopen(filepath, "w+");
+	g_log.has_file = g_log.file != NULL;
 	AtomicStoreRel32(&g_log.a_writing_to_disk, 0);
 }
 
@@ -133,7 +130,7 @@ static void Log_try_write_to_disk(void)
 
 			if (g_log.has_file && msg->len)
 			{
-				file_write_append(&g_log.file, msg->buf, msg->size_req);
+				fwrite(msg->buf, 1, msg->size_req, g_log.file);
 			}
 			serving = (serving + 1) % LOG_MAX_MESSAGES;
 			count += 1;
@@ -161,17 +158,18 @@ void LogShutdown()
 	if (g_log.has_file)
 	{
 		internal_write_to_disk();
-		file_sync(&g_log.file);
-		file_close(&g_log.file);
+		fclose(g_log.file);
 	}
 	TicketFactoryDestroy(&g_log.tf);
 }
 
 void LogWriteMessage(const enum system_id system, const enum severity_id severity, const char *format, ... )
 {
-	//TODO should perf Log this 
+	ProfZone;
 	
-	const u32 thread_id = ds_thread_self_tid();
+	//TODO
+	//const u32 thread_id = ds_thread_self_tid();
+	const u32 thread_id = 0;
 	/* spin until a new msg slot is up for grabs for us to publish */
 	u32 ticket;
 	u32 ret;
@@ -185,13 +183,15 @@ void LogWriteMessage(const enum system_id system, const enum severity_id severit
 		Log_try_write_to_disk();
 	}
 
-	if (ret == TICKET_FACTORY_CLOSED) { return; }
+	if (ret == TICKET_FACTORY_CLOSED) { goto end; }
 
 
 	struct Log_message *msg = g_log.msg + (ticket % LOG_MAX_MESSAGES);
 
 	/* format message */
-	const u64 ms = time_ms();
+	//TODO
+	//const u64 ms = ds_TimeMs();
+	const u64 ms = 0;
 	msg->time = ms; 
 	msg->system = system;
 	msg->severity = severity;
@@ -222,12 +222,6 @@ void LogWriteMessage(const enum system_id system, const enum severity_id severit
 	msg->len = str.len;
 	msg->buf[msg->size_req] = '\0';
 
-	if (str.len == 0)
-	{
-		msg->len = 0;
-		AtomicStoreRel32(&msg->a_in_use_and_completed, 1);
-		return;
-	}
 #if __DS_PLATFORM__ == __DS_WEB__
 	emscripten_out((char *) msg->buf);
 #else
@@ -235,6 +229,8 @@ void LogWriteMessage(const enum system_id system, const enum severity_id severit
 #endif
 	/* sync-point, msg ready for writing */
 	AtomicStoreRel32(&msg->a_in_use_and_completed, 1);
+end:
+	ProfZoneEnd;
 }
 
 #endif

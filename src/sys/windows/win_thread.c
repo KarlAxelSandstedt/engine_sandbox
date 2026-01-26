@@ -41,7 +41,7 @@ DWORD WINAPI ds_thread_clone_start(LPVOID void_thr)
 	struct ds_thread *thr = void_thr;
 	thr->tid = GetCurrentThreadId();
 	thr->index = AtomicFetchAddRlx32(&a_index_counter, 1);
-	PROF_THREAD_NAMED(thread_profiler_id[thr->index]);
+	ProfThreadNamed(thread_profiler_id[thr->index]);
 	thr->start(thr);
 
 	return 0;
@@ -52,7 +52,7 @@ void ds_thread_master_init(struct arena *mem)
 	self = ArenaPush(mem, sizeof(struct ds_thread));
 	self->tid = GetCurrentThreadId();
 	self->index = 0;
-	PROF_THREAD_NAMED(thread_profiler_id[self->index]);
+	ProfThreadNamed(thread_profiler_id[self->index]);
 }
 
 void ds_thread_clone(struct arena *mem, void (*start)(ds_thread *), void *args, const u64 stack_size)
@@ -76,7 +76,7 @@ void ds_thread_clone(struct arena *mem, void (*start)(ds_thread *), void *args, 
 	if (thr == NULL)
 	{
 		LogString(T_SYSTEM, S_FATAL, "Failed to alloc thread memory, aborting.");
-		fatal_cleanup_and_exit(GetCurrentThreadId());
+		FatalCleanupAndExit(GetCurrentThreadId());
 	}
 
 	ds_Assert((u64) thr % g_arch_config->cacheline == 0);
@@ -94,8 +94,8 @@ void ds_thread_clone(struct arena *mem, void (*start)(ds_thread *), void *args, 
 	thr->native = CreateThread(lpThreadAttributes, stack_size, ds_thread_clone_start, thr, dwCreationFlags, NULL);
 	if (!thr->native)
 	{
-		Log_system_error(S_FATAL);
-		fatal_cleanup_and_exit(0);
+		LogSystemError(S_FATAL);
+		FatalCleanupAndExit(0);
 	}
 }
 
@@ -113,8 +113,8 @@ void ds_thread_wait(const ds_thread *thr)
 	{
 		if (ret == WAIT_FAILED)
 		{
-			Log_system_error(S_FATAL);
-			fatal_cleanup_and_exit(0);
+			LogSystemError(S_FATAL);
+			FatalCleanupAndExit(0);
 		}
 		else
 		{
@@ -126,13 +126,13 @@ void ds_thread_wait(const ds_thread *thr)
 	DWORD garbage;
 	if (!GetExitCodeThread(thr->native, &garbage))
 	{
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 		return;
 	}
 
 	if (!CloseHandle(thr->native))
 	{
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 	}
 
 	return;

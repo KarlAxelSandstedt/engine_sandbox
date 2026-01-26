@@ -23,28 +23,6 @@
 #include <windows.h>
 #include "ds_common.h"
 
-
-/************************* win_error.c *************************/
-
-#include <intrin.h>
-#include <stdarg.h>
-#include "Log.h"
-
-#define ERROR_BUFSIZE	512				
-#define Log_system_error(severity)	_log_system_error(severity, __func__, __FILE__, __LINE__)
-#define _log_system_error(severity, func, file, line)						\
-{												\
-	u8 _err_buf[ERROR_BUFSIZE];								\
-	const utf8 _err_str = utf8_system_error_buffered(_err_buf, ERROR_BUFSIZE);		\
-	Log(T_SYSTEM, severity, "At %s:%u in function %s - %k\n", file, line, func, &_err_str);	\
-}
-
-/* thread safe last system error message generation */
-utf8	utf8_system_error_buffered(u8 *buf, const u32 bufsize);
-
-
-void 	init_error_handling_func_ptrs(void);
-
 /************************* win_filesystem.c *************************/
 
 typedef WIN32_FILE_ATTRIBUTE_DATA	file_status;
@@ -64,12 +42,7 @@ void 	filesystem_init_func_ptrs(void);
 
 /********************  win_thread.c	********************/
 
-typedef DWORD				pid;
 typedef DWORD				tid;
 typedef struct ds_thread		ds_thread;
-
-/************************* win_arch.c *************************/
-
-void os_arch_init_func_ptrs(void);
 
 #endif

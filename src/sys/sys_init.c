@@ -31,7 +31,7 @@ void ds_sys_env_init(struct arena *mem)
 	if (cwd_set(mem, ".") != FS_SUCCESS)
 	{
 		LogString(T_SYSTEM, S_FATAL, "Failed to open the current working directory");
-		fatal_cleanup_and_exit(0);
+		FatalCleanupAndExit(0);
 	}
 }
 
@@ -42,21 +42,21 @@ void system_resources_init(struct arena *mem)
 
  	ds_sys_env_init(mem);
 	ds_thread_master_init(mem);
-	time_init(mem);
+	ds_TimeApiInit(mem);
 	LogInit(mem, "Log.txt");
 
 	if (!ds_arch_config_init(mem))
 	{
 		LogString(T_SYSTEM, S_FATAL, "Unsupported instrincs required");
-		fatal_cleanup_and_exit(0);
+		FatalCleanupAndExit(0);
 	}
 
 	/* must initalize stuff in multithreaded dtoa/strtod */
 	dmg_dtoa_init(g_arch_config->Logical_core_count);
 
 #if __DS_PLATFORM__ != __DS_WEB__
-	Log(T_SYSTEM, S_NOTE, "clock resolution (us): %3f", (f64) time_ns_per_tick() / 1000.0);
-	Log(T_SYSTEM, S_NOTE, "rdtsc estimated frequency (GHz): %3f", (f32) freq_rdtsc() / 1000000000);
+	Log(T_SYSTEM, S_NOTE, "clock resolution (us): %3f", (f64) NsResolution() / 1000.0);
+	Log(T_SYSTEM, S_NOTE, "Rdtsc estimated frequency (GHz): %3f", (f32) TscFrequency() / 1000000000);
 	for (u32 i = 0; i < g_arch_config->Logical_core_count; ++i)
 	{
 		Log(T_SYSTEM, S_NOTE, "core %u tsc skew (reltive to core 0): %lu", i, g_tsc_skew[i]);

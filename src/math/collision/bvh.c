@@ -394,7 +394,7 @@ u32 dbvh_internal_push_subtree_overlap_pairs(struct arena *mem, struct dbvh_over
 				if (q+1 >= stack_len)
 				{
 					LogString(T_PHYSICS, S_FATAL, "out-of-memory in arena based stack, increase arena size!");		
-					fatal_cleanup_and_exit(ds_thread_self_tid());
+					FatalCleanupAndExit(ds_thread_self_tid());
 				}
 				continue;
 			}
@@ -445,7 +445,7 @@ struct dbvh_overlap *dbvh_push_overlap_pairs(struct arena *mem, u32 *count, cons
 			if (q >= arr1.len)
 			{
 				LogString(T_PHYSICS, S_FATAL, "out-of-memory in arena based stack, increase arena size!");		
-				fatal_cleanup_and_exit(ds_thread_self_tid());
+				FatalCleanupAndExit(ds_thread_self_tid());
 			}
 		}
 
@@ -511,7 +511,7 @@ struct tri_mesh_bvh tri_mesh_bvh_construct(struct arena *mem, const struct tri_m
 		return (struct tri_mesh_bvh) { 0 };
 	}
 
-	PROF_ZONE;
+	ProfZone;
 
 	ArenaPushRecord(mem);
 	const u32 max_node_count_required = 2*mesh->tri_count - 1;
@@ -595,7 +595,7 @@ struct tri_mesh_bvh tri_mesh_bvh_construct(struct arena *mem, const struct tri_m
 			continue;
 		}
 
-		PROF_ZONE_NAMED("mesh_bvh.bvh construction iteration");
+		ProfZoneNamed("mesh_bvh.bvh construction iteration");
 		vec3 bbox_min, bbox_max;
 		vec3_add(bbox_max, node->bbox.center, node->bbox.hw);
 		vec3_sub(bbox_min, node->bbox.center, node->bbox.hw);
@@ -726,7 +726,7 @@ struct tri_mesh_bvh tri_mesh_bvh_construct(struct arena *mem, const struct tri_m
 			}
 		}
 		
-		PROF_ZONE_END;
+		ProfZoneEnd;
 	}
 	
 end:
@@ -749,7 +749,7 @@ end:
 
 	bvh_validate(mem, &mesh_bvh.bvh);
 
-	PROF_ZONE_END;
+	ProfZoneEnd;
 	return mesh_bvh;
 }
 
@@ -793,7 +793,7 @@ void bvh_raycast_test_and_push_children(struct bvh_raycast_info *info, const u32
 		if (info->hit_queue.count == info->hit_queue.length)
 		{
 			LogString(T_SYSTEM, S_FATAL, "distance queue in bvh_raycast OOM, aborting");
-			fatal_cleanup_and_exit(ds_thread_self_tid());
+			FatalCleanupAndExit(ds_thread_self_tid());
 		}
 		min_queue_fixed_push(&info->hit_queue, info->node[popped_tuple.u].bt_right, distance_right);
 	}
@@ -801,7 +801,7 @@ void bvh_raycast_test_and_push_children(struct bvh_raycast_info *info, const u32
 
 u32f32 tri_mesh_bvh_raycast(struct arena *tmp, const struct tri_mesh_bvh *mesh_bvh, const struct ray *ray)
 {
-	PROF_ZONE;
+	ProfZone;
 	ArenaPushRecord(tmp);
 
 	const struct bvh *bvh = &mesh_bvh->bvh;
@@ -836,6 +836,6 @@ u32f32 tri_mesh_bvh_raycast(struct arena *tmp, const struct tri_mesh_bvh *mesh_b
 
 	ArenaPopRecord(tmp);
 
-	PROF_ZONE_END;
+	ProfZoneEnd;
 	return info.hit;
 }

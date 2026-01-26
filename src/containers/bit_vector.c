@@ -83,7 +83,7 @@ void bit_vec_increase_size(struct bit_vec *bvec, const u64 bit_count, const u64 
 	if (!bvec->bits)
 	{
 		LogString(T_SYSTEM, S_FATAL, "Failed on reallocation in bit_vec_increase_size, exiting");
-		fatal_cleanup_and_exit(0);
+		FatalCleanupAndExit(0);
 	}
 
 	for (u64 i = new_blocks_start; i < bvec->block_count; ++i)

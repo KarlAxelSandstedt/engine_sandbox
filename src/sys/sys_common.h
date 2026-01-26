@@ -36,45 +36,6 @@
 
 
 /************************************************************************/
-/* 				System Architecture			*/
-/************************************************************************/
-
-enum arch_type
-{
-	ARCH_INTEL64,
-	ARCH_AMD64,
-};
-
-struct ds_arch_config
-{
-	utf8 	vendor_string;
-	utf8	processor_string;
-
-	enum arch_type 	type;
-	u32		Logical_core_count;
-	pid		pid;
-
-	u64		pagesize;	/* bytes */
-	u64		cacheline;	/* bytes */
-
-	/* cpuid flags */
-	u32		sse : 1;
-	u32		sse2 : 1;
-	u32		sse3 : 1;
-	u32		ssse3 : 1;
-	u32		sse4_1 : 1;
-	u32		sse4_2 : 1;
-	u32		avx : 1;
-	u32		avx2 : 1;
-	u32		bmi1 : 1;	/* bit manipulation instructions (ctz, ctzl, ...) */
-
-	u32		rdtsc : 1;	/* profiling timer support  */
-	u32		rdtscp : 1;	/* profiling timer support  */
-	u32		tsc_invariant : 1;  /* tsc works as a wallclock timer, always ticking and at same frequency */
-};
-extern const struct ds_arch_config *g_arch_config;
-
-/************************************************************************/
 /* 			system mouse/keyboard handling 			*/
 /************************************************************************/
 
@@ -233,12 +194,6 @@ struct system_event {
 
 	utf8	utf8;
 };
-
-/************************************************************************/
-/* 				System Debug 				*/
-/************************************************************************/
-
-extern void (*fatal_cleanup_and_exit)(const u32 thread);
 
 /************************************************************************/
 /* 				System IO 				*/

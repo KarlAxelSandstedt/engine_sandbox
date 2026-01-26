@@ -29,24 +29,29 @@ extern "C" {
 #include "ds_atomic.h"
 #include "ds_allocator.h"
 #include "ds_string.h"
+#include "ds_error.h"
+#include "ds_arch.h"
+#include "ds_time.h"
+//#include "ds_thread.h"
 #include "ds_log.h"
 
 #ifdef DS_PROFILE
 	#include "tracy/TracyC.h"
-	#define PROF_FRAME_MARK		TracyCFrameMark
-	#define	PROF_ZONE		TracyCZone(ctx, 1)
-	#define PROF_ZONE_NAMED(str)	TracyCZoneN(ctx, str, 1)
-	#define PROF_ZONE_END		TracyCZoneEnd(ctx)
-	#define PROF_THREAD_NAMED(str)	TracyCSetThreadName(str)
+	#define ProfFrameMark		TracyCFrameMark
+	#define	ProfZone		TracyCZone(ctx, 1)
+	#define ProfZoneNamed(str)	TracyCZoneN(ctx, str, 1)
+	#define ProfZoneEnd		TracyCZoneEnd(ctx)
+	#define ProfThreadNamed(str)	TracyCSetThreadName(str)
 #else
-	#define PROF_FRAME_MARK		
-	#define	PROF_ZONE		
-	#define PROF_ZONE_NAMED(str)
-	#define PROF_ZONE_END	
-	#define PROF_THREAD_NAMED(str)
+	#define ProfFrameMark		
+	#define	ProfZone		
+	#define ProfZoneNamed(str)
+	#define ProfZoneEnd	
+	#define ProfThreadNamed(str)
 #endif
 
 #ifdef DS_ASSERT_DEBUG
+
 	#define ds_Assert(assertion)			_ds_assert(assertion, __FILE__, __LINE__, __func__)
 	#define ds_AssertString(assertion, cstr)	_ds_assert_string(assertion, __FILE__, __LINE__, __func__, cstr) 
 	#define ds_AssertMessage(assertion, msg, ...)	_ds_assert_message(assertion, __FILE__, __LINE__, __func__, msg, __VA_ARGS__)
@@ -57,7 +62,7 @@ extern "C" {
 		{												\
 			Log(T_ASSERT, S_FATAL, "assertion failed at %s:%u in function %s", file, line, func);	\
 			Breakpoint(1);										\
- 			fatal_cleanup_and_exit(ds_thread_self_tid());						\
+ 			FatalCleanupAndExit();									\
 		}
 	
 	#define _ds_assert_string(assertion, file, line, func, cstr)						\
@@ -66,7 +71,7 @@ extern "C" {
 		{												\
 			Log(T_ASSERT, S_FATAL, "assertion failed at %s:%u in function %s - %s", file, line, func, cstr); \
 			Breakpoint(1);										\
- 			fatal_cleanup_and_exit(ds_thread_self_tid());						\
+ 			FatalCleanupAndExit();									\
 		}
 	
 	#define _ds_assert_message(assertion, file, line, func, msg, ...)					\
@@ -77,7 +82,7 @@ extern "C" {
 			const utf8 __fmsg = Utf8FormatBuffered(__msg_buf, LOG_MAX_MESSAGE_SIZE, msg, __VA_ARGS__); \
 			Log(T_ASSERT, S_FATAL, "assertion failed at %s:%u in function %s - %k", file, line, func, &__fmsg); \
 			Breakpoint(1);										\
- 			fatal_cleanup_and_exit(ds_thread_self_tid());						\
+ 			FatalCleanupAndExit();									\
 		}
 #else
 

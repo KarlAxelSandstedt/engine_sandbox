@@ -257,7 +257,7 @@ struct ds_buffer linux_file_dump(struct arena *mem, const char *path, const stru
 	const file_handle handle = openat(dir->handle, path, O_RDONLY);
 	if (handle == -1)
 	{
-		LOG_SYSTEM_ERROR(S_ERROR);
+		LogSystemError(S_ERROR);
 		return ds_buffer_empty;
 	}
 
@@ -299,7 +299,7 @@ struct ds_buffer linux_file_dump(struct arena *mem, const char *path, const stru
 		bytes_read_in_call = read(handle, buf.data + (buf.size - bytes_left), bytes_left);
 		if (bytes_read_in_call == -1)
 		{
-			LOG_SYSTEM_ERROR(S_ERROR);
+			LogSystemError(S_ERROR);
 			buf = ds_buffer_empty;
 			if (mem)
 			{
@@ -329,7 +329,7 @@ u32 linux_file_set_size(const struct file *file, const u64 size)
 	u32 success = 1;
 	if (ftruncate(file->handle, size) == -1)
 	{
-		LOG_SYSTEM_ERROR(S_ERROR);
+		LogSystemError(S_ERROR);
 		success = 0;
 	}
 	return success;
@@ -339,7 +339,7 @@ void linux_file_close(struct file *file)
 {
 	if (close(file->handle) == -1)
 	{
-		LOG_SYSTEM_ERROR(S_ERROR);
+		LogSystemError(S_ERROR);
 	}
 
 	*file = file_null();
@@ -352,7 +352,7 @@ u64 linux_file_write_offset(const struct file *file, const u8 *buf, const u64 bu
 	const off_t ret = lseek64(file->handle, (off_t) offset, SEEK_SET);
 	if (ret == -1)
 	{
-		LOG_SYSTEM_ERROR(S_ERROR);
+		LogSystemError(S_ERROR);
 		return 0;
 	}
 
@@ -364,7 +364,7 @@ u64 linux_file_write_offset(const struct file *file, const u8 *buf, const u64 bu
 		count = write(file->handle, buf + total, left);
 		if (count == -1)
 		{
-			LOG_SYSTEM_ERROR(S_ERROR);
+			LogSystemError(S_ERROR);
 			break;
 		}
 
@@ -382,7 +382,7 @@ u64 linux_file_write_append(const struct file *file, const u8 *buf, const u64 bu
 	const off_t ret = lseek64(file->handle, 0, SEEK_END);
 	if (ret == -1)
 	{
-		LOG_SYSTEM_ERROR(S_ERROR);
+		LogSystemError(S_ERROR);
 		return 0;
 	}
 
@@ -394,7 +394,7 @@ u64 linux_file_write_append(const struct file *file, const u8 *buf, const u64 bu
 		count = write(file->handle, buf + total, left);
 		if (count == -1)
 		{
-			LOG_SYSTEM_ERROR(S_ERROR);
+			LogSystemError(S_ERROR);
 			break;
 		}
 
@@ -428,20 +428,20 @@ void *linux_file_memory_map_partial(const struct file *file, const u64 length, c
 	struct stat stat;
 	if (file_status_file(&stat, file) != FS_SUCCESS)
 	{
-		LOG_SYSTEM_ERROR(S_ERROR);
+		LogSystemError(S_ERROR);
 		return NULL;
 	}
 
 	if ((u64) stat.st_size < length + offset && !linux_file_set_size(file, offset + length))
 	{
-		LOG_SYSTEM_ERROR(S_ERROR);
+		LogSystemError(S_ERROR);
 		return NULL;
 	}
 
 	void *addr = mmap(NULL, length, prot, flags, file->handle, (off_t) offset);
 	if (addr == MAP_FAILED)
 	{
-		LOG_SYSTEM_ERROR(S_ERROR);
+		LogSystemError(S_ERROR);
 		addr = NULL;
 	}
 
@@ -452,7 +452,7 @@ void linux_file_memory_unmap(void *addr, const u64 length)
 {
 	if (munmap(addr, length) == -1)
 	{
-		LOG_SYSTEM_ERROR(S_ERROR);
+		LogSystemError(S_ERROR);
 	}
 }
 
@@ -460,12 +460,12 @@ void linux_file_memory_sync_unmap(void *addr, const u64 length)
 {
 	if (msync(addr, length, MS_SYNC) == -1)
 	{
-		LOG_SYSTEM_ERROR(S_ERROR);
+		LogSystemError(S_ERROR);
 	}
 
 	if (munmap(addr, length) == -1)
 	{
-		LOG_SYSTEM_ERROR(S_ERROR);
+		LogSystemError(S_ERROR);
 	}
 }
 
@@ -589,7 +589,7 @@ enum fs_error linux_file_status_path(file_status *status, const char *path, cons
 	{
 		if (fstatat(dir->handle, path, status, 0) == -1)
 		{
-			LOG_SYSTEM_ERROR(S_ERROR);	
+			LogSystemError(S_ERROR);	
 			err = FS_ERROR_UNSPECIFIED;
 		}
 	}

@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 #include "ds_base.h"
 
@@ -110,6 +111,8 @@ void *ds_Alloc(struct memSlot *slot, const u64 size, const u32 huge_pages)
 	slot->size = size_used;
 	slot->huge_pages = huge_pages;
 
+	ds_Assert(((u64) slot->address) % g_mem_config->page_size == 0);
+
 	return slot->address;
 }
 
@@ -135,9 +138,8 @@ void *ds_Realloc(struct memSlot *slot, const u64 size)
 
 	if (slot->address == MAP_FAILED || slot->address == NULL)
 	{
-		//TODO Crash
 		LogString(T_SYSTEM, S_FATAL, "Failed to reallocate memSlot in ds_Realloc, exiting.");
-		//fatal_cleanup_and_exit(ds_thread_self_tid());
+		FatalCleanupAndExit();
 	}
 
 	return slot->address;
@@ -181,7 +183,7 @@ void *ds_Alloc(struct memSlot *slot, const u64 size, const u32 garbage)
 	slot->size = size_used;
 	slot->huge_pages = 0;
 
-	ds_Assert(((u64) &slot->address) % g_mem_config->page_size == 0);
+	ds_Assert(((u64) slot->address) % g_mem_config->page_size == 0);
 
 	return slot->address;
 }
@@ -200,9 +202,8 @@ void *ds_Realloc(struct memSlot *slot, const u64 size)
 	
 	if (slot->address == MAP_FAILED)
 	{
-		//TODO Crash
 		LogString(T_SYSTEM, S_FATAL, "Failed to reallocate memSlot in ds_Realloc, exiting.");
-		//fatal_cleanup_and_exit(ds_thread_self_tid());
+		FatalCleanupAndExit();
 	}
 
 	return slot->address;
@@ -436,9 +437,8 @@ void ThreadBlockAllocatorAlloc(struct threadBlockAllocator *allocator, const u64
 	ds_AssertString(((u64) allocator->block & (DS_CACHE_LINE_UB-1)) == 0, "allocator block array should be cacheline aligned");
 	if (!allocator->block)
 	{
-		//TODO
 		LogString(T_SYSTEM, S_FATAL, "Failed to allocate block allocator->block");
-		//fatal_cleanup_and_exit(ds_thread_self_tid());
+		FatalCleanupAndExit();
 	}
 	/* sync point (gen, index) = (0,0) */
 	AtomicStoreRel64(&allocator->a_next, 0);
@@ -659,33 +659,33 @@ struct ring RingAlloc(const u64 mem_hint)
 	u8 *alloc = VirtualAlloc2(NULL, NULL, 2*bufsize, MEM_RESERVE | MEM_RESERVE_PLACEHOLDER, PAGE_NOACCESS, NULL, 0);
 	if (alloc == NULL)
 	{
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 		return RingEmpty();
 	}
 
 	if (!VirtualFree(alloc, bufsize, MEM_RELEASE | MEM_PRESERVE_PLACEHOLDER))
 	{
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 		return RingEmpty();
 	}
 
 	HANDLE map = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, (DWORD) (bufsize >> 32), (DWORD) ((u32) bufsize), NULL);
 	if (map == INVALID_HANDLE_VALUE)
 	{
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 		return RingEmpty();
 	}
 
 	u8 *buf = MapViewOfFile3(map, INVALID_HANDLE_VALUE, alloc, 0, bufsize, MEM_REPLACE_PLACEHOLDER, PAGE_READWRITE, NULL, 0);
 	if (buf == NULL)
 	{
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 		return RingEmpty();
 	}
 
 	if (MapViewOfFile3(map, INVALID_HANDLE_VALUE, alloc + bufsize, 0, bufsize, MEM_REPLACE_PLACEHOLDER, PAGE_READWRITE, NULL, 0) == NULL)
 	{
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 		return RingEmpty();
 	}
 
@@ -698,11 +698,11 @@ void RingDealloc(struct ring *ring)
 {
 	if (!UnmapViewOfFile(ring->buf))
 	{
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 	}
 	if (!UnmapViewOfFile(ring->buf + ring->mem_total))
 	{
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 	}
 	*ring = RingEmpty();
 }
@@ -816,9 +816,8 @@ static void PoolReallocInternal(struct pool *pool)
 	const u32 length_max = (U32_MAX >> 1);
 	if (pool->length == length_max)
 	{
-		//TODO
 		LogString(T_SYSTEM, S_FATAL, "pool allocator full, exiting");
-		//fatal_cleanup_and_exit(ds_thread_self_tid());
+		FatalCleanupAndExit();
 	}
 	
 	u32 old_length = pool->length;
@@ -831,9 +830,8 @@ static void PoolReallocInternal(struct pool *pool)
 	pool->buf = ds_Realloc(&pool->mem_slot, pool->length*pool->slot_size);
 	if (!pool->buf)
 	{
-		//TODO
 		LogString(T_SYSTEM, S_FATAL, "pool reallocation failed, exiting");
-		//fatal_cleanup_and_exit(ds_thread_self_tid());
+		FatalCleanupAndExit();
 	}
 
 	UnpoisonAddress(pool->buf, pool->slot_size*old_length);
@@ -1030,9 +1028,8 @@ struct slot PoolExternalAdd(struct poolExternal *pool)
 			*pool->external_buf = realloc(*pool->external_buf, pool->pool.slot_size*pool->pool.length);
 			if (*pool->external_buf == NULL)
 			{
-				//TODO
 				LogString(T_SYSTEM, S_FATAL, "Failed to reallocate external pool buffer");
-				//fatal_cleanup_and_exit(ds_thread_self_tid());
+				FatalCleanupAndExit();
 			}
 			UnpoisonAddress(*pool->external_buf, pool->slot_size*old_length);
 			PoisonAddress(((u8 *)(*pool->external_buf) + pool->slot_size*old_length), pool->slot_size*(pool->pool.length - old_length)); 

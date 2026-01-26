@@ -22,17 +22,17 @@
 
 #ifdef DS_PROFILE
 	#include "tracy/TracyC.h"
-	#define PROF_FRAME_MARK		TracyCFrameMark
-	#define	PROF_ZONE		TracyCZone(ctx, 1)
-	#define PROF_ZONE_NAMED(str)	TracyCZoneN(ctx, str, 1)
-	#define PROF_ZONE_END		TracyCZoneEnd(ctx)
-	#define PROF_THREAD_NAMED(str)	TracyCSetThreadName(str)
+	#define ProfFrameMark		TracyCFrameMark
+	#define	ProfZone		TracyCZone(ctx, 1)
+	#define ProfZoneNamed(str)	TracyCZoneN(ctx, str, 1)
+	#define ProfZoneEnd		TracyCZoneEnd(ctx)
+	#define ProfThreadNamed(str)	TracyCSetThreadName(str)
 #else
-	#define PROF_FRAME_MARK		
-	#define	PROF_ZONE		
-	#define PROF_ZONE_NAMED(str)
-	#define PROF_ZONE_END	
-	#define PROF_THREAD_NAMED(str)
+	#define ProfFrameMark		
+	#define	ProfZone		
+	#define ProfZoneNamed(str)
+	#define ProfZoneEnd	
+	#define ProfThreadNamed(str)
 #endif
 
 /*** Logger definitions ***/

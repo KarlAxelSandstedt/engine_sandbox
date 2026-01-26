@@ -74,14 +74,14 @@ static enum fs_error w_absolute_path_from_relative_path_and_directory(WCHAR w_ab
 
 	if (!GetFinalPathNameByHandleW(dir->handle, w_directory_path, MAX_PATH, FILE_NAME_NORMALIZED | VOLUME_NAME_DOS))
 	{
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 		return FS_HANDLE_INVALID;
 	}
 
 	const int len_relative = MultiByteToWideChar(CP_UTF8, 0, relative_path, -1, w_relative_path, MAX_PATH);
 	if (!len_relative)
 	{
-		Log_system_error(S_ERROR);	
+		LogSystemError(S_ERROR);	
 		return FS_HANDLE_INVALID;
 	}
 
@@ -106,7 +106,7 @@ u32 win_utf8_path_is_relative(const utf8 path)
 	u32 relative = 0;
 	if (!len_relative)
 	{
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 	}
 	else
 	{
@@ -161,7 +161,7 @@ enum fs_error win_file_try_create(struct arena *mem, struct file *file, const ch
 					default: { err = FS_ERROR_UNSPECIFIED; } break;
 				}
 
-				Log_system_error(S_ERROR);	
+				LogSystemError(S_ERROR);	
 			}
 		}
 	}
@@ -217,7 +217,7 @@ enum fs_error win_file_try_open(struct arena *mem, struct file *file, const char
 					default: { err = FS_ERROR_UNSPECIFIED; } break;
 				}
 
-				Log_system_error(S_ERROR);	
+				LogSystemError(S_ERROR);	
 			}
 		}
 	}
@@ -272,7 +272,7 @@ enum fs_error win_directory_try_create(struct arena *mem, struct file *dir, cons
 					default: { err = FS_ERROR_UNSPECIFIED; } break;
 				}
 
-				Log_system_error(S_ERROR);	
+				LogSystemError(S_ERROR);	
 			}
 		}
 	}
@@ -323,7 +323,7 @@ enum fs_error win_directory_try_open(struct arena *mem, struct file *dir, const 
 					default: { err = FS_ERROR_UNSPECIFIED; } break;
 				}
 
-				Log_system_error(S_ERROR);	
+				LogSystemError(S_ERROR);	
 			}
 		}
 	}
@@ -354,7 +354,7 @@ struct ds_buffer win_file_dump(struct arena *mem, const char *path, const struct
 	LARGE_INTEGER size;
 	if (!GetFileSizeEx(file.handle, &size))
 	{
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 	}
 	else
 	{
@@ -366,7 +366,7 @@ struct ds_buffer win_file_dump(struct arena *mem, const char *path, const struct
 			ds_Assert(size.QuadPart <= U32_MAX);
 			if (!ReadFile(file.handle, buf.data, (u32) buf.size, &bytes_read, NULL))
 			{
-				Log_system_error(S_ERROR);
+				LogSystemError(S_ERROR);
 				buf.data = NULL;
 				buf.size = 0;
 			}
@@ -393,7 +393,7 @@ u32 win_file_set_size(const struct file *file, const u64 size)
 	LARGE_INTEGER l_size = { .QuadPart = size };
 	if (!SetFilePointerEx(file->handle, l_size, NULL, FILE_BEGIN) || !SetEndOfFile(file->handle))
 	{
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 		success = 0;	
 	}
 
@@ -404,7 +404,7 @@ void win_file_close(struct file *file)
 {
 	if (!CloseHandle(file->handle))
 	{
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 	}
 	file->handle = FILE_HANDLE_INVALID;
 }
@@ -415,7 +415,7 @@ u64 win_file_write_offset(const struct file *file, const u8 *buf, const u64 size
 	LARGE_INTEGER l_size;
 	if (!GetFileSizeEx(file->handle, &l_size))
 	{
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 		return 0;
 	}
 
@@ -427,7 +427,7 @@ u64 win_file_write_offset(const struct file *file, const u8 *buf, const u64 size
 	LARGE_INTEGER l_offset = { .QuadPart = offset };
 	if (!SetFilePointerEx(file->handle, l_offset, NULL, FILE_BEGIN))
 	{
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 		return 0;
 	}
 
@@ -435,7 +435,7 @@ u64 win_file_write_offset(const struct file *file, const u8 *buf, const u64 size
 	/* bytes_written are zeroed inside, before error checking */
 	if (!WriteFile(file->handle, buf, (DWORD) size, &bytes_written, NULL))
 	{
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 	}
 
 	/* Seems like no memory maps will see our writes if we do not sync... TODO: Fix sane api */
@@ -450,7 +450,7 @@ u64 win_file_write_append(const struct file *file, const u8 *buf, const u64 size
 	LARGE_INTEGER distance_to_move = { .QuadPart = 0 };
 	if (!SetFilePointerEx(file->handle, distance_to_move, NULL, FILE_END))
 	{
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 		return 0;
 	}
 
@@ -458,7 +458,7 @@ u64 win_file_write_append(const struct file *file, const u8 *buf, const u64 size
 	/* bytes_written are zeroed inside, before error checking */
 	if (!WriteFile(file->handle, buf, (DWORD) size, &bytes_written, NULL))
 	{
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 	}
 
 	/* Seems like no memory maps will see our writes if we do not sync... TODO: Fix sane api */
@@ -474,7 +474,7 @@ void win_file_sync(const struct file *file)
 {
 	if (!FlushFileBuffers(file->handle))
 	{
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 	}
 }
 
@@ -486,7 +486,7 @@ void *win_file_memory_map(u64 *size, const struct file *file, const u32 prot, co
 	*size = 0;
 	if (!GetFileSizeEx(file->handle, &l_size))
 	{
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 	}
 	else
 	{
@@ -508,7 +508,7 @@ void *win_file_memory_map_partial(const struct file *file, const u64 length, con
 		LARGE_INTEGER l_size;
 		if (!GetFileSizeEx(file->handle, &l_size))
 		{
-			Log_system_error(S_ERROR);
+			LogSystemError(S_ERROR);
 			return NULL;
 		}
 		else if ((u64) l_size.QuadPart < offset + length)
@@ -524,7 +524,7 @@ void *win_file_memory_map_partial(const struct file *file, const u64 length, con
 	HANDLE handle = CreateFileMappingA(file->handle, NULL, map_prot, new_size_high, new_size_low, NULL);
 	if (handle == NULL)
 	{
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 	}
 	else
 	{
@@ -535,7 +535,7 @@ void *win_file_memory_map_partial(const struct file *file, const u64 length, con
 
 		if (map == NULL)
 		{
-			Log_system_error(S_ERROR);
+			LogSystemError(S_ERROR);
 		}
 		else
 		{
@@ -544,7 +544,7 @@ void *win_file_memory_map_partial(const struct file *file, const u64 length, con
 
 		if (CloseHandle(handle) == 0)
 		{
-			Log_system_error(S_ERROR);
+			LogSystemError(S_ERROR);
 		}
 	}
 
@@ -559,7 +559,7 @@ void win_file_memory_unmap(void *addr, const u64 length)
 
 	if (UnmapViewOfFile(((u8 *) addr) - mod) == 0)
 	{
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 	}
 }
 
@@ -571,12 +571,12 @@ void win_file_memory_sync_unmap(void *addr, const u64 length)
 
 	if (FlushViewOfFile(((u8 *) addr) - mod, length + mod) == 0)
 	{	
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 	}
 
 	if (UnmapViewOfFile(((u8 *) addr) - mod) == 0)
 	{
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 	}
 }
 
@@ -597,7 +597,7 @@ utf8 win_cwd_get(struct arena *mem)
 		}
 		else
 		{
-			Log_system_error(S_ERROR);
+			LogSystemError(S_ERROR);
 		}
 	}
 	
@@ -620,7 +620,7 @@ enum fs_error win_cwd_set(struct arena *mem, const char *path)
 	{
 		g_sys_env->cwd.handle = FILE_HANDLE_INVALID;
 		err = FS_ERROR_UNSPECIFIED;
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 	}
 	else
 	{
@@ -629,7 +629,7 @@ enum fs_error win_cwd_set(struct arena *mem, const char *path)
 			/* We shouldn't use the underlying system cwd; instead, all *_at_cwd operations
 			 * go through g_sys_env on windows, so a WARNING is sufficient. */
 			err = FS_ERROR_UNSPECIFIED;
-			Log_system_error(S_WARNING);
+			LogSystemError(S_WARNING);
 		}
 
 		g_sys_env->cwd.handle = handle;
@@ -652,7 +652,7 @@ enum fs_error win_directory_push_entries(struct arena *mem, struct vector *vec, 
 	HANDLE handle = FindFirstFileW(w_path, &file_info);
 	if (handle == INVALID_HANDLE_VALUE)
 	{
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 		return FS_ERROR_UNSPECIFIED;
 	}
 	
@@ -670,7 +670,7 @@ enum fs_error win_directory_push_entries(struct arena *mem, struct vector *vec, 
 		int cstr_len = WideCharToMultiByte(CP_UTF8, 0, file_info.cFileName, -1, cstr_filename, sizeof(cstr_filename), NULL, NULL);
 		if (cstr_len == 0)
 		{
-			Log_system_error(S_ERROR);
+			LogSystemError(S_ERROR);
 			ret = FS_ERROR_UNSPECIFIED;
 			break;
 		}
@@ -704,14 +704,14 @@ enum fs_error win_file_status_file(file_status *status, const struct file *file)
 	WCHAR w_path[MAX_PATH];
 	if (!GetFinalPathNameByHandleW(file->handle, w_path, MAX_PATH, FILE_NAME_NORMALIZED | VOLUME_NAME_DOS))
 	{
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 		return FS_ERROR_UNSPECIFIED;
 	}
 
 	enum fs_error err = FS_SUCCESS;
 	if (!GetFileAttributesExW(w_path, GetFileExInfoStandard, status))
 	{
-		Log_system_error(S_ERROR);
+		LogSystemError(S_ERROR);
 		err = FS_ERROR_UNSPECIFIED;
 	}
 
@@ -726,7 +726,7 @@ enum fs_error win_file_status_path(file_status *status, const char *path, const 
 	{
 		if (!GetFileAttributesExW(w_path, GetFileExInfoStandard, status))
 		{
-			Log_system_error(S_ERROR);
+			LogSystemError(S_ERROR);
 			err = FS_ERROR_UNSPECIFIED;
 		}
 	}

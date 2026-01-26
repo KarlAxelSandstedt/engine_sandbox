@@ -65,7 +65,7 @@ void TicketFactoryReturnTickets(struct ticketFactory *tf, const u32 count)
 	ds_Assert(((u32) AtomicLoadRlx32(&tf->a_next) - (u32) AtomicLoadRlx32(&tf->a_serve)) <= tf->max_tickets);
 
 	/* sync_point */
-	const u32 serve = AtomicFetchAddRel32(&tf->a_serve, count);
+	AtomicFetchAddRel32(&tf->a_serve, count);
 	for (u32 i = 0; i < count; ++i)
 	{
 		SemaphorePost(&tf->available);

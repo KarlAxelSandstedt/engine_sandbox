@@ -55,7 +55,7 @@ static void main_loop(void)
 
 		task_context_frame_clear();
 
-		const u64 new_time = time_ns();
+		const u64 new_time = ds_TimeNs();
 		const u64 ns_tick = new_time - old_time;
 		old_time = new_time;
 

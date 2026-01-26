@@ -56,7 +56,7 @@ struct led *led_alloc(void)
 	g_editor->frame = ArenaAlloc(16*1024*1024);
 	g_editor->project_menu = led_project_menu_alloc();
 	g_editor->running = 1;
-	g_editor->ns = time_ns();
+	g_editor->ns = ds_TimeNs();
 	g_editor->root_folder = file_null();
 
 	//const vec3 position = {-40.0f, 3.0f, -30.0f};
@@ -98,7 +98,7 @@ struct led *led_alloc(void)
 		if ((err = directory_try_open_at_cwd(&sys_win->mem_persistent, &g_editor->root_folder, LED_ROOT_FOLDER_PATH)) != FS_SUCCESS)
 		{
 			LogString(T_SYSTEM, S_FATAL, "Failed to open projects folder, exiting.");
-			fatal_cleanup_and_exit(ds_thread_self_tid());
+			FatalCleanupAndExit(ds_thread_self_tid());
 		}
 	}
 	
