@@ -34,7 +34,7 @@ extern "C" {
 #define ERROR_BUFSIZE			512				
 
 void 	LogInit(struct arena *mem, const char *filepath);
-void 	LogShutdown();
+void 	LogShutdown(void);
 
 
 /**

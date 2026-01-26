@@ -266,6 +266,7 @@ void ds_TimeApiInit(struct arena *persistent)
 	clock_gettime(CLOCK_MONOTONIC, &ts);
 	g_timer.ns_start = NSEC_PER_SEC * ts.tv_sec + ts.tv_nsec;
 
+	g_timer.tsc_start = 0;
 	g_precision_timer.tsc_start = 0;
 	g_precision_timer.tsc_freq = 0;
 }

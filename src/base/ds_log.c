@@ -114,7 +114,7 @@ void LogInit(struct arena *mem, const char *filepath)
 	AtomicStoreRel32(&g_log.a_writing_to_disk, 0);
 }
 
-static void Log_try_write_to_disk(void)
+static void LogTryWriteToDisk(void)
 {
 	u32 desired = 0;
 	/* If we fail, try to write messages to disk and re-publish them  */
@@ -146,7 +146,7 @@ static void internal_write_to_disk(void)
 	/* spin until all tickets have finished and the messages have been written to disk */
 	while (AtomicLoadAcq32(&g_log.tf.a_serve) != AtomicLoadAcq32(&g_log.tf.a_next))
 	{
-		Log_try_write_to_disk();
+		LogTryWriteToDisk();
 	}
 }
 
@@ -167,9 +167,7 @@ void LogWriteMessage(const enum system_id system, const enum severity_id severit
 {
 	ProfZone;
 	
-	//TODO
-	//const u32 thread_id = ds_ThreadSelfTid();
-	const u32 thread_id = 0;
+	const u32 thread_id = ds_ThreadSelfIndex();
 	/* spin until a new msg slot is up for grabs for us to publish */
 	u32 ticket;
 	u32 ret;
@@ -180,18 +178,15 @@ void LogWriteMessage(const enum system_id system, const enum severity_id severit
 		 * instead ensure that all threads have terminated before we even call
 		 * LogShutdown();
 		 */
-		Log_try_write_to_disk();
+		LogTryWriteToDisk();
 	}
 
 	if (ret == TICKET_FACTORY_CLOSED) { goto end; }
 
-
 	struct Log_message *msg = g_log.msg + (ticket % LOG_MAX_MESSAGES);
 
 	/* format message */
-	//TODO
-	//const u64 ms = ds_TimeMs();
-	const u64 ms = 0;
+	const u64 ms = ds_TimeMs();
 	msg->time = ms; 
 	msg->system = system;
 	msg->severity = severity;
