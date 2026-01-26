@@ -168,7 +168,7 @@ void LogWriteMessage(const enum system_id system, const enum severity_id severit
 	ProfZone;
 	
 	//TODO
-	//const u32 thread_id = ds_thread_self_tid();
+	//const u32 thread_id = ds_ThreadSelfTid();
 	const u32 thread_id = 0;
 	/* spin until a new msg slot is up for grabs for us to publish */
 	u32 ticket;

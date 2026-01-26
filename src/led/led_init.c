@@ -98,7 +98,7 @@ struct led *led_alloc(void)
 		if ((err = directory_try_open_at_cwd(&sys_win->mem_persistent, &g_editor->root_folder, LED_ROOT_FOLDER_PATH)) != FS_SUCCESS)
 		{
 			LogString(T_SYSTEM, S_FATAL, "Failed to open projects folder, exiting.");
-			FatalCleanupAndExit(ds_thread_self_tid());
+			FatalCleanupAndExit(ds_ThreadSelfTid());
 		}
 	}
 	

@@ -99,7 +99,7 @@ DECLARE_STACK_ALLOC(type)										\
 		: malloc(sizeof(type)*length);								\
 	if (length > 0 && !stack.arr)									\
 	{												\
-		FatalCleanupAndExit(ds_thread_self_tid());						\
+		FatalCleanupAndExit(ds_ThreadSelfTid());						\
 	}												\
 	return stack;											\
 }
@@ -124,12 +124,12 @@ DECLARE_STACK_PUSH(type)											\
 			stack->arr = realloc(stack->arr, stack->length*sizeof(stack->arr[0]));			\
 			if (!stack->arr)									\
 			{											\
-				FatalCleanupAndExit(ds_thread_self_tid());					\
+				FatalCleanupAndExit(ds_ThreadSelfTid());					\
 			}											\
 		}												\
 		else												\
 		{												\
-			FatalCleanupAndExit(ds_thread_self_tid());						\
+			FatalCleanupAndExit(ds_ThreadSelfTid());						\
 		}												\
 	}													\
 	stack->arr[stack->next] = val;										\
@@ -216,7 +216,7 @@ DECLARE_STACK_VEC_ALLOC(vectype)									\
 		: malloc(sizeof(vectype)*length);							\
 	if (length > 0 && !stack.arr)									\
 	{												\
-		FatalCleanupAndExit(ds_thread_self_tid());						\
+		FatalCleanupAndExit(ds_ThreadSelfTid());						\
 	}												\
 	return stack;											\
 }
@@ -241,12 +241,12 @@ DECLARE_STACK_VEC_PUSH(vectype)											\
 			stack->arr = realloc(stack->arr, stack->length*sizeof(stack->arr[0]));			\
 			if (!stack->arr)									\
 			{											\
-				FatalCleanupAndExit(ds_thread_self_tid());					\
+				FatalCleanupAndExit(ds_ThreadSelfTid());					\
 			}											\
 		}												\
 		else												\
 		{												\
-			FatalCleanupAndExit(ds_thread_self_tid());						\
+			FatalCleanupAndExit(ds_ThreadSelfTid());						\
 		}												\
 	}													\
 	vectype ## _copy(stack->arr[stack->next], val);								\

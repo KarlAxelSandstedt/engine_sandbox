@@ -53,8 +53,6 @@ void	filesystem_init_func_ptrs(void);
 /********************  wasm_thread.c	********************/
 
 typedef pid_t			pid;
-typedef pid_t			tid;
-typedef struct ds_thread 	ds_thread;
 
 
 #endif

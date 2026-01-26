@@ -38,18 +38,18 @@ typedef DWORD	pid;
 
 #endif
 
-enum arch_type
+enum dsArchType
 {
 	ARCH_INTEL64,
 	ARCH_AMD64,
 };
 
-struct ds_arch_config
+struct dsArchConfig
 {
 	utf8 	vendor_string;
 	utf8	processor_string;
 
-	enum arch_type 	type;
+	enum dsArchType 	type;
 	u32		logical_core_count;
 	pid		pid;
 
@@ -72,20 +72,20 @@ struct ds_arch_config
 	u32		tsc_invariant : 1;  /* tsc works as a wallclock timer, always ticking and at same frequency */
 };
 
-extern const struct ds_arch_config *g_arch_config;
+extern const struct dsArchConfig *g_arch_config;
 
 /* return Logical core count  */
-u32  	system_logical_core_count(void);
+u32  	ds_LogicalCoreCount(void);
 /* return system pagesize */
-u64	system_pagesize(void);
+u64	ds_Pagesize(void);
 /* return process identifier */
-pid	system_pid(void);
+pid	ds_Pid(void);
 /* cpu x86 querying */
-void 	ds_cpuid(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, const u32 function);
-void 	ds_cpuid_ex(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, const u32 function, const u32 subfunction);
+void 	ds_Cpuid(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, const u32 function);
+void 	ds_CpuidEx(u32 *eax, u32 *ebx, u32 *ecx, u32 *edx, const u32 function, const u32 subfunction);
 
 /* sets up g_arch_config. returns 1 on intrinsics requirements fullfilled, 0 otherwise. */
-u32 	ds_arch_config_init(struct arena *mem);
+u32 	ds_ArchConfigInit(struct arena *mem);
 
 #ifdef __cplusplus
 } 

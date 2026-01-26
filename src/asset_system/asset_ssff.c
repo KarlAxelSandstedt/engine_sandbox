@@ -317,7 +317,7 @@ void ssff_save(const struct asset_ssff *asset, const struct ssff_header *header)
 	if (file_try_create_at_cwd(&tmp, &file, asset->filepath, FILE_TRUNCATE) != FS_SUCCESS)
 	{
 		LogString(T_ASSET, S_FATAL, "Failed to create .ssff file handle");
-		FatalCleanupAndExit(ds_thread_self_tid());
+		FatalCleanupAndExit(ds_ThreadSelfTid());
 	}
 
 	file_write_append(&file, (u8 *) header, header->size);

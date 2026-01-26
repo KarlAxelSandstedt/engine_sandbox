@@ -52,7 +52,4 @@ void 	os_arch_init_func_ptrs(void);
 
 /********************  linux_thread.c	********************/
 
-typedef pid_t			tid;
-typedef struct ds_thread 	ds_thread;
-
 #endif

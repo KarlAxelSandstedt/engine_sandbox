@@ -42,7 +42,6 @@ void 	filesystem_init_func_ptrs(void);
 
 /********************  win_thread.c	********************/
 
-typedef DWORD				tid;
-typedef struct ds_thread		ds_thread;
+typedef struct dsThread		dsThread;
 
 #endif

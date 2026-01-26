@@ -311,35 +311,6 @@ extern utf8			(*cwd_get)(struct arena *mem);
 extern enum fs_error		(*cwd_set)(struct arena *mem, const char *path);
 
 /************************************************************************/
-/* 			Threads and Synchronization			*/
-/************************************************************************/
-
-/* Initiate thread local storage for master thread; should only be called once! */
-void 	ds_thread_master_init(struct arena *mem);
-/* Alloc thread space on arena (or heap if mem=NULL) and initialize thread */
-void 	ds_thread_clone(struct arena *mem, void (*start)(ds_thread *), void *args, const u64 stack_size);
-/* Exit calling thread */
-void	ds_thread_exit(ds_thread *thr);
-/* Wait for given thread to finish execution */
-void 	ds_thread_wait(const ds_thread *thr);
-/* retrieve ret value adress */
-void *	ds_thread_ret_value(const ds_thread *thr);
-/* retrieve ret value size */
-u64	ds_thread_ret_value_size(const ds_thread *thr);
-/* retrieve thread function arguments */
-void *  ds_thread_args(const ds_thread *thr);
-/* Release any thread allocated memory from finished thread.  NOTE: Must be called from main thread when running emscripten/wasm */
-void 	ds_thread_release(ds_thread *thr);	
-/* return tid (native id, thread<->process id on linux pid_t)*/
-tid	ds_thread_tid(const ds_thread *thr);
-/* return tid of caller */
-tid 	ds_thread_self_tid(void);
-/* return index of thread (each created thread increments the global index counter) */
-u32	ds_thread_index(const ds_thread *thr);
-/* return index of caller */ 
-u32	ds_thread_self_index(void);
-
-/************************************************************************/
 /* 			       Task System				*/
 /************************************************************************/
 
@@ -355,7 +326,7 @@ struct worker
 {
 	//TODO Cacheline alignment 
 	struct arena	mem_frame;		/* Cleared at start of every frame */	
-	ds_thread *	thr;
+	dsThread *	thr;
 	u32 		a_mem_frame_clear;	/* atomic sync-point: if set, on next task run flush mem_frame. */
 };
 
@@ -413,7 +384,7 @@ void 	task_context_destroy(struct task_context *ctx);
 /* Clear any frame resources held by the task context and it's workers */
 void	task_context_frame_clear(void);
 /* main loop for slave workers */
-void  	task_main(ds_thread *thr);
+void  	task_main(dsThread *thr);
 /* master worker runs any available work */
 void 	task_main_master_run_available_jobs(void);
 

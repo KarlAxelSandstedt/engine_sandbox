@@ -2301,7 +2301,7 @@ static u32 tri_mesh_bvh_sphere_contact(struct arena *tmp, struct collision_resul
 	if (arr.len == 0)
 	{
 		Log(T_SYSTEM, S_FATAL, "Out of memory in %s\n", __func__);
-		FatalCleanupAndExit(ds_thread_self_tid());
+		FatalCleanupAndExit(ds_ThreadSelfTid());
 	}
 
 	u32 sc = 0;
@@ -2330,7 +2330,7 @@ static u32 tri_mesh_bvh_sphere_contact(struct arena *tmp, struct collision_resul
 				if (sc >= arr.len)
 				{
 					Log(T_SYSTEM, S_FATAL, "Out of memory in %s\n", __func__);
-					FatalCleanupAndExit(ds_thread_self_tid());
+					FatalCleanupAndExit(ds_ThreadSelfTid());
 				}
 				node_stack[sc++] = left;
 			}

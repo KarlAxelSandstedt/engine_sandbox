@@ -41,11 +41,11 @@ void system_resources_init(struct arena *mem)
 	filesystem_init_func_ptrs();
 
  	ds_sys_env_init(mem);
-	ds_thread_master_init(mem);
+	ds_ThreadMasterInit(mem);
 	ds_TimeApiInit(mem);
 	LogInit(mem, "Log.txt");
 
-	if (!ds_arch_config_init(mem))
+	if (!ds_ArchConfigInit(mem))
 	{
 		LogString(T_SYSTEM, S_FATAL, "Unsupported instrincs required");
 		FatalCleanupAndExit(0);

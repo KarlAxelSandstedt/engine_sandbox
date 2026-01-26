@@ -394,7 +394,7 @@ u32 dbvh_internal_push_subtree_overlap_pairs(struct arena *mem, struct dbvh_over
 				if (q+1 >= stack_len)
 				{
 					LogString(T_PHYSICS, S_FATAL, "out-of-memory in arena based stack, increase arena size!");		
-					FatalCleanupAndExit(ds_thread_self_tid());
+					FatalCleanupAndExit(ds_ThreadSelfTid());
 				}
 				continue;
 			}
@@ -445,7 +445,7 @@ struct dbvh_overlap *dbvh_push_overlap_pairs(struct arena *mem, u32 *count, cons
 			if (q >= arr1.len)
 			{
 				LogString(T_PHYSICS, S_FATAL, "out-of-memory in arena based stack, increase arena size!");		
-				FatalCleanupAndExit(ds_thread_self_tid());
+				FatalCleanupAndExit(ds_ThreadSelfTid());
 			}
 		}
 
@@ -793,7 +793,7 @@ void bvh_raycast_test_and_push_children(struct bvh_raycast_info *info, const u32
 		if (info->hit_queue.count == info->hit_queue.length)
 		{
 			LogString(T_SYSTEM, S_FATAL, "distance queue in bvh_raycast OOM, aborting");
-			FatalCleanupAndExit(ds_thread_self_tid());
+			FatalCleanupAndExit(ds_ThreadSelfTid());
 		}
 		min_queue_fixed_push(&info->hit_queue, info->node[popped_tuple.u].bt_right, distance_right);
 	}

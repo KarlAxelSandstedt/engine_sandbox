@@ -69,7 +69,7 @@ static void shader_source_and_compile(GLuint shader, const char *filepath)
 		ds_glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &len);
 		ds_glGetShaderInfoLog(shader, len, &len, buf);
 		Log(T_RENDERER, S_FATAL, "Failed to compile %s, %s", filepath, buf);
-		FatalCleanupAndExit(ds_thread_self_tid());
+		FatalCleanupAndExit(ds_ThreadSelfTid());
 	}
 }
 
@@ -96,7 +96,7 @@ void r_compile_shader(u32 *prg, const char *v_filepath, const char *f_filepath)
 		ds_glGetProgramiv(*prg, GL_INFO_LOG_LENGTH, &len);
 		ds_glGetProgramInfoLog(*prg, len, &len, buf);
 		Log(T_RENDERER, S_FATAL, "Failed to Link program: %s", buf);
-		FatalCleanupAndExit(ds_thread_self_tid());
+		FatalCleanupAndExit(ds_ThreadSelfTid());
 	}
 
 	ds_glDetachShader(*prg, v_sh);
@@ -171,7 +171,7 @@ void r_init(struct arena *mem_persistent, const u64 ns_tick, const u64 frame_siz
 	if (g_r_core->proxy3d_hierarchy == NULL)
 	{
 		LogString(T_SYSTEM, S_FATAL, "Failed to allocate r_core unit hierarchy, exiting.");
-		FatalCleanupAndExit(ds_thread_self_tid());
+		FatalCleanupAndExit(ds_ThreadSelfTid());
 	}
 
 	struct slot slot3d = hierarchy_index_add(g_r_core->proxy3d_hierarchy, HI_NULL_INDEX);

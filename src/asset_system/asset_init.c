@@ -221,7 +221,7 @@ static struct asset_ssff **internal_asset_ssff_array_init(struct arena *mem_pers
 	if (ssff == NULL)
 	{
 		LogString(T_ASSET, S_FATAL, "Failed to alloc asset ssff array");
-		FatalCleanupAndExit(ds_thread_self_tid());
+		FatalCleanupAndExit(ds_ThreadSelfTid());
 	}
 
 	ssff[SSFF_NONE_ID] = &none_ssff;
@@ -237,7 +237,7 @@ static struct asset_font **internal_asset_font_array_init(struct arena *mem_pers
 	if (font == NULL)
 	{
 		LogString(T_ASSET, S_FATAL, "Failed to alloc asset font array");
-		FatalCleanupAndExit(ds_thread_self_tid());
+		FatalCleanupAndExit(ds_ThreadSelfTid());
 	}
 
 	font[FONT_NONE] = NULL, 

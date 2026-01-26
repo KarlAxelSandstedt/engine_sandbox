@@ -31,7 +31,7 @@ void internal_freetype_init(void)
 	if (FT_Init_FreeType(&g_ft_library))
 	{
 		LogString(T_ASSET, S_FATAL, "Failed to initiate freetype2 library");
-		FatalCleanupAndExit(ds_thread_self_tid());
+		FatalCleanupAndExit(ds_ThreadSelfTid());
 	}
 }
 
@@ -55,14 +55,14 @@ void font_build(struct arena *mem, const enum font_id id)
 	if (error)
 	{
 		LogString(T_ASSET, S_FATAL, "Failed to initiate freetype face");
-		FatalCleanupAndExit(ds_thread_self_tid());
+		FatalCleanupAndExit(ds_ThreadSelfTid());
 	}
 
 	error = FT_Set_Pixel_Sizes(face, 0, asset->pixel_glyph_height);
 	if (error)
 	{
 		LogString(T_ASSET, S_FATAL, "Failed to set freetype pixel size");
-		FatalCleanupAndExit(ds_thread_self_tid());
+		FatalCleanupAndExit(ds_ThreadSelfTid());
 	}
 
 	i32 total_glyph_width = 0;
@@ -242,7 +242,7 @@ void font_serialize(const struct asset_font *asset, const struct font *font)
 	if (file_try_create_at_cwd(&tmp, &file, asset->filepath, FILE_TRUNCATE) != FS_SUCCESS)
 	{
 		LogString(T_ASSET, S_FATAL, "Failed to create .font file");
-		FatalCleanupAndExit(ds_thread_self_tid());
+		FatalCleanupAndExit(ds_ThreadSelfTid());
 	}
 
 	file_set_size(&file, font->size);

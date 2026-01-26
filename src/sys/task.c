@@ -34,7 +34,7 @@ static void worker_init(struct worker *w)
 static void worker_exit(void *void_task)
 {
 	struct task *task = void_task;
-	ds_thread_exit(task->executor->thr);
+	ds_ThreadExit(task->executor->thr);
 }
 
 static void task_run(struct task *task_info, struct worker *w)
@@ -71,9 +71,9 @@ static void task_run(struct task *task_info, struct worker *w)
 	}
 }
 
-void task_main(ds_thread *thr)
+void task_main(dsThread *thr)
 {
-	struct worker *w = ds_thread_args(thr);
+	struct worker *w = ds_ThreadArguments(thr);
 	thread_xoshiro_256_init_sequence();
 
 	while (AtomicLoadAcq32(&a_startup_complete) == 0);
@@ -146,7 +146,7 @@ void task_context_init(struct arena *mem_persistent, const u32 thread_count)
 	/* NOTE: worker 0: reserved for main thread */
 	for (u32 i = 1; i < thread_count; ++i)
 	{
-		ds_thread_clone(mem_persistent, task_main, g_task_ctx->workers + i, stack_size);
+		ds_ThreadClone(mem_persistent, task_main, g_task_ctx->workers + i, stack_size);
 	}
 
 	AtomicStoreRel32(&a_startup_complete, 1);
@@ -174,8 +174,8 @@ void task_context_destroy(struct task_context *ctx)
 
 	for (u32 i = 1; i < ctx->worker_count; ++i)
 	{
-		ds_thread_wait(ctx->workers[i].thr);
-		ds_thread_release(ctx->workers[i].thr);
+		ds_ThreadWait(ctx->workers[i].thr);
+		ds_ThreadRelease(ctx->workers[i].thr);
 	}
 
 	for (u32 i = 0; i < ctx->worker_count; ++i)
