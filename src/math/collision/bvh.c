@@ -675,6 +675,10 @@ void DbvhRebuild(struct bvh *bvh)
                     const struct RebuildPoint tmp = leaf[low];
                     leaf[low] = leaf[high-1];
                     leaf[high-1] = tmp;
+                    Vec3MinSelf(low_min, leaf[low].center);
+                    Vec3MaxSelf(low_max, leaf[low].center);
+                    Vec3MinSelf(high_min, leaf[high-1].center);
+                    Vec3MaxSelf(high_max, leaf[high-1].center);
                     low += 1;
                     high -= 1;
                     break;
@@ -785,7 +789,7 @@ void DbvhRebuild(struct bvh *bvh)
         }
     }
 
-    ds_Assert(stack[0] == BT_INDEX_NULL);
+    ds_Assert(sc == 1 && stack[0] == BT_INDEX_NULL);
 
     /*
      * TODO
