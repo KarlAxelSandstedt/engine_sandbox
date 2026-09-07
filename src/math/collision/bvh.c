@@ -599,8 +599,8 @@ void DbvhRebuild(struct bvh *bvh)
 
     struct RebuildPoint *leaf = ArenaPush(tmp1, leaf_count*sizeof(struct RebuildPoint));
     u32 *internal = ArenaPush(tmp2, internal_count*sizeof(u32));
-    const struct memArray arr = ArenaPushAlignedAll(tmp3, sizeof(struct RebuildWork), 8);
 
+    struct memArray arr = ArenaPushAlignedAll(tmp3, sizeof(struct RebuildWork), 8);
     struct RebuildWork *work = arr.addr;
     const u32 work_length = arr.len;
     u32 work_count = 0;
@@ -628,12 +628,12 @@ void DbvhRebuild(struct bvh *bvh)
     ds_Assert(internal_next == internal_count);
     
     internal_next = 0;
-    u32 index = internal[internal_next++];
+    bvh->bt.root = internal[internal_next++];
     work[ work_count ].low = 0;
     work[ work_count ].high = leaf_count;
     work[ work_count ].bbox = BboxRebuildPointSet(leaf, leaf_count);
-    work[ work_count ].index = index;
-    bvh->pool.buf[index].bt_parent = BT_INDEX_NULL;
+    work[ work_count ].index = bvh->bt.root;
+    bvh->pool.buf[bvh->bt.root].bt_parent = BT_INDEX_NULL;
     work_count += 1;
 
     while (work_count--)
@@ -641,7 +641,7 @@ void DbvhRebuild(struct bvh *bvh)
         struct RebuildWork *w = work + work_count;
         const u32 split = AabbMaxAxis(w->bbox);
 
-        const u32 parent = w->index;
+        const i32 parent = w->index;
         const u32 w_low = w->low;
         const u32 w_high = w->high;
         u32 low = w_low;
@@ -675,6 +675,8 @@ void DbvhRebuild(struct bvh *bvh)
                     const struct RebuildPoint tmp = leaf[low];
                     leaf[low] = leaf[high-1];
                     leaf[high-1] = tmp;
+                    low += 1;
+                    high -= 1;
                     break;
                 }
 
@@ -701,16 +703,16 @@ void DbvhRebuild(struct bvh *bvh)
         {
             Vec3Sub(low_bbox.hw, low_max, low_min);
             Vec3ScaleSelf(low_bbox.hw, 1.0f/2.0f);
-            Vec3Add(low_bbox.center, low_max, low_bbox.hw);
+            Vec3Add(low_bbox.center, low_min, low_bbox.hw);
 
             Vec3Sub(high_bbox.hw, high_max, high_min);
             Vec3ScaleSelf(high_bbox.hw, 1.0f/2.0f);
-            Vec3Add(high_bbox.center, high_max, high_bbox.hw);
+            Vec3Add(high_bbox.center, high_min, high_bbox.hw);
         }
 
         if (low_count >= 2)
         {
-            index = internal[internal_next++];
+            const i32 index = internal[internal_next++];
             work[ work_count ].low = w_low;
             work[ work_count ].high = mid;
             work[ work_count ].bbox = low_bbox;
@@ -721,7 +723,7 @@ void DbvhRebuild(struct bvh *bvh)
         }
         else
         {
-            index = leaf[w_low].index;
+            const i32 index = leaf[w_low].index;
             bvh->pool.buf[parent].bt_child[0] = index;
             bvh->pool.buf[index].bt_parent = BT_LEAF_MASK | parent;
         }
@@ -734,7 +736,7 @@ void DbvhRebuild(struct bvh *bvh)
 				FatalCleanupAndExit();
             }
 
-            index = internal[internal_next++];
+            const i32 index = internal[internal_next++];
             work[ work_count ].low = mid;
             work[ work_count ].high = w_high;
             work[ work_count ].bbox  = high_bbox;
@@ -745,13 +747,45 @@ void DbvhRebuild(struct bvh *bvh)
         }
         else
         {
-            index = leaf[mid].index;
+            const i32 index = leaf[mid].index;
             bvh->pool.buf[parent].bt_child[1] = index;
             bvh->pool.buf[index].bt_parent = BT_LEAF_MASK | parent;
         }
     }
 
     ds_Assert(internal_next == internal_count);
+
+    ArenaFlush(tmp3);
+
+
+    struct bvhNode *n = bvh->pool.buf;
+
+    arr = ArenaPushAlignedAll(tmp3, sizeof(u32), 4);
+    u32 *stack = arr.addr;
+
+    u32 li = 0;
+    u32 sc = 0;
+    for (u32 li = 0; li < leaf_count; ++li)
+    {
+        if (sc == arr.len)
+        {
+			LogString(T_PHYSICS, S_FATAL, "out-of-memory Rebuild bbox building stack, increase arena size!");		
+			FatalCleanupAndExit();
+        }
+
+        stack[sc++] = n[leaf[li].index].bt_parent & BT_INDEX_MASK;
+        while (sc >= 2 && stack[sc-2] == stack[sc-1])
+        {
+            struct bvhNode *parent = n + stack[sc-2]; 
+            const struct bvhNode *left = n + parent->bt_child[0]; 
+            const struct bvhNode *right = n + parent->bt_child[1]; 
+            parent->bbox = BboxUnion(left->bbox, right->bbox);
+            stack[sc-2] = parent->bt_parent;
+            sc -= 1;
+        }
+    }
+
+    ds_Assert(stack[0] == BT_INDEX_NULL);
 
     /*
      * TODO
