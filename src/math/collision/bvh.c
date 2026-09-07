@@ -481,7 +481,6 @@ struct bvh_QuerySet BvhQueryAndFilterOnBody(struct arena *mem, const struct bvh 
     return query;
 }
 
-
 u32 DbvhInternalPushSubtreeOverlapPairs(struct arena *mem, struct dbvhOverlap *stack, const u64 stack_len, const struct bvh *bvh, u32 subA, u32 subB)
 {
 	struct bvhNode *nodes = bvh->pool.buf;
@@ -546,6 +545,225 @@ u32 DbvhInternalPushSubtreeOverlapPairs(struct arena *mem, struct dbvhOverlap *s
 	}
 
 	return overlap_count;
+}
+
+struct RebuildPoint
+{
+    vec3    center;
+    u32     index;
+};
+
+struct RebuildWork
+{
+    struct aabb bbox;
+    u32         low;    /* inclusive */
+    u32         high;   /* exclusive */
+    u32         index;  /* internal node bvh */
+};
+
+struct aabb BboxRebuildPointSet(const struct RebuildPoint *p, const u32 count)
+{
+	vec3 min = { F32_INFINITY, F32_INFINITY, F32_INFINITY };
+	vec3 max = { -F32_INFINITY, -F32_INFINITY, -F32_INFINITY };
+	for (u32 i = 0; i < count; ++i)
+	{
+        Vec3MinSelf(min, p[i].center);
+        Vec3MaxSelf(max, p[i].center);
+	}
+
+    struct aabb bbox;
+	Vec3Sub(bbox.hw, max, min);
+	Vec3ScaleSelf(bbox.hw, 0.5f);
+	Vec3Add(bbox.center, min, bbox.hw);
+
+    return bbox;
+}
+
+void DbvhRebuild(struct bvh *bvh)
+{
+    if (bvh->pool.count <= 1)
+    {
+        return;
+    }
+
+    /* TODO: If multithreaded, push internal nodes onto TStack? */
+
+    struct arena *tmp1 = ArenaPushScratch();
+    struct arena *tmp2 = ArenaPushScratch();
+    struct arena *tmp3 = ArenaPushScratch();
+
+    const u32 leaf_count = ds_BTLeafCount(bvh->bt);
+    const u32 internal_count = bvh->bt.count - leaf_count;
+    u32 leaf_next = 0;
+    u32 internal_next = 0;
+
+    struct RebuildPoint *leaf = ArenaPush(tmp1, leaf_count*sizeof(struct RebuildPoint));
+    u32 *internal = ArenaPush(tmp2, internal_count*sizeof(u32));
+    const struct memArray arr = ArenaPushAlignedAll(tmp3, sizeof(struct RebuildWork), 8);
+
+    struct RebuildWork *work = arr.addr;
+    const u32 work_length = arr.len;
+    u32 work_count = 0;
+    
+    for (u32 i = 0; i < bvh->pool.count_max; ++i)
+    {
+        const struct bvhNode *n = bvh->pool.buf + i;
+        if (ds_PoolSlotAllocated(n))
+        {
+            if (ds_BTLeafCheck(n))
+            {
+                Vec3Copy(leaf[ leaf_next ].center, n->bbox.center);
+                leaf[ leaf_next ].index = i;
+                leaf_next += 1;
+            }
+            else
+            {
+                internal[ internal_next ] = i;
+                internal_next += 1;
+            }
+        }
+    }
+
+    ds_Assert(leaf_next == leaf_count);
+    ds_Assert(internal_next == internal_count);
+    
+    internal_next = 0;
+    u32 index = internal[internal_next++];
+    work[ work_count ].low = 0;
+    work[ work_count ].high = leaf_count;
+    work[ work_count ].bbox = BboxRebuildPointSet(leaf, leaf_count);
+    work[ work_count ].index = index;
+    bvh->pool.buf[index].bt_parent = BT_INDEX_NULL;
+    work_count += 1;
+
+    while (work_count--)
+    {
+        struct RebuildWork *w = work + work_count;
+        const u32 split = AabbMaxAxis(w->bbox);
+
+        const u32 parent = w->index;
+        const u32 w_low = w->low;
+        const u32 w_high = w->high;
+        u32 low = w_low;
+        u32 high = w_high;
+        ds_Assert(low < high - 1);
+
+        vec3 low_min = { F32_INFINITY, F32_INFINITY, F32_INFINITY };
+        vec3 low_max = { -F32_INFINITY, -F32_INFINITY, -F32_INFINITY };
+
+        vec3 high_min = { F32_INFINITY, F32_INFINITY, F32_INFINITY };
+        vec3 high_max = { -F32_INFINITY, -F32_INFINITY, -F32_INFINITY };
+
+        while (low < high)
+        {
+            while (low < high)
+            {
+                if (leaf[low].center[split] >= w->bbox.center[split])
+                {
+                    break;
+                }
+
+                Vec3MinSelf(low_min, leaf[low].center);
+                Vec3MaxSelf(low_max, leaf[low].center);
+                low += 1;
+            }
+
+            while (low < high)
+            {
+                if (leaf[high-1].center[split] < w->bbox.center[split])
+                {
+                    const struct RebuildPoint tmp = leaf[low];
+                    leaf[low] = leaf[high-1];
+                    leaf[high-1] = tmp;
+                    break;
+                }
+
+                Vec3MinSelf(high_min, leaf[high-1].center);
+                Vec3MaxSelf(high_max, leaf[high-1].center);
+                high -= 1;
+            }
+        }
+
+        struct aabb low_bbox, high_bbox;
+        u32 mid = low;
+        u32 low_count = mid - w_low;
+        u32 high_count = w_high - mid;
+        if (!low_count || !high_count)
+        {
+            low_count = (w_high - w_low) / 2;
+            mid = w_low + low_count; 
+            high_count = w_high - mid;
+
+            low_bbox = BboxRebuildPointSet(leaf + w_low, low_count);
+            high_bbox = BboxRebuildPointSet(leaf + mid, high_count);
+        }
+        else
+        {
+            Vec3Sub(low_bbox.hw, low_max, low_min);
+            Vec3ScaleSelf(low_bbox.hw, 1.0f/2.0f);
+            Vec3Add(low_bbox.center, low_max, low_bbox.hw);
+
+            Vec3Sub(high_bbox.hw, high_max, high_min);
+            Vec3ScaleSelf(high_bbox.hw, 1.0f/2.0f);
+            Vec3Add(high_bbox.center, high_max, high_bbox.hw);
+        }
+
+        if (low_count >= 2)
+        {
+            index = internal[internal_next++];
+            work[ work_count ].low = w_low;
+            work[ work_count ].high = mid;
+            work[ work_count ].bbox = low_bbox;
+            work[ work_count ].index = index;
+            work_count += 1;
+            bvh->pool.buf[parent].bt_child[0] = index;
+            bvh->pool.buf[index].bt_parent = parent;
+        }
+        else
+        {
+            index = leaf[w_low].index;
+            bvh->pool.buf[parent].bt_child[0] = index;
+            bvh->pool.buf[index].bt_parent = BT_LEAF_MASK | parent;
+        }
+
+        if (high_count >= 2)
+        {
+            if (work_count == arr.len)
+            {
+				LogString(T_PHYSICS, S_FATAL, "out-of-memory in DbvhRebuild stack, increase arena size!");		
+				FatalCleanupAndExit();
+            }
+
+            index = internal[internal_next++];
+            work[ work_count ].low = mid;
+            work[ work_count ].high = w_high;
+            work[ work_count ].bbox  = high_bbox;
+            work[ work_count ].index = index;
+            work_count += 1;
+            bvh->pool.buf[parent].bt_child[1] = index;
+            bvh->pool.buf[index].bt_parent = parent;
+        }
+        else
+        {
+            index = leaf[mid].index;
+            bvh->pool.buf[parent].bt_child[1] = index;
+            bvh->pool.buf[index].bt_parent = BT_LEAF_MASK | parent;
+        }
+    }
+
+    ds_Assert(internal_next == internal_count);
+
+    /*
+     * TODO
+     * Multithreading:
+     * Work:    (0) Grab TStack/Stack internal node to work on
+     *          (1) choose root box split-axis
+     *          (2) iteratively sort 
+     */
+
+    ArenaPopScratch();
+    ArenaPopScratch();
+    ArenaPopScratch();
 }
 
 struct dbvhOverlap *DbvhPushOverlapPairs(struct arena *mem, u32 *count, const struct bvh *bvh)

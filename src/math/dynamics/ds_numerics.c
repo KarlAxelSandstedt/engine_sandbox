@@ -26,9 +26,7 @@ struct ds_NumericsConfig ds_NumericsConfigDefault(void)
     config.manifold_cache_normal_parallel_check_max_degrees_pending = 10.0f;
     config.manifold_cache_depth_max_diff_allowed_pending = DS_UNIT_CM;
     config.manifold_cache_linear_velocity_max_diff_allowed_pending = 10.0f * DS_UNIT_M;
-    //TODO set this once we have implemented Rebuild function
-    //config.dbvh_reinsert_threshold_pending = 0.25f;
-    config.dbvh_reinsert_threshold_pending = 1.0f;
+    config.dbvh_reinsert_threshold_pending = 0.25f;
     config.cache_count_max_pending = 32;
 
     return config;

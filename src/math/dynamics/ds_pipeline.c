@@ -818,7 +818,6 @@ static void SolveConstraints(struct ds_RigidBodyPipeline *pipeline)
     	ProfZoneEnd;
     }
 
-    //TODO: Can we move everything below into solver phase (or write a new phase?)
     {
         struct ds_ParallelFor *pf = solver_phase->pf_orientation.parallel_for + 0;
         f32 dirty_count = 0; 
@@ -833,14 +832,48 @@ static void SolveConstraints(struct ds_RigidBodyPipeline *pipeline)
         ds_Assert(dirty_count >= reinsert_count);
         if (dirty_count)
         {
-            //const f32 reinsert_fraction = reinsert_count / dirty_count;
-            //if (reinsert_fraction > g_numerics_config->dbvh_reinsert_threshold)
-            //{
-            //    ProfZoneNamed("DBVH Rebuild");
-            //    ds_Assert(0);
-            //    ProfZoneEnd;
-            //}
-            //else
+            const f32 reinsert_fraction = reinsert_count / dirty_count;
+            if (reinsert_fraction > g_numerics_config->dbvh_reinsert_threshold)
+            {
+                {
+                    ProfZoneNamed("DBVH Rebuild");
+                    for (u32 ri = 0; ri < pf->range_count; ++ri)
+                    {
+                        const struct ds_ProxyRange *range = solver_phase->proxy_range + ri;
+                        for (u32 pi = 0; pi < range->count; ++pi)
+                        {
+                            const struct ds_ProxyDirty *dirty = range->proxy + pi;
+                            if (dirty->reinsert)
+                            {
+                                const struct ds_Shape *shape = pipeline->shape_pool.buf + dirty->shape;
+                                pipeline->dynamic_bvh.pool.buf[ shape->proxy ].bbox = dirty->bbox;
+                            }
+                        }
+                    }
+
+                    DbvhRebuild(&pipeline->dynamic_bvh);
+                    ProfZoneEnd;
+                }
+
+                {
+                    ProfZoneNamed("Dirtying (slow)");
+                    for (u32 si = 0; si < pipeline->shape_pool.count_max; ++si)
+                    {
+                        const struct ds_Shape *shape = pipeline->shape_pool.buf + si;
+                        if (ds_PoolSlotAllocated(shape))
+                        {
+                            const struct ds_RigidBody *body = pipeline->body_pool.buf + shape->body;
+                            if (RB_IS_DYNAMIC(body))
+                            {
+                                ds_BitSetSet(&pipeline->dirty_shape_set, si, 1);
+                            }
+                        }
+                    }
+                    ProfZoneEnd;
+                }
+
+            }
+            else
             {
                 {
                     ProfZoneNamed("DBVH Update");

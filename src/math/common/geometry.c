@@ -455,23 +455,42 @@ u32 PlaneRaycast(vec3 intersection, const struct plane *plane, const struct ray 
 	return 1;
 }
 
-void AabbVertex(struct aabb *dst, constvec3ptr v, const u32 v_count, const f32 margin)
+u32 AabbMaxAxis(const struct aabb a)
 {
+    u32 axis = 0;
+    if (a.hw[0] < a.hw[1])
+    {
+        axis = 1;
+    }
+
+    if (a.hw[axis] < a.hw[2])
+    {
+        axis = 2;
+    }
+
+    return axis;
+}
+
+struct aabb BboxVertexSet(const vec3 *v, const u32 count)
+{
+    if (count == 0)
+    {
+        return (struct aabb) { 0 };
+    }
+
 	vec3 min = { F32_INFINITY, F32_INFINITY, F32_INFINITY };
 	vec3 max = { -F32_INFINITY, -F32_INFINITY, -F32_INFINITY };
-	for (u32 i = 0; i < v_count; ++i)
+	for (u32 i = 0; i < count; ++i)
 	{
         Vec3MinSelf(min, v[i]);
         Vec3MaxSelf(max, v[i]);
 	}
 
-	Vec3Sub(dst->hw, max, min);
-	Vec3ScaleSelf(dst->hw, 0.5f);
-	Vec3Add(dst->center, min, dst->hw);
-
-	dst->hw[0] += margin;
-	dst->hw[1] += margin;
-	dst->hw[2] += margin;
+    struct aabb bbox;
+	Vec3Sub(bbox.hw, max, min);
+	Vec3ScaleSelf(bbox.hw, 0.5f);
+	Vec3Add(bbox.center, min, bbox.hw);
+    return bbox;
 }
 
 void AabbUnion(struct aabb *box_union, const struct aabb *a, const struct aabb *b)
@@ -744,6 +763,33 @@ struct aabb BboxUnion(const struct aabb a, const struct aabb b)
 	Vec3Add(bbox.center, bbox.hw, min);
 
 	return bbox;
+}
+
+struct aabb	BboxPointUnion(const struct aabb a, const vec3 p)
+{
+    vec3 diff, diff_abs;
+    Vec3Sub(diff, p, a.center);
+    Vec3Abs(diff_abs, diff);
+
+    struct aabb bbox = a;
+    for (u32 i = 0; i < 3; ++i)
+    {
+        const f32 diff_hw = (diff_abs[i] - a.hw[i]) / 2.0f;
+        if (diff_hw > 0.0f)
+        {
+            bbox.hw[i] += diff_hw;
+            if (diff[i] < 0.0f)
+            {
+                bbox.center[i] -= diff_hw;
+            }
+            else
+            {
+                bbox.center[i] += diff_hw;
+            }
+        }
+    }
+
+    return bbox;
 }
 
 u32 VertexSupport(vec3 support, const vec3 dir, constvec3ptr v, const u32 v_count)
@@ -2414,9 +2460,7 @@ end:
 
 struct aabb TriMeshBbox(const struct triMesh *mesh)
 {
-	struct aabb bbox = { 0 };	
-	AabbVertex(&bbox, mesh->v, mesh->v_count, 0.0f);	
-	return bbox;
+	return BboxVertexSet(mesh->v, mesh->v_count);	
 }
 
 f32 TriMeshRaycastParameter(const struct triMesh *mesh, const u32 tri, const struct ray *ray)

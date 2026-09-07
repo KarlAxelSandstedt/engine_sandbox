@@ -341,34 +341,28 @@ static struct r_Mesh *bvh_Mesh(struct arena *mem, const struct bvh *bvh, const v
 	ArenaPushRecord(mem);
 	struct memArray arr = ArenaPushAlignedAll(mem, sizeof(u32), 4); 
 	u32 *stack = arr.addr;
-	u32 i = bvh->bt.root;
-	u32 sc = U32_MAX;
+	u32 sc = 1;
+    stack[0] = bvh->bt.root;
 
 	const struct bvhNode *nodes = bvh->pool.buf;
-	u64 mem_left = mesh->vertex_count * L_COLOR_STRIDE;
-	while (i != U32_MAX)
+	u64 mem_left = vertex_count*L_COLOR_STRIDE;
+	while (sc--)
 	{
+	    u32 i = stack[sc];
 		const u64 bytes_written = AabbTransformPushLinesBuffered(vertex_data, mem_left, &nodes[i].bbox, translation, rot, color);
+
+        ds_Assert(bytes_written == 24*L_COLOR_STRIDE);
 		vertex_data += bytes_written;
 		mem_left -= bytes_written;
 
 		if (!ds_BTLeafCheck(nodes + i))
 		{
-			sc += 1;
-			if (sc == arr.len)
+			if (sc+2 > arr.len)
 			{
 				goto end;	
 			}
-			stack[sc] = nodes[i].bt_child[1];
-			i = nodes[i].bt_child[0];
-		}
-		else if (sc != U32_MAX)
-		{
-			i = stack[sc--];
-		}
-		else
-		{
-			i = U32_MAX;
+			stack[sc++] = nodes[i].bt_child[0];
+			stack[sc++] = nodes[i].bt_child[1];
 		}
 	}
 	ds_Assert(mem_left == 0);

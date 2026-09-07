@@ -203,8 +203,6 @@ u32 		PlaneRaycast(vec3 intersection, const struct plane *plane, const struct ra
 
 /********************************** AABB ************************************/
 
-/* Return smallest AABB with a given margin of the input vertex set,   */
-void		AabbVertex(struct aabb *dst, constvec3ptr v, const u32 v_count, const f32 margin);
 /* Return smallest AABB that contains both a and b  */
 void		AabbUnion(struct aabb *box_union, const struct aabb *a, const struct aabb *b);
 /* Return AABB of rotated AABB. */
@@ -219,11 +217,17 @@ u32 		AabbContainsMargin(const struct aabb *a, const struct aabb *b, const f32 m
 u64 		AabbPushLinesBuffered(u8 *buf, const u64 bufsize, const struct aabb *box, const vec4 color);
 /* sets up vertex buffer to use with glDrawArrays. Returns number of bytes written. */
 u64 		AabbTransformPushLinesBuffered(u8 *buf, const u64 bufsize, const struct aabb *box, const vec3 translation, mat3 rotation, const vec4 color);
+/* Return the smallest index of the aabb with the maximum side length */
+u32         AabbMaxAxis(const struct aabb a);
 
-/* return AABB bounding box of triangle */
-struct aabb	BboxTriangle(const vec3 p0, const vec3 p1, const vec3 p2);
-/* Return smallest AABB that contains both a and b  */
+/* Return bounding box of a and b  */
 struct aabb	BboxUnion(const struct aabb a, const struct aabb b);
+/* Return bounding box of aabb a and point p  */
+struct aabb	BboxPointUnion(const struct aabb a, const vec3 p);
+/* Return bounding box of triangle */
+struct aabb	BboxTriangle(const vec3 p0, const vec3 p1, const vec3 p2);
+/* Return bounding box of the vertex set */
+struct aabb	BboxVertexSet(const vec3 *p, const u32 count);
 
 /* Setup parameters for extended raycasting functions. */
 void 		AabbRaycastParameterExSetup(vec3 multiplier, vec3u32 dir_sign_bit, const struct ray *ray);
