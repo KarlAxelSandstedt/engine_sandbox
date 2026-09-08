@@ -190,13 +190,13 @@ void ds_RigidBodyUpdateMassProperties(struct ds_RigidBodyPipeline *pipeline, con
         return;
     }
 
-	ArenaPushRecord(&pipeline->frame);
+    struct arena *tmp = ArenaPushScratch();
 
     struct ds_SolverSet *set = pipeline->solver_set_pool.buf + body->set;
     struct ds_RigidBodySim *sim = set->body_sim_pool.buf + body->sim;
 	ds_Assert(ds_PoolSlotAllocated(body));
 
-	vec3 tmp;
+	vec3 vtmp;
     mat3 body_inertia_tensor, rot_local, rot_local_inv, tmp1, tmp2;
 
 	body->mass = 0.0f;
@@ -207,9 +207,9 @@ void ds_RigidBodyUpdateMassProperties(struct ds_RigidBodyPipeline *pipeline, con
 			0.0f, 0.0f, 0.0f, 
 			0.0f, 0.0f, 0.0f);
 
-	f32 *mass = ArenaPush(&pipeline->frame, body->shape_list.count*sizeof(f32));
-	vec3ptr center_of_mass = ArenaPush(&pipeline->frame, body->shape_list.count*sizeof(vec3));
-	mat3ptr inertia_tensor = ArenaPush(&pipeline->frame, body->shape_list.count*sizeof(mat3));
+	f32 *mass = ArenaPush(tmp, body->shape_list.count*sizeof(f32));
+	vec3ptr center_of_mass = ArenaPush(tmp, body->shape_list.count*sizeof(vec3));
+	mat3ptr inertia_tensor = ArenaPush(tmp, body->shape_list.count*sizeof(mat3));
 
 	struct ds_Shape *shape = NULL;
 	u32 s = body->shape_list.first;
@@ -227,8 +227,8 @@ void ds_RigidBodyUpdateMassProperties(struct ds_RigidBodyPipeline *pipeline, con
 		Mat3Transpose(rot_local_inv, rot_local);
 
 		/* center_of_mass_Shape[i] = R*shape_center_of_mass + pos */
-		Vec3Copy(tmp, cshape->center_of_mass);
-		Mat3VecMul(center_of_mass[i], rot_local, tmp);
+		Vec3Copy(vtmp, cshape->center_of_mass);
+		Mat3VecMul(center_of_mass[i], rot_local, vtmp);
 		Vec3Translate(center_of_mass[i], shape->t_local.position);
 		Vec3TranslateScaled(body->local_center_of_mass, center_of_mass[i], mass[i]);
 
@@ -263,6 +263,6 @@ void ds_RigidBodyUpdateMassProperties(struct ds_RigidBodyPipeline *pipeline, con
 	}
     Mat3Inverse(body->inv_inertia_tensor, body_inertia_tensor);
     Mat3Inverse(sim->local_inv_inertia, body_inertia_tensor);
-
-	ArenaPopRecord(&pipeline->frame);
+    
+    ArenaPopScratch();
 }

@@ -35,5 +35,6 @@ if [ -z $(pgrep -f "tracy-profiler")]; then
 	nohup "$TRACY_PROFILER" > /dev/null 2>&1 &
 fi
 
-doas ./DreamscapeTest
+#doas ./DreamscapeTest
+./DreamscapeTest
 cd ..

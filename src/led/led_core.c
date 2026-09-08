@@ -40,17 +40,20 @@ struct slot led_NodeLookupId(struct led *led, const utf8 id)
 	return slot;
 }
 
-struct led_Node *led_NodeLookup(struct led *led, const ds_Id id)
+struct slot led_NodeLookup(struct led *led, const ds_Id id)
 {
     if (id == DS_ID_NULL)
     {
-        return NULL;        
+        return empty_slot;        
     }
 
-    struct led_Node *node = led->node_hierarchy.pool.buf + ds_IdIndex(id);
+    struct slot slot;
+    slot.index = ds_IdIndex(id);
+    slot.address = led->node_hierarchy.pool.buf + slot.index;
+    struct led_Node *node = slot.address;
     return (node->tagged_id = id)
-        ? node
-        : NULL;
+        ? slot 
+        : empty_slot;
 }
 
 static ds_Id led_NodeInitalize(struct led_Node *node, const u32 node_index, const u64 flags)
@@ -68,7 +71,7 @@ static ds_Id led_NodeInitalize(struct led_Node *node, const u32 node_index, cons
 
 static ds_Id led_NodeAnonymousAdd(struct led *led, const ds_Id parent_id)
 {
-    struct led_Node *node = led_NodeLookup(led, parent_id);
+    struct led_Node *node = led_NodeLookup(led, parent_id).address;
     ds_Assert(parent_id == DS_ID_NULL || node);
 
     u32 parent = LED_NODE_ROOT;
@@ -155,7 +158,7 @@ void led_NodeRemoveId(struct led *led, const utf8 id)
 
 void led_NodeRemove(struct led *led, const ds_Id id)
 {
-    struct led_Node *node = led_NodeLookup(led, id);
+    struct led_Node *node = led_NodeLookup(led, id).address;
     if (node && node->tagged_id == id)
     {
         led_NodeHIApplyCustomFreeAndRemove(&led->frame, &led->node_hierarchy, ds_IdIndex(id), &led_NodeRemoveResources, led);
@@ -178,7 +181,7 @@ void led_NodeSetPositionId(struct led *led, const utf8 id, const vec3 position)
 
 void led_NodeSetPosition(struct led *led, const ds_Id id, const vec3 position)
 {
-	struct led_Node *node = led_NodeLookup(led, id);
+	struct led_Node *node = led_NodeLookup(led, id).address;
 	if (!node)
 	{
 		Log(T_LED, S_WARNING, "Failed to set position of led node %lu, node not found.", id);
@@ -191,7 +194,7 @@ void led_NodeSetPosition(struct led *led, const ds_Id id, const vec3 position)
 
 void led_NodeSetColor(struct led *led, const ds_Id id, const vec4 color, const f32 blend)
 {
-	struct led_Node *node = led_NodeLookup(led, id);
+	struct led_Node *node = led_NodeLookup(led, id).address;
 	if (!node)
 	{
 		Log(T_LED, S_WARNING, "Failed to set color of led node %lu, node not found.", id);
@@ -242,7 +245,7 @@ static void led_NodeDetachRigidBodyPrefabInternal(struct led *led, struct led_No
     }
 }
 
-static void led_NodeAttachRigidBodyPrefabInternal(struct led *led, struct led_Node *node, const utf8 prefab)
+static void led_NodeAttachRigidBodyPrefabInternal(struct led *led, const u32 node_index, const utf8 prefab)
 {
     struct slot slot = ds_RigidBodyPrefabSDBReference(&led->body_prefab_db, prefab);
 	if (slot.index == SDB_STUB)
@@ -251,6 +254,7 @@ static void led_NodeAttachRigidBodyPrefabInternal(struct led *led, struct led_No
         return;
 	}
 
+    struct led_Node *node = led->node_hierarchy.pool.buf + node_index;
     led_NodeDetachRigidBodyPrefabInternal(led, node); 
 
     struct r_Proxy3d_config config =
@@ -282,7 +286,8 @@ static void led_NodeAttachRigidBodyPrefabInternal(struct led *led, struct led_No
         const struct r_Mesh *render_mesh = led->render_mesh_db.pool.buf + shape->render_mesh;
 
         const ds_Id child_id = led_NodeAnonymousAdd(led, node->tagged_id);
-        struct led_Node *child = led_NodeLookup(led, child_id);
+        node = led->node_hierarchy.pool.buf + node_index;
+        struct led_Node *child = led_NodeLookup(led, child_id).address;
 
         child->transform = instance->t_local;
         child->flags |= LED_SHAPE_PREFAB;
@@ -307,20 +312,20 @@ void led_NodeAttachRigidBodyPrefabId(struct led *led, const utf8 id, const utf8 
 	}
 	else
 	{
-        led_NodeAttachRigidBodyPrefabInternal(led, slot.address, prefab);
+        led_NodeAttachRigidBodyPrefabInternal(led, slot.index, prefab);
 	}
 }
 
 void led_NodeAttachRigidBodyPrefab(struct led *led, const ds_Id id, const utf8 prefab)
 {
-	struct led_Node *node = led_NodeLookup(led, id);
-	if (!node)
+	const struct slot slot = led_NodeLookup(led, id);
+	if (!slot.address)
 	{
 		Log(T_LED, S_WARNING, "Failed to set of led node %lu, node not found.", id);
 	}
 	else
 	{
-        led_NodeAttachRigidBodyPrefabInternal(led, node, prefab);
+        led_NodeAttachRigidBodyPrefabInternal(led, slot.index, prefab);
 	}
 }
 
@@ -339,7 +344,7 @@ void led_NodeDetachRigidBodyPrefabId(struct led *led, const utf8 id)
 
 void led_NodeDetachRigidBodyPrefab(struct led *led, const ds_Id id)
 {
-	struct led_Node *node = led_NodeLookup(led, id);
+	struct led_Node *node = led_NodeLookup(led, id).address;
 	if (!node)
 	{
 		Log(T_LED, S_WARNING, "Failed to detach body prefab from led node %lu, node not found.", id);
@@ -1183,14 +1188,12 @@ void led_WallSmashSimulationSetup(struct led *led)
 	const u32 tower1_box_count = 0;
 	const u32 tower2_box_count = 0;
     const u32 multibox_count = 0;
-	const u32 pyramid_layers = 50;
+	const u32 pyramid_layers = 75;
 	const u32 pyramid_count = 1;
 	//const u32 pyramid_layers = 0;
 	//const u32 pyramid_count = 0;
     const u32 incr_count = 0;
 	const u32 pyramid_size = pyramid_layers*(pyramid_layers+1) / 2;
-
-    fprintf(stderr, "PYRAMID SIZE: %u\n", pyramid_size);
 
 	/* Setup rigid bodies */
 	const f32 box_friction = 1.0f;
@@ -2093,11 +2096,13 @@ static void led_EngineInit(struct led *led)
         HIIAdvance(it, led->node_hierarchy);
 	}
 
+    fprintf(stderr, "BODIES: %u\n", led->physics.body_pool.count);
+
     for (u32 i = 0; i < led->joint_pool.count; ++i)
     {
         const struct led_Joint *joint = led->joint_pool.buf + i;
-        const struct led_Node *node0 = led_NodeLookup(led, joint->id[0]);
-        const struct led_Node *node1 = led_NodeLookup(led, joint->id[1]);
+        const struct led_Node *node0 = led_NodeLookup(led, joint->id[0]).address;
+        const struct led_Node *node1 = led_NodeLookup(led, joint->id[1]).address;
         if (!node0 || !node1)
         {
 		    LogString(T_LED, S_WARNING, "Failed to lookup joint attached node");

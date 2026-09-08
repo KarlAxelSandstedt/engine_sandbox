@@ -32,7 +32,7 @@ void ds_DynamicsStaticAssert(void)
     ds_StaticAssert(sizeof(struct ds_RigidBodyCompute) == DS_CACHE_LINE, "");
 }
 
-struct ds_RigidBodyPipeline PhysicsPipelineAlloc(struct arena *mem, const u32 initial_size, const u64 ns_tick, const u64 frame_memory, c_ShapeSDB *cshape_db, ds_RigidBodyPrefabSDB *prefab_db)
+struct ds_RigidBodyPipeline PhysicsPipelineAlloc(struct arena *mem, const u32 initial_size, const u64 ns_tick, const u64 frame_memory, c_ShapeSDB *cshape_db, ds_RigidBodyPrefabSDB *prefab_db, const u32 worker_count, const u64 worker_frame_size)
 {
 	struct ds_RigidBodyPipeline pipeline =
 	{
@@ -130,6 +130,15 @@ struct ds_RigidBodyPipeline PhysicsPipelineAlloc(struct arena *mem, const u32 in
 
     pipeline.island_to_split = DS_ID_NULL; 
 
+    ds_StaticAssert(sizeof(struct ds_DynamicsWorker) % DS_CACHE_LINE == 0, "");
+    pipeline.worker = ArenaPushAligned(mem, worker_count * sizeof(struct ds_DynamicsWorker), DS_CACHE_LINE);
+    pipeline.worker_count = worker_count;
+    for (u32 i = 0; i < pipeline.worker_count; ++i)
+    {
+        pipeline.worker[i].frame_arr[0] = ArenaAlloc(NULL, worker_frame_size);
+        pipeline.worker[i].frame_arr[1] = ArenaAlloc(NULL, worker_frame_size);
+    }
+
 	return pipeline;
 }
 
@@ -142,6 +151,12 @@ void PhysicsPipelineFree(struct ds_RigidBodyPipeline *pipeline)
 	}
 	free(pipeline->debug);
 #endif
+
+    for (u32 i = 0; i < pipeline->worker_count; ++i)
+    {
+        ArenaFree(pipeline->worker[i].frame_arr + 0);
+        ArenaFree(pipeline->worker[i].frame_arr + 1);
+    }
 
     ds_BitSetDealloc(&pipeline->shape_dynamic_usage_set);
     ds_BitSetDealloc(&pipeline->shape_dirty_set);
@@ -178,7 +193,6 @@ static void PhysicsPipelineClearFrame(struct ds_RigidBodyPipeline *pipeline)
 		ds_CPoolFlush(pipeline->debug[i].stack_segment);
 	}
 #endif
-
 	ArenaFlush(&pipeline->frame);
     ds_CGraphFramePrepare(pipeline);
     ds_BitSetClear(&pipeline->island_high_energy_set, 0);
@@ -193,6 +207,11 @@ void PhysicsPipelineFlush(struct ds_RigidBodyPipeline *pipeline)
 		ds_CPoolFlush(pipeline->debug[i].stack_segment);
 	}
 #endif
+    for (u32 i = 0; i < pipeline->worker_count; ++i)
+    {
+        ArenaFlush(pipeline->worker[i].frame_arr + 0);
+        ArenaFlush(pipeline->worker[i].frame_arr + 1);
+    }
 
     ds_SolverSetFlush(pipeline, 0);
     ds_SolverSetFlush(pipeline, 1);
@@ -255,14 +274,14 @@ u32 ds_BroadJobPhaseDispatch(const ds_JobId job)
 {
     ProfZone;
 
-    struct arena *frame = g_tl_self->frame;
-    struct arena *tmp = ArenaPushScratch();
     struct ds_BroadJobPhase *phase = (struct ds_BroadJobPhase *) g_scheduler->phase;
     struct ds_RigidBodyPipeline *pipeline = phase->pipeline;
     struct ds_ParallelForChain *chain = &phase->pf;
     struct ds_ParallelFor *pf = chain->parallel_for + 0;
     struct ds_BitSet *dirty = &pipeline->shape_dirty_set;
     struct ds_ProxyQuery *query = pipeline->dirty_shape_query.buf;
+    struct arena *frame = pipeline->worker[ds_ThreadSelfIndex()].frame;
+    struct arena *tmp = ArenaPushScratch();
     u32 low, high;
 
     ds_ParallelFor(pf, range_index)
@@ -325,9 +344,9 @@ u32 ds_NarrowJobPhaseDispatch(const ds_JobId job)
 {
     ProfZone;
 
-    struct arena *frame = g_tl_self->frame;
     struct ds_NarrowJobPhase *phase = (struct ds_NarrowJobPhase *) g_scheduler->phase;
     struct ds_RigidBodyPipeline *pipeline = phase->pipeline;
+    struct arena *frame = pipeline->worker[ds_ThreadSelfIndex()].frame;
     struct ds_ParallelForChain *chain;
     struct ds_ParallelFor *pf;
     u32 low, high;
@@ -770,6 +789,21 @@ u32 ds_RebuildJobPhaseDispatch(const ds_JobId job)
     }
     ds_ParallelForChainWait(chain);
 
+/*
+{
+    Shared Depth Work: 
+        Master: Setup depth work
+        Parallel-For:
+            Range: [low, high), [Tlow, Thigh) =>  [ Tcounts, Tbboxes ] + Write data into sorted array
+        Master: Finalize depth work
+
+    Local Depth Work: 
+            Range [low, high), high-low <= REBUILD_SUBTREE_TASK_LIMIT
+}
+*/
+
+
+
     ProfZoneEnd;
 
     return U32_MAX;
@@ -1165,7 +1199,6 @@ static void UpdateSolverConfig(struct ds_RigidBodyPipeline *pipeline)
 
 void PhysicsPipelineSimulateFrame(struct ds_RigidBodyPipeline *pipeline)
 {
-    pipeline->timestep = (f32) pipeline->ns_tick / NSEC_PER_SEC;
 	/* update, if possible, any pending values in contact solver config */
 	UpdateSolverConfig(pipeline);
 
@@ -1188,6 +1221,16 @@ void PhysicsPipelineTick(struct ds_RigidBodyPipeline *pipeline)
 		PhysicsPipelineClearFrame(pipeline);
 	}
 	pipeline->frames_completed += 1;
+
+    const u64 f = pipeline->frames_completed & 0x1;
+    for (u32 i = 0; i < pipeline->worker_count; ++i)
+    {
+        ArenaFlush(pipeline->worker[i].frame_arr + f);
+        pipeline->worker[i].frame = pipeline->worker[i].frame_arr + f;
+    }
+
+    pipeline->timestep = (f32) pipeline->ns_tick / NSEC_PER_SEC;
+
 	PhysicsPipelineSimulateFrame(pipeline);
 
     ds_NumericsConfigPop();

@@ -82,8 +82,8 @@ void                led_NodeRemoveId(struct led *led, const utf8 id);
 void                led_NodeRemove(struct led *led, const ds_Id id);
 /* Return node with the given id if it exist; otherwise return (NULL, U32_MAX).  */
 struct slot         led_NodeLookupId(struct led *led, const utf8 id);
-/* Return node with the given ds_Id if it exist; otherwise return NULL.  */
-struct led_Node *   led_NodeLookup(struct led *led, const ds_Id id);
+/* Return node with the given ds_Id if it exist; otherwise return (NULL, U32_MAX).  */
+struct slot         led_NodeLookup(struct led *led, const ds_Id id);
 /* Set node position if it exist. */
 void		        led_NodeSetPositionId(struct led *led, const utf8 id, const vec3 position);
 /* Set node position if it exist. */
@@ -235,7 +235,7 @@ extern u32	cmd_led_pause;
 extern u32	cmd_led_stop;
 
 /* Allocate initial led resources */
-struct led *	led_Alloc(void);
+struct led *led_Alloc(const u32 thread_count, const u64 thread_framesize);
 /* deallocate led resources */
 void		led_Dealloc(struct led *led);
 

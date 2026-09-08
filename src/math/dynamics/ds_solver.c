@@ -173,10 +173,11 @@ void ds_RigidBodyUpdateOrientationRange(struct ds_RigidBodyPipeline *pipeline, s
 {
     ProfZone;
 
+    struct arena *frame = pipeline->worker[ds_ThreadSelfIndex()].frame;
     struct ds_SolverSet *active = pipeline->solver_set_pool.buf + SOLVER_SET_ACTIVE;
     struct ds_Shape *shape = NULL;
 
-    struct memArray arr = ArenaPushAlignedAll(g_tl_self->frame, sizeof(struct ds_ProxyDirty), 8);
+    struct memArray arr = ArenaPushAlignedAll(frame, sizeof(struct ds_ProxyDirty), 8);
     proxy_range->reinsert_count = 0;
     proxy_range->count = 0;
     proxy_range->proxy = arr.addr;
@@ -239,7 +240,7 @@ void ds_RigidBodyUpdateOrientationRange(struct ds_RigidBodyPipeline *pipeline, s
         }
     }
 
-    ArenaPopPacked(g_tl_self->frame, sizeof(struct ds_ProxyDirty)*(arr.len - proxy_range->count));
+    ArenaPopPacked(frame, sizeof(struct ds_ProxyDirty)*(arr.len - proxy_range->count));
      
     ProfZoneEnd;
 }
@@ -250,7 +251,7 @@ void ds_ContactConstraintInitRange(struct ds_RigidBodyPipeline *pipeline, const 
 
     struct ds_SolverSet *active = pipeline->solver_set_pool.buf + SOLVER_SET_ACTIVE;
     struct ds_CGraph *cg = &pipeline->cgraph;
-    struct arena *frame = g_tl_self->frame;
+    struct arena *frame = pipeline->worker[ds_ThreadSelfIndex()].frame;
 
 	vec3 tmp1, tmp2, tmp3, tmp4;
 	vec3 ccp_Ic; 	/* Temporary storage for Inw(I_1)(r1 x n) */
@@ -608,7 +609,7 @@ void ds_PositionConstraintInitAndCacheImpulsesRange(struct ds_RigidBodyPipeline 
     struct ds_SolverSet *active = pipeline->solver_set_pool.buf + SOLVER_SET_ACTIVE;
     struct ds_CGraph *cg = &pipeline->cgraph;
     struct ds_CGraphColor *color = cg->color + color_index;
-    struct arena *frame = g_tl_self->frame;
+    struct arena *frame = pipeline->worker[ds_ThreadSelfIndex()].frame;
 
     quat sim_inv_rotation[2];
     quat bcomp_inv_rotation[2];

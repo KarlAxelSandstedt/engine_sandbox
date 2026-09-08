@@ -59,7 +59,7 @@ int main(int argc, char *argv[])
 
 	AssetInit(&persistent);
 
-	struct led *editor = led_Alloc();
+	struct led *editor = led_Alloc(thread_count, thread_framesize);
 
 	const u64 renderer_framerate = 144;	
 	r_Init(&persistent, NSEC_PER_SEC / renderer_framerate, 16*1024*1024, 1024, &editor->render_mesh_db);

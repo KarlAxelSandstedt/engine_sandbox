@@ -648,6 +648,7 @@ void DbvhRebuild(struct bvh *bvh)
 
     while (work_count--)
     {
+        ProfZoneNamed("InternalNodeSetup");
         struct RebuildWork *w = work + work_count;
         const u32 split = AabbMaxAxis(w->bbox);
 
@@ -765,6 +766,7 @@ void DbvhRebuild(struct bvh *bvh)
             bvh->pool.buf[parent].bt_child[1] = index;
             bvh->pool.buf[index].bt_parent = BT_LEAF_MASK | parent;
         }
+        ProfZoneEnd;
     }
 
     ds_Assert(internal_next == internal_count);

@@ -37,6 +37,7 @@ static u32 a_fatal_cleanup_initiated = 0;
 
 void FatalCleanupAndExit(void)
 {
+    Breakpoint(1);
 	u32 desired = 0;
 	// TODO Somehow stop/force all threads to not continue / shut down program until cleanup is complete 
 	

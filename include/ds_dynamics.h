@@ -91,6 +91,21 @@ void                        ds_NumericsConfigPop(void);
 
 
 /*
+ds_DynamicsWorker
+=================
+Worker owned dynamics data. Core to the pipeline here is the worker's double-buffered frame memory. 
+Many parts of the pipeline pushes cached data onto the frame. 
+*/
+
+struct ds_DynamicsWorker
+{
+    struct arena    frame_arr[2]; /* Double-buffered; Master thread switches arena on each simulated frame */
+    struct arena *  frame;
+
+    u8              pad[2*DS_CACHE_LINE - 2*sizeof(struct arena) - sizeof(void*)];
+};
+
+/*
 ds_Id
 =====
 Opaque generation based handles for user-interfacing structures. ds_Id supports
@@ -1287,6 +1302,10 @@ struct ds_RigidBodyPipeline
 {
 	struct arena 	            frame;			        /* frame memory */
 
+    struct ds_DynamicsWorker *  worker;
+    u32                         worker_count;
+
+
 	u64				            ns_start;		        /* external ns at start of physics pipeline */
 	u64				            ns_elapsed;		        /* actual ns elasped in pipeline (= 0 at start) */
 	u64				            ns_tick;		        /* ns per game tick */
@@ -1350,7 +1369,7 @@ struct ds_RigidBodyPipeline
 /**************** PHYISCS PIPELINE API ****************/
 
 /* Initialize a new growable physics pipeline; ns_tick is the duration of a physics frame. */
-struct ds_RigidBodyPipeline	PhysicsPipelineAlloc(struct arena *mem, const u32 initial_size, const u64 ns_tick, const u64 frame_memory, c_ShapeSDB *cshape_db, ds_RigidBodyPrefabSDB *prefab_db);
+struct ds_RigidBodyPipeline PhysicsPipelineAlloc(struct arena *mem, const u32 initial_size, const u64 ns_tick, const u64 frame_memory, c_ShapeSDB *cshape_db, ds_RigidBodyPrefabSDB *prefab_db, const u32 worker_cont, const u64 worker_frame_size);
 /* free pipeline resources */
 void 			PhysicsPipelineFree(struct ds_RigidBodyPipeline *physics_pipeline);
 /* flush pipeline resources */

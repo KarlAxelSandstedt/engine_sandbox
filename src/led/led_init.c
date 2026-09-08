@@ -30,7 +30,7 @@ struct led_ProjectMenu led_ProjectMenuAlloc(void)
 		.projects_folder_allocated = 0,
 		.projects_folder_refresh = 0,
 		.selected_path = Utf8Empty(),
-		.dir_nav = DirectoryNavigatorAlloc(4096, 64, 64),
+		.dir_nav = DirectoryNavigatorAlloc(8192, 64, 64),
 		.dir_list = ui_ListInit(AXIS_2_Y, 200.0f, 24.0f, UI_SELECTION_UNIQUE),
 		.window = HI_ROOT,
 		.popup_new_project = ui_PopupNull(),
@@ -56,10 +56,10 @@ const char *body_color_mode_str_buf[RB_COLOR_MODE_COUNT] =
 const char **body_color_mode_str = body_color_mode_str_buf;
 
 
-struct led *led_Alloc(void)
+struct led *led_Alloc(const u32 thread_count, const u64 thread_framesize)
 {
 	led_CoreInitCommands();
-	g_editor->mem_persistent = ArenaAlloc(NULL,32*1024*1024);
+	g_editor->mem_persistent = ArenaAlloc(NULL,64*1024*1024);
 
 	g_editor->window = ds_RootWindowAlloc("Level Editor", Vec2U32Inline(400,400), Vec2U32Inline(1280, 720));
 
@@ -113,15 +113,15 @@ struct led *led_Alloc(void)
 	}
 	
 	g_editor->viewport_id = Utf8Format(&sys_win->mem_persistent, "viewport_%u", g_editor->window);
-	g_editor->node_hierarchy = led_NodeHIAlloc(NULL, 4096, GROWABLE);
-	g_editor->node_map = ds_HashMapAlloc(NULL, 4096, 4096, GROWABLE);
+	g_editor->node_hierarchy = led_NodeHIAlloc(NULL, 8192, GROWABLE);
+	g_editor->node_map = ds_HashMapAlloc(NULL, 8192, 8192, GROWABLE);
 	//g_editor->node_selected_list = dll2_Init(struct led_Node);
 	g_editor->render_mesh_db = r_MeshSDBAlloc(NULL, 32, GROWABLE);
 	g_editor->shape_prefab_db = ds_ShapePrefabSDBAlloc(NULL, 32, GROWABLE);
-    g_editor->shape_prefab_instance_pool = ds_ShapePrefabInstancePoolAlloc(NULL, 4096, GROWABLE);
+    g_editor->shape_prefab_instance_pool = ds_ShapePrefabInstancePoolAlloc(NULL, 8192, GROWABLE);
 	g_editor->body_prefab_db = ds_RigidBodyPrefabSDBAlloc(NULL, 32, GROWABLE);
 	g_editor->cs_db = c_ShapeSDBAlloc(NULL, 32, GROWABLE);
-	g_editor->physics = PhysicsPipelineAlloc(&g_editor->mem_persistent, 1024, NSEC_PER_SEC / (u64) 60, 16*1024*1024, &g_editor->cs_db, &g_editor->body_prefab_db);
+	g_editor->physics = PhysicsPipelineAlloc(&g_editor->mem_persistent, 1024, NSEC_PER_SEC / (u64) 60, 16*1024*1024, &g_editor->cs_db, &g_editor->body_prefab_db, thread_count, thread_framesize);
     ds_CPoolAlloc(NULL, g_editor->joint_pool, 256, GROWABLE);
 
 	g_editor->pending_engine_running = 0;
