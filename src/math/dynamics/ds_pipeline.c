@@ -76,9 +76,10 @@ struct ds_RigidBodyPipeline PhysicsPipelineAlloc(struct arena *mem, const u32 in
     pipeline.joint_pool = ds_JointPoolAlloc(NULL, initial_size, GROWABLE);
 
 	pipeline.shape_pool = ds_ShapePoolAlloc(NULL, initial_size, GROWABLE);
+    pipeline.shape_dynamic_usage_set = ds_BitSetAlloc(NULL, initial_size, 0, GROWABLE);
 	pipeline.dynamic_bvh = DbvhAlloc(NULL, 2*initial_size, GROWABLE);
 	pipeline.static_bvh = DbvhAlloc(NULL, 2*initial_size, GROWABLE);
-    pipeline.dirty_shape_set = ds_BitSetAlloc(NULL, initial_size, 0, GROWABLE);
+    pipeline.shape_dirty_set = ds_BitSetAlloc(NULL, initial_size, 0, GROWABLE);
     ds_CPoolAlloc(NULL, pipeline.dirty_shape_query, initial_size, GROWABLE);
 
 	pipeline.event_pool = ds_PhysicsEventPoolAlloc(NULL, 256, GROWABLE);
@@ -101,9 +102,11 @@ struct ds_RigidBodyPipeline PhysicsPipelineAlloc(struct arena *mem, const u32 in
     pipeline.broad_phase = ArenaPushAligned(mem, sizeof(struct ds_BroadJobPhase), DS_CACHE_LINE);
     pipeline.narrow_phase = ArenaPushAligned(mem, sizeof(struct ds_NarrowJobPhase), DS_CACHE_LINE);
     pipeline.solver_phase = ArenaPushAligned(mem, sizeof(struct ds_SolverJobPhase), DS_CACHE_LINE);
+    pipeline.rebuild_phase = ArenaPushAligned(mem, sizeof(struct ds_RebuildJobPhase), DS_CACHE_LINE);
     ds_JobPhaseAlloc(mem, &pipeline.broad_phase->phase, BROAD_JOB_COUNT, ds_BroadJobPhaseDispatch);
     ds_JobPhaseAlloc(mem, &pipeline.narrow_phase->phase, NARROW_JOB_COUNT, ds_NarrowJobPhaseDispatch);
     ds_JobPhaseAlloc(mem, &pipeline.solver_phase->phase, SOLVER_JOB_COUNT, ds_SolverJobPhaseDispatch);
+    ds_JobPhaseAlloc(mem, &pipeline.rebuild_phase->phase, REBUILD_JOB_COUNT, ds_RebuildJobPhaseDispatch);
 #ifdef DS_PHYSICS_DEBUG
 	pipeline.debug_count = g_scheduler->worker_count;
 	pipeline.debug = malloc(g_scheduler->worker_count * sizeof(struct collisionDebug));
@@ -140,7 +143,8 @@ void PhysicsPipelineFree(struct ds_RigidBodyPipeline *pipeline)
 	free(pipeline->debug);
 #endif
 
-    ds_BitSetDealloc(&pipeline->dirty_shape_set);
+    ds_BitSetDealloc(&pipeline->shape_dynamic_usage_set);
+    ds_BitSetDealloc(&pipeline->shape_dirty_set);
     ds_CPoolDealloc(pipeline->dirty_shape_query);
 	BvhFree(&pipeline->dynamic_bvh);
 	BvhFree(&pipeline->static_bvh);
@@ -209,7 +213,8 @@ void PhysicsPipelineFlush(struct ds_RigidBodyPipeline *pipeline)
 	ds_RigidBodyPoolFlush(&pipeline->body_pool);
     ds_BitSetClear(&pipeline->body_usage_set, 0);
 
-    ds_BitSetClear(&pipeline->dirty_shape_set, 0);
+    ds_BitSetClear(&pipeline->shape_dynamic_usage_set, 0);
+    ds_BitSetClear(&pipeline->shape_dirty_set, 0);
     ds_CPoolFlush(pipeline->dirty_shape_query);
 	DbvhFlush(&pipeline->dynamic_bvh);
 	DbvhFlush(&pipeline->static_bvh);
@@ -256,7 +261,7 @@ u32 ds_BroadJobPhaseDispatch(const ds_JobId job)
     struct ds_RigidBodyPipeline *pipeline = phase->pipeline;
     struct ds_ParallelForChain *chain = &phase->pf;
     struct ds_ParallelFor *pf = chain->parallel_for + 0;
-    struct ds_BitSet *dirty = &pipeline->dirty_shape_set;
+    struct ds_BitSet *dirty = &pipeline->shape_dirty_set;
     struct ds_ProxyQuery *query = pipeline->dirty_shape_query.buf;
     u32 low, high;
 
@@ -376,7 +381,7 @@ static void CollisionDetection(struct ds_RigidBodyPipeline *pipeline)
      * ===========================================================
      *
      * All moving or new shapes from the last frame are dirty and have their corresponding index
-     * bit set in the dirty_shape_set. The broadphase can then be transformed into a parallel-for,
+     * bit set in the shape_dirty_set. The broadphase can then be transformed into a parallel-for,
      * in which each thread process a range in the dirty bitset and queries its shapes against the
      * pipeline's bounding volume hierarchies. In order to to get duplicate collisions reported from
      * two moving shapes, or from shapes sharing the same body, we enforce a filter for the dynamic
@@ -404,7 +409,7 @@ static void CollisionDetection(struct ds_RigidBodyPipeline *pipeline)
         broad_phase->pf = ds_ParallelForChainAlloc(&pipeline->frame, 1); 
         
         //TODO: this range size is random hardcoded value, change
-        ds_ParallelForInit(broad_phase->pf.parallel_for, pipeline->dirty_shape_set.block_count, 1);
+        ds_ParallelForInit(broad_phase->pf.parallel_for, pipeline->shape_dirty_set.block_count, 1);
 
         broad_phase->pipeline = pipeline;
         broad_phase->job_count = g_scheduler->worker_count;
@@ -435,7 +440,7 @@ static void CollisionDetection(struct ds_RigidBodyPipeline *pipeline)
         /* Allocate new contacts and update query[q].dynamic/static_shape to contact index. */
         ProfZoneNamed("Contact Allocation");
         
-        struct ds_BitSet *dirty = &pipeline->dirty_shape_set;
+        struct ds_BitSet *dirty = &pipeline->shape_dirty_set;
         for (u64 block = 0; block < dirty->block_count; ++block)
         {
             struct ds_BitBlock it = ds_BitBlockInit(dirty->bits[block], block);
@@ -728,6 +733,48 @@ u32 ds_SolverJobPhaseDispatch(const ds_JobId job)
     return U32_MAX;
 }
 
+u32 ds_RebuildJobPhaseDispatch(const ds_JobId job)
+{
+    ProfZone;
+
+    struct ds_RebuildJobPhase *phase = (struct ds_RebuildJobPhase *) g_scheduler->phase;
+    struct ds_RigidBodyPipeline *pipeline = phase->pipeline;
+    const struct ds_BitSet *usage = &pipeline->dynamic_bvh.leaf_set;
+    struct ds_ParallelForChain *chain;
+    struct ds_ParallelFor *pf;
+    u32 low, high;
+
+    chain = &phase->pf_proxy_update;
+    {
+        ProfZoneNamed("Proxy Update");
+        pf = chain->parallel_for + 0;
+        ds_ParallelFor(pf, range_index)
+        {
+            ds_ParallelForRange(&low, &high, pf, range_index);
+            for (u64 block = low; block < high; ++block)
+            {
+                struct ds_BitBlock it = ds_BitBlockInit(usage->bits[block], block);
+                while (ds_BitBlockHasNext(&it))
+                {
+                    const u32 pi = ds_BitBlockNext(&it);
+                    struct bvhNode *node = pipeline->dynamic_bvh.pool.buf + pi;
+                    const struct ds_Shape *shape = pipeline->shape_pool.buf + node->bt_child[0];
+                    node->bbox = ds_ShapeWorldBbox(pipeline, shape);
+                    node->bbox.hw[0] += shape->margin;
+                    node->bbox.hw[1] += shape->margin;
+                    node->bbox.hw[2] += shape->margin;
+                }
+            }
+        }
+        ProfZoneEnd;
+    }
+    ds_ParallelForChainWait(chain);
+
+    ProfZoneEnd;
+
+    return U32_MAX;
+}
+
 static void SolveConstraints(struct ds_RigidBodyPipeline *pipeline) 
 {
     struct ds_SolverJobPhase *solver_phase = pipeline->solver_phase;
@@ -835,43 +882,84 @@ static void SolveConstraints(struct ds_RigidBodyPipeline *pipeline)
             const f32 reinsert_fraction = reinsert_count / dirty_count;
             if (reinsert_fraction > g_numerics_config->dbvh_reinsert_threshold)
             {
+                const struct ds_BitSet *usage = &pipeline->shape_dynamic_usage_set;
+                for (u64 block = 0; block < usage->block_count; ++block)
                 {
-                    ProfZoneNamed("DBVH Rebuild");
-                    for (u32 ri = 0; ri < pf->range_count; ++ri)
+                    pipeline->shape_dirty_set.bits[block] = usage->bits[block];
+                }
+                
+                struct ds_RebuildJobPhase *rebuild_phase = pipeline->rebuild_phase;
+                {
+                	ProfZoneNamed("JobPhase(Rebuild)");
+
+                    ds_JobPhaseBegin(&rebuild_phase->phase);
+
+                    rebuild_phase->pf_proxy_update = ds_ParallelForChainAlloc(&pipeline->frame, 1); 
+                    
+                    //TODO: this range size is random hardcoded value, change
+                    ds_ParallelForInit(rebuild_phase->pf_proxy_update.parallel_for, pipeline->dynamic_bvh.leaf_set.block_count, 1);
+
+                    rebuild_phase->pipeline = pipeline;
+                    rebuild_phase->job_count = g_scheduler->worker_count;
+                    rebuild_phase->job = ArenaPushZero(&pipeline->frame, rebuild_phase->job_count*sizeof(struct ds_RebuildJob));
+                    ds_JobPhaseReserve(&rebuild_phase->phase, REBUILD_JOB_SEED, rebuild_phase->job_count);
+
+                    for (u32 i = 0; i < rebuild_phase->job_count; ++i)
                     {
-                        const struct ds_ProxyRange *range = solver_phase->proxy_range + ri;
-                        for (u32 pi = 0; pi < range->count; ++pi)
-                        {
-                            const struct ds_ProxyDirty *dirty = range->proxy + pi;
-                            if (dirty->reinsert)
-                            {
-                                const struct ds_Shape *shape = pipeline->shape_pool.buf + dirty->shape;
-                                pipeline->dynamic_bvh.pool.buf[ shape->proxy ].bbox = dirty->bbox;
-                            }
-                        }
+                        ds_WSDequePushBottom(g_scheduler->seed_deque, ds_JobIdInit(REBUILD_JOB_SEED, i));
                     }
 
+                    AtomicStoreRlx32(&g_scheduler->a_seeds_remaining, rebuild_phase->job_count);
+                    ds_JobPhaseAddFetchRemaining(&rebuild_phase->phase, rebuild_phase->job_count);
+                    ds_WSDequePublish(g_scheduler->seed_deque);
+                    for (u32 i = 1; i < g_scheduler->worker_count; ++i)
+                    {
+                        SemaphorePost(&g_scheduler->jobs_are_available);
+                    }
+
+	                ds_MasterRunAvailableJobs();
+                    
+                    ds_JobPhaseEnd();
+
+                    ProfZoneEnd;
+                }
+
+                {
+                    ProfZoneNamed("DBVH Rebuild");
                     DbvhRebuild(&pipeline->dynamic_bvh);
                     ProfZoneEnd;
                 }
 
-                {
-                    ProfZoneNamed("Dirtying (slow)");
-                    for (u32 si = 0; si < pipeline->shape_pool.count_max; ++si)
-                    {
-                        const struct ds_Shape *shape = pipeline->shape_pool.buf + si;
-                        if (ds_PoolSlotAllocated(shape))
-                        {
-                            const struct ds_RigidBody *body = pipeline->body_pool.buf + shape->body;
-                            if (RB_IS_DYNAMIC(body))
-                            {
-                                ds_BitSetSet(&pipeline->dirty_shape_set, si, 1);
-                            }
-                        }
-                    }
-                    ProfZoneEnd;
-                }
+                //{
+                //    ProfZoneNamed("Dirtying Bboxes");
+                //    const struct ds_BitSet *usage = &pipeline->shape_dynamic_usage_set;
+                //    for (u64 block = 0; block < usage->block_count; ++block)
+                //    {
+                //        pipeline->shape_dirty_set.bits[block] = usage->bits[block];
+                //        struct ds_BitBlock it = ds_BitBlockInit(usage->bits[block], block);
+                //        while (ds_BitBlockHasNext(&it))
+                //        {
+                //            const u32 si = ds_BitBlockNext(&it);
+                //            const struct ds_Shape *shape = pipeline->shape_pool.buf + si;
+                //            const struct ds_RigidBody *body = pipeline->body_pool.buf + shape->body;
+                //            if (RB_IS_DYNAMIC(body))
+                //            {
+                //                pipeline->dynamic_bvh.pool.buf[ shape->proxy ].bbox = ds_ShapeWorldBbox(pipeline, shape);
+                //                pipeline->dynamic_bvh.pool.buf[ shape->proxy ].bbox.hw[0] += shape->margin;
+                //                pipeline->dynamic_bvh.pool.buf[ shape->proxy ].bbox.hw[1] += shape->margin;
+                //                pipeline->dynamic_bvh.pool.buf[ shape->proxy ].bbox.hw[2] += shape->margin;
+                //            }
+                //        }
+                //    }
+                //                
+                //    ProfZoneEnd;
+                //}
 
+                //{
+                //    ProfZoneNamed("DBVH Rebuild");
+                //    DbvhRebuild(&pipeline->dynamic_bvh);
+                //    ProfZoneEnd;
+                //}
             }
             else
             {
@@ -883,7 +971,7 @@ static void SolveConstraints(struct ds_RigidBodyPipeline *pipeline)
                         for (u32 pi = 0; pi < range->count; ++pi)
                         {
                             const struct ds_ProxyDirty *dirty = range->proxy + pi;
-                            ds_BitSetSet(&pipeline->dirty_shape_set, dirty->shape, 1);
+                            ds_BitSetSet(&pipeline->shape_dirty_set, dirty->shape, 1);
                             if (dirty->reinsert)
                             {
                                 ProfZoneNamed("Reinsert");
@@ -899,7 +987,7 @@ static void SolveConstraints(struct ds_RigidBodyPipeline *pipeline)
 
                 {
                     ProfZoneNamed("Contact Removal");
-                    struct ds_BitSet *dirty = &pipeline->dirty_shape_set;
+                    struct ds_BitSet *dirty = &pipeline->shape_dirty_set;
                     for (u64 block = 0; block < dirty->block_count; ++block)
                     {
                         struct ds_BitBlock it = ds_BitBlockInit(dirty->bits[block], block);

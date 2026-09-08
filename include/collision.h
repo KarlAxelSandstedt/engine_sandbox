@@ -29,6 +29,7 @@ extern "C" {
 #include "string_database.h"
 #include "queue.h"
 #include "tree.h"
+#include "ds_bitset.h"
 
 #define COLLISION_DEFAULT_MARGIN	(100.0f * F32_EPSILON)
 #define COLLISION_POINT_DIST_SQ		(10000.0f * F32_EPSILON)
@@ -50,6 +51,7 @@ POOL_DECLARE(bvhNode);
 struct bvh
 {
     struct ds_BT        bt;  
+    struct ds_BitSet    leaf_set;       /* dynamic specific */
     struct bvhNodePool  pool;
 	struct minQueue	    cost_queue;	    /* dynamic specific */
 	u32			        heap_allocated;

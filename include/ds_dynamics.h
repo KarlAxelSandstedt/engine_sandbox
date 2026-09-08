@@ -1137,6 +1137,37 @@ struct ds_SolverJobPhase
 u32 ds_SolverJobPhaseDispatch(const ds_JobId job);
 
 /*
+ds_RebuildJobPhase
+=================
+*/
+
+enum ds_RebuildJobType
+{
+    REBUILD_JOB_SEED,
+    REBUILD_JOB_COUNT
+};
+
+struct ds_RebuildJob
+{
+    u32 tmp;
+};
+
+struct ds_RebuildJobPhase
+{
+    struct ds_JobPhase              phase;
+
+    struct ds_RigidBodyPipeline *   pipeline;
+
+    struct ds_RebuildJob *          job;
+    u32                             job_count;
+
+    struct ds_ParallelForChain      pf_proxy_update;
+};
+
+u32 ds_RebuildJobPhaseDispatch(const ds_JobId job);
+
+
+/*
 =================================================================================================================
 |						Physics Pipeline			  	      	    	|
 =================================================================================================================
@@ -1270,10 +1301,11 @@ struct ds_RigidBodyPipeline
     struct ds_BitSet            body_usage_set;         /* Bodies in use */
 
 	struct ds_ShapePool	        shape_pool;
+    struct ds_BitSet            shape_dynamic_usage_set;/* Shapes in use */
 	struct bvh 		            dynamic_bvh;            /* bvh of dynamic shapes */
 	struct bvh 		            static_bvh;             /* bvh of static shapes */
 
-    struct ds_BitSet            dirty_shape_set;    
+    struct ds_BitSet            shape_dirty_set;    
     ds_CPool(ds_ProxyQuery)     dirty_shape_query;
 
     struct ds_JointPool         joint_pool;
@@ -1310,6 +1342,7 @@ struct ds_RigidBodyPipeline
     struct ds_BroadJobPhase *   broad_phase;
     struct ds_NarrowJobPhase *  narrow_phase;
     struct ds_SolverJobPhase *  solver_phase;
+    struct ds_RebuildJobPhase * rebuild_phase;
 
     struct ds_NumericsConfig    numerics_config;
 };

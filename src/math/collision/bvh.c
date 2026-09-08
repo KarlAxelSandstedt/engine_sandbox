@@ -35,6 +35,7 @@ struct bvh DbvhAlloc(struct arena *mem, const u32 initial_length, const u32 grow
 	ds_Assert(!mem || !growable);
 	struct bvh bvh =
 	{
+        .leaf_set = ds_BitSetAlloc(mem, initial_length, 0, growable),
 		.pool = bvhNodePoolAlloc(mem, initial_length, growable),
 		.cost_queue = MinQueueAlloc(NULL, COST_QUEUE_INITIAL_COUNT, growable),
 		.heap_allocated = !mem,	
@@ -47,6 +48,7 @@ struct bvh DbvhAlloc(struct arena *mem, const u32 initial_length, const u32 grow
 
 void BvhFree(struct bvh *bvh)
 {
+    ds_BitSetDealloc(&bvh->leaf_set);
     bvhNodePoolDealloc(&bvh->pool);
 	MinQueueDealloc(&bvh->cost_queue);
 }
@@ -86,6 +88,7 @@ f32 BvhCost(const struct bvh *bvh)
 
 void DbvhFlush(struct bvh *bvh)
 {
+    ds_BitSetClear(&bvh->leaf_set, 0);
 	ds_BTFlush(bvh->bt);
     bvhNodePoolFlush(&bvh->pool);
 	MinQueueFlush(&bvh->cost_queue);
@@ -296,6 +299,12 @@ u32 DbvhInsert(struct bvh *bvh, const u32 body, const u32 shape, const struct aa
 	//BvhValidate(tmp, bvh);
 	//ArenaPopScratch();
 
+    if (bvh->leaf_set.bit_count <= leaf.index)
+    {
+        ds_BitSetIncreaseSize(&bvh->leaf_set, (1 + bvh->leaf_set.bit_count) << 1, 0);
+    }
+    ds_BitSetSet(&bvh->leaf_set, leaf.index, 1);
+
 	return leaf.index;
 }
 
@@ -303,6 +312,7 @@ void DbvhRemove(struct bvh *bvh, const u32 index)
 {
 	struct bvhNode *nodes = bvh->pool.buf;
 	ds_Assert(ds_BTLeafCheck(nodes + index));
+    ds_BitSetSet(&bvh->leaf_set, index, 0);
 
 	u32 parent = nodes[index].bt_parent & BT_INDEX_MASK;
 	if (parent == BT_INDEX_NULL)
@@ -911,6 +921,7 @@ struct triMeshBvh TriMeshBvhConstruct(struct arena *mem, const struct triMesh *m
 		.mesh = mesh,
 		.bvh = 
 		{ 
+            .leaf_set = { 0 },
 			.pool = bvhNodePoolAlloc(mem, max_node_count_required, NOT_GROWABLE),
 			.heap_allocated = 0,
 		},
