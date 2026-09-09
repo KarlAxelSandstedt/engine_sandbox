@@ -24,18 +24,6 @@
 
 SDB_DEFINE(c_Shape);
 
-ds_ThreadLocal struct collisionDebug *debug;
-
-struct visualSegment VisualSegmentConstruct(const struct segment segment, const vec4 color)
-{
-	struct visualSegment visual =
-	{
-		.segment = segment,
-	};
-	Vec4Copy(visual.color, color);
-	return visual;
-}
-
 /********************************** Contact Manifold helpers **********************************/
 
 void c_ManifoldDebugPrint(const struct c_Manifold *cm)
@@ -1644,7 +1632,7 @@ struct c_ContactResult c_HullSphereContact(struct arena *frame, const struct c_C
 			}
 		}
 
-        COLLISION_DEBUG_ADD_SEGMENT(SegmentConstruct(c[0], c[1]), Vec4Inline(0.1f, 0.6f, 0.9f, 1.0f));
+        ds_DynamicsDrawDebugSegment(SegmentConstruct(c[0], c[1]), Vec4Inline(0.1f, 0.6f, 0.9f, 1.0f));
             
         //ds_Assert(min_depth > 0.0f);
 		manifold->depth[0] = min_depth + s[1]->sphere.radius;
@@ -1863,7 +1851,7 @@ struct c_ContactResult c_HullCapsuleContact(struct arena *frame, const struct c_
 				    Vec3TranslateScaled(manifold->v[0], manifold->n, s[1]->capsule.radius);
 				    Vec3TranslateScaled(manifold->v[1], manifold->n, s[1]->capsule.radius);
                 }
-                COLLISION_DEBUG_ADD_SEGMENT(SegmentConstruct(manifold->v[0], manifold->v[1]), Vec4Inline(0.1f, 0.6f, 0.9f, 1.0f));
+                ds_DynamicsDrawDebugSegment(SegmentConstruct(manifold->v[0], manifold->v[1]), Vec4Inline(0.1f, 0.6f, 0.9f, 1.0f));
 			}
 			else
 			{
@@ -2215,7 +2203,7 @@ static u32 HullFaceContact(struct arena *mem_tmp, struct c_Manifold *cm, sat_Fea
 
 	//for (u32 i = 0; i < cp_count; ++i)
 	//{
-	//	COLLISION_DEBUG_ADD_SEGMENT(SegmentConstruct(cp[i], cp[(i+1) % cp_count]), Vec4Inline(0.8f, 0.6f, 0.1f, 1.0f));
+	//	ds_DynamicsDrawDebugSegment(SegmentConstruct(cp[i], cp[(i+1) % cp_count]), Vec4Inline(0.8f, 0.6f, 0.1f, 1.0f));
 	//}
 
     u32 collision;
@@ -2898,9 +2886,9 @@ struct c_ContactResult c_TriMeshBvhSphereContact(struct arena *frame, const stru
                     }
                     else
                     {
-                        COLLISION_DEBUG_ADD_SEGMENT(SegmentConstruct(c->tv.t[0], c->c[1]), Vec4Inline(0.8f, 0.8f, 0.4f, 1.0f));
-                        COLLISION_DEBUG_ADD_SEGMENT(SegmentConstruct(c->tv.t[1], c->c[1]), Vec4Inline(0.8f, 0.8f, 0.4f, 1.0f));
-                        COLLISION_DEBUG_ADD_SEGMENT(SegmentConstruct(c->tv.t[2], c->c[1]), Vec4Inline(0.8f, 0.8f, 0.4f, 1.0f));
+                        ds_DynamicsDrawDebugSegment(SegmentConstruct(c->tv.t[0], c->c[1]), Vec4Inline(0.8f, 0.8f, 0.4f, 1.0f));
+                        ds_DynamicsDrawDebugSegment(SegmentConstruct(c->tv.t[1], c->c[1]), Vec4Inline(0.8f, 0.8f, 0.4f, 1.0f));
+                        ds_DynamicsDrawDebugSegment(SegmentConstruct(c->tv.t[2], c->c[1]), Vec4Inline(0.8f, 0.8f, 0.4f, 1.0f));
                     }
                 }
 	    	}
@@ -3179,9 +3167,9 @@ struct c_ContactResult c_TriMeshBvhCapsuleContact(struct arena *frame, const str
                     }
                     else
                     {
-                        COLLISION_DEBUG_ADD_SEGMENT(SegmentConstruct(c->tv.t[0], c->c[1]), Vec4Inline(0.8f, 0.8f, 0.4f, 1.0f));
-                        COLLISION_DEBUG_ADD_SEGMENT(SegmentConstruct(c->tv.t[1], c->c[1]), Vec4Inline(0.8f, 0.8f, 0.4f, 1.0f));
-                        COLLISION_DEBUG_ADD_SEGMENT(SegmentConstruct(c->tv.t[2], c->c[1]), Vec4Inline(0.8f, 0.8f, 0.4f, 1.0f));
+                        ds_DynamicsDrawDebugSegment(SegmentConstruct(c->tv.t[0], c->c[1]), Vec4Inline(0.8f, 0.8f, 0.4f, 1.0f));
+                        ds_DynamicsDrawDebugSegment(SegmentConstruct(c->tv.t[1], c->c[1]), Vec4Inline(0.8f, 0.8f, 0.4f, 1.0f));
+                        ds_DynamicsDrawDebugSegment(SegmentConstruct(c->tv.t[2], c->c[1]), Vec4Inline(0.8f, 0.8f, 0.4f, 1.0f));
                     }
                 }
 	    	}

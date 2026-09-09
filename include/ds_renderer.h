@@ -478,6 +478,28 @@ void 	gl_StateDealloc(const u32 gl_state);
 /* set gl state to current global */
 void 	gl_StateSetCurrent(const u32 gl_state);
 
+
+/********************************************************
+ *			Some primitives				*
+ ********************************************************/
+
+typedef struct r_ColorSegment 
+{
+	struct segment	segment;
+	vec4		    color;
+} r_ColorSegment;
+DEFINE_CPOOL_STRUCT(r_ColorSegment);
+
+static inline struct r_ColorSegment	r_ColorSegmentConstruct(const struct segment segment, const vec4 color)
+{
+	struct r_ColorSegment visual =
+	{
+		.segment = segment,
+	};
+	Vec4Copy(visual.color, color);
+	return visual;
+}
+
 /*
    Some notes in order of development; initial documentation is wrong and should instead be viewed as the thought
    process as the library was developed. CLEAN UP and write proper later when things are changing less.

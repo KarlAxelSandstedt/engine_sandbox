@@ -170,36 +170,6 @@ struct bvhRaycastInfo	BvhRaycastInit(struct arena *mem, const struct bvh *bvh, c
 void 			        BvhRaycastTestAndPushChildren(struct bvhRaycastInfo *info, const u32f32 popped_tuple);
 
 
-/********************************** COLLISION DEBUG **********************************/
-
-typedef struct visualSegment
-{
-	struct segment	segment;
-	vec4		color;
-} visualSegment;
-DEFINE_CPOOL_STRUCT(visualSegment);
-
-struct visualSegment	VisualSegmentConstruct(const struct segment segment, const vec4 color);
-
-struct collisionDebug
-{
-	ds_CPool(visualSegment)	stack_segment;
-	u8			            pad[64];
-};
-
-extern struct collisionDebug *g_collision_debug;
-
-#ifdef DS_PHYSICS_DEBUG
-
-#define COLLISION_DEBUG_ADD_SEGMENT(segment, color)							\
-	ds_CPoolPushValue(g_collision_debug[ds_ThreadSelfIndex()].stack_segment,  VisualSegmentConstruct(segment, color))
-
-#else
-
-#define COLLISION_DEBUG_ADD_SEGMENT(segment, color)
-
-#endif
-
 /********************************** COLLISION SHAPES **********************************/
 
 enum c_ShapeType

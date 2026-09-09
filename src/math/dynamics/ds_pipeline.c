@@ -26,7 +26,6 @@
 POOL_DEFINE(ds_PhysicsEvent);
 
 struct ds_DynamicsWorker *g_dynamics_worker;
-struct collisionDebug *g_collision_debug;
 
 void ds_DynamicsStaticAssert(void)
 {
@@ -98,9 +97,6 @@ struct ds_Dynamics ds_DynamicsAlloc(struct arena *mem, const u32 initial_size, c
     pipeline.margin_on = 0;
 	pipeline.margin = COLLISION_DEFAULT_MARGIN;
 
-	pipeline.debug_count = 0;
-	pipeline.debug = NULL;
-
     pipeline.broad_phase = ArenaPushAligned(mem, sizeof(struct ds_BroadJobPhase), DS_CACHE_LINE);
     pipeline.narrow_phase = ArenaPushAligned(mem, sizeof(struct ds_NarrowJobPhase), DS_CACHE_LINE);
     pipeline.solver_phase = ArenaPushAligned(mem, sizeof(struct ds_SolverJobPhase), DS_CACHE_LINE);
@@ -109,15 +105,6 @@ struct ds_Dynamics ds_DynamicsAlloc(struct arena *mem, const u32 initial_size, c
     ds_JobPhaseAlloc(mem, &pipeline.narrow_phase->phase, NARROW_JOB_COUNT, ds_NarrowJobPhaseDispatch);
     ds_JobPhaseAlloc(mem, &pipeline.solver_phase->phase, SOLVER_JOB_COUNT, ds_SolverJobPhaseDispatch);
     ds_JobPhaseAlloc(mem, &pipeline.rebuild_phase->phase, REBUILD_JOB_COUNT, ds_RebuildJobPhaseDispatch);
-#ifdef DS_PHYSICS_DEBUG
-	pipeline.debug_count = g_scheduler->worker_count;
-	pipeline.debug = malloc(g_scheduler->worker_count * sizeof(struct collisionDebug));
-    g_collision_debug = pipeline.debug;
-	for (u32 i = 0; i < pipeline.debug_count; ++i)
-	{
-		ds_CPoolAlloc(NULL, pipeline.debug[i].stack_segment, 1024, GROWABLE);
-	}
-#endif
 
     ds_CGraphAlloc(&pipeline, 4096);
     pipeline.numerics_config = ds_NumericsConfigDefault();
@@ -142,6 +129,7 @@ struct ds_Dynamics ds_DynamicsAlloc(struct arena *mem, const u32 initial_size, c
     {
         pipeline.worker[i].frame_arr[0] = ArenaAlloc(NULL, worker_frame_size);
         pipeline.worker[i].frame_arr[1] = ArenaAlloc(NULL, worker_frame_size);
+        ds_CPoolAlloc(NULL, pipeline.worker[i].draw.debug_segment_pool, 4096, GROWABLE);
     }
 
     pipeline.profile_length = 8192;
@@ -153,18 +141,11 @@ struct ds_Dynamics ds_DynamicsAlloc(struct arena *mem, const u32 initial_size, c
 
 void ds_DynamicsFree(struct ds_Dynamics *pipeline)
 {
-#ifdef DS_PHYSICS_DEBUG
-	for (u32 i = 0; i < pipeline->debug_count; ++i)
-	{
-		ds_CPoolDealloc(pipeline->debug[i].stack_segment);
-	}
-	free(pipeline->debug);
-#endif
-
     for (u32 i = 0; i < pipeline->worker_count; ++i)
     {
         ArenaFree(pipeline->worker[i].frame_arr + 0);
         ArenaFree(pipeline->worker[i].frame_arr + 1);
+        ds_CPoolDealloc(pipeline->worker[i].draw.debug_segment_pool);
     }
 
     ds_BitSetDealloc(&pipeline->shape_dynamic_usage_set);
@@ -196,12 +177,10 @@ void ds_DynamicsFree(struct ds_Dynamics *pipeline)
 
 static void ds_DynamicsClearFrame(struct ds_Dynamics *pipeline)
 {
-#ifdef DS_PHYSICS_DEBUG
-	for (u32 i = 0; i < pipeline->debug_count; ++i)
+	for (u32 i = 0; i < pipeline->worker_count; ++i)
 	{
-		ds_CPoolFlush(pipeline->debug[i].stack_segment);
+        ds_CPoolFlush(pipeline->worker[i].draw.debug_segment_pool);
 	}
-#endif
 	ArenaFlush(&pipeline->frame);
     ds_CGraphFramePrepare(pipeline);
     ds_BitSetClear(&pipeline->island_high_energy_set, 0);
@@ -210,16 +189,11 @@ static void ds_DynamicsClearFrame(struct ds_Dynamics *pipeline)
 
 void ds_DynamicsFlush(struct ds_Dynamics *pipeline)
 {
-#ifdef DS_PHYSICS_DEBUG
-	for (u32 i = 0; i < pipeline->debug_count; ++i)
-	{
-		ds_CPoolFlush(pipeline->debug[i].stack_segment);
-	}
-#endif
     for (u32 i = 0; i < pipeline->worker_count; ++i)
     {
         ArenaFlush(pipeline->worker[i].frame_arr + 0);
         ArenaFlush(pipeline->worker[i].frame_arr + 1);
+        ds_CPoolFlush(pipeline->worker[i].draw.debug_segment_pool);
     }
 
     memset(pipeline->profile_buf, 0, pipeline->profile_length*sizeof(struct ds_DynamicsProfile));
@@ -805,6 +779,23 @@ u32 ds_RebuildJobPhaseDispatch(const ds_JobId job)
     }
     ds_ParallelForChainWait(chain);
 
+
+
+/*
+
+GlobalTaskQueue:                                                    LocalTaskQueue:
+    [low0, high0]
+    [low1, high1] [low2, high2]
+    [low3, high3] [low4, high4] [low2, high2]
+    [low5, high5] [low6, high6] [low4, high4] [low2, high2]
+    [low6, high6] [low4, high4] [low2, high2]                       [low7, high7] [low8, high8]
+
+
+    (1) Work over GlobalTaskQueue while it is not empty
+    (2) Work over LocalTaskQueue while it is not empty
+*/
+
+
 /*
 {
     Shared Depth Work: 
@@ -817,8 +808,6 @@ u32 ds_RebuildJobPhaseDispatch(const ds_JobId job)
             Range [low, high), high-low <= REBUILD_SUBTREE_TASK_LIMIT
 }
 */
-
-
 
     ProfZoneEnd;
 

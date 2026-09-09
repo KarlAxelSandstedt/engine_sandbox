@@ -26,6 +26,7 @@ extern "C" {
 
 #include "ds_allocator.h"
 #include "ds_math.h"
+#include "ds_renderer.h"
 #include "list.h"
 #include "collision.h"
 #include "ds_hash_map.h"
@@ -149,6 +150,26 @@ void    ds_DynamicsMetricsAdd(struct ds_DynamicsMetrics *sum, const struct ds_Dy
 /* Add statistics */
 void    ds_DynamicsMetricsPrint(FILE *file, const struct ds_DynamicsMetrics *metrics);
 
+
+/*
+ds_DynamicsDraw
+===============
+Per-thread dynamics debug/information draw data of frame.
+*/
+
+struct ds_DynamicsDraw 
+{
+	ds_CPool(r_ColorSegment)	debug_segment_pool;
+};
+
+#ifdef DS_PHYSICS_DEBUG
+#define ds_DynamicsDrawDebugSegment(segment, color)							\
+	ds_CPoolPushValue(g_dynamics_worker[ds_ThreadSelfIndex()].draw.debug_segment_pool,  r_ColorSegmentConstruct(segment, color))
+#else
+#define ds_DynamicsDrawDebugSegment(segment, color)
+#endif
+
+
 /*
 ds_DynamicsWorker
 =================
@@ -162,6 +183,7 @@ struct ds_DynamicsWorker
     struct arena *              frame;
     
     struct ds_DynamicsMetrics   metrics;
+    struct ds_DynamicsDraw      draw;
 
     u8                          pad[DS_CACHE_LINE];
 };
@@ -667,7 +689,7 @@ u64         ds_ContactMemoryRequirement(const struct ds_Dynamics *pipeline, cons
 /*
 ds_ContactConstraintCache
 =========================
-TODO:
+Stores data needed for warming up the constraint in the next frame. 
 */
 struct ds_ContactConstraintCache
 {
@@ -686,7 +708,7 @@ struct ds_ContactConstraintCache
 /*
 ds_ContactCompute
 =================
-TODO: contact <-> compute <-> constraints?
+Contact constraint data between two shapes. Note that mesh contacts may store multiuple constraints and caches.
 */
 struct ds_ContactCompute
 {
@@ -1044,7 +1066,6 @@ void    SolverConfigInit(const u32 pgs_iteration_count,
 /*
 ds_CGraphColor
 ==============
-//TODO
 ds_CGraphColor stores the relevant physics data of active constraints, tightly packed for quick iterations.
 */
 struct ds_CGraphColor
@@ -1101,9 +1122,12 @@ void                    ds_CGraphFramePrepare(struct ds_Dynamics *pipeline);
 struct ds_JointSim *    ds_CGraphJointAdd(struct ds_Dynamics *pipeline, struct ds_Joint *joint);
 /* Deallocate a ds_JointSim */
 void                    ds_CGraphJointRemove(struct ds_Dynamics *pipeline, struct ds_Joint *joint);
-/* TODO: for now, we only setup link contact <-> graph */
+/* 
+ * Add contact to constraint graph (And unset the contact set index WITHOUT removing it from the set). Any cached
+ * data in sleeper sets is copied onto the frame. 
+ */
 void                    ds_CGraphContactAdd(struct arena *frame, struct ds_Dynamics *pipeline, struct ds_Contact *contact);
-/* TODO: for now, we only remove link contact <-> graph */
+/* Remove conttact from the constraint graph. */
 void                    ds_CGraphContactRemove(struct ds_Dynamics *pipeline, struct ds_Contact *contact);
 
 
@@ -1426,9 +1450,6 @@ struct ds_Dynamics
     ds_IslandId                     island_to_split;            /* */
 	struct ds_IslandPool            island_pool;	    
     struct ds_BitSet                island_high_energy_set;   /* High energy islands per-frame. */
-
-	struct collisionDebug *	        debug;
-	u32			                    debug_count;
 
 	//TODO temporary, move somewhere else.
 	vec3 			                gravity;	/* gravity constant */
