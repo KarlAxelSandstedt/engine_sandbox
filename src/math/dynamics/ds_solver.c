@@ -24,7 +24,7 @@
 struct solverConfig config_storage = { 0 };
 struct solverConfig *g_solver_config = &config_storage;
 
-static ds_ThreadLocal struct ds_RigidBodyCompute tl_static_bcomp = 
+static ds_ThreadLocal struct ds_BodyCompute tl_static_bcomp = 
 {
     .linear_velocity = { 0, 0, 0 },
     .angular_velocity = { 0, 0, 0 },
@@ -33,7 +33,7 @@ static ds_ThreadLocal struct ds_RigidBodyCompute tl_static_bcomp =
     .flags = 0,
 };
 
-static ds_ThreadLocal struct ds_RigidBodySim tl_static_body_sim = 
+static ds_ThreadLocal struct ds_BodySim tl_static_body_sim = 
 {
     .body = 0,
     .flags = 0,
@@ -85,7 +85,7 @@ void SolverConfigInit(const u32 pgs_iteration_count, const u32 ngs_iteration_cou
 	g_solver_config->pending_angular_dampening = g_solver_config->angular_dampening;
 }
 
-void ds_RigidBodyUpdateSolverDataRange(struct ds_RigidBodyPipeline *pipeline, const u32 low, const u32 high)
+void ds_BodyUpdateSolverDataRange(struct ds_Dynamics *pipeline, const u32 low, const u32 high)
 {
     ProfZone;
 
@@ -114,8 +114,8 @@ void ds_RigidBodyUpdateSolverDataRange(struct ds_RigidBodyPipeline *pipeline, co
     mat3 tmp, rot, rot_inv;
     for (u32 i = low; i < high; ++i)
     {
-        struct ds_RigidBodySim *sim = active->body_sim_pool.buf + i;
-        struct ds_RigidBodyCompute *bcomp = active->body_compute_pool.buf + i;
+        struct ds_BodySim *sim = active->body_sim_pool.buf + i;
+        struct ds_BodyCompute *bcomp = active->body_compute_pool.buf + i;
 
 		/* setup inverted world inertia tensors and center of massses */
 		Mat3Quat(rot, sim->world.rotation);
@@ -136,7 +136,7 @@ void ds_RigidBodyUpdateSolverDataRange(struct ds_RigidBodyPipeline *pipeline, co
     ProfZoneEnd;
 }
 
-void ds_RigidBodyIntegrateVelocitiesRange(struct ds_RigidBodyPipeline *pipeline, const u32 low, const u32 high)
+void ds_BodyIntegrateVelocitiesRange(struct ds_Dynamics *pipeline, const u32 low, const u32 high)
 {
     ProfZone;
 
@@ -144,7 +144,7 @@ void ds_RigidBodyIntegrateVelocitiesRange(struct ds_RigidBodyPipeline *pipeline,
 
     for (u32 i = low; i < high; ++i)
     {
-        struct ds_RigidBodyCompute *bcomp = active->body_compute_pool.buf + i;
+        struct ds_BodyCompute *bcomp = active->body_compute_pool.buf + i;
 
         /* update velocity and world center of mass */
         const f32 div_linear = Vec3Length(bcomp->linear_velocity) * g_solver_config->max_linear_velocity_magnitude_inv;
@@ -169,7 +169,7 @@ void ds_RigidBodyIntegrateVelocitiesRange(struct ds_RigidBodyPipeline *pipeline,
     ProfZoneEnd;
 }
 
-void ds_RigidBodyUpdateOrientationRange(struct ds_RigidBodyPipeline *pipeline, struct ds_ProxyRange *proxy_range, const u32 low, const u32 high)
+void ds_BodyUpdateOrientationRange(struct ds_Dynamics *pipeline, struct ds_ProxyRange *proxy_range, const u32 low, const u32 high)
 {
     ProfZone;
 
@@ -185,9 +185,9 @@ void ds_RigidBodyUpdateOrientationRange(struct ds_RigidBodyPipeline *pipeline, s
 
     for (u32 i = low; i < high; ++i)
     {
-        struct ds_RigidBodySim *sim = active->body_sim_pool.buf + i;
-        const struct ds_RigidBodyCompute *bcomp = active->body_compute_pool.buf + i;
-        const struct ds_RigidBody *body = pipeline->body_pool.buf + sim->body;
+        struct ds_BodySim *sim = active->body_sim_pool.buf + i;
+        const struct ds_BodyCompute *bcomp = active->body_compute_pool.buf + i;
+        const struct ds_Body *body = pipeline->body_pool.buf + sim->body;
     
         /* derive new world transform from updated angle and world center of mass */
         vec3 rotated_local_center_of_mass;
@@ -245,7 +245,7 @@ void ds_RigidBodyUpdateOrientationRange(struct ds_RigidBodyPipeline *pipeline, s
     ProfZoneEnd;
 }
 
-void ds_ContactConstraintInitRange(struct ds_RigidBodyPipeline *pipeline, const u32 color_index, const u32 low, const u32 high)
+void ds_ContactConstraintInitRange(struct ds_Dynamics *pipeline, const u32 color_index, const u32 low, const u32 high)
 {
     ProfZone;
 
@@ -263,24 +263,24 @@ void ds_ContactConstraintInitRange(struct ds_RigidBodyPipeline *pipeline, const 
         const struct ds_Contact *c = pipeline->contact_pool.buf + color->contact_pool.buf[ci];
         struct ds_ContactCompute *ccomp = color->contact_compute_pool.buf + ci;
 
-	    struct ds_RigidBody *b[2];
+	    struct ds_Body *b[2];
         struct ds_Shape *s[2];
         ds_ContactKeyAddress(b+0, s+0, b+1, s+1, pipeline, c->key);
 
-        ccomp->body_sim[0] = RB_IS_DYNAMIC(b[0])
+        ccomp->body_sim[0] = ds_BodyDynamicCheck(b[0])
                 ? b[0]->sim
                 : ACTIVE_BODY_DUMMY_INDEX;
-        ccomp->body_sim[1] = RB_IS_DYNAMIC(b[1])
+        ccomp->body_sim[1] = ds_BodyDynamicCheck(b[1])
                 ? b[1]->sim
                 : ACTIVE_BODY_DUMMY_INDEX;
 
-        struct ds_RigidBodySim *sim[2] =
+        struct ds_BodySim *sim[2] =
         {
             ((ccomp->body_sim[0] == ACTIVE_BODY_DUMMY_INDEX) ? &tl_static_body_sim : active->body_sim_pool.buf + ccomp->body_sim[0]),
             ((ccomp->body_sim[1] == ACTIVE_BODY_DUMMY_INDEX) ? &tl_static_body_sim : active->body_sim_pool.buf + ccomp->body_sim[1]),       
         };
 
-        struct ds_RigidBodyCompute *bcomp[2] =
+        struct ds_BodyCompute *bcomp[2] =
         {
             ((ccomp->body_sim[0] == ACTIVE_BODY_DUMMY_INDEX) ? &tl_static_bcomp : active->body_compute_pool.buf + ccomp->body_sim[0]),
             ((ccomp->body_sim[1] == ACTIVE_BODY_DUMMY_INDEX) ? &tl_static_bcomp : active->body_compute_pool.buf + ccomp->body_sim[1]),
@@ -379,7 +379,7 @@ void ds_ContactConstraintInitRange(struct ds_RigidBodyPipeline *pipeline, const 
     ProfZoneEnd;
 }
 
-void ds_ContactConstraintWarmupRange(struct ds_RigidBodyPipeline *pipeline, const u32 color_index, const u32 low, const u32 high)
+void ds_ContactConstraintWarmupRange(struct ds_Dynamics *pipeline, const u32 color_index, const u32 low, const u32 high)
 {
     ProfZone;
 
@@ -394,13 +394,13 @@ void ds_ContactConstraintWarmupRange(struct ds_RigidBodyPipeline *pipeline, cons
         const struct ds_Contact *c = pipeline->contact_pool.buf + color->contact_pool.buf[ci];
         struct ds_ContactCompute *ccomp = color->contact_compute_pool.buf + ci;
 
-        struct ds_RigidBodySim *sim[2] =
+        struct ds_BodySim *sim[2] =
         {
             ((ccomp->body_sim[0] == ACTIVE_BODY_DUMMY_INDEX) ? &tl_static_body_sim : active->body_sim_pool.buf + ccomp->body_sim[0]),
             ((ccomp->body_sim[1] == ACTIVE_BODY_DUMMY_INDEX) ? &tl_static_body_sim : active->body_sim_pool.buf + ccomp->body_sim[1]),       
         };
 
-        struct ds_RigidBodyCompute *bcomp[2] =
+        struct ds_BodyCompute *bcomp[2] =
         {
             ((ccomp->body_sim[0] == ACTIVE_BODY_DUMMY_INDEX) ? &tl_static_bcomp : active->body_compute_pool.buf + ccomp->body_sim[0]),
             ((ccomp->body_sim[1] == ACTIVE_BODY_DUMMY_INDEX) ? &tl_static_bcomp : active->body_compute_pool.buf + ccomp->body_sim[1]),
@@ -499,7 +499,7 @@ void ds_ContactConstraintWarmupRange(struct ds_RigidBodyPipeline *pipeline, cons
     ProfZoneEnd;
 }
 
-void ds_ContactConstraintIterateRange(struct ds_RigidBodyPipeline *pipeline, const u32 color_index, const u32 cc_low, const u32 cc_high)
+void ds_ContactConstraintIterateRange(struct ds_Dynamics *pipeline, const u32 color_index, const u32 cc_low, const u32 cc_high)
 {
     ProfZone;
 
@@ -514,13 +514,13 @@ void ds_ContactConstraintIterateRange(struct ds_RigidBodyPipeline *pipeline, con
 	{			
 	    struct ds_ContactCompute *ccomp = color->contact_compute_pool.buf + ci;
 
-        struct ds_RigidBodySim *sim[2] =
+        struct ds_BodySim *sim[2] =
         {
             ((ccomp->body_sim[0] == ACTIVE_BODY_DUMMY_INDEX) ? &tl_static_body_sim : active->body_sim_pool.buf + ccomp->body_sim[0]),
             ((ccomp->body_sim[1] == ACTIVE_BODY_DUMMY_INDEX) ? &tl_static_body_sim : active->body_sim_pool.buf + ccomp->body_sim[1]),       
         };
 
-        struct ds_RigidBodyCompute *bcomp[2] =
+        struct ds_BodyCompute *bcomp[2] =
         {
             ((ccomp->body_sim[0] == ACTIVE_BODY_DUMMY_INDEX) ? &tl_static_bcomp : active->body_compute_pool.buf + ccomp->body_sim[0]),
             ((ccomp->body_sim[1] == ACTIVE_BODY_DUMMY_INDEX) ? &tl_static_bcomp : active->body_compute_pool.buf + ccomp->body_sim[1]),
@@ -602,7 +602,7 @@ void ds_ContactConstraintIterateRange(struct ds_RigidBodyPipeline *pipeline, con
     ProfZoneEnd;
 }
 
-void ds_PositionConstraintInitAndCacheImpulsesRange(struct ds_RigidBodyPipeline *pipeline, const u32 color_index, const u32 low, const u32 high)
+void ds_PositionConstraintInitAndCacheImpulsesRange(struct ds_Dynamics *pipeline, const u32 color_index, const u32 low, const u32 high)
 {
     ProfZone;
 
@@ -618,13 +618,13 @@ void ds_PositionConstraintInitAndCacheImpulsesRange(struct ds_RigidBodyPipeline 
     {			
         struct ds_Contact *c = pipeline->contact_pool.buf + color->contact_pool.buf[ci];
         struct ds_ContactCompute *ccomp = color->contact_compute_pool.buf + ci;
-        struct ds_RigidBodySim *sim[2] =
+        struct ds_BodySim *sim[2] =
         {
             ((ccomp->body_sim[0] == ACTIVE_BODY_DUMMY_INDEX) ? &tl_static_body_sim : active->body_sim_pool.buf + ccomp->body_sim[0]),
             ((ccomp->body_sim[1] == ACTIVE_BODY_DUMMY_INDEX) ? &tl_static_body_sim : active->body_sim_pool.buf + ccomp->body_sim[1]),       
         };
 
-        struct ds_RigidBodyCompute *bcomp[2] =
+        struct ds_BodyCompute *bcomp[2] =
         {
             ((ccomp->body_sim[0] == ACTIVE_BODY_DUMMY_INDEX) ? &tl_static_bcomp : active->body_compute_pool.buf + ccomp->body_sim[0]),
             ((ccomp->body_sim[1] == ACTIVE_BODY_DUMMY_INDEX) ? &tl_static_bcomp : active->body_compute_pool.buf + ccomp->body_sim[1]),
@@ -676,7 +676,7 @@ void ds_PositionConstraintInitAndCacheImpulsesRange(struct ds_RigidBodyPipeline 
     ProfZoneEnd;
 } 
 
-void ds_PositionConstraintIterateRange(struct ds_RigidBodyPipeline *pipeline, const u32 color_index, const u32 low, const u32 high)
+void ds_PositionConstraintIterateRange(struct ds_Dynamics *pipeline, const u32 color_index, const u32 low, const u32 high)
 {    
     ProfZone;
 
@@ -693,13 +693,13 @@ void ds_PositionConstraintIterateRange(struct ds_RigidBodyPipeline *pipeline, co
 	{			
 	    struct ds_ContactCompute *ccomp = color->contact_compute_pool.buf + ci;
 
-        struct ds_RigidBodySim *sim[2] =
+        struct ds_BodySim *sim[2] =
         {
             ((ccomp->body_sim[0] == ACTIVE_BODY_DUMMY_INDEX) ? &tl_static_body_sim : active->body_sim_pool.buf + ccomp->body_sim[0]),
             ((ccomp->body_sim[1] == ACTIVE_BODY_DUMMY_INDEX) ? &tl_static_body_sim : active->body_sim_pool.buf + ccomp->body_sim[1]),       
         };
 
-        struct ds_RigidBodyCompute *bcomp[2] =
+        struct ds_BodyCompute *bcomp[2] =
         {
             ((ccomp->body_sim[0] == ACTIVE_BODY_DUMMY_INDEX) ? &tl_static_bcomp : active->body_compute_pool.buf + ccomp->body_sim[0]),
             ((ccomp->body_sim[1] == ACTIVE_BODY_DUMMY_INDEX) ? &tl_static_bcomp : active->body_compute_pool.buf + ccomp->body_sim[1]),

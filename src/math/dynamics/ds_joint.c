@@ -19,12 +19,12 @@
 
 POOL_DEFINE(ds_Joint);
 
-ds_JointId ds_JointAdd(struct ds_RigidBodyPipeline *pipeline, const ds_RigidBodyId b0_id, const ds_Transform *local_frame0, const ds_RigidBodyId b1_id, const ds_Transform *local_frame1)
+ds_JointId ds_JointAdd(struct ds_Dynamics *pipeline, const ds_BodyId b0_id, const ds_Transform *local_frame0, const ds_BodyId b1_id, const ds_Transform *local_frame1)
 {
-    struct slot slot_b0 = ds_RigidBodyLookup(pipeline, b0_id);
-    struct slot slot_b1 = ds_RigidBodyLookup(pipeline, b1_id);
-    struct ds_RigidBody *b0 = slot_b0.address;
-    struct ds_RigidBody *b1 = slot_b1.address;
+    struct slot slot_b0 = ds_BodyLookup(pipeline, b0_id);
+    struct slot slot_b1 = ds_BodyLookup(pipeline, b1_id);
+    struct ds_Body *b0 = slot_b0.address;
+    struct ds_Body *b1 = slot_b1.address;
     if (!b0 || !b1)
     {
         return DS_ID_NULL;
@@ -56,11 +56,11 @@ ds_JointId ds_JointAdd(struct ds_RigidBodyPipeline *pipeline, const ds_RigidBody
     return joint->id;
 }
 
-static void ds_JointUnlink(struct ds_RigidBodyPipeline *pipeline, const struct ds_Joint *joint, const u32 joint_index)
+static void ds_JointUnlink(struct ds_Dynamics *pipeline, const struct ds_Joint *joint, const u32 joint_index)
 {
     for (u32 i = 0; i < 2; ++i)
     {
-        struct ds_RigidBody *body = pipeline->body_pool.buf + joint->body[i];
+        struct ds_Body *body = pipeline->body_pool.buf + joint->body[i];
 
         const u32 bi = joint->body[i];
         const i32 prev = joint->edge_node[i].prev;
@@ -73,7 +73,7 @@ static void ds_JointUnlink(struct ds_RigidBodyPipeline *pipeline, const struct d
     }
 }
 
-void ds_JointStaticRemove(struct ds_RigidBodyPipeline *pipeline, struct ds_RigidBody *body, const u32 index)
+void ds_JointStaticRemove(struct ds_Dynamics *pipeline, struct ds_Body *body, const u32 index)
 {
     struct ds_Joint *joint = pipeline->joint_pool.buf + index;
     if (joint->set == SOLVER_SET_NULL)
@@ -100,7 +100,7 @@ void ds_JointStaticRemove(struct ds_RigidBodyPipeline *pipeline, struct ds_Rigid
     //TODO signal affected island for wakeup / slip
 }
 
-void ds_JointDynamicRemove(struct ds_RigidBodyPipeline *pipeline, struct ds_RigidBody *body, const u32 index)
+void ds_JointDynamicRemove(struct ds_Dynamics *pipeline, struct ds_Body *body, const u32 index)
 {
     //TODO for now, it seems like Static and Dynamic remove is the same...
     ds_JointStaticRemove(pipeline, body, index);
@@ -113,19 +113,19 @@ void ds_JointDynamicRemove(struct ds_RigidBodyPipeline *pipeline, struct ds_Rigi
     ////TODO signal affected island for wakeup / slip
 }
 
-void ds_JointRemove(struct ds_RigidBodyPipeline *pipeline, const ds_JointId id)
+void ds_JointRemove(struct ds_Dynamics *pipeline, const ds_JointId id)
 {
     struct slot slot = ds_JointLookup(pipeline, id);
     if (slot.address)
     {
         struct ds_Joint *joint = slot.address;
-        struct ds_RigidBody *b0 = pipeline->body_pool.buf + joint->body[0];
-        struct ds_RigidBody *b1 = pipeline->body_pool.buf + joint->body[1];
-        if (!RB_IS_DYNAMIC(b0))
+        struct ds_Body *b0 = pipeline->body_pool.buf + joint->body[0];
+        struct ds_Body *b1 = pipeline->body_pool.buf + joint->body[1];
+        if (ds_BodyStaticCheck(b0))
         {
             ds_JointStaticRemove(pipeline, b0, slot.index);
         }
-        else if (!RB_IS_DYNAMIC(b1))
+        else if (ds_BodyStaticCheck(b1))
         {
             ds_JointStaticRemove(pipeline, b1, slot.index);
         }
@@ -136,7 +136,7 @@ void ds_JointRemove(struct ds_RigidBodyPipeline *pipeline, const ds_JointId id)
     }
 }
 
-struct slot ds_JointLookup(const struct ds_RigidBodyPipeline *pipeline, const ds_JointId id)
+struct slot ds_JointLookup(const struct ds_Dynamics *pipeline, const ds_JointId id)
 {
     const u32 index = DS_ID_INDEX_MASK & id;
     if (index <= pipeline->joint_pool.count_max)
@@ -154,7 +154,7 @@ void ds_DistanceJointPrefabDefault(struct ds_DistanceJointPrefab *prefab)
 {
 }
 
-ds_JointId ds_DistanceJointAdd(struct ds_RigidBodyPipeline *pipeline, const struct ds_DistanceJointPrefab *prefab, const ds_RigidBodyId b0, const ds_Transform *local_frame0, const ds_RigidBodyId b1, const ds_Transform *local_frame1)
+ds_JointId ds_DistanceJointAdd(struct ds_Dynamics *pipeline, const struct ds_DistanceJointPrefab *prefab, const ds_BodyId b0, const ds_Transform *local_frame0, const ds_BodyId b1, const ds_Transform *local_frame1)
 {
     const ds_JointId id = ds_JointAdd(pipeline, b0, local_frame0, b1, local_frame1);
     if (id == DS_ID_NULL)

@@ -36,7 +36,7 @@ u32 ds_ContactKeyEquivalence(const struct ds_ContactKey key0, const struct ds_Co
     return memcmp(&key0, &key1, sizeof(struct ds_ContactKey)) == 0;
 }
 
-void ds_ContactKeyAddress(struct ds_RigidBody **b0, struct ds_Shape **s0, struct ds_RigidBody **b1, struct ds_Shape **s1, const struct ds_RigidBodyPipeline *pipeline, const struct ds_ContactKey key)
+void ds_ContactKeyAddress(struct ds_Body **b0, struct ds_Shape **s0, struct ds_Body **b1, struct ds_Shape **s1, const struct ds_Dynamics *pipeline, const struct ds_ContactKey key)
 {    
     *s0 = pipeline->shape_pool.buf + key.shape[0];
     *s1 = pipeline->shape_pool.buf + key.shape[1];
@@ -45,7 +45,7 @@ void ds_ContactKeyAddress(struct ds_RigidBody **b0, struct ds_Shape **s0, struct
     *b1 = pipeline->body_pool.buf + (*s1)->body;
 }
 
-struct slot ds_ContactAdd(struct ds_RigidBodyPipeline *pipeline, const struct ds_ContactKey key)
+struct slot ds_ContactAdd(struct ds_Dynamics *pipeline, const struct ds_ContactKey key)
 {
     ds_Assert(ds_ContactKeyLookup(pipeline, key).address == NULL);
 
@@ -89,13 +89,13 @@ struct slot ds_ContactAdd(struct ds_RigidBodyPipeline *pipeline, const struct ds
     return contact_slot;
 }
 
-void ds_ContactRemove(struct ds_RigidBodyPipeline *pipeline, const u32 index)
+void ds_ContactRemove(struct ds_Dynamics *pipeline, const u32 index)
 {
     struct ds_Contact *buf = pipeline->contact_pool.buf;
 	struct ds_Contact *c = buf + index;
     ds_Assert(ds_PoolSlotAllocated(c));
 
-	struct ds_RigidBody *body0, *body1;
+	struct ds_Body *body0, *body1;
     struct ds_Shape *shape0, *shape1;
     ds_ContactKeyAddress(&body0, &shape0, &body1, &shape1, pipeline, c->key);
 	PhysicsEventContactRemoved(pipeline, body0->id, shape0->id, body1->id, shape1->id);
@@ -137,7 +137,7 @@ void ds_ContactRemove(struct ds_RigidBodyPipeline *pipeline, const u32 index)
     ds_ContactPoolRemove(&pipeline->contact_pool, index);
 }
 
-struct slot ds_ContactKeyLookup(const struct ds_RigidBodyPipeline *pipeline, const struct ds_ContactKey key)
+struct slot ds_ContactKeyLookup(const struct ds_Dynamics *pipeline, const struct ds_ContactKey key)
 {
     struct slot slot = { .address = NULL, .index = U32_MAX };
 	const u32 hash = ds_ContactKeyHash(key);
@@ -155,7 +155,7 @@ struct slot ds_ContactKeyLookup(const struct ds_RigidBodyPipeline *pipeline, con
 	return slot;
 }
 
-struct slot ds_ContactLookup(const struct ds_RigidBodyPipeline *pipeline, const ds_ContactId id)
+struct slot ds_ContactLookup(const struct ds_Dynamics *pipeline, const ds_ContactId id)
 {
     struct slot slot = { .address = NULL, .index = U32_MAX };
     struct ds_Contact *c = pipeline->contact_pool.buf + ds_IdFIndex(id);
@@ -168,7 +168,7 @@ struct slot ds_ContactLookup(const struct ds_RigidBodyPipeline *pipeline, const 
     return slot;
 }
 
-u32 ds_ContactCheckBvhOverlap(const struct ds_RigidBodyPipeline *pipeline, const u32 contact_index)
+u32 ds_ContactCheckBvhOverlap(const struct ds_Dynamics *pipeline, const u32 contact_index)
 {
     const struct ds_Contact *contact = pipeline->contact_pool.buf + contact_index;
 
@@ -178,7 +178,7 @@ u32 ds_ContactCheckBvhOverlap(const struct ds_RigidBodyPipeline *pipeline, const
         pipeline->shape_pool.buf + contact->key.shape[1],
     };
     
-    const struct ds_RigidBody *body[2] =
+    const struct ds_Body *body[2] =
     {
 	    pipeline->body_pool.buf + shape[0]->body,
 	    pipeline->body_pool.buf + shape[1]->body,
@@ -188,17 +188,17 @@ u32 ds_ContactCheckBvhOverlap(const struct ds_RigidBodyPipeline *pipeline, const
     const struct bvhNode *d_node = pipeline->dynamic_bvh.pool.buf;
 
     const struct aabb *bbox[2];
-    bbox[0] = RB_IS_DYNAMIC(body[0]) 
+    bbox[0] = ds_BodyDynamicCheck(body[0]) 
             ? &d_node[ shape[0]->proxy ].bbox 
             : &s_node[ shape[0]->proxy ].bbox;
-    bbox[1] = RB_IS_DYNAMIC(body[1]) 
+    bbox[1] = ds_BodyDynamicCheck(body[1]) 
             ? &d_node[ shape[1]->proxy ].bbox 
             : &s_node[ shape[1]->proxy ].bbox;
     
     return AabbTest(bbox[0], bbox[1]);
 }
 
-void ds_ContactPromote(struct ds_RigidBodyPipeline *pipeline, const u32 contact)
+void ds_ContactPromote(struct ds_Dynamics *pipeline, const u32 contact)
 {
     struct ds_Contact *c = pipeline->contact_pool.buf + contact;
     struct ds_SolverSet *active = pipeline->solver_set_pool.buf + SOLVER_SET_ACTIVE;
@@ -223,13 +223,13 @@ void ds_ContactPromote(struct ds_RigidBodyPipeline *pipeline, const u32 contact)
         pipeline->shape_pool.buf + c->key.shape[1],
     };
     
-    const struct ds_RigidBody *body[2] =
+    const struct ds_Body *body[2] =
     {
 	    pipeline->body_pool.buf + shape[0]->body,
 	    pipeline->body_pool.buf + shape[1]->body,
     };
 
-    const u32 dynamic[2] = { RB_DYNAMIC_BIT(body[0]), RB_DYNAMIC_BIT(body[1]) };
+    const u32 dynamic[2] = { ds_BodyDynamicBit(body[0]), ds_BodyDynamicBit(body[1]) };
     const u32 expand_index = body[ dynamic[1] ]->island;
     const u32 merge_index = body[ 1-dynamic[1] ]->island;
     ds_Assert(dynamic[0] || dynamic[1]);
@@ -247,7 +247,7 @@ void ds_ContactPromote(struct ds_RigidBodyPipeline *pipeline, const u32 contact)
 	PhysicsEventIslandExpanded(pipeline, expand->id);	
 }
 
-void ds_ContactDemote(struct ds_RigidBodyPipeline *pipeline, const u32 contact)
+void ds_ContactDemote(struct ds_Dynamics *pipeline, const u32 contact)
 {
     struct ds_Contact *c = pipeline->contact_pool.buf + contact;
     struct ds_Island *island = pipeline->island_pool.buf + c->island;
@@ -261,7 +261,7 @@ void ds_ContactDemote(struct ds_RigidBodyPipeline *pipeline, const u32 contact)
         pipeline->shape_pool.buf + c->key.shape[1],
     };
     
-    const struct ds_RigidBody *body[2] =
+    const struct ds_Body *body[2] =
     {
 	    pipeline->body_pool.buf + shape[0]->body,
 	    pipeline->body_pool.buf + shape[1]->body,
@@ -277,7 +277,7 @@ void ds_ContactDemote(struct ds_RigidBodyPipeline *pipeline, const u32 contact)
     active->contact_pool.buf[ c->compute ] = contact;
 }
 
-u64 ds_ContactMemoryRequirement(const struct ds_RigidBodyPipeline *pipeline, const u32 contact)
+u64 ds_ContactMemoryRequirement(const struct ds_Dynamics *pipeline, const u32 contact)
 {
     const struct ds_Contact *c = pipeline->contact_pool.buf + contact;
     const struct ds_CGraphColor *color = pipeline->cgraph.color + c->color;
@@ -299,7 +299,7 @@ u64 ds_ContactMemoryRequirement(const struct ds_RigidBodyPipeline *pipeline, con
     return mem_req_manifold + mem_req_cache + mem_req_tri + mem_req_tri_manifold + mem_req_compute;
 }
 
-void ds_ContactWakeUp(struct arena *frame, struct ds_RigidBodyPipeline *pipeline, const u32 contact_index)
+void ds_ContactWakeUp(struct arena *frame, struct ds_Dynamics *pipeline, const u32 contact_index)
 {
     struct ds_Contact *c = pipeline->contact_pool.buf + contact_index;
     ds_Assert(c->set >= SOLVER_SET_SLEEPING_FIRST && c->color == CG_INVALID_COLOR);
@@ -321,7 +321,7 @@ void ds_ContactWakeUp(struct arena *frame, struct ds_RigidBodyPipeline *pipeline
     ds_CGraphContactAdd(frame, pipeline, c);
 }
 
-void ds_ContactSleep(struct arena *mem_sleep, struct ds_RigidBodyPipeline *pipeline, const u32 contact, const u32 set_index)
+void ds_ContactSleep(struct arena *mem_sleep, struct ds_Dynamics *pipeline, const u32 contact, const u32 set_index)
 {
     ds_Assert(ds_ContactMemoryRequirement(pipeline, contact) <= mem_sleep->mem_left);
     struct ds_SolverSet *set = pipeline->solver_set_pool.buf + set_index;
@@ -366,7 +366,7 @@ void ds_ContactSleep(struct arena *mem_sleep, struct ds_RigidBodyPipeline *pipel
     ds_Assert(c->compute == compute_slot.index);
 }
 
-void ds_ContactValidateAll(const struct ds_RigidBodyPipeline *pipeline)
+void ds_ContactValidateAll(const struct ds_Dynamics *pipeline)
 {
     const struct ds_SolverSet *active = pipeline->solver_set_pool.buf + SOLVER_SET_ACTIVE;
     for (u32 i = 0; i < active->contact_pool.count; ++i)

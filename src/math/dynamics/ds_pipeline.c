@@ -29,12 +29,12 @@ struct collisionDebug *g_collision_debug;
 
 void ds_DynamicsStaticAssert(void)
 {
-    ds_StaticAssert(sizeof(struct ds_RigidBodyCompute) == DS_CACHE_LINE, "");
+    ds_StaticAssert(sizeof(struct ds_BodyCompute) == DS_CACHE_LINE, "");
 }
 
-struct ds_RigidBodyPipeline PhysicsPipelineAlloc(struct arena *mem, const u32 initial_size, const u64 ns_tick, const u64 frame_memory, c_ShapeSDB *cshape_db, ds_RigidBodyPrefabSDB *prefab_db, const u32 worker_count, const u64 worker_frame_size)
+struct ds_Dynamics PhysicsPipelineAlloc(struct arena *mem, const u32 initial_size, const u64 ns_tick, const u64 frame_memory, c_ShapeSDB *cshape_db, ds_BodyPrefabSDB *prefab_db, const u32 worker_count, const u64 worker_frame_size)
 {
-	struct ds_RigidBodyPipeline pipeline =
+	struct ds_Dynamics pipeline =
 	{
 		.gravity = { 0.0f, -GRAVITY_CONSTANT_DEFAULT, 0.0f },
 		.ns_tick = ns_tick,
@@ -70,7 +70,7 @@ struct ds_RigidBodyPipeline PhysicsPipelineAlloc(struct arena *mem, const u32 in
 
 	ds_AssertString(PowerOfTwoCheck(initial_size), "For simplicity of future data structures, expect pipeline sizes to be powers of two");
 
-	pipeline.body_pool = ds_RigidBodyPoolAlloc(NULL, initial_size, GROWABLE);
+	pipeline.body_pool = ds_BodyPoolAlloc(NULL, initial_size, GROWABLE);
     pipeline.body_usage_set = ds_BitSetAlloc(NULL, initial_size, 0, GROWABLE);
 
     pipeline.joint_pool = ds_JointPoolAlloc(NULL, initial_size, GROWABLE);
@@ -142,7 +142,7 @@ struct ds_RigidBodyPipeline PhysicsPipelineAlloc(struct arena *mem, const u32 in
 	return pipeline;
 }
 
-void PhysicsPipelineFree(struct ds_RigidBodyPipeline *pipeline)
+void PhysicsPipelineFree(struct ds_Dynamics *pipeline)
 {
 #ifdef DS_PHYSICS_DEBUG
 	for (u32 i = 0; i < pipeline->debug_count; ++i)
@@ -167,7 +167,7 @@ void PhysicsPipelineFree(struct ds_RigidBodyPipeline *pipeline)
     ds_HashMapDealloc(&pipeline->contact_map);
 	ds_IslandPoolDealloc(&pipeline->island_pool);
     ds_BitSetDealloc(&pipeline->island_high_energy_set);
-	ds_RigidBodyPoolDealloc(&pipeline->body_pool);
+	ds_BodyPoolDealloc(&pipeline->body_pool);
 	ds_PhysicsEventPoolDealloc(&pipeline->event_pool);
 	ds_ShapePoolDealloc(&pipeline->shape_pool);
     ds_JointPoolDealloc(&pipeline->joint_pool);
@@ -185,7 +185,7 @@ void PhysicsPipelineFree(struct ds_RigidBodyPipeline *pipeline)
     ds_SolverSetPoolDealloc(&pipeline->solver_set_pool);
 }
 
-static void PhysicsPipelineClearFrame(struct ds_RigidBodyPipeline *pipeline)
+static void PhysicsPipelineClearFrame(struct ds_Dynamics *pipeline)
 {
 #ifdef DS_PHYSICS_DEBUG
 	for (u32 i = 0; i < pipeline->debug_count; ++i)
@@ -199,7 +199,7 @@ static void PhysicsPipelineClearFrame(struct ds_RigidBodyPipeline *pipeline)
 }
 
 
-void PhysicsPipelineFlush(struct ds_RigidBodyPipeline *pipeline)
+void PhysicsPipelineFlush(struct ds_Dynamics *pipeline)
 {
 #ifdef DS_PHYSICS_DEBUG
 	for (u32 i = 0; i < pipeline->debug_count; ++i)
@@ -229,7 +229,7 @@ void PhysicsPipelineFlush(struct ds_RigidBodyPipeline *pipeline)
     ds_HashMapFlush(&pipeline->contact_map);
 	ds_IslandPoolFlush(&pipeline->island_pool);
 	
-	ds_RigidBodyPoolFlush(&pipeline->body_pool);
+	ds_BodyPoolFlush(&pipeline->body_pool);
     ds_BitSetClear(&pipeline->body_usage_set, 0);
 
     ds_BitSetClear(&pipeline->shape_dynamic_usage_set, 0);
@@ -250,7 +250,7 @@ void PhysicsPipelineFlush(struct ds_RigidBodyPipeline *pipeline)
 	pipeline->ns_elapsed = 0;
 }
 
-void PhysicsPipelineValidate(const struct ds_RigidBodyPipeline *pipeline)
+void PhysicsPipelineValidate(const struct ds_Dynamics *pipeline)
 {
 	ProfZone;
 
@@ -275,7 +275,7 @@ u32 ds_BroadJobPhaseDispatch(const ds_JobId job)
     ProfZone;
 
     struct ds_BroadJobPhase *phase = (struct ds_BroadJobPhase *) g_scheduler->phase;
-    struct ds_RigidBodyPipeline *pipeline = phase->pipeline;
+    struct ds_Dynamics *pipeline = phase->pipeline;
     struct ds_ParallelForChain *chain = &phase->pf;
     struct ds_ParallelFor *pf = chain->parallel_for + 0;
     struct ds_BitSet *dirty = &pipeline->shape_dirty_set;
@@ -345,7 +345,7 @@ u32 ds_NarrowJobPhaseDispatch(const ds_JobId job)
     ProfZone;
 
     struct ds_NarrowJobPhase *phase = (struct ds_NarrowJobPhase *) g_scheduler->phase;
-    struct ds_RigidBodyPipeline *pipeline = phase->pipeline;
+    struct ds_Dynamics *pipeline = phase->pipeline;
     struct arena *frame = pipeline->worker[ds_ThreadSelfIndex()].frame;
     struct ds_ParallelForChain *chain;
     struct ds_ParallelFor *pf;
@@ -393,7 +393,7 @@ u32 ds_NarrowJobPhaseDispatch(const ds_JobId job)
     return U32_MAX;
 }
 
-static void CollisionDetection(struct ds_RigidBodyPipeline *pipeline)
+static void CollisionDetection(struct ds_Dynamics *pipeline)
 {
     /*
      * Achieving Determinism and Parallelization in the Broadphase
@@ -597,7 +597,7 @@ u32 ds_SolverJobPhaseDispatch(const ds_JobId job)
     ProfZone;
 
     struct ds_SolverJobPhase *phase = (struct ds_SolverJobPhase *) g_scheduler->phase;
-    struct ds_RigidBodyPipeline *pipeline = phase->pipeline;
+    struct ds_Dynamics *pipeline = phase->pipeline;
     struct ds_ParallelForChain *chain;
     struct ds_ParallelFor *pf;
     u32 low, high;
@@ -609,7 +609,7 @@ u32 ds_SolverJobPhaseDispatch(const ds_JobId job)
         ds_ParallelFor(pf, range_index)
         {
             ds_ParallelForRange(&low, &high, pf, range_index);
-            ds_RigidBodyUpdateSolverDataRange(pipeline, low, high);
+            ds_BodyUpdateSolverDataRange(pipeline, low, high);
 
         }
         ProfZoneEnd;
@@ -684,7 +684,7 @@ u32 ds_SolverJobPhaseDispatch(const ds_JobId job)
         ds_ParallelFor(pf, range_index)
         {
             ds_ParallelForRange(&low, &high, pf, range_index);
-            ds_RigidBodyIntegrateVelocitiesRange(pipeline, low, high);
+            ds_BodyIntegrateVelocitiesRange(pipeline, low, high);
 
         }
         ProfZoneEnd;
@@ -741,7 +741,7 @@ u32 ds_SolverJobPhaseDispatch(const ds_JobId job)
         {
             struct ds_ProxyRange *proxy_range = phase->proxy_range + range_index;
             ds_ParallelForRange(&low, &high, pf, range_index);
-            ds_RigidBodyUpdateOrientationRange(pipeline, proxy_range, low, high);
+            ds_BodyUpdateOrientationRange(pipeline, proxy_range, low, high);
         }
         ProfZoneEnd;
     }
@@ -757,7 +757,7 @@ u32 ds_RebuildJobPhaseDispatch(const ds_JobId job)
     ProfZone;
 
     struct ds_RebuildJobPhase *phase = (struct ds_RebuildJobPhase *) g_scheduler->phase;
-    struct ds_RigidBodyPipeline *pipeline = phase->pipeline;
+    struct ds_Dynamics *pipeline = phase->pipeline;
     const struct ds_BitSet *usage = &pipeline->dynamic_bvh.leaf_set;
     struct ds_ParallelForChain *chain;
     struct ds_ParallelFor *pf;
@@ -809,7 +809,7 @@ u32 ds_RebuildJobPhaseDispatch(const ds_JobId job)
     return U32_MAX;
 }
 
-static void SolveConstraints(struct ds_RigidBodyPipeline *pipeline) 
+static void SolveConstraints(struct ds_Dynamics *pipeline) 
 {
     struct ds_SolverJobPhase *solver_phase = pipeline->solver_phase;
     {
@@ -975,7 +975,7 @@ static void SolveConstraints(struct ds_RigidBodyPipeline *pipeline)
                 //        {
                 //            const u32 si = ds_BitBlockNext(&it);
                 //            const struct ds_Shape *shape = pipeline->shape_pool.buf + si;
-                //            const struct ds_RigidBody *body = pipeline->body_pool.buf + shape->body;
+                //            const struct ds_Body *body = pipeline->body_pool.buf + shape->body;
                 //            if (RB_IS_DYNAMIC(body))
                 //            {
                 //                pipeline->dynamic_bvh.pool.buf[ shape->proxy ].bbox = ds_ShapeWorldBbox(pipeline, shape);
@@ -1060,11 +1060,11 @@ static void SolveConstraints(struct ds_RigidBodyPipeline *pipeline)
         const struct ds_Island *island = pipeline->island_pool.buf + isi; 
 		f32 min_low_velocity_time = F32_MAX_POSITIVE_NORMAL;
 
-        struct ds_RigidBody *body;
+        struct ds_Body *body;
         for (i32 bi = island->body_list.first; bi != DLL_SENTINEL; bi = body->island_body.next)
         {
             body = pipeline->body_pool.buf + bi;
-            const struct ds_RigidBodyCompute *compute = active->body_compute_pool.buf + body->sim;
+            const struct ds_BodyCompute *compute = active->body_compute_pool.buf + body->sim;
 			const f32 lv_sq = Vec3Dot(compute->linear_velocity, compute->linear_velocity);
 			const f32 av_sq = Vec3Dot(compute->angular_velocity, compute->angular_velocity);
 			if (lv_sq <= g_solver_config->sleep_linear_velocity_sq_limit && av_sq <= g_solver_config->sleep_angular_velocity_sq_limit)
@@ -1126,7 +1126,7 @@ static void SolveConstraints(struct ds_RigidBodyPipeline *pipeline)
 DONE:
 }
 
-void PhysicsPipelineSleepEnable(struct ds_RigidBodyPipeline *pipeline)
+void PhysicsPipelineSleepEnable(struct ds_Dynamics *pipeline)
 {
 	ds_Assert(g_solver_config->sleep_enabled == 0);
 	if (g_solver_config->sleep_enabled)
@@ -1151,7 +1151,7 @@ void PhysicsPipelineSleepEnable(struct ds_RigidBodyPipeline *pipeline)
     }
 }
 
-void PhysicsPipelineSleepDisable(struct ds_RigidBodyPipeline *pipeline)
+void PhysicsPipelineSleepDisable(struct ds_Dynamics *pipeline)
 {
 	ds_Assert(g_solver_config->sleep_enabled == 1);
 	if (!g_solver_config->sleep_enabled)
@@ -1176,7 +1176,7 @@ void PhysicsPipelineSleepDisable(struct ds_RigidBodyPipeline *pipeline)
 	}
 }
 
-static void UpdateSolverConfig(struct ds_RigidBodyPipeline *pipeline)
+static void UpdateSolverConfig(struct ds_Dynamics *pipeline)
 {
 	g_solver_config->warmup_solver = g_solver_config->pending_warmup_solver;
 	g_solver_config->pgs_iteration_count = g_solver_config->pending_pgs_iteration_count;
@@ -1197,7 +1197,7 @@ static void UpdateSolverConfig(struct ds_RigidBodyPipeline *pipeline)
 	}
 }
 
-void PhysicsPipelineSimulateFrame(struct ds_RigidBodyPipeline *pipeline)
+void PhysicsPipelineSimulateFrame(struct ds_Dynamics *pipeline)
 {
 	/* update, if possible, any pending values in contact solver config */
 	UpdateSolverConfig(pipeline);
@@ -1210,7 +1210,7 @@ void PhysicsPipelineSimulateFrame(struct ds_RigidBodyPipeline *pipeline)
 	PHYSICS_PIPELINE_VALIDATE(pipeline);
 }
 
-void PhysicsPipelineTick(struct ds_RigidBodyPipeline *pipeline)
+void PhysicsPipelineTick(struct ds_Dynamics *pipeline)
 {
 	ProfZone;
 
@@ -1238,7 +1238,7 @@ void PhysicsPipelineTick(struct ds_RigidBodyPipeline *pipeline)
 	ProfZoneEnd;
 }
 
-u64 PhysicsPipelineOrientationHash(const struct ds_RigidBodyPipeline *pipeline)
+u64 PhysicsPipelineOrientationHash(const struct ds_Dynamics *pipeline)
 {
     XXH3_state_t* state = XXH3_createState();
     if (!state)
@@ -1250,14 +1250,14 @@ u64 PhysicsPipelineOrientationHash(const struct ds_RigidBodyPipeline *pipeline)
     XXH3_64bits_reset(state);
     for (u32 i = 0; i < pipeline->body_pool.count_max; ++i)
     {
-        const struct ds_RigidBody *body = pipeline->body_pool.buf + i;
+        const struct ds_Body *body = pipeline->body_pool.buf + i;
         if (!ds_PoolSlotAllocated(body))
         {
             continue;
         }
 
         const struct ds_SolverSet *set = pipeline->solver_set_pool.buf + body->set;
-        const struct ds_RigidBodySim *sim = set->body_sim_pool.buf + body->sim;
+        const struct ds_BodySim *sim = set->body_sim_pool.buf + body->sim;
 
         XXH3_64bits_update(state, &i, sizeof(u32));
         XXH3_64bits_update(state, &body->flags, sizeof(body->flags));
@@ -1265,7 +1265,7 @@ u64 PhysicsPipelineOrientationHash(const struct ds_RigidBodyPipeline *pipeline)
         XXH3_64bits_update(state, sim->world.rotation, sizeof(quat));
         if (body->set == SOLVER_SET_ACTIVE)
         {
-            const struct ds_RigidBodyCompute *compute = set->body_compute_pool.buf + body->sim;
+            const struct ds_BodyCompute *compute = set->body_compute_pool.buf + body->sim;
             XXH3_64bits_update(state, compute->linear_velocity, sizeof(vec3));
             XXH3_64bits_update(state, compute->angular_velocity, sizeof(vec3));
         }
@@ -1276,7 +1276,7 @@ u64 PhysicsPipelineOrientationHash(const struct ds_RigidBodyPipeline *pipeline)
     return hash;
 }
 
-u32f32 PhysicsPipelineRaycastParameter(const struct ds_RigidBodyPipeline *pipeline, const struct ray *ray)
+u32f32 PhysicsPipelineRaycastParameter(const struct ds_Dynamics *pipeline, const struct ray *ray)
 {
     struct arena *tmp = ArenaPushScratch();
 
@@ -1339,7 +1339,7 @@ u32f32 PhysicsPipelineRaycastParameter(const struct ds_RigidBodyPipeline *pipeli
         : s_info.hit;
 }
 
-struct ds_PhysicsEvent *ds_PhysicsEventPush(struct ds_RigidBodyPipeline *pipeline)
+struct ds_PhysicsEvent *ds_PhysicsEventPush(struct ds_Dynamics *pipeline)
 {
 	struct slot slot = ds_PhysicsEventPoolAdd(&pipeline->event_pool);
     ds_DLLAppend(pipeline->event_list, pipeline->event_pool.buf, slot.index, node);
@@ -1348,7 +1348,7 @@ struct ds_PhysicsEvent *ds_PhysicsEventPush(struct ds_RigidBodyPipeline *pipelin
 	return event;
 }
 
-void PhysicsPipelinePrintUsage(const struct ds_RigidBodyPipeline *pipeline)
+void PhysicsPipelinePrintUsage(const struct ds_Dynamics *pipeline)
 {
     fprintf(stderr, "Physics:\n");
     fprintf(stderr, "\tbodies:                      %u\n", pipeline->body_pool.count);

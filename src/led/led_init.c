@@ -119,7 +119,7 @@ struct led *led_Alloc(const u32 thread_count, const u64 thread_framesize)
 	g_editor->render_mesh_db = r_MeshSDBAlloc(NULL, 32, GROWABLE);
 	g_editor->shape_prefab_db = ds_ShapePrefabSDBAlloc(NULL, 32, GROWABLE);
     g_editor->shape_prefab_instance_pool = ds_ShapePrefabInstancePoolAlloc(NULL, 8192, GROWABLE);
-	g_editor->body_prefab_db = ds_RigidBodyPrefabSDBAlloc(NULL, 32, GROWABLE);
+	g_editor->body_prefab_db = ds_BodyPrefabSDBAlloc(NULL, 32, GROWABLE);
 	g_editor->cs_db = c_ShapeSDBAlloc(NULL, 32, GROWABLE);
 	g_editor->physics = PhysicsPipelineAlloc(&g_editor->mem_persistent, 1024, NSEC_PER_SEC / (u64) 60, 16*1024*1024, &g_editor->cs_db, &g_editor->body_prefab_db, thread_count, thread_framesize);
     ds_CPoolAlloc(NULL, g_editor->joint_pool, 256, GROWABLE);
@@ -154,7 +154,7 @@ struct led *led_Alloc(const u32 thread_count, const u64 thread_framesize)
 	instance->shape_prefab = ds_ShapePrefabSDBReference(&g_editor->shape_prefab_db, Utf8Empty()).index;
     instance->t_local = ds_TransformIdentity();
 
-	struct ds_RigidBodyPrefab *prefab_stub = g_editor->body_prefab_db.pool.buf + SDB_STUB;
+	struct ds_BodyPrefab *prefab_stub = g_editor->body_prefab_db.pool.buf + SDB_STUB;
 	prefab_stub->dynamic = 1;
     ds_DLLFlush(prefab_stub->shape_list);
     ds_DLLAppend(prefab_stub->shape_list, g_editor->shape_prefab_instance_pool.buf, instance_index, body_shape);

@@ -141,7 +141,7 @@ void        led_ShapePrefabAttachRenderMesh(struct led *led, const utf8 id, cons
 void        led_ShapePrefabDetachRenderMesh(struct led *led, const utf8 id);
 
 /*
-led ds_RigidBodyPrefab API
+led ds_BodyPrefab API
 ==========================
 */
 /* Allocate prefab with the given id. On failure, return (NULL, U32_MAX). */

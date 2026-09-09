@@ -130,7 +130,7 @@ static void led_NodeRemoveResources(const led_NodeHI *hi, const u32 index, void 
     struct led *led = led_void;
     struct led_Node *node = hi->pool.buf + index;
 
-	ds_RigidBodyPrefabSDBDereference(&led->body_prefab_db, node->body_prefab);
+	ds_BodyPrefabSDBDereference(&led->body_prefab_db, node->body_prefab);
     node->body_prefab = SDB_STUB;
 
     ds_ShapePrefabSDBDereference(&led->shape_prefab_db, node->shape_prefab);
@@ -225,7 +225,7 @@ static void led_NodeDetachRigidBodyPrefabInternal(struct led *led, struct led_No
 {
     if (node->flags & LED_BODY_PREFAB)
     {
-	    ds_RigidBodyPrefabSDBDereference(&led->body_prefab_db, node->body_prefab);
+	    ds_BodyPrefabSDBDereference(&led->body_prefab_db, node->body_prefab);
         struct led_Node *child = NULL;
         for (i32 i = node->hi_first; i != HI_NULL; )
         {
@@ -247,7 +247,7 @@ static void led_NodeDetachRigidBodyPrefabInternal(struct led *led, struct led_No
 
 static void led_NodeAttachRigidBodyPrefabInternal(struct led *led, const u32 node_index, const utf8 prefab)
 {
-    struct slot slot = ds_RigidBodyPrefabSDBReference(&led->body_prefab_db, prefab);
+    struct slot slot = ds_BodyPrefabSDBReference(&led->body_prefab_db, prefab);
 	if (slot.index == SDB_STUB)
 	{
 		Log(T_LED, S_WARNING, "Failed to set of led node %k, prefab not found.", &prefab);
@@ -277,7 +277,7 @@ static void led_NodeAttachRigidBodyPrefabInternal(struct led *led, const u32 nod
     struct r_Proxy3d *proxy = r_Proxy3dAddress(node->proxy);
     proxy->flags &= ~PROXY3D_DRAW;
 
-    const struct ds_RigidBodyPrefab *body = slot.address;
+    const struct ds_BodyPrefab *body = slot.address;
     const struct ds_ShapePrefabInstance *instance = NULL;
     for (i32 i = body->shape_list.first; i != DLL_SENTINEL; i = instance->body_shape.next)
     {
@@ -646,7 +646,7 @@ struct slot led_RigidBodyPrefabAdd(struct led *led, const utf8 id, const u32 dyn
 	{
 		LogString(T_LED, S_WARNING, "Failed to allocate body_prefab: prefab->id must not be empty");
 	} 
-	else if (ds_RigidBodyPrefabSDBLookup(&led->body_prefab_db, id).index != SDB_STUB) 
+	else if (ds_BodyPrefabSDBLookup(&led->body_prefab_db, id).index != SDB_STUB) 
 	{
 		LogString(T_LED, S_WARNING, "Failed to allocate body_prefab: prefab with given id already exist");
 	}
@@ -660,7 +660,7 @@ struct slot led_RigidBodyPrefabAdd(struct led *led, const utf8 id, const u32 dyn
 		}
 		else
 		{
-			struct ds_RigidBodyPrefab *prefab = ds_RigidBodyPrefabSDBAddAndAlias(&led->body_prefab_db, copy).address;
+			struct ds_BodyPrefab *prefab = ds_BodyPrefabSDBAddAndAlias(&led->body_prefab_db, copy).address;
             prefab->id = Utf8CopyBuffered(prefab->id_buf, PREFAB_BUFSIZE, copy);
             ds_DLLFlush(prefab->shape_list);
 			prefab->dynamic = dynamic;
@@ -680,7 +680,7 @@ static void led_ShapePrefabInstanceRemove(struct led *led, const u32 i)
 void led_RigidBodyPrefabRemove(struct led *led, const utf8 id)
 {
 	struct slot slot = led_RigidBodyPrefabLookup(led, id);
-	struct ds_RigidBodyPrefab *prefab = slot.address;
+	struct ds_BodyPrefab *prefab = slot.address;
 	if (slot.index != SDB_STUB && prefab->reference_count == 0)
 	{
         for (i32 i = prefab->shape_list.first; i != DLL_SENTINEL; )
@@ -691,35 +691,35 @@ void led_RigidBodyPrefabRemove(struct led *led, const utf8 id)
         }
 
 		void *buf = prefab->id.buf;
-		ds_RigidBodyPrefabSDBRemove(&led->body_prefab_db, id);
+		ds_BodyPrefabSDBRemove(&led->body_prefab_db, id);
 	}	
 }
 
 struct slot led_RigidBodyPrefabLookup(struct led *led, const utf8 id)
 {
-	return ds_RigidBodyPrefabSDBLookup(&led->body_prefab_db, id);
+	return ds_BodyPrefabSDBLookup(&led->body_prefab_db, id);
 }
 
 void led_RigidBodyPrefabAttachShape(struct led *led, const utf8 rb_id, const utf8 shape_id, const utf8 local_shape_id, const ds_Transform *t_local)
 {
-    struct ds_RigidBodyPrefab *body_prefab = led_RigidBodyPrefabLookup(led, rb_id).address;
+    struct ds_BodyPrefab *body_prefab = led_RigidBodyPrefabLookup(led, rb_id).address;
     struct ds_ShapePrefab *shape_prefab = led_ShapePrefabLookup(led, shape_id).address;
     const u64 id_reqsize = Utf8SizeRequired(local_shape_id);
     if (!body_prefab)
     {
-		Log(T_LED, S_WARNING, "Failed to attach shape to ds_RigidBodyPrefab %k, prefab doesn't exist", &rb_id);
+		Log(T_LED, S_WARNING, "Failed to attach shape to ds_BodyPrefab %k, prefab doesn't exist", &rb_id);
     } 
     else if (!shape_prefab)
     {
-		Log(T_LED, S_WARNING, "Failed to attach shape to ds_RigidBodyPrefab %k, ds_ShapePrefab %k does not exist.", &rb_id, &shape_id);
+		Log(T_LED, S_WARNING, "Failed to attach shape to ds_BodyPrefab %k, ds_ShapePrefab %k does not exist.", &rb_id, &shape_id);
     }
     else if (led_RigidBodyPrefabLookupShape(led, rb_id, local_shape_id).address != NULL)
     {
-		Log(T_LED, S_WARNING, "Failed to attach shape to to ds_RigidBodyPrefab %k, a shape instance with local id %k already exists in the body.", &rb_id, &local_shape_id);
+		Log(T_LED, S_WARNING, "Failed to attach shape to to ds_BodyPrefab %k, a shape instance with local id %k already exists in the body.", &rb_id, &local_shape_id);
     }
     else if (PREFAB_BUFSIZE < id_reqsize)
     {
-		Log(T_LED, S_WARNING, "Failed to attach shape to to ds_RigidBodyPrefab %k, identifier buffer size is %luB but requires %luB.", &rb_id, PREFAB_BUFSIZE, id_reqsize);
+		Log(T_LED, S_WARNING, "Failed to attach shape to to ds_BodyPrefab %k, identifier buffer size is %luB but requires %luB.", &rb_id, PREFAB_BUFSIZE, id_reqsize);
     }
     else
     {
@@ -735,16 +735,16 @@ void led_RigidBodyPrefabAttachShape(struct led *led, const utf8 rb_id, const utf
 
 void led_RigidBodyPrefabDetachShape(struct led *led, const utf8 rb_id, const utf8 local_shape_id)
 {
-    struct ds_RigidBodyPrefab *body_prefab = led_RigidBodyPrefabLookup(led, rb_id).address;
+    struct ds_BodyPrefab *body_prefab = led_RigidBodyPrefabLookup(led, rb_id).address;
     struct slot slot = led_RigidBodyPrefabLookupShape(led, rb_id, local_shape_id);
     struct ds_ShapePrefabInstance *instance = slot.address;
     if (!body_prefab)
     {
-		Log(T_LED, S_WARNING, "Failed to deattach shape to ds_RigidBodyPrefab %k, prefab doesn't exist", &rb_id);
+		Log(T_LED, S_WARNING, "Failed to deattach shape to ds_BodyPrefab %k, prefab doesn't exist", &rb_id);
     } 
     else if (!instance)
     {
-		Log(T_LED, S_WARNING, "Failed to attach shape to to ds_RigidBodyPrefab %k, a shape instance with local id %k does not exist in the body.", &rb_id, &local_shape_id);
+		Log(T_LED, S_WARNING, "Failed to attach shape to to ds_BodyPrefab %k, a shape instance with local id %k does not exist in the body.", &rb_id, &local_shape_id);
     }
     else
     {
@@ -759,7 +759,7 @@ struct slot led_RigidBodyPrefabLookupShape(struct led *led, const utf8 rb_id, co
     struct slot prefab_slot = led_RigidBodyPrefabLookup(led, rb_id);
     if (prefab_slot.index != SDB_STUB)
     {
-        const struct ds_RigidBodyPrefab *prefab = prefab_slot.address;
+        const struct ds_BodyPrefab *prefab = prefab_slot.address;
         struct ds_ShapePrefabInstance *instance = NULL;
         for (i32 i = prefab->shape_list.first; i != DLL_SENTINEL; i = instance->body_shape.next)
         {
@@ -1600,7 +1600,7 @@ void led_Refresh(struct led *led)
 		struct led_Node *node = led->node_hierarchy.pool.buf + it.at;
         if (node->flags & LED_BODY_PREFAB)
         {
-            const struct ds_RigidBodyPrefab *prefab = led->body_prefab_db.pool.buf + node->body_prefab;
+            const struct ds_BodyPrefab *prefab = led->body_prefab_db.pool.buf + node->body_prefab;
             led_NodeAttachRigidBodyPrefab(led, node->tagged_id, prefab->id);
             HIISkip(it, led->node_hierarchy);
         }
@@ -1717,7 +1717,7 @@ static void led_ColorIsland(struct led *led, const ds_IslandId id, const vec4 co
         return;
     }
 
-	const struct ds_RigidBody *body;
+	const struct ds_Body *body;
 	for (u32 i = is->body_list.first; (i32) i != DLL_SENTINEL; i = body->island_body.next)
 	{
 		body = led->physics.body_pool.buf + i;
@@ -1762,7 +1762,7 @@ static void led_EngineRun(struct led *led)
                     struct ds_BitBlock it = ds_BitBlockInit(led->physics.body_usage_set.bits[bi], bi);
                     while (ds_BitBlockHasNext(&it))
                     {
-                        const struct ds_RigidBody *body = led->physics.body_pool.buf + ds_BitBlockNext(&it);
+                        const struct ds_Body *body = led->physics.body_pool.buf + ds_BitBlockNext(&it);
                         const struct led_Node *node = led->node_hierarchy.pool.buf + body->entity;
                         led_NodeColorProxies(led, body->entity, node->color);
                     }
@@ -1777,9 +1777,9 @@ static void led_EngineRun(struct led *led)
                     struct ds_BitBlock it = ds_BitBlockInit(led->physics.body_usage_set.bits[bi], bi);
                     while (ds_BitBlockHasNext(&it))
                     {
-				        const struct ds_RigidBody *body = led->physics.body_pool.buf + ds_BitBlockNext(&it);
+				        const struct ds_Body *body = led->physics.body_pool.buf + ds_BitBlockNext(&it);
                         const struct led_Node *node = led->node_hierarchy.pool.buf + body->entity;
-					    if (RB_IS_DYNAMIC(body))
+					    if (ds_BodyDynamicCheck(body))
 					    {
                             const struct ds_Island *island = led->physics.island_pool.buf + body->island;
 					    	(island->contact_list.count)
@@ -1802,8 +1802,8 @@ static void led_EngineRun(struct led *led)
                     struct ds_BitBlock it = ds_BitBlockInit(led->physics.body_usage_set.bits[bi], bi);
                     while (ds_BitBlockHasNext(&it))
                     {
-				        const struct ds_RigidBody *body = led->physics.body_pool.buf + ds_BitBlockNext(&it);
-                        if (!RB_IS_DYNAMIC(body))
+				        const struct ds_Body *body = led->physics.body_pool.buf + ds_BitBlockNext(&it);
+                        if (!ds_BodyDynamicCheck(body))
 					    {						
                             led_NodeColorProxies(led, body->entity, led->static_color);
 					    }
@@ -1824,9 +1824,9 @@ static void led_EngineRun(struct led *led)
                     struct ds_BitBlock it = ds_BitBlockInit(led->physics.body_usage_set.bits[bi], bi);
                     while (ds_BitBlockHasNext(&it))
                     {
-				        const struct ds_RigidBody *body = led->physics.body_pool.buf + ds_BitBlockNext(&it);
+				        const struct ds_Body *body = led->physics.body_pool.buf + ds_BitBlockNext(&it);
                         const struct led_Node *node = led->node_hierarchy.pool.buf + body->entity;
-					    if (RB_IS_STATIC(body))
+					    if (ds_BodyStaticCheck(body))
 					    {
                             led_NodeColorProxies(led, body->entity, led->static_color);
 					    }
@@ -1861,17 +1861,17 @@ static void led_EngineRun(struct led *led)
                             led->physics.shape_pool.buf + c->key.shape[1],
                         };
                         
-                        const struct ds_RigidBody *body[2] =
+                        const struct ds_Body *body[2] =
                         {
 		                    led->physics.body_pool.buf + shape[0]->body,
 		                    led->physics.body_pool.buf + shape[1]->body,
                         };
 
-					    if (RB_IS_DYNAMIC(body[0]))
+					    if (ds_BodyDynamicCheck(body[0]))
 					    {
                             led_NodeColorProxies(led, body[0]->entity, led->collision_color);
 					    }
-					    if (RB_IS_DYNAMIC(body[1]))
+					    if (ds_BodyDynamicCheck(body[1]))
 					    {
                             led_NodeColorProxies(led, body[1]->entity, led->collision_color);
 					    }
@@ -1883,14 +1883,14 @@ static void led_EngineRun(struct led *led)
 			{
 				if (led->body_color_mode == RB_COLOR_MODE_COLLISION)
 				{
-					const struct ds_RigidBody *body1 = ds_RigidBodyLookup(&led->physics, event->contact_removed_bodies[0]).address;
-					const struct ds_RigidBody *body2 = ds_RigidBodyLookup(&led->physics, event->contact_removed_bodies[1]).address;
+					const struct ds_Body *body1 = ds_BodyLookup(&led->physics, event->contact_removed_bodies[0]).address;
+					const struct ds_Body *body2 = ds_BodyLookup(&led->physics, event->contact_removed_bodies[1]).address;
                     if (body1 && body2)
                     {
                         const struct led_Node *node1 = led->node_hierarchy.pool.buf + body1->entity;
                         const struct led_Node *node2 = led->node_hierarchy.pool.buf + body2->entity;
 
-					    if (RB_IS_DYNAMIC(body1))
+					    if (ds_BodyDynamicCheck(body1))
 					    {
                             const struct ds_Island *is = led->physics.island_pool.buf + body1->island;
 					    	if (is->contact_list.count == 0)
@@ -1903,7 +1903,7 @@ static void led_EngineRun(struct led *led)
                             led_NodeColorProxies(led, body1->entity, led->static_color);
 					    }
 		
-					    if (RB_IS_DYNAMIC(body2))
+					    if (ds_BodyDynamicCheck(body2))
 					    {
                             const struct ds_Island *is = led->physics.island_pool.buf + body2->island;
 					    	if (is->contact_list.count == 0)
@@ -1963,8 +1963,8 @@ static void led_EngineRun(struct led *led)
                     struct ds_SolverSet *set = led->physics.solver_set_pool.buf + is->set;
                     for (u32 i = 0; i < set->body_sim_pool.count; ++i)
                     {
-                        const struct ds_RigidBodySim *sim = set->body_sim_pool.buf + i;
-	                	const struct ds_RigidBody *body = led->physics.body_pool.buf + sim->body;
+                        const struct ds_BodySim *sim = set->body_sim_pool.buf + i;
+	                	const struct ds_Body *body = led->physics.body_pool.buf + sim->body;
                         const struct led_Node *node = led->node_hierarchy.pool.buf + body->entity;
 
                         vec3 linear_velocity = { 0.0f, 0.0f, 0.0f };
@@ -2011,9 +2011,9 @@ static void led_EngineRun(struct led *led)
         struct ds_SolverSet *active = led->physics.solver_set_pool.buf + SOLVER_SET_ACTIVE;
         for (u32 i = 0; i < active->body_sim_pool.count; ++i)
         {
-            const struct ds_RigidBodySim *sim = active->body_sim_pool.buf + i;
-	    	const struct ds_RigidBody *body = led->physics.body_pool.buf + sim->body;
-            const struct ds_RigidBodyCompute *compute = active->body_compute_pool.buf + body->sim;
+            const struct ds_BodySim *sim = active->body_sim_pool.buf + i;
+	    	const struct ds_Body *body = led->physics.body_pool.buf + sim->body;
+            const struct ds_BodyCompute *compute = active->body_compute_pool.buf + body->sim;
             const struct led_Node *node = led->node_hierarchy.pool.buf + body->entity;
             const u64 ns = led->physics.ns_start + led->physics.frames_completed*led->physics.ns_tick; 
 
@@ -2079,8 +2079,8 @@ static void led_EngineInit(struct led *led)
 		struct led_Node *node = led->node_hierarchy.pool.buf + it.at;
         if (node->flags & LED_BODY_PREFAB)
         {
-            const struct ds_RigidBodyPrefab *body_prefab = led->body_prefab_db.pool.buf + node->body_prefab;
-	    	const ds_RigidBodyId body = ds_RigidBodyAdd(&led->physics, body_prefab, &node->transform, it.at);
+            const struct ds_BodyPrefab *body_prefab = led->body_prefab_db.pool.buf + node->body_prefab;
+	    	const ds_BodyId body = ds_BodyAdd(&led->physics, body_prefab, &node->transform, it.at);
             node->body = body;
     
             //TODO mass properties should be calculated on AttachShape....

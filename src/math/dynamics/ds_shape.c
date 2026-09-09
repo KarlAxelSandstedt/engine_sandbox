@@ -21,7 +21,7 @@ POOL_DEFINE(ds_Shape);
 SDB_DEFINE(ds_ShapePrefab);
 POOL_DEFINE(ds_ShapePrefabInstance);
 
-ds_ShapeId ds_ShapeAdd(struct ds_RigidBodyPipeline *pipeline, const struct ds_ShapePrefab *prefab, const ds_Transform *t, const ds_RigidBodyId body)
+ds_ShapeId ds_ShapeAdd(struct ds_Dynamics *pipeline, const struct ds_ShapePrefab *prefab, const ds_Transform *t, const ds_BodyId body)
 {
     ds_ShapeId id = DS_ID_NULL;
     const u32 old_max = pipeline->shape_pool.count_max;
@@ -45,7 +45,7 @@ ds_ShapeId ds_ShapeAdd(struct ds_RigidBodyPipeline *pipeline, const struct ds_Sh
         ds_BitSetIncreaseSize(&pipeline->shape_dynamic_usage_set, pipeline->shape_dynamic_usage_set.bit_count << 1, 0);
     }
 
-	struct ds_RigidBody *body_ptr = pipeline->body_pool.buf + ds_IdIndex(body);
+	struct ds_Body *body_ptr = pipeline->body_pool.buf + ds_IdIndex(body);
 	ds_Assert(ds_PoolSlotAllocated(body_ptr));
 	ds_DLLAppend(body_ptr->shape_list, pipeline->shape_pool.buf, shape_slot.index, body_shape);
 
@@ -63,7 +63,7 @@ ds_ShapeId ds_ShapeAdd(struct ds_RigidBodyPipeline *pipeline, const struct ds_Sh
 	shape->cshape_type = cshape->type;
 
 	struct aabb bbox_proxy = ds_ShapeWorldBbox(pipeline, shape);
-    if (RB_IS_DYNAMIC(body_ptr))
+    if (ds_BodyDynamicCheck(body_ptr))
     {
 		Vec3Translate(bbox_proxy.hw, Vec3Inline(shape->margin, shape->margin, shape->margin));
         ds_BitSetSet(&pipeline->shape_dynamic_usage_set, shape_slot.index, 1);
@@ -75,12 +75,12 @@ ds_ShapeId ds_ShapeAdd(struct ds_RigidBodyPipeline *pipeline, const struct ds_Sh
         shape->proxy = DbvhInsert(&pipeline->static_bvh, shape->body, shape_slot.index, &bbox_proxy);
     }
     
-    ds_RigidBodyUpdateMassProperties(pipeline, body);
+    ds_BodyUpdateMassProperties(pipeline, body);
 
     return shape->id;
 }
 
-void ds_ShapeDynamicRemove(struct ds_RigidBodyPipeline *pipeline, struct ds_RigidBody *body, const u32 shape_index, const u32 mass_properties_update)
+void ds_ShapeDynamicRemove(struct ds_Dynamics *pipeline, struct ds_Body *body, const u32 shape_index, const u32 mass_properties_update)
 {
     struct ds_Shape *shape = pipeline->shape_pool.buf + shape_index;
 
@@ -91,7 +91,7 @@ void ds_ShapeDynamicRemove(struct ds_RigidBodyPipeline *pipeline, struct ds_Rigi
 
     if (mass_properties_update)
     {
-        ds_RigidBodyUpdateMassProperties(pipeline, body->id);
+        ds_BodyUpdateMassProperties(pipeline, body->id);
     }
 
     ds_BitSetSet(&pipeline->shape_dynamic_usage_set, shape_index, 0);
@@ -102,7 +102,7 @@ void ds_ShapeDynamicRemove(struct ds_RigidBodyPipeline *pipeline, struct ds_Rigi
 	ds_ShapePoolRemove(&pipeline->shape_pool, shape_index);
 }
 
-void ds_ShapeStaticRemove(struct arena *mem_tmp, struct ds_RigidBodyPipeline *pipeline, struct ds_RigidBody *body, const u32 index)
+void ds_ShapeStaticRemove(struct arena *mem_tmp, struct ds_Dynamics *pipeline, struct ds_Body *body, const u32 index)
 {
 	struct ds_Shape *shape = pipeline->shape_pool.buf + index;
 
@@ -118,7 +118,7 @@ void ds_ShapeStaticRemove(struct arena *mem_tmp, struct ds_RigidBodyPipeline *pi
 	ds_ShapePoolRemove(&pipeline->shape_pool, index);
 }
 
-struct slot ds_ShapeLookup(const struct ds_RigidBodyPipeline *pipeline, const ds_ShapeId shape_id)
+struct slot ds_ShapeLookup(const struct ds_Dynamics *pipeline, const ds_ShapeId shape_id)
 {
 
     struct slot slot = { .address = NULL, .index = U32_MAX };
@@ -132,11 +132,11 @@ struct slot ds_ShapeLookup(const struct ds_RigidBodyPipeline *pipeline, const ds
     return slot;
 }
 
-void ds_ShapeWorldTransform(ds_Transform *t, const struct ds_RigidBodyPipeline *pipeline, const struct ds_Shape *shape)
+void ds_ShapeWorldTransform(ds_Transform *t, const struct ds_Dynamics *pipeline, const struct ds_Shape *shape)
 {
-	const struct ds_RigidBody *body = pipeline->body_pool.buf + shape->body;
+	const struct ds_Body *body = pipeline->body_pool.buf + shape->body;
     const struct ds_SolverSet *set = pipeline->solver_set_pool.buf + body->set;
-    const struct ds_RigidBodySim *sim = set->body_sim_pool.buf + body->sim;
+    const struct ds_BodySim *sim = set->body_sim_pool.buf + body->sim;
     mat3 rot;
     Mat3Quat(rot, sim->world.rotation);
 
@@ -145,14 +145,14 @@ void ds_ShapeWorldTransform(ds_Transform *t, const struct ds_RigidBodyPipeline *
     Vec3Translate(t->position, sim->world.position);
 }
 
-struct aabb ds_ShapeWorldBbox(const struct ds_RigidBodyPipeline *pipeline, const struct ds_Shape *shape)
+struct aabb ds_ShapeWorldBbox(const struct ds_Dynamics *pipeline, const struct ds_Shape *shape)
 {
 	vec3 min = { F32_INFINITY, F32_INFINITY, F32_INFINITY };
 	vec3 max = { -F32_INFINITY, -F32_INFINITY, -F32_INFINITY };
 
-	const struct ds_RigidBody *body = pipeline->body_pool.buf + shape->body;
+	const struct ds_Body *body = pipeline->body_pool.buf + shape->body;
     const struct ds_SolverSet *set = pipeline->solver_set_pool.buf + body->set;
-    const struct ds_RigidBodySim *sim = set->body_sim_pool.buf + body->sim;
+    const struct ds_BodySim *sim = set->body_sim_pool.buf + body->sim;
 	const struct c_Shape *cshape = pipeline->cshape_db->pool.buf + shape->cshape_handle;
 
     mat3 rot;
@@ -259,7 +259,7 @@ f32 (*c_raycast_parameter_methods[C_SHAPE_COUNT])(const struct c_Shape *, const 
 	c_TriMeshBvhRaycastParameter,
 };
 
-u32 ds_ShapeTest(const struct ds_RigidBodyPipeline *pipeline, const struct ds_Shape *s1, const struct ds_Shape *s2)
+u32 ds_ShapeTest(const struct ds_Dynamics *pipeline, const struct ds_Shape *s1, const struct ds_Shape *s2)
 {
  	const struct c_Shape *c_s1 = pipeline->cshape_db->pool.buf + s1->cshape_handle;
 	const struct c_Shape *c_s2 = pipeline->cshape_db->pool.buf + s2->cshape_handle;
@@ -273,7 +273,7 @@ u32 ds_ShapeTest(const struct ds_RigidBodyPipeline *pipeline, const struct ds_Sh
 		: c_shape_tests[c_s2->type][c_s1->type](c_s2, &t2, c_s1, &t1);
 }
 
-f32 ds_ShapeDistance(vec3 c1, vec3 c2, const struct ds_RigidBodyPipeline *pipeline, const struct ds_Shape *s1, const struct ds_Shape *s2)
+f32 ds_ShapeDistance(vec3 c1, vec3 c2, const struct ds_Dynamics *pipeline, const struct ds_Shape *s1, const struct ds_Shape *s2)
 {
  	const struct c_Shape *c_s1 = pipeline->cshape_db->pool.buf + s1->cshape_handle;
 	const struct c_Shape *c_s2 = pipeline->cshape_db->pool.buf + s2->cshape_handle;
@@ -287,7 +287,7 @@ f32 ds_ShapeDistance(vec3 c1, vec3 c2, const struct ds_RigidBodyPipeline *pipeli
 		: c_distance_methods[c_s2->type][c_s1->type](c2, c1, c_s2, &t2, c_s1, &t1);
 }
 
-void ds_ShapeContact(struct arena *frame, const struct ds_RigidBodyPipeline *pipeline, const u32 contact_index)
+void ds_ShapeContact(struct arena *frame, const struct ds_Dynamics *pipeline, const u32 contact_index)
 {
     struct ds_Contact *c = pipeline->contact_pool.buf + contact_index;
 
@@ -332,7 +332,7 @@ void ds_ShapeContact(struct arena *frame, const struct ds_RigidBodyPipeline *pip
 	c->narrowphase = result;
 }
 
-f32 ds_ShapeRaycastParameter(const struct ds_RigidBodyPipeline *pipeline, const struct ds_Shape *shape, const struct ray *ray)
+f32 ds_ShapeRaycastParameter(const struct ds_Dynamics *pipeline, const struct ds_Shape *shape, const struct ray *ray)
 {
     ds_Transform transform;
     ds_ShapeWorldTransform(&transform, pipeline, shape);
@@ -341,7 +341,7 @@ f32 ds_ShapeRaycastParameter(const struct ds_RigidBodyPipeline *pipeline, const 
 	return c_raycast_parameter_methods[c_shape->type](c_shape, &transform, ray);
 }
 
-u32 ds_ShapeRaycast(vec3 intersection, const struct ds_RigidBodyPipeline *pipeline, const struct ds_Shape *shape, const struct ray *ray)
+u32 ds_ShapeRaycast(vec3 intersection, const struct ds_Dynamics *pipeline, const struct ds_Shape *shape, const struct ray *ray)
 {
 	const f32 t = ds_ShapeRaycastParameter(pipeline, shape, ray);
 	if (t == F32_INFINITY) return 0;

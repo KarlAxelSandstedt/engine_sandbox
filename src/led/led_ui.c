@@ -501,7 +501,7 @@ static void led_Ui(struct led *led, const struct ui_Visual *visual)
 						if (hit.f < F32_INFINITY)
 						{
 							const struct ds_Shape *shape = led->physics.shape_pool.buf + hit.u;	
-							const struct ds_RigidBody *body = led->physics.body_pool.buf + shape->body;	
+							const struct ds_Body *body = led->physics.body_pool.buf + shape->body;	
 							const struct led_Node *entity = led->node_hierarchy.pool.buf + body->entity;
 							const char *body_id = CstrUtf8(g_ui->mem_frame, entity->id);
 
@@ -513,7 +513,7 @@ static void led_Ui(struct led *led, const struct ui_Visual *visual)
 
                             if (node->inter & UI_INTER_LEFT_CLICK)
                             {
-                                ds_RigidBodyRemove(g_ui->mem_frame, &led->physics, body->id);
+                                ds_BodyRemove(g_ui->mem_frame, &led->physics, body->id);
                             }
 						}
 					}
@@ -707,7 +707,7 @@ static void led_Ui(struct led *led, const struct ui_Visual *visual)
 
 					ui_Pad();
 
-					//const struct ds_RigidBodyPrefab *prefab;
+					//const struct ds_BodyPrefab *prefab;
 					//ui_list(&led->rb_prefab_list, "###%p", &led->rb_prefab_list)
 					//for (u32 i = led->rb_prefab_db.allocated_dll.first; i != DLL_NULL; i = strdb_Next(prefab))
 					//{
@@ -740,7 +740,7 @@ static void led_Ui(struct led *led, const struct ui_Visual *visual)
 				//	{
 				//		ui_Pad();
 
-				//		struct ds_RigidBodyPrefab *prefab = strdb_Address(&led->rb_prefab_db, prefab_selected);
+				//		struct ds_BodyPrefab *prefab = strdb_Address(&led->rb_prefab_db, prefab_selected);
 				//		struct c_Shape *shape = NULL;
 				//		ui_Height(ui_SizePixel(24.0f, 1.0f))
 				//		ui_NodeAllocF(UI_DRAW_TEXT | UI_TEXT_ALLOW_OVERFLOW | UI_DRAW_BORDER, "%k##prefab_selected", &prefab->id);

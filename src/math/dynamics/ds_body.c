@@ -17,14 +17,14 @@
 ==========================================================================
 */
 
-POOL_DEFINE(ds_RigidBody);
-SDB_DEFINE(ds_RigidBodyPrefab);
+POOL_DEFINE(ds_Body);
+SDB_DEFINE(ds_BodyPrefab);
 
-ds_RigidBodyId ds_RigidBodyAdd(struct ds_RigidBodyPipeline *pipeline, const struct ds_RigidBodyPrefab *prefab, const ds_Transform *world, const u32 entity)
+ds_BodyId ds_BodyAdd(struct ds_Dynamics *pipeline, const struct ds_BodyPrefab *prefab, const ds_Transform *world, const u32 entity)
 {
     const u32 old_max = pipeline->body_pool.count_max;
-	const struct slot body_slot = ds_RigidBodyPoolAdd(&pipeline->body_pool);
-	struct ds_RigidBody *body = body_slot.address;
+	const struct slot body_slot = ds_BodyPoolAdd(&pipeline->body_pool);
+	struct ds_Body *body = body_slot.address;
 
     if (old_max != pipeline->body_pool.count_max)
     {
@@ -44,13 +44,13 @@ ds_RigidBodyId ds_RigidBodyAdd(struct ds_RigidBodyPipeline *pipeline, const stru
 
 	body->entity = entity;
 
-	const u32 dynamic_flag = (prefab->dynamic) ? RB_DYNAMIC : 0;
+	const u32 dynamic_flag = (prefab->dynamic) ? BODY_DYNAMIC : 0;
 	body->flags = dynamic_flag;
 
 	body->low_velocity_time = 0.0f;
 
-    struct ds_RigidBodySim *sim;
-	if (body->flags & RB_DYNAMIC)
+    struct ds_BodySim *sim;
+	if (ds_BodyDynamicCheck(body))
 	{
         struct ds_SolverSet *active_set = pipeline->solver_set_pool.buf + SOLVER_SET_ACTIVE; 
         const struct slot sim_slot = ds_CPoolPush(active_set->body_sim_pool);
@@ -60,7 +60,7 @@ ds_RigidBodyId ds_RigidBodyAdd(struct ds_RigidBodyPipeline *pipeline, const stru
         body->sim = sim_slot.index;
 
         sim = sim_slot.address;
-        struct ds_RigidBodyCompute *compute = compute_slot.address;
+        struct ds_BodyCompute *compute = compute_slot.address;
         compute->flags = body->flags;
 	    Vec3Set(compute->linear_velocity, 0.0f, 0.0f, 0.0f);
 	    Vec3Set(compute->angular_velocity, 0.0f, 0.0f, 0.0f);
@@ -92,10 +92,10 @@ ds_RigidBodyId ds_RigidBodyAdd(struct ds_RigidBodyPipeline *pipeline, const stru
 	return body->id;
 }
 
-void ds_RigidBodyRemove(struct arena *mem_tmp, struct ds_RigidBodyPipeline *pipeline, const ds_RigidBodyId id)
+void ds_BodyRemove(struct arena *mem_tmp, struct ds_Dynamics *pipeline, const ds_BodyId id)
 {
     const u32 body_index = ds_IdIndex(id);
-	struct ds_RigidBody *body = pipeline->body_pool.buf + body_index;
+	struct ds_Body *body = pipeline->body_pool.buf + body_index;
     if (body->id != id)
     {
         return;
@@ -148,8 +148,8 @@ void ds_RigidBodyRemove(struct arena *mem_tmp, struct ds_RigidBodyPipeline *pipe
     ds_CPoolRemoveAndSwap(set->body_sim_pool, body->sim);
     if (body->sim < set->body_sim_pool.count)
     {
-        const struct ds_RigidBodySim *moved_sim = set->body_sim_pool.buf + body->sim;
-        struct ds_RigidBody *moved_body = pipeline->body_pool.buf + moved_sim->body;
+        const struct ds_BodySim *moved_sim = set->body_sim_pool.buf + body->sim;
+        struct ds_Body *moved_body = pipeline->body_pool.buf + moved_sim->body;
         ds_Assert(moved_body->set == body->set);
         ds_Assert(moved_body->sim == set->body_sim_pool.count);
         moved_body->sim = body->sim;
@@ -159,14 +159,14 @@ void ds_RigidBodyRemove(struct arena *mem_tmp, struct ds_RigidBodyPipeline *pipe
     {
         ds_CPoolRemoveAndSwap(set->body_compute_pool, body->sim);
     }
-	ds_RigidBodyPoolRemove(&pipeline->body_pool, ds_IdIndex(id));
+	ds_BodyPoolRemove(&pipeline->body_pool, ds_IdIndex(id));
 	PhysicsEventBodyRemoved(pipeline, entity);
 }
 
-struct slot ds_RigidBodyLookup(const struct ds_RigidBodyPipeline *pipeline, const ds_RigidBodyId id)
+struct slot ds_BodyLookup(const struct ds_Dynamics *pipeline, const ds_BodyId id)
 {
     struct slot slot = { .address = NULL, .index = U32_MAX };
-    struct ds_RigidBody *body = pipeline->body_pool.buf + ds_IdIndex(id);
+    struct ds_Body *body = pipeline->body_pool.buf + ds_IdIndex(id);
     if (ds_PoolSlotAllocated(body) && body->id == id)
     {
         slot.address = body;
@@ -176,15 +176,15 @@ struct slot ds_RigidBodyLookup(const struct ds_RigidBodyPipeline *pipeline, cons
     return slot;
 }
 
-void ds_RigidBodyUpdateLocalFrame(struct ds_RigidBodyPipeline *pipeline, const u32 body, const ds_Transform t_apply_to_local)
+void ds_BodyUpdateLocalFrame(struct ds_Dynamics *pipeline, const u32 body, const ds_Transform t_apply_to_local)
 {
 	//TODO
 	ds_Assert(0);
 }
 
-void ds_RigidBodyUpdateMassProperties(struct ds_RigidBodyPipeline *pipeline, const ds_RigidBodyId id)
+void ds_BodyUpdateMassProperties(struct ds_Dynamics *pipeline, const ds_BodyId id)
 {
-	struct ds_RigidBody *body = pipeline->body_pool.buf + ds_IdIndex(id);
+	struct ds_Body *body = pipeline->body_pool.buf + ds_IdIndex(id);
     if (!ds_PoolSlotAllocated(body) || id != body->id)
     {
         return;
@@ -193,7 +193,7 @@ void ds_RigidBodyUpdateMassProperties(struct ds_RigidBodyPipeline *pipeline, con
     struct arena *tmp = ArenaPushScratch();
 
     struct ds_SolverSet *set = pipeline->solver_set_pool.buf + body->set;
-    struct ds_RigidBodySim *sim = set->body_sim_pool.buf + body->sim;
+    struct ds_BodySim *sim = set->body_sim_pool.buf + body->sim;
 	ds_Assert(ds_PoolSlotAllocated(body));
 
 	vec3 vtmp;

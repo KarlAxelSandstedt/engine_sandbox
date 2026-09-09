@@ -29,7 +29,7 @@ static struct r_Mesh *DebugContactManifoldSegmentsMesh(struct arena *mem, const 
 {
     ds_AssertString(0, "Reimplement");
 	struct r_Mesh *mesh = NULL;
-//    const struct ds_RigidBodyPipeline *pipeline = &led->physics;
+//    const struct ds_Dynamics *pipeline = &led->physics;
 //	const u32 cm_count = pipeline->contact_pool.count-1;
 //
 //	ArenaPushRecord(mem);
@@ -117,7 +117,7 @@ static struct r_Mesh *DebugContactManifoldTrianglesMesh(struct arena *mem, const
 {
     ds_AssertString(0, "Reimplement");
 	struct r_Mesh *mesh = NULL;
-//    const struct ds_RigidBodyPipeline *pipeline = &led->physics;
+//    const struct ds_Dynamics *pipeline = &led->physics;
 //	const u32 cm_count = pipeline->contact_pool.count-1;
 //
 //	ArenaPushRecord(mem);
@@ -221,7 +221,7 @@ static struct r_Mesh *DebugContactManifoldTrianglesMesh(struct arena *mem, const
 	return mesh;
 }
 
-static struct r_Mesh *DebugLinesMesh(struct arena *mem, const struct ds_RigidBodyPipeline *pipeline)
+static struct r_Mesh *DebugLinesMesh(struct arena *mem, const struct ds_Dynamics *pipeline)
 {
 	ArenaPushRecord(mem);
 
@@ -268,7 +268,7 @@ end:
 	return mesh;
 }
 
-static struct r_Mesh *BoundingBoxesMesh(struct arena *mem, const struct ds_RigidBodyPipeline *pipeline, const vec4 color)
+static struct r_Mesh *BoundingBoxesMesh(struct arena *mem, const struct ds_Dynamics *pipeline, const vec4 color)
 {
 	ArenaPushRecord(mem);
 	const u32 vertex_count = 3*8*pipeline->body_pool.count;
@@ -296,7 +296,7 @@ static struct r_Mesh *BoundingBoxesMesh(struct arena *mem, const struct ds_Rigid
         struct ds_BitBlock it = ds_BitBlockInit(pipeline->body_usage_set.bits[bi], bi);
         while (ds_BitBlockHasNext(&it))
         {
-            const struct ds_RigidBody *body = pipeline->body_pool.buf + ds_BitBlockNext(&it);
+            const struct ds_Body *body = pipeline->body_pool.buf + ds_BitBlockNext(&it);
             struct ds_Shape *shape = NULL;
             for (i32 j = body->shape_list.first; (i32) j != DLL_SENTINEL; j = shape->body_shape.next)
             {
@@ -452,13 +452,13 @@ static void r_EditorDraw(const struct led *led)
 		const u64 material = r_MaterialConstruct(PROGRAM_COLOR, MESH_NONE, TEXTURE_NONE);
 		const u64 depth = 0x7fffff;
 		const u64 cmd = r_CommandKey(R_CMD_SCREEN_LAYER_GAME, depth, R_CMD_TRANSPARENCY_ADDITIVE, material, R_CMD_PRIMITIVE_LINE, R_CMD_NON_INSTANCED, R_CMD_ARRAYS);
-		struct ds_RigidBody *body = NULL;
+		struct ds_Body *body = NULL;
         for (u64 bi = 0; bi < led->physics.body_usage_set.block_count; ++bi)
         {
             struct ds_BitBlock it = ds_BitBlockInit(led->physics.body_usage_set.bits[bi], bi);
             while (ds_BitBlockHasNext(&it))
             {
-                const struct ds_RigidBody *body = led->physics.body_pool.buf + ds_BitBlockNext(&it);
+                const struct ds_Body *body = led->physics.body_pool.buf + ds_BitBlockNext(&it);
                 const struct ds_Shape *s = led->physics.shape_pool.buf + body->shape_list.first;
 			    if (s->cshape_type != C_SHAPE_TRI_MESH)
 			    {

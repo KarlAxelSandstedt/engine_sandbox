@@ -22,7 +22,7 @@
 
 POOL_DEFINE(ds_SolverSet);
 
-struct slot ds_SolverSetAdd(struct arena *mem_set, struct ds_RigidBodyPipeline *pipeline, const u32 initial_body_sim_count, const u32 initial_body_compute_count, const u32 initial_contact_count, const u32 initial_contact_compute_count, const u32 initial_joint_count, const u32 initial_island_count)
+struct slot ds_SolverSetAdd(struct arena *mem_set, struct ds_Dynamics *pipeline, const u32 initial_body_sim_count, const u32 initial_body_compute_count, const u32 initial_contact_count, const u32 initial_contact_compute_count, const u32 initial_joint_count, const u32 initial_island_count)
 {
     ProfZone;
     struct slot slot = ds_SolverSetPoolAdd(&pipeline->solver_set_pool);
@@ -75,7 +75,7 @@ struct slot ds_SolverSetAdd(struct arena *mem_set, struct ds_RigidBodyPipeline *
     return slot;
 }
 
-void ds_SolverSetRemove(struct ds_RigidBodyPipeline *pipeline, const u32 index)
+void ds_SolverSetRemove(struct ds_Dynamics *pipeline, const u32 index)
 {
     struct ds_SolverSet *set = pipeline->solver_set_pool.buf + index;
     ds_Assert(ds_PoolSlotAllocated(set));
@@ -120,7 +120,7 @@ void ds_SolverSetRemove(struct ds_RigidBodyPipeline *pipeline, const u32 index)
     ds_SolverSetPoolRemove(&pipeline->solver_set_pool, index);
 }
 
-void ds_SolverSetFlush(struct ds_RigidBodyPipeline *pipeline, const u32 index)
+void ds_SolverSetFlush(struct ds_Dynamics *pipeline, const u32 index)
 {
     struct ds_SolverSet *set = pipeline->solver_set_pool.buf + index;
     ds_Assert(ds_PoolSlotAllocated(set));
@@ -156,7 +156,7 @@ void ds_SolverSetFlush(struct ds_RigidBodyPipeline *pipeline, const u32 index)
     }
 }
 
-void ds_SolverSetWakeUp(struct ds_RigidBodyPipeline *pipeline, const u32 index)
+void ds_SolverSetWakeUp(struct ds_Dynamics *pipeline, const u32 index)
 {
     if (index < SOLVER_SET_SLEEPING_FIRST || index == SOLVER_SET_NULL)
     {
@@ -184,13 +184,13 @@ void ds_SolverSetWakeUp(struct ds_RigidBodyPipeline *pipeline, const u32 index)
 
     for (u32 i = 0; i < set->body_sim_pool.count; ++i)
     {
-        const struct ds_RigidBodySim *old_sim = set->body_sim_pool.buf + i;
-        struct ds_RigidBody *body = pipeline->body_pool.buf + old_sim->body;
+        const struct ds_BodySim *old_sim = set->body_sim_pool.buf + i;
+        struct ds_Body *body = pipeline->body_pool.buf + old_sim->body;
 
         const struct slot sim_slot = ds_CPoolPush(active->body_sim_pool);
         const struct slot compute_slot = ds_CPoolPush(active->body_compute_pool);
-        struct ds_RigidBodySim *new_sim = sim_slot.address;
-        struct ds_RigidBodyCompute *compute = compute_slot.address;
+        struct ds_BodySim *new_sim = sim_slot.address;
+        struct ds_BodyCompute *compute = compute_slot.address;
         ds_Assert(sim_slot.index == compute_slot.index);
 
         body->set = SOLVER_SET_ACTIVE;
@@ -223,12 +223,12 @@ void ds_SolverSetWakeUp(struct ds_RigidBodyPipeline *pipeline, const u32 index)
     ds_SolverSetRemove(pipeline, index);
 }
 
-u64 ds_SolverSetSleepMemoryRequirement(const struct ds_RigidBodyPipeline *pipeline, const u32 island_index)
+u64 ds_SolverSetSleepMemoryRequirement(const struct ds_Dynamics *pipeline, const u32 island_index)
 {
     const struct ds_Island *island = pipeline->island_pool.buf + island_index;
 
     u64 memory_requirement = 0;
-    memory_requirement += ds_CPoolAllocMemoryRequirement(island->body_list.count, sizeof(struct ds_RigidBodySim));
+    memory_requirement += ds_CPoolAllocMemoryRequirement(island->body_list.count, sizeof(struct ds_BodySim));
     memory_requirement += ds_CPoolAllocMemoryRequirement(island->contact_list.count, sizeof(u32));
     memory_requirement += ds_CPoolAllocMemoryRequirement(island->contact_list.count, sizeof(struct ds_ContactCompute));
     memory_requirement += ds_CPoolAllocMemoryRequirement(island->joint_list.count, sizeof(struct ds_JointSim));
@@ -244,7 +244,7 @@ u64 ds_SolverSetSleepMemoryRequirement(const struct ds_RigidBodyPipeline *pipeli
     return memory_requirement;
 }
 
-void ds_SolverSetSleep(struct ds_RigidBodyPipeline *pipeline, const u32 island_index)
+void ds_SolverSetSleep(struct ds_Dynamics *pipeline, const u32 island_index)
 {
     if (!g_solver_config->sleep_enabled)
     {
@@ -301,7 +301,7 @@ void ds_SolverSetSleep(struct ds_RigidBodyPipeline *pipeline, const u32 island_i
         ds_ContactSleep(&set->mem, pipeline, i, island->set);
     }
 
-    struct ds_RigidBody *body = NULL;
+    struct ds_Body *body = NULL;
     for (u32 i = island->body_list.first; (i32) i != DLL_SENTINEL; i = body->island_body.next)
     {
         body = pipeline->body_pool.buf + i;
@@ -311,7 +311,7 @@ void ds_SolverSetSleep(struct ds_RigidBodyPipeline *pipeline, const u32 island_i
     }
 }
 
-void ds_SolverSetValidate(const struct ds_RigidBodyPipeline *pipeline, const u32 set_index)
+void ds_SolverSetValidate(const struct ds_Dynamics *pipeline, const u32 set_index)
 {
     const struct ds_SolverSet *set = pipeline->solver_set_pool.buf + set_index;
     ds_Assert(ds_PoolSlotAllocated(set));
@@ -333,8 +333,8 @@ void ds_SolverSetValidate(const struct ds_RigidBodyPipeline *pipeline, const u32
 
     for (u32 i = 0; i < set->body_sim_pool.count; ++i)
     {
-        const struct ds_RigidBodySim *sim = set->body_sim_pool.buf + i;
-        const struct ds_RigidBody *body = pipeline->body_pool.buf + sim->body;
+        const struct ds_BodySim *sim = set->body_sim_pool.buf + i;
+        const struct ds_Body *body = pipeline->body_pool.buf + sim->body;
         ds_Assert(body->set == set_index);
         ds_Assert(body->sim == i);
     }
@@ -356,24 +356,24 @@ void ds_SolverSetValidate(const struct ds_RigidBodyPipeline *pipeline, const u32
     }
 }
 
-void ds_SolverSetMoveBody(struct ds_RigidBodyPipeline *pipeline, const u32 body_index, const u32 set_index)
+void ds_SolverSetMoveBody(struct ds_Dynamics *pipeline, const u32 body_index, const u32 set_index)
 {
-	struct ds_RigidBody *body = pipeline->body_pool.buf + body_index;
+	struct ds_Body *body = pipeline->body_pool.buf + body_index;
     ds_Assert(body->set != set_index);
 
     struct ds_SolverSet *old_set = pipeline->solver_set_pool.buf + body->set;
     struct ds_SolverSet *new_set = pipeline->solver_set_pool.buf + set_index;
-    const struct ds_RigidBodySim *old_sim = old_set->body_sim_pool.buf + body->sim;
+    const struct ds_BodySim *old_sim = old_set->body_sim_pool.buf + body->sim;
 
     const struct slot slot = ds_CPoolPush(new_set->body_sim_pool);
-    struct ds_RigidBodySim *new_sim = slot.address;
+    struct ds_BodySim *new_sim = slot.address;
     memcpy(new_sim, old_sim, sizeof(*new_sim));
 
     ds_CPoolRemoveAndSwap(old_set->body_sim_pool, body->sim);
     if (body->sim < old_set->body_sim_pool.count)
     {
-        const struct ds_RigidBodySim *moved_sim = old_set->body_sim_pool.buf + body->sim;
-        struct ds_RigidBody *moved_body = pipeline->body_pool.buf + moved_sim->body;
+        const struct ds_BodySim *moved_sim = old_set->body_sim_pool.buf + body->sim;
+        struct ds_Body *moved_body = pipeline->body_pool.buf + moved_sim->body;
         ds_Assert(moved_body->set == body->set);
         ds_Assert(moved_body->sim == old_set->body_sim_pool.count);
         moved_body->sim = body->sim;
@@ -386,7 +386,7 @@ void ds_SolverSetMoveBody(struct ds_RigidBodyPipeline *pipeline, const u32 body_
 
     if (set_index == SOLVER_SET_ACTIVE)
     {
-        struct ds_RigidBodyCompute *compute = ds_CPoolPush(new_set->body_compute_pool).address;
+        struct ds_BodyCompute *compute = ds_CPoolPush(new_set->body_compute_pool).address;
 	    Vec3Set(compute->linear_velocity, 0.0f, 0.0f, 0.0f);
 	    Vec3Set(compute->angular_velocity, 0.0f, 0.0f, 0.0f);
         compute->flags = body->flags;

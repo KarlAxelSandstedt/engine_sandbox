@@ -67,7 +67,7 @@ typedef struct led_Node
     f32             blend;
 
     //TODO only used by shit joint on init temporarily
-    ds_RigidBodyId  body;
+    ds_BodyId  body;
 } led_Node;
 HI_DECLARE(led_Node);
 
@@ -185,7 +185,7 @@ struct led
 	struct arena 		    frame;
 	struct ui_List 		    brush_list;
 
-	struct ds_RigidBodyPipeline physics;
+	struct ds_Dynamics physics;
     c_ShapeSDB 		        cs_db;	
 	struct ui_List 		    cs_list;
 	struct ui_DropdownMenu  cs_mesh_menu;
@@ -194,7 +194,7 @@ struct led
 	ds_ShapePrefabSDB       shape_prefab_db;
     ds_ShapePrefabInstancePool shape_prefab_instance_pool;    
 
-	ds_RigidBodyPrefabSDB   body_prefab_db;
+	ds_BodyPrefabSDB   body_prefab_db;
 	struct ui_List 		    body_prefab_list;
 	struct ui_DropdownMenu  body_prefab_mesh_menu;
 

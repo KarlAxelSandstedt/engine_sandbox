@@ -449,7 +449,7 @@ struct bvh_QuerySet BvhQueryAndFilterOnBody(struct arena *mem, const struct bvh 
     while (sc--)
     {
         const struct bvhNode *n = nodes + node_stack[ sc ];
-        /* bt_child[1] == ds_RigidBody index */
+        /* bt_child[1] == ds_Body index */
         if (ds_BTLeafCheck(n))
         {
             if (node->bt_child[1] < n->bt_child[1])

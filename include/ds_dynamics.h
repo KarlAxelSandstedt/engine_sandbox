@@ -33,8 +33,8 @@ extern "C" {
 #include "ds_job.h"
 
 //TODO 
-struct ds_RigidBodyPipeline;
-struct ds_RigidBody;
+struct ds_Dynamics;
+struct ds_Body;
 struct ds_Island;
 struct ds_ProxyRange;
 
@@ -117,7 +117,7 @@ typedef u64     ds_Id;
 typedef u64     ds_IdF; /* ds_IdF (frequent) */
 
 typedef ds_Id   ds_ShapeId;
-typedef ds_Id   ds_RigidBodyId;
+typedef ds_Id   ds_BodyId;
 typedef ds_Id   ds_IslandId;
 typedef ds_Id   ds_JointId;
 typedef ds_IdF  ds_ContactId;
@@ -143,9 +143,9 @@ typedef ds_IdF  ds_ContactId;
 /*
 ds_Shape
 ========
-ds_Shapes are convex building blocks for constructing a ds_RigidBody. The structure
+ds_Shapes are convex building blocks for constructing a ds_Body. The structure
 describes the volume's physical properties and its orientation within the local
-frame of the body. A non-convex ds_RigidBody can be constructed by using multiple 
+frame of the body. A non-convex ds_Body can be constructed by using multiple 
 ds_Shapes.
 
 
@@ -167,9 +167,9 @@ transforms of all of its shapes). For this to work, we must allow the local fram
 of the body to be arbitrary; it is up to the user to update the local frame if he
 or she so wishes. Hence, we cannot assume the local frame of the body to always
 have the center of mass as its origin. Thus, in addition to storing the local-to-world
-transform, ds_RigidBody must also store its center of mass:
+transform, ds_Body must also store its center of mass:
 
-	ds_RigidBody
+	ds_Body
 	{
 		(...)
 		ds_Transform	transform;	    // Local frame to World transform
@@ -183,7 +183,7 @@ struct ds_Shape
     struct ds_DLLNode body_shape;
 
     ds_ShapeId      id;                 /* Generational identifier                          */
-	u32 			body;		        /* ds_RigidBody owner of node 			            */
+	u32 			body;		        /* ds_Body owner of node 			            */
     struct ds_DLL   contact_list;       /* list of the shape's contacts                     */
 
 	enum c_ShapeType cshape_type;	    /* collisionShape type 				                */
@@ -234,10 +234,10 @@ SDB_DECLARE(ds_ShapePrefab);
 /*
 ds_ShapePrefabInstance
 ======================
-ds_ShapePrefabInstances are helpers for constructing ds_RigidBodyPrefabs. Since a
-body may contain multiple shapes, the ds_RigidBodyPrefab struct contains a list of
+ds_ShapePrefabInstances are helpers for constructing ds_BodyPrefabs. Since a
+body may contain multiple shapes, the ds_BodyPrefab struct contains a list of
 ds_ShapePrefabInstances. Each instance contains an identifier local to the
-ds_RigidBodyPrefab, a local transform, and a reference to the instanced ds_Shape.
+ds_BodyPrefab, a local transform, and a reference to the instanced ds_Shape.
 */
 struct ds_ShapePrefabInstance
 {
@@ -254,49 +254,49 @@ POOL_DECLARE(ds_ShapePrefabInstance);
  * Allocates a shape according to the values set in Prefab and with given local body frame transform. On success, 
  * an identifier to the shape is returned. On failure, U64 is return. 
  */
-ds_ShapeId  ds_ShapeAdd(struct ds_RigidBodyPipeline *pipeline, const struct ds_ShapePrefab *prefab, const ds_Transform *t, const ds_RigidBodyId body);
+ds_ShapeId  ds_ShapeAdd(struct ds_Dynamics *pipeline, const struct ds_ShapePrefab *prefab, const ds_Transform *t, const ds_BodyId body);
 /* 
  * INTERNAL: Remove the specified shape of a DYNAMIC body and update the island database and contact database state.  
  */
-void        ds_ShapeDynamicRemove(struct ds_RigidBodyPipeline *pipeline, struct ds_RigidBody *body, const u32 shape_index, const u32 update_mass_properties);
+void        ds_ShapeDynamicRemove(struct ds_Dynamics *pipeline, struct ds_Body *body, const u32 shape_index, const u32 update_mass_properties);
 /* 
  * INTERNAL: Remove the specified shape of a STATIC body and update the physics state into a valid state. 
  */
-void        ds_ShapeStaticRemove(struct arena *mem_tmp, struct ds_RigidBodyPipeline *pipeline, struct ds_RigidBody *body, const u32 index);
+void        ds_ShapeStaticRemove(struct arena *mem_tmp, struct ds_Dynamics *pipeline, struct ds_Body *body, const u32 index);
 /*
  * Lookup the specified shape and return it if found. Otherwise return (NULL, POOL_NULL).
  */
-struct slot ds_ShapeLookup(const struct ds_RigidBodyPipeline *pipeline, const ds_ShapeId id);
+struct slot ds_ShapeLookup(const struct ds_Dynamics *pipeline, const ds_ShapeId id);
 /*
  * Calculate the world transform of the shape.
  */
-void        ds_ShapeWorldTransform(ds_Transform *t, const struct ds_RigidBodyPipeline *pipeline, const struct ds_Shape *shape);
+void        ds_ShapeWorldTransform(ds_Transform *t, const struct ds_Dynamics *pipeline, const struct ds_Shape *shape);
 /* 
  * Calculate the world bounding box of the shape, taking into account the shape and its body's Transform. 
  */
-struct aabb ds_ShapeWorldBbox(const struct ds_RigidBodyPipeline *pipeline, const struct ds_Shape *shape);
+struct aabb ds_ShapeWorldBbox(const struct ds_Dynamics *pipeline, const struct ds_Shape *shape);
 /* 
  * Test for intersection between shapes. returns 1 if intersecting, else 0 
  */
-u32	        ds_ShapeTest(const struct ds_RigidBodyPipeline *pipeline, const struct ds_Shape *s1, const struct ds_Shape *s2);
+u32	        ds_ShapeTest(const struct ds_Dynamics *pipeline, const struct ds_Shape *s1, const struct ds_Shape *s2);
 /* 
  * Return, if no intersection was found, the distance between shapes s1 and s2 and their respective
  * closest points c1 and c2. If the shapes are intersecting, return 0.0f. 
  */
-f32 	    ds_ShapeDistance(vec3 c1, vec3 c2, const struct ds_RigidBodyPipeline *pipeline, const struct ds_Shape *s1, const struct ds_Shape *s2);
+f32 	    ds_ShapeDistance(vec3 c1, vec3 c2, const struct ds_Dynamics *pipeline, const struct ds_Shape *s1, const struct ds_Shape *s2);
 /* 
  * Run the contact's collision computation and set its manifold(s) and cache(s).
  */
-void        ds_ShapeContact(struct arena *frame, const struct ds_RigidBodyPipeline *pipeline, const u32 contact_index);
+void        ds_ShapeContact(struct arena *frame, const struct ds_Dynamics *pipeline, const u32 contact_index);
 /* 
  * Return, if ray intersects shape, t such that ray.origin + t*ray.dir == closest point on shape. 
  *         Otherwise, return F32_INFINITY.
  */
-f32 	    ds_ShapeRaycastParameter(const struct ds_RigidBodyPipeline *pipeline, const struct ds_Shape *shape, const struct ray *ray);
+f32 	    ds_ShapeRaycastParameter(const struct ds_Dynamics *pipeline, const struct ds_Shape *shape, const struct ray *ray);
 /* 
  * Return 1 if ray hit shape, 0 otherwise. If hit, we return the closest intersection point 
  */
-u32 	    ds_ShapeRaycast(vec3 intersection, const struct ds_RigidBodyPipeline *pipeline, const struct ds_Shape *shape, const struct ray *ray);
+u32 	    ds_ShapeRaycast(vec3 intersection, const struct ds_Dynamics *pipeline, const struct ds_Shape *shape, const struct ray *ray);
 
 
 /*
@@ -304,13 +304,13 @@ rigid_body_prefab
 =================
 Defines a common set of rigid body properties for easy rigid body building.
 */
-struct ds_RigidBodyPrefab
+struct ds_BodyPrefab
 {
     u8              id_buf[PREFAB_BUFSIZE];
     SDB_NODE;
 
     struct ds_DLL   shape_list;         /* shape prefab instance list */
-    ds_RigidBodyId  body;
+    ds_BodyId  body;
     
 	u32	            dynamic;	        /* dynamic body is true, static if false */
 
@@ -318,37 +318,36 @@ struct ds_RigidBodyPrefab
 	//f32 	        mass;			    /* total body mass */
 	//mat3 	        inv_inertia_tensor;
 };
-SDB_DECLARE(ds_RigidBodyPrefab);
+SDB_DECLARE(ds_BodyPrefab);
 
 /*
-ds_RigidBody
-============
-A ds_RigidBody is either a set of convex shapes, or an instance of a general tri-mesh. The body
-essentially stores connectivity data, with its simulation state stored in ds_RigidBodySim and 
-ds_RigidBodyCompute. 
+ds_Body
+=======
+A ds_Body is either a set of convex shapes, or an instance of a general tri-mesh. The body
+essentially stores connectivity data, with its simulation state stored in ds_BodySim and 
+ds_BodyCompute. 
 
-    :: Every ds_RigidBody has sim index which links (<->) it to its simulation state in the set
+    :: Every ds_Body has sim index which links (<->) it to its simulation state in the set
        the body belongs to.
 
     :: If the body is in the active set, the sim index also index the body's Compute state, which
        stores velocities.
 */
 
-#define RB_DYNAMIC		((u32) 1 << 1)
+#define BODY_DYNAMIC_BIT    0
+#define BODY_DYNAMIC		((u32) 1 << BODY_DYNAMIC_BIT)
 
-#define RB_IS_STATIC(b)	    (!((b)->flags & RB_DYNAMIC))
-#define RB_IS_DYNAMIC(b)	((b)->flags & RB_DYNAMIC)
+#define ds_BodyStaticCheck(b)	(!((b)->flags & BODY_DYNAMIC))
+#define ds_BodyDynamicCheck(b)	((b)->flags & BODY_DYNAMIC)
 
-#define RB_DYNAMIC_BIT(b)	(((b)->flags & RB_DYNAMIC) >> 1u)
+#define ds_BodyDynamicBit(b)    (((b)->flags & BODY_DYNAMIC) >> BODY_DYNAMIC_BIT)
 
-#define IS_DYNAMIC(flags)	(((flags) & RB_DYNAMIC) >> 1u)
-
-struct ds_RigidBody
+struct ds_Body
 {
 	POOL_NODE;
 	struct ds_DLLNode island_body;	            /* island body_list node                                */
 
-    ds_RigidBodyId  id;                         /* generational identifier                              */
+    ds_BodyId  id;                         /* generational identifier                              */
 	u32 		    flags;
 	u32		        island;                     /* island the body belongs to (if it is non-static)     */
 
@@ -367,15 +366,15 @@ struct ds_RigidBody
     //TODO temporary
 	u32 	        entity;
 };
-POOL_DECLARE(ds_RigidBody);
+POOL_DECLARE(ds_Body);
 
 
 /*
-ds_RigidBodySim
-===============
+ds_BodySim
+==========
 Rigid body frame simulation state.
 */
-struct ds_RigidBodySim
+struct ds_BodySim
 {
     u32             body;                       /* RigidBody index                                      */
     u32             flags;
@@ -387,15 +386,15 @@ struct ds_RigidBodySim
 	mat3 		    local_inv_inertia;          /* local inertia tensor                                 */
 	mat3 		    world_inv_inertia;          /* world inertia tensor                                 */
 };
-DEFINE_CPOOL_STRUCT(ds_RigidBodySim);
+DEFINE_CPOOL_STRUCT(ds_BodySim);
 
 
 /*
-ds_RigidBodyCompute
-===================
+ds_BodyCompute
+==============
 Active rigid body velocity and other computational data used in the solver
 */
-struct ds_RigidBodyCompute
+struct ds_BodyCompute
 {
 	vec3 		    linear_velocity;        /* linear velocity of body */
 	vec3 		    angular_velocity;       /* angular velocity of body (about local center of mass,
@@ -406,23 +405,23 @@ struct ds_RigidBodyCompute
 
     u8              pad[8];
 };
-DEFINE_CPOOL_STRUCT(ds_RigidBodyCompute);
+DEFINE_CPOOL_STRUCT(ds_BodyCompute);
 
 /* Add a new rigid body with the prefab properties, and return its unique identifier. */
-ds_RigidBodyId  ds_RigidBodyAdd(struct ds_RigidBodyPipeline *pipeline, const struct ds_RigidBodyPrefab *prefab, const ds_Transform *t_world, const u32 entity);
+ds_BodyId  ds_BodyAdd(struct ds_Dynamics *pipeline, const struct ds_BodyPrefab *prefab, const ds_Transform *t_world, const u32 entity);
 /* Free the given body */
-void            ds_RigidBodyRemove(struct arena *mem_tmp, struct ds_RigidBodyPipeline *pipeline, const ds_RigidBodyId id);
+void            ds_BodyRemove(struct arena *mem_tmp, struct ds_Dynamics *pipeline, const ds_BodyId id);
 /* Lookup the given body and return it. If it does not exist, return DS_ID_NULL.  */
-struct slot	    ds_RigidBodyLookup(const struct ds_RigidBodyPipeline *pipeline, const ds_RigidBodyId id);
+struct slot	    ds_BodyLookup(const struct ds_Dynamics *pipeline, const ds_BodyId id);
 /* Process the body's shape list and set its internal mass properties accordingly. */
-void		    ds_RigidBodyUpdateMassProperties(struct ds_RigidBodyPipeline *pipeline, const ds_RigidBodyId id);
+void		    ds_BodyUpdateMassProperties(struct ds_Dynamics *pipeline, const ds_BodyId id);
 
 /* Internal: Refresh and update rigid body simulation and compute/solver data in range [low, high) before solving */
-void            ds_RigidBodyUpdateSolverDataRange(struct ds_RigidBodyPipeline *pipeline, const u32 low, const u32 high);
+void            ds_BodyUpdateSolverDataRange(struct ds_Dynamics *pipeline, const u32 low, const u32 high);
 /* Internal: Integrate body velocites in range [low, high) */
-void            ds_RigidBodyIntegrateVelocitiesRange(struct ds_RigidBodyPipeline *pipeline, const u32 low, const u32 high);
+void            ds_BodyIntegrateVelocitiesRange(struct ds_Dynamics *pipeline, const u32 low, const u32 high);
 /* Internal: Update orientation of active bodies in range [low, high) */
-void            ds_RigidBodyUpdateOrientationRange(struct ds_RigidBodyPipeline *pipeline, struct ds_ProxyRange *proxy_range, const u32 low, const u32 high);
+void            ds_BodyUpdateOrientationRange(struct ds_Dynamics *pipeline, struct ds_ProxyRange *proxy_range, const u32 low, const u32 high);
 
 
 /*
@@ -521,9 +520,9 @@ u32                     ds_ContactKeyHash(const struct ds_ContactKey key);
 /* Return 1 if the two keys are equivalent, otherwise return  0. */
 u32                     ds_ContactKeyEquivalence(const struct ds_ContactKey key0, const struct ds_ContactKey key1);
 /* Return the body and shape addresses of the key */
-void                    ds_ContactKeyAddress(struct ds_RigidBody **b0, struct ds_Shape **s0, struct ds_RigidBody **b1, struct ds_Shape **s1, const struct ds_RigidBodyPipeline *pipeline, const struct ds_ContactKey key);
+void                    ds_ContactKeyAddress(struct ds_Body **b0, struct ds_Shape **s0, struct ds_Body **b1, struct ds_Shape **s1, const struct ds_Dynamics *pipeline, const struct ds_ContactKey key);
 /* Validate contact state */
-void		            ds_ContactValidateAll(const struct ds_RigidBodyPipeline *pipeline);
+void		            ds_ContactValidateAll(const struct ds_Dynamics *pipeline);
 
 
 /*
@@ -570,26 +569,26 @@ struct ds_Contact
 POOL_DECLARE(ds_Contact);
 
 /* Add and return new contact with unique key and update pipeline state */
-struct slot ds_ContactAdd(struct ds_RigidBodyPipeline *pipeline, const struct ds_ContactKey key);
+struct slot ds_ContactAdd(struct ds_Dynamics *pipeline, const struct ds_ContactKey key);
 /* Remove contact at the given index and update pipeline state */
-void 	    ds_ContactRemove(struct ds_RigidBodyPipeline *pipeline, const u32 contact_index);
+void 	    ds_ContactRemove(struct ds_Dynamics *pipeline, const u32 contact_index);
 /* Return the contact associated with the given id. If no such contact is found, return (U32_MAX, NULL) */
-struct slot ds_ContactLookup(const struct ds_RigidBodyPipeline *pipeline, const ds_ContactId id);
+struct slot ds_ContactLookup(const struct ds_Dynamics *pipeline, const ds_ContactId id);
 /* Update contact at the given slot and update pipeline state. */
-struct slot ds_ContactKeyLookup(const struct ds_RigidBodyPipeline *pipeline, const struct ds_ContactKey key);
+struct slot ds_ContactKeyLookup(const struct ds_Dynamics *pipeline, const struct ds_ContactKey key);
 
 /* Internal: Return 1 if contact shape bvh nodes still overlap, otherwise return 0. */
-u32         ds_ContactCheckBvhOverlap(const struct ds_RigidBodyPipeline *pipeline, const u32 contact);
+u32         ds_ContactCheckBvhOverlap(const struct ds_Dynamics *pipeline, const u32 contact);
 /* Internal: Promote contact from non-touching active set to color in constraint graph */
-void        ds_ContactPromote(struct ds_RigidBodyPipeline *pipeline, const u32 contact);
+void        ds_ContactPromote(struct ds_Dynamics *pipeline, const u32 contact);
 /* Internal: Demote contact to non-touching active set from color in constraint graph */
-void        ds_ContactDemote(struct ds_RigidBodyPipeline *pipeline, const u32 contact);
+void        ds_ContactDemote(struct ds_Dynamics *pipeline, const u32 contact);
 /* Internal: Wakeup contact from sleeping set */
-void        ds_ContactWakeUp(struct arena *frame, struct ds_RigidBodyPipeline *pipeline, const u32 contact);
+void        ds_ContactWakeUp(struct arena *frame, struct ds_Dynamics *pipeline, const u32 contact);
 /* Internal: Put contact to sleep in sleeping set */
-void        ds_ContactSleep(struct arena *mem_sleep, struct ds_RigidBodyPipeline *pipeline, const u32 contact, const u32 set);
+void        ds_ContactSleep(struct arena *mem_sleep, struct ds_Dynamics *pipeline, const u32 contact, const u32 set);
 /* Internal: Return bytes required to store contact narrowphase results */
-u64         ds_ContactMemoryRequirement(const struct ds_RigidBodyPipeline *pipeline, const u32 contact);
+u64         ds_ContactMemoryRequirement(const struct ds_Dynamics *pipeline, const u32 contact);
 
 
 /*
@@ -670,23 +669,23 @@ POOL_DECLARE(ds_Joint);
  * Setup a joint between bodies b0 and b1 with anchors defined by the input local_frames. On success, 
  * a valid ds_JointId is returned. On Failure, DS_ID_NULL is returned.
  */
-ds_JointId  ds_JointAdd(struct ds_RigidBodyPipeline *pipeline, const ds_RigidBodyId b0, const ds_Transform *t0, const ds_RigidBodyId b1, const ds_Transform *t1);
+ds_JointId  ds_JointAdd(struct ds_Dynamics *pipeline, const ds_BodyId b0, const ds_Transform *t0, const ds_BodyId b1, const ds_Transform *t1);
 /*
  * Remove the specified joint corresponding to the id. If the joint no longer exist, the call becomes a NO-OP.
  */
-void        ds_JointRemove(struct ds_RigidBodyPipeline *pipeline, const ds_JointId id);
+void        ds_JointRemove(struct ds_Dynamics *pipeline, const ds_JointId id);
 /* 
  * On success, return the joint corresponding to the id. If the wasn't found, return an empty slot (U32_MAX, NULL)
  */
-struct slot ds_JointLookup(const struct ds_RigidBodyPipeline *pipeline, const ds_JointId id);
+struct slot ds_JointLookup(const struct ds_Dynamics *pipeline, const ds_JointId id);
 /* 
  * INTERNAL: Remove the specified joint of a STATIC-DYNAMIC body pair and update the pipeline into a valid state.
  */
-void        ds_JointStaticRemove(struct ds_RigidBodyPipeline *pipeline, struct ds_RigidBody *body, const u32 index);
+void        ds_JointStaticRemove(struct ds_Dynamics *pipeline, struct ds_Body *body, const u32 index);
 /* 
  * INTERNAL: Remove the specified joint of a DYNAMIC-DYNAMIC body pair and update the pipeline into a valid state.
  */
-void        ds_JointDynamicRemove(struct ds_RigidBodyPipeline *pipeline, struct ds_RigidBody *body, const u32 index);
+void        ds_JointDynamicRemove(struct ds_Dynamics *pipeline, struct ds_Body *body, const u32 index);
 
 /*
 ds_DistanceJoint
@@ -713,7 +712,7 @@ void    ds_DistanceJointPrefabDefault(struct ds_DistanceJointPrefab *prefab);
  * Setup a joint between bodies b0 and b1 with anchors defined by the input local_frames. On success, 
  * a valid ds_JointId is returned. On Failure, DS_ID_NULL is returned.
  */
-ds_JointId ds_DistanceJointAdd(struct ds_RigidBodyPipeline *pipeline, const struct ds_DistanceJointPrefab *prefab, const ds_RigidBodyId b0, const ds_Transform *local_frame0, const ds_RigidBodyId b1, const ds_Transform *local_frame1);
+ds_JointId ds_DistanceJointAdd(struct ds_Dynamics *pipeline, const struct ds_DistanceJointPrefab *prefab, const ds_BodyId b0, const ds_Transform *local_frame0, const ds_BodyId b1, const ds_Transform *local_frame1);
 
 /*
 ds_JointSim
@@ -778,10 +777,10 @@ struct ds_SolverSet
     struct arena                    mem;
 
     /* Body simulation state */
-    ds_CPool(ds_RigidBodySim)       body_sim_pool;
+    ds_CPool(ds_BodySim)       body_sim_pool;
 
     /* Body solver computation state */
-    ds_CPool(ds_RigidBodyCompute)   body_compute_pool;
+    ds_CPool(ds_BodyCompute)   body_compute_pool;
 
     /* Contact indices.  */
     ds_CPool(u32)                   contact_pool;
@@ -799,22 +798,22 @@ POOL_DECLARE(ds_SolverSet);
 
 
 /* Allocate and setup a ds_SolverSet. If mem_set is provided, it will be used for allocating resources */
-struct slot ds_SolverSetAdd(struct arena *mem_set, struct ds_RigidBodyPipeline *pipeline, const u32 initial_body_sim_count, const u32 initial_body_compute_count, const u32 initial_contact_count, const u32 initial_contact_compute_count,  const u32 initial_joint_count, const u32 initial_island_count);
+struct slot ds_SolverSetAdd(struct arena *mem_set, struct ds_Dynamics *pipeline, const u32 initial_body_sim_count, const u32 initial_body_compute_count, const u32 initial_contact_count, const u32 initial_contact_compute_count,  const u32 initial_joint_count, const u32 initial_island_count);
 /* Deallocate a the given ds_SolverSet */
-void        ds_SolverSetRemove(struct ds_RigidBodyPipeline *pipeline, const u32 index);
+void        ds_SolverSetRemove(struct ds_Dynamics *pipeline, const u32 index);
 /* Flush the given ds_SolverSet */
-void        ds_SolverSetFlush(struct ds_RigidBodyPipeline *pipeline, const u32 index);
+void        ds_SolverSetFlush(struct ds_Dynamics *pipeline, const u32 index);
 /* Wake up the given sleeping ds_SolverSet. If the solver set is not sleeping set, the call becomes a NO-OP. */
-void        ds_SolverSetWakeUp(struct ds_RigidBodyPipeline *pipeline, const u32 index);
+void        ds_SolverSetWakeUp(struct ds_Dynamics *pipeline, const u32 index);
 /* Try put the given island to sleep. On success, the island is moved from the active set to a sleeping set. */
-void        ds_SolverSetSleep(struct ds_RigidBodyPipeline *pipeline, const u32 island);
+void        ds_SolverSetSleep(struct ds_Dynamics *pipeline, const u32 island);
 /* Return the required memory size for putting the given island to sleep */
-u64         ds_SolverSetSleepMemoryRequirement(const struct ds_RigidBodyPipeline *pipeline, const u32 island);
+u64         ds_SolverSetSleepMemoryRequirement(const struct ds_Dynamics *pipeline, const u32 island);
 /* Debug validation for the given set */
-void        ds_SolverSetValidate(const struct ds_RigidBodyPipeline *pipeline, const u32 set_index);
+void        ds_SolverSetValidate(const struct ds_Dynamics *pipeline, const u32 set_index);
 
 /* Internal: Move the body to the given set (Assumes the body is NOT part off the set) */
-void        ds_SolverSetMoveBody(struct ds_RigidBodyPipeline *pipeline, const u32 body, const u32 set);
+void        ds_SolverSetMoveBody(struct ds_Dynamics *pipeline, const u32 body, const u32 set);
 
 
 /*
@@ -842,17 +841,17 @@ struct ds_Island
 POOL_DECLARE(ds_Island);
 
 /*  Return the island corresponding the id; If it doesn't exist, return (NULL, U32_MAX). */
-struct slot ds_IslandLookup(struct ds_RigidBodyPipeline *pipeline, const ds_IslandId id);
+struct slot ds_IslandLookup(struct ds_Dynamics *pipeline, const ds_IslandId id);
 /* remove island resources from database */
-void 		ds_IslandRemove(struct ds_RigidBodyPipeline *pipeline, const u32 island);
+void 		ds_IslandRemove(struct ds_Dynamics *pipeline, const u32 island);
 /* Merge islands (Or simply update if new local contact) using new contact */
-void 		ds_IslandMerge(struct ds_RigidBodyPipeline *pipeline, const u32 expand, const u32 merge);
+void 		ds_IslandMerge(struct ds_Dynamics *pipeline, const u32 expand, const u32 merge);
 /* Split island, or remake if no split happens.  */
-void 		ds_IslandSplit(struct ds_RigidBodyPipeline *pipeline, const u32 island);
+void 		ds_IslandSplit(struct ds_Dynamics *pipeline, const u32 island);
 /* Debug printing of island */
-void 		ds_IslandPrint(FILE *file, const struct ds_RigidBodyPipeline *pipeline, const u32 island, const char *desc);
+void 		ds_IslandPrint(FILE *file, const struct ds_Dynamics *pipeline, const u32 island, const char *desc);
 /* Check if the database appears to be valid */
-void 		ds_IslandValidateAll(const struct ds_RigidBodyPipeline *pipeline);
+void 		ds_IslandValidateAll(const struct ds_Dynamics *pipeline);
 
 
 /*
@@ -902,15 +901,15 @@ DEFINE_CPOOL_STRUCT(ds_ContactConstraint);
 
 
 /* Initalize the given range [low, high) of ds_ContactConstraints in the constraint graph */
-void 	ds_ContactConstraintInitRange(struct ds_RigidBodyPipeline *pipeline, const u32 color, const u32 low, const u32 high);
+void 	ds_ContactConstraintInitRange(struct ds_Dynamics *pipeline, const u32 color, const u32 low, const u32 high);
 /* Warmup Range [low, high) of applicable ds_ContactConstraints for the given color in the constraint graph */
-void 	ds_ContactConstraintWarmupRange(struct ds_RigidBodyPipeline *pipeline, const u32 color, const u32 low, const u32 high);
+void 	ds_ContactConstraintWarmupRange(struct ds_Dynamics *pipeline, const u32 color, const u32 low, const u32 high);
 /* Compute a solver iteration over the given color for contact constraints */
-void    ds_ContactConstraintIterateRange(struct ds_RigidBodyPipeline *pipeline, const u32 color, const u32 cc_low, const u32 cc_high);
+void    ds_ContactConstraintIterateRange(struct ds_Dynamics *pipeline, const u32 color, const u32 cc_low, const u32 cc_high);
 /* Cache contact impulses and initialize position constraints in the range [low, high) for the given color */
-void ds_PositionConstraintInitAndCacheImpulsesRange(struct ds_RigidBodyPipeline *pipeline, const u32 color, const u32 low, const u32 high);
+void ds_PositionConstraintInitAndCacheImpulsesRange(struct ds_Dynamics *pipeline, const u32 color, const u32 low, const u32 high);
 /* Compute a solver iteration over the given color for position constraints in range [low, high) */
-void ds_PositionConstraintIterateRange(struct ds_RigidBodyPipeline *pipeline, const u32 color, const u32 low, const u32 high);
+void ds_PositionConstraintIterateRange(struct ds_Dynamics *pipeline, const u32 color, const u32 low, const u32 high);
 
 /*
 contact_solver_config
@@ -1018,23 +1017,23 @@ struct ds_CGraph
 };
 
 /* Allocate and setup the pipeline's constraint graph */
-void                    ds_CGraphAlloc(struct ds_RigidBodyPipeline *pipeline, const u32 initial_count);
+void                    ds_CGraphAlloc(struct ds_Dynamics *pipeline, const u32 initial_count);
 /* Deallocate the pipeline's constraint graph */
-void                    ds_CGraphDealloc(struct ds_RigidBodyPipeline *pipeline);
+void                    ds_CGraphDealloc(struct ds_Dynamics *pipeline);
 /* Flush the pipeline's constraint graph data */
-void                    ds_CGraphFlush(struct ds_RigidBodyPipeline *pipeline);
+void                    ds_CGraphFlush(struct ds_Dynamics *pipeline);
 /* Validate the state of the pipeline's constraint graph */
-void                    ds_CGraphValidate(const struct ds_RigidBodyPipeline *pipeline);
+void                    ds_CGraphValidate(const struct ds_Dynamics *pipeline);
 /* Prepare the pipeline's constraint graph for the new frame, allocating and setting up new resources if necessary. */
-void                    ds_CGraphFramePrepare(struct ds_RigidBodyPipeline *pipeline);
+void                    ds_CGraphFramePrepare(struct ds_Dynamics *pipeline);
 /* Allocate and setup a new ds_JointSim */
-struct ds_JointSim *    ds_CGraphJointAdd(struct ds_RigidBodyPipeline *pipeline, struct ds_Joint *joint);
+struct ds_JointSim *    ds_CGraphJointAdd(struct ds_Dynamics *pipeline, struct ds_Joint *joint);
 /* Deallocate a ds_JointSim */
-void                    ds_CGraphJointRemove(struct ds_RigidBodyPipeline *pipeline, struct ds_Joint *joint);
+void                    ds_CGraphJointRemove(struct ds_Dynamics *pipeline, struct ds_Joint *joint);
 /* TODO: for now, we only setup link contact <-> graph */
-void                    ds_CGraphContactAdd(struct arena *frame, struct ds_RigidBodyPipeline *pipeline, struct ds_Contact *contact);
+void                    ds_CGraphContactAdd(struct arena *frame, struct ds_Dynamics *pipeline, struct ds_Contact *contact);
 /* TODO: for now, we only remove link contact <-> graph */
-void                    ds_CGraphContactRemove(struct ds_RigidBodyPipeline *pipeline, struct ds_Contact *contact);
+void                    ds_CGraphContactRemove(struct ds_Dynamics *pipeline, struct ds_Contact *contact);
 
 
 /*
@@ -1057,7 +1056,7 @@ struct ds_BroadJobPhase
 {
     struct ds_JobPhase              phase;
 
-    struct ds_RigidBodyPipeline *   pipeline;
+    struct ds_Dynamics *   pipeline;
 
     struct ds_BroadJob *            job;
     u32                             job_count;
@@ -1087,7 +1086,7 @@ struct ds_NarrowJobPhase
 {
     struct ds_JobPhase              phase;
 
-    struct ds_RigidBodyPipeline *   pipeline;
+    struct ds_Dynamics *   pipeline;
     struct dbvhOverlap *            overlap;
 
     struct ds_NarrowJob *           job;
@@ -1142,7 +1141,7 @@ struct ds_SolverJobPhase
 {
     struct ds_JobPhase              phase;
 
-	struct ds_RigidBodyPipeline *   pipeline;
+	struct ds_Dynamics *   pipeline;
 
     struct ds_SolverJob *           job;
     u32                             job_count;
@@ -1181,7 +1180,7 @@ struct ds_RebuildJobPhase
 {
     struct ds_JobPhase              phase;
 
-    struct ds_RigidBodyPipeline *   pipeline;
+    struct ds_Dynamics *   pipeline;
 
     struct ds_RebuildJob *          job;
     u32                             job_count;
@@ -1284,12 +1283,12 @@ struct ds_PhysicsEvent
 	{
         u32                     entity;
 		ds_IslandId             island;
-		ds_RigidBodyId          body;
+		ds_BodyId          body;
         ds_ContactId            contact;
         
         struct 
         {
-            ds_RigidBodyId      contact_removed_bodies[2];
+            ds_BodyId      contact_removed_bodies[2];
             ds_ShapeId          contact_removed_shapes[2];
         };
 	};
@@ -1308,7 +1307,7 @@ enum rigidBodyColorMode
 /*
  * Physics Pipeline
  */
-struct ds_RigidBodyPipeline 
+struct ds_Dynamics 
 {
 	struct arena 	            frame;			        /* frame memory */
 
@@ -1324,9 +1323,9 @@ struct ds_RigidBodyPipeline
     f32                         timestep;
 
 	c_ShapeSDB *	            cshape_db;		        /* externally owned */
-	ds_RigidBodyPrefabSDB *	    body_prefab_db;		    /* externally owned */
+	ds_BodyPrefabSDB *	    body_prefab_db;		    /* externally owned */
 
-	struct ds_RigidBodyPool     body_pool;
+	struct ds_BodyPool     body_pool;
     struct ds_BitSet            body_usage_set;         /* Bodies in use */
 
 	struct ds_ShapePool	        shape_pool;
@@ -1379,25 +1378,25 @@ struct ds_RigidBodyPipeline
 /**************** PHYISCS PIPELINE API ****************/
 
 /* Initialize a new growable physics pipeline; ns_tick is the duration of a physics frame. */
-struct ds_RigidBodyPipeline PhysicsPipelineAlloc(struct arena *mem, const u32 initial_size, const u64 ns_tick, const u64 frame_memory, c_ShapeSDB *cshape_db, ds_RigidBodyPrefabSDB *prefab_db, const u32 worker_cont, const u64 worker_frame_size);
+struct ds_Dynamics PhysicsPipelineAlloc(struct arena *mem, const u32 initial_size, const u64 ns_tick, const u64 frame_memory, c_ShapeSDB *cshape_db, ds_BodyPrefabSDB *prefab_db, const u32 worker_cont, const u64 worker_frame_size);
 /* free pipeline resources */
-void 			PhysicsPipelineFree(struct ds_RigidBodyPipeline *physics_pipeline);
+void 			PhysicsPipelineFree(struct ds_Dynamics *physics_pipeline);
 /* flush pipeline resources */
-void			PhysicsPipelineFlush(struct ds_RigidBodyPipeline *physics_pipeline);
+void			PhysicsPipelineFlush(struct ds_Dynamics *physics_pipeline);
 /* pipeline main method: simulate a single physics frame and update internal state  */
-void 			PhysicsPipelineTick(struct ds_RigidBodyPipeline *pipeline);
+void 			PhysicsPipelineTick(struct ds_Dynamics *pipeline);
 /* Hash bodies in order from low to high and return the final hash  */
-u64             PhysicsPipelineOrientationHash(const struct ds_RigidBodyPipeline *pipeline);
+u64             PhysicsPipelineOrientationHash(const struct ds_Dynamics *pipeline);
 /* validate and ds_Assert internal state of physics pipeline */
-void			PhysicsPipelineValidate(const struct ds_RigidBodyPipeline *pipeline);
+void			PhysicsPipelineValidate(const struct ds_Dynamics *pipeline);
 /* If hit, return parameter (shape,t) of ray at first collision. Otherwise return (U32_MAX, F32_INFINITY) */
-u32f32 			PhysicsPipelineRaycastParameter(const struct ds_RigidBodyPipeline *pipeline, const struct ray *ray);
+u32f32 			PhysicsPipelineRaycastParameter(const struct ds_Dynamics *pipeline, const struct ray *ray);
 /* enable sleeping in pipeline */
-void 			PhysicsPipelineSleepEnable(struct ds_RigidBodyPipeline *pipeline);
+void 			PhysicsPipelineSleepEnable(struct ds_Dynamics *pipeline);
 /* disable sleeping in pipeline */
-void 			PhysicsPipelineSleepDisable(struct ds_RigidBodyPipeline *pipeline);
+void 			PhysicsPipelineSleepDisable(struct ds_Dynamics *pipeline);
 /* Print resource usage */
-void            PhysicsPipelinePrintUsage(const struct ds_RigidBodyPipeline *pipeline);
+void            PhysicsPipelinePrintUsage(const struct ds_Dynamics *pipeline);
 
 #ifdef DS_PHYSICS_DEBUG
 #define PHYSICS_PIPELINE_VALIDATE(pipeline)	PhysicsPipelineValidate(pipeline)
@@ -1408,7 +1407,7 @@ void            PhysicsPipelinePrintUsage(const struct ds_RigidBodyPipeline *pip
 /**************** PHYISCS PIPELINE INTERNAL API ****************/
 
 /* push physics event into pipeline memory and return pointer to allocated event */
-struct ds_PhysicsEvent *	ds_PhysicsEventPush(struct ds_RigidBodyPipeline *pipeline);
+struct ds_PhysicsEvent *	ds_PhysicsEventPush(struct ds_Dynamics *pipeline);
 
 #ifdef __cplusplus
 } 
