@@ -25,6 +25,7 @@
 
 POOL_DEFINE(ds_PhysicsEvent);
 
+struct ds_DynamicsWorker *g_dynamics_worker;
 struct collisionDebug *g_collision_debug;
 
 void ds_DynamicsStaticAssert(void)
@@ -130,9 +131,12 @@ struct ds_Dynamics ds_DynamicsAlloc(struct arena *mem, const u32 initial_size, c
 
     pipeline.island_to_split = DS_ID_NULL; 
 
-    ds_StaticAssert(sizeof(struct ds_DynamicsWorker) % DS_CACHE_LINE == 0, "");
-    pipeline.worker = ArenaPushAligned(mem, worker_count * sizeof(struct ds_DynamicsWorker), DS_CACHE_LINE);
+    ds_StaticAssert((u64) &((struct ds_DynamicsWorker *)0)->frame_arr[1] < (u64) &((struct ds_DynamicsWorker *)0)->pad, "");
+    ds_StaticAssert((u64) &((struct ds_DynamicsWorker *)0)->frame < (u64) &((struct ds_DynamicsWorker *)0)->pad, "");
+    ds_StaticAssert((u64) &((struct ds_DynamicsWorker *)0)->stats < (u64) &((struct ds_DynamicsWorker *)0)->pad, "");
+    pipeline.worker = ArenaPushAligned(mem, worker_count*sizeof(struct ds_DynamicsWorker), DS_CACHE_LINE);
     pipeline.worker_count = worker_count;
+    g_dynamics_worker = pipeline.worker;
     for (u32 i = 0; i < pipeline.worker_count; ++i)
     {
         pipeline.worker[i].frame_arr[0] = ArenaAlloc(NULL, worker_frame_size);
@@ -1204,8 +1208,13 @@ void ds_DynamicsSimulateFrame(struct ds_Dynamics *pipeline)
 
 	/* broadphase => narrowphase => solve => integrate */
     CollisionDetection(pipeline);
-
 	SolveConstraints(pipeline);
+
+    for (u32 i = 0; i < pipeline->worker_count; ++i)
+    {
+        ds_DynamicsStatsAdd(&pipeline->stats, &pipeline->worker[i].stats);
+    }
+    ds_DynamicsStatsPrint(stderr, &pipeline->stats);
 
 	PHYSICS_PIPELINE_VALIDATE(pipeline);
 }
@@ -1216,7 +1225,7 @@ void ds_DynamicsTick(struct ds_Dynamics *pipeline)
 
     ds_NumericsConfigPush(&pipeline->numerics_config);
 
-	if (pipeline->frames_completed > 0)
+	if (pipeline->frames_completed)
 	{
 		ds_DynamicsClearFrame(pipeline);
 	}
@@ -1227,7 +1236,9 @@ void ds_DynamicsTick(struct ds_Dynamics *pipeline)
     {
         ArenaFlush(pipeline->worker[i].frame_arr + f);
         pipeline->worker[i].frame = pipeline->worker[i].frame_arr + f;
+        ds_DynamicsStatsFlush(&pipeline->worker[i].stats);
     }
+    ds_DynamicsStatsFlush(&pipeline->stats);
 
     pipeline->timestep = (f32) pipeline->ns_tick / NSEC_PER_SEC;
 

@@ -91,6 +91,31 @@ void                        ds_NumericsConfigPop(void);
 
 
 /*
+ds_DynamicsStats
+================
+*/
+
+struct ds_DynamicsStats
+{
+    /* HullContact statistics */
+    u32 hull_call_count;
+    u32 hull_cache_count;
+    u32 hull_eviction_count;
+
+    /* MeshHullContact statistics */
+    u32 mesh_hull_call_count;
+    u32 mesh_hull_cache_count;
+    u32 mesh_hull_eviction_count;
+};
+
+/* Flush statistics */
+void    ds_DynamicsStatsFlush(struct ds_DynamicsStats *stats);
+/* Add statistics */
+void    ds_DynamicsStatsAdd(struct ds_DynamicsStats *sum, const struct ds_DynamicsStats *stats);
+/* Add statistics */
+void    ds_DynamicsStatsPrint(FILE *file, const struct ds_DynamicsStats *stats);
+
+/*
 ds_DynamicsWorker
 =================
 Worker owned dynamics data. Core to the pipeline here is the worker's double-buffered frame memory. 
@@ -99,11 +124,17 @@ Many parts of the pipeline pushes cached data onto the frame.
 
 struct ds_DynamicsWorker
 {
-    struct arena    frame_arr[2]; /* Double-buffered; Master thread switches arena on each simulated frame */
-    struct arena *  frame;
+    struct arena            frame_arr[2]; /* Double-buffered; Master thread switches arena on new frame */
+    struct arena *          frame;
+    
+    struct ds_DynamicsStats stats;
 
-    u8              pad[2*DS_CACHE_LINE - 2*sizeof(struct arena) - sizeof(void*)];
+    u8                      pad[DS_CACHE_LINE];
 };
+
+/* indexed by workers using their thread indices (ds_ThreadSelfIndex()) */
+extern struct ds_DynamicsWorker *g_dynamics_worker;
+
 
 /*
 ds_Id
@@ -892,18 +923,13 @@ struct ds_ContactConstraint
 	u32 	ccp_count;	 /* Number of contact points in the manifold        */
 	struct ds_ContactConstraintPoint ccp[4];
 
-    //TODO make mat(3?)
-	void * 	normal_mass;	/* mat2, mat3 or mat4 normal mass for block solver = Inv(J*Inv(M)*J^T) */
-    //TODO make mat(3?)
-	void * 	inv_normal_mass;/* mat2, mat3 or mat4 inv normal mass for block solver = J*Inv(M)*J^T */
-
 	/* contact base axes */
 	vec3 	normal;		/* Currently shared contact manifold normal between all point constraints */
 	vec3	tangent[2];	/* normalized friction directions of contact */
 
 	f32	    restitution;	/* Range[0.0f, 1.0f] : higher => bouncy */
-	//f32	tangent_impulse_bound;	/* TODO: contact_friction * gravity_constant * point_mass */
 	f32	    friction;	/* TODO: friction = f32_max(b1->friction, b2->friction) */
+	//f32	tangent_impulse_bound;	/* TODO: contact_friction * gravity_constant * point_mass */
 };
 DEFINE_CPOOL_STRUCT(ds_ContactConstraint);
 
@@ -1307,41 +1333,44 @@ enum rigidBodyColorMode
  */
 struct ds_Dynamics 
 {
-	struct arena 	            frame;			        /* frame memory */
+	struct arena 	                frame;			        /* frame memory */
 
-    struct ds_DynamicsWorker *  worker;
-    u32                         worker_count;
+    struct ds_NumericsConfig        numerics_config;
+
+    struct ds_DynamicsStats         stats;
+    struct ds_DynamicsWorker *      worker;
+    u32                             worker_count;
 
 
-	u64				            ns_start;		        /* external ns at start of physics pipeline */
-	u64				            ns_elapsed;		        /* actual ns elasped in pipeline (= 0 at start) */
-	u64				            ns_tick;		        /* ns per game tick */
-	u64 			            frames_completed;	    /* number of completed physics frames */ 
+	u64				                ns_start;		        /* external ns at start of physics pipeline */
+	u64				                ns_elapsed;		        /* actual ns elasped in pipeline (= 0 at start) */
+	u64				                ns_tick;		        /* ns per game tick */
+	u64 			                frames_completed;	    /* number of completed physics frames */ 
 
-    f32                         timestep;
+    f32                             timestep;
 
-	c_ShapeSDB *	            cshape_db;		        /* externally owned */
-	ds_BodyPrefabSDB *	    body_prefab_db;		    /* externally owned */
+	c_ShapeSDB *	                cshape_db;		        /* externally owned */
+	ds_BodyPrefabSDB *	            body_prefab_db;		    /* externally owned */
 
-	struct ds_BodyPool     body_pool;
-    struct ds_BitSet            body_usage_set;         /* Bodies in use */
+	struct ds_BodyPool              body_pool;
+    struct ds_BitSet                body_usage_set;         /* Bodies in use */
 
-	struct ds_ShapePool	        shape_pool;
-    struct ds_BitSet            shape_dynamic_usage_set;/* Shapes in use */
-	struct bvh 		            dynamic_bvh;            /* bvh of dynamic shapes */
-	struct bvh 		            static_bvh;             /* bvh of static shapes */
+	struct ds_ShapePool	            shape_pool;
+    struct ds_BitSet                shape_dynamic_usage_set;/* Shapes in use */
+	struct bvh 		                dynamic_bvh;            /* bvh of dynamic shapes */
+	struct bvh 		                static_bvh;             /* bvh of static shapes */
 
-    struct ds_BitSet            shape_dirty_set;    
-    ds_CPool(ds_ProxyQuery)     dirty_shape_query;
+    struct ds_BitSet                shape_dirty_set;    
+    ds_CPool(ds_ProxyQuery)         dirty_shape_query;
 
-    struct ds_JointPool         joint_pool;
+    struct ds_JointPool             joint_pool;
 
-	struct ds_PhysicsEventPool  event_pool;
-	struct ds_DLL		        event_list;
+	struct ds_PhysicsEventPool      event_pool;
+	struct ds_DLL		            event_list;
 
-    struct ds_CGraph            cgraph;
+    struct ds_CGraph                cgraph;
 
-    struct ds_SolverSetPool     solver_set_pool;    /* index 0,1,2 reserved for DISABLED,STATIC,ACTIVE sets */
+    struct ds_SolverSetPool         solver_set_pool;        /* index 0,1,2 reserved for DISABLED,STATIC,ACTIVE sets */
 
     /* contact net list nodes are owned as follows:
 	 *
@@ -1349,28 +1378,26 @@ struct ds_Dynamics
 	 *  contact->key.shape1 owns slot 1
 	 *
 	 * i.e. the smaller index owns slot 0 and the larger index owns slot 1.  */
-    struct ds_ContactPool       contact_pool;   
-	struct ds_HashMap	        contact_map;		
+    struct ds_ContactPool           contact_pool;   
+	struct ds_HashMap	            contact_map;		
 
-    ds_IslandId                 island_to_split;            /* */
-	struct ds_IslandPool        island_pool;	    
-    struct ds_BitSet            island_high_energy_set;   /* High energy islands per-frame. */
+    ds_IslandId                     island_to_split;            /* */
+	struct ds_IslandPool            island_pool;	    
+    struct ds_BitSet                island_high_energy_set;   /* High energy islands per-frame. */
 
-	struct collisionDebug *	    debug;
-	u32			                debug_count;
+	struct collisionDebug *	        debug;
+	u32			                    debug_count;
 
 	//TODO temporary, move somewhere else.
-	vec3 			            gravity;	/* gravity constant */
+	vec3 			                gravity;	/* gravity constant */
 
-	u32			                margin_on;
-	f32			                margin;
+	u32			                    margin_on;
+	f32			                    margin;
 
-    struct ds_BroadJobPhase *   broad_phase;
-    struct ds_NarrowJobPhase *  narrow_phase;
-    struct ds_SolverJobPhase *  solver_phase;
-    struct ds_RebuildJobPhase * rebuild_phase;
-
-    struct ds_NumericsConfig    numerics_config;
+    struct ds_BroadJobPhase *       broad_phase;
+    struct ds_NarrowJobPhase *      narrow_phase;
+    struct ds_SolverJobPhase *      solver_phase;
+    struct ds_RebuildJobPhase *     rebuild_phase;
 };
 
 /**************** PHYISCS PIPELINE API ****************/
