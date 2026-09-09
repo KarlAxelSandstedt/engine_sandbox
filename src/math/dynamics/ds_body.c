@@ -201,7 +201,6 @@ void ds_RigidBodyUpdateMassProperties(struct ds_RigidBodyPipeline *pipeline, con
 
 	body->mass = 0.0f;
     Vec3Set(sim->local_center_of_mass, 0.0f, 0.0f, 0.0f);
-	Vec3Set(body->local_center_of_mass, 0.0f, 0.0f, 0.0f);
 	Mat3Set(body_inertia_tensor, 
 			0.0f, 0.0f, 0.0f, 
 			0.0f, 0.0f, 0.0f, 
@@ -230,7 +229,7 @@ void ds_RigidBodyUpdateMassProperties(struct ds_RigidBodyPipeline *pipeline, con
 		Vec3Copy(vtmp, cshape->center_of_mass);
 		Mat3VecMul(center_of_mass[i], rot_local, vtmp);
 		Vec3Translate(center_of_mass[i], shape->t_local.position);
-		Vec3TranslateScaled(body->local_center_of_mass, center_of_mass[i], mass[i]);
+		Vec3TranslateScaled(sim->local_center_of_mass, center_of_mass[i], mass[i]);
 
 		/* I_Shape(i) = R * Shape_Inertia * R^-1 */
 		Mat3Scale(tmp1, *((mat3ptr) &cshape->inertia_tensor), shape->density);
@@ -239,8 +238,7 @@ void ds_RigidBodyUpdateMassProperties(struct ds_RigidBodyPipeline *pipeline, con
 	}
 
     sim->inv_mass = 1.0f / body->mass;
-	Vec3ScaleSelf(body->local_center_of_mass, sim->inv_mass);
-	Vec3Copy(sim->local_center_of_mass, body->local_center_of_mass);
+	Vec3ScaleSelf(sim->local_center_of_mass, sim->inv_mass);
 
 	/* 
 	 * d(i) = center_of_mass_Shape(i) - center_of_mass_Body
@@ -249,7 +247,7 @@ void ds_RigidBodyUpdateMassProperties(struct ds_RigidBodyPipeline *pipeline, con
 	vec3 d;
 	for (u32 i = 0; i < body->shape_list.count; ++i)
 	{
-		Vec3Sub(d, center_of_mass[i], body->local_center_of_mass);
+		Vec3Sub(d, center_of_mass[i], sim->local_center_of_mass);
 
 		Mat3Identity(tmp1);
 		Mat3ScaleSelf(tmp1, mass[i]*Vec3Dot(d, d));
@@ -261,7 +259,6 @@ void ds_RigidBodyUpdateMassProperties(struct ds_RigidBodyPipeline *pipeline, con
 		Mat3AddSelf(body_inertia_tensor, tmp1);
 		Mat3SubSelf(body_inertia_tensor, tmp2);
 	}
-    Mat3Inverse(body->inv_inertia_tensor, body_inertia_tensor);
     Mat3Inverse(sim->local_inv_inertia, body_inertia_tensor);
     
     ArenaPopScratch();

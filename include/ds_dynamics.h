@@ -254,11 +254,11 @@ POOL_DECLARE(ds_ShapePrefabInstance);
  * Allocates a shape according to the values set in Prefab and with given local body frame transform. On success, 
  * an identifier to the shape is returned. On failure, U64 is return. 
  */
-ds_ShapeId              ds_ShapeAdd(struct ds_RigidBodyPipeline *pipeline, const struct ds_ShapePrefab *prefab, const ds_Transform *t, const ds_RigidBodyId body);
+ds_ShapeId  ds_ShapeAdd(struct ds_RigidBodyPipeline *pipeline, const struct ds_ShapePrefab *prefab, const ds_Transform *t, const ds_RigidBodyId body);
 /* 
  * INTERNAL: Remove the specified shape of a DYNAMIC body and update the island database and contact database state.  
  */
-void                    ds_ShapeDynamicRemove(struct ds_RigidBodyPipeline *pipeline, struct ds_RigidBody *body, const u32 shape_index, const u32 update_mass_properties);
+void        ds_ShapeDynamicRemove(struct ds_RigidBodyPipeline *pipeline, struct ds_RigidBody *body, const u32 shape_index, const u32 update_mass_properties);
 /* 
  * INTERNAL: Remove the specified shape of a STATIC body and update the physics state into a valid state. 
  */
@@ -302,9 +302,7 @@ u32 	    ds_ShapeRaycast(vec3 intersection, const struct ds_RigidBodyPipeline *p
 /*
 rigid_body_prefab
 =================
-TODO
-rigid body prefabs: used within editor and level editor file format, contains resuable preset values for creating
-new bodies.
+Defines a common set of rigid body properties for easy rigid body building.
 */
 struct ds_RigidBodyPrefab
 {
@@ -317,15 +315,23 @@ struct ds_RigidBodyPrefab
 	u32	            dynamic;	        /* dynamic body is true, static if false */
 
     //TODO pre-compute...?
-	//(f32 	        mass;			    /* total body mass */
+	//f32 	        mass;			    /* total body mass */
 	//mat3 	        inv_inertia_tensor;
 };
 SDB_DECLARE(ds_RigidBodyPrefab);
 
 /*
-rigid_body
-========== 
-//TODO
+ds_RigidBody
+============
+A ds_RigidBody is either a set of convex shapes, or an instance of a general tri-mesh. The body
+essentially stores connectivity data, with its simulation state stored in ds_RigidBodySim and 
+ds_RigidBodyCompute. 
+
+    :: Every ds_RigidBody has sim index which links (<->) it to its simulation state in the set
+       the body belongs to.
+
+    :: If the body is in the active set, the sim index also index the body's Compute state, which
+       stores velocities.
 */
 
 #define RB_DYNAMIC		((u32) 1 << 1)
@@ -340,24 +346,25 @@ rigid_body
 struct ds_RigidBody
 {
 	POOL_NODE;
-	struct ds_DLLNode island_body;	        /* island body_list node */
+	struct ds_DLLNode island_body;	            /* island body_list node                                */
 
-    ds_RigidBodyId  id;                     /* generational identifier */
+    ds_RigidBodyId  id;                         /* generational identifier                              */
 	u32 		    flags;
-	u32		        island;
+	u32		        island;                     /* island the body belongs to (if it is non-static)     */
 
-    u32             set;                    /* ds_SolverSet index                                   */
-    u32             sim;                    /* ds_SolverSet data index                              */ 
-	f32 		    low_velocity_time;	    /* Current uninterrupted time body has been in a low velocity state */
+    u32             set;                        /* ds_SolverSet index                                   */
+    u32             sim;                        /* ds_SolverSet data index                              */ 
+	f32 		    low_velocity_time;	        /* Current uninterrupted time body has been in a low 
+                                                   velocity state                                       */
 
-    struct ds_DLL   joint_list;             /* list of ds_Joint's attached to the body. Each joint is
-                                               shared with one other body. */
+    struct ds_DLL   joint_list;                 /* list of ds_Joint's attached to the body. Each joint is
+                                                   shared with one other body. */
 
-	struct ds_DLL   shape_list;		        /* list of convex shapes constructing the rigid body 	*/
+	struct ds_DLL   shape_list;		            /* list of convex shapes constructing the rigid body 	*/
 
-    vec3		    local_center_of_mass;	/* local body frame center of mass 			            */
-	mat3 		    inv_inertia_tensor;
-	f32 		    mass;			        /* total body mass */
+	f32 		    mass;			            /* total body mass                                      */
+
+    //TODO temporary
 	u32 	        entity;
 };
 POOL_DECLARE(ds_RigidBody);
@@ -366,18 +373,19 @@ POOL_DECLARE(ds_RigidBody);
 /*
 ds_RigidBodySim
 ===============
+Rigid body frame simulation state.
 */
 struct ds_RigidBodySim
 {
-    u32             body;                   /* RigidBody index */
+    u32             body;                       /* RigidBody index                                      */
     u32             flags;
-    f32             inv_mass;               /* TODO Inverse mass */
-	ds_Transform    world;		            /* local body frame to world transform. Rotation is 
-                                               about the local origin (not center of mass!)         */
-	vec3		    local_center_of_mass;	/* local body frame center of mass */
-	vec3		    world_center_of_mass;	/* world body frame center of mass */
-	mat3 		    local_inv_inertia;      /* TODO local inertia tensor */
-	mat3 		    world_inv_inertia;      /* TODO world inertia tensor */
+    f32             inv_mass;                   /* Inverse mass                                         */
+	ds_Transform    world;		                /* local body frame to world transform. Rotation is 
+                                                   about the local origin (not center of mass!)         */
+	vec3		    local_center_of_mass;	    /* local body frame center of mass                      */
+	vec3		    world_center_of_mass;	    /* world body frame center of mass                      */
+	mat3 		    local_inv_inertia;          /* local inertia tensor                                 */
+	mat3 		    world_inv_inertia;          /* world inertia tensor                                 */
 };
 DEFINE_CPOOL_STRUCT(ds_RigidBodySim);
 
@@ -385,6 +393,7 @@ DEFINE_CPOOL_STRUCT(ds_RigidBodySim);
 /*
 ds_RigidBodyCompute
 ===================
+Active rigid body velocity and other computational data used in the solver
 */
 struct ds_RigidBodyCompute
 {
@@ -399,7 +408,7 @@ struct ds_RigidBodyCompute
 };
 DEFINE_CPOOL_STRUCT(ds_RigidBodyCompute);
 
-//TODO
+/* Add a new rigid body with the prefab properties, and return its unique identifier. */
 ds_RigidBodyId  ds_RigidBodyAdd(struct ds_RigidBodyPipeline *pipeline, const struct ds_RigidBodyPrefab *prefab, const ds_Transform *t_world, const u32 entity);
 /* Free the given body */
 void            ds_RigidBodyRemove(struct arena *mem_tmp, struct ds_RigidBodyPipeline *pipeline, const ds_RigidBodyId id);
@@ -407,6 +416,7 @@ void            ds_RigidBodyRemove(struct arena *mem_tmp, struct ds_RigidBodyPip
 struct slot	    ds_RigidBodyLookup(const struct ds_RigidBodyPipeline *pipeline, const ds_RigidBodyId id);
 /* Process the body's shape list and set its internal mass properties accordingly. */
 void		    ds_RigidBodyUpdateMassProperties(struct ds_RigidBodyPipeline *pipeline, const ds_RigidBodyId id);
+
 /* Internal: Refresh and update rigid body simulation and compute/solver data in range [low, high) before solving */
 void            ds_RigidBodyUpdateSolverDataRange(struct ds_RigidBodyPipeline *pipeline, const u32 low, const u32 high);
 /* Internal: Integrate body velocites in range [low, high) */
