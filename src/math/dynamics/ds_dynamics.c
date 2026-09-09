@@ -3,7 +3,7 @@
 
 #include "ds_dynamics.h"
 #include "ds_pipeline.c"
-#include "ds_statistics.c"
+#include "ds_metrics.c"
 #include "ds_contact.c"
 #include "ds_solver.c"
 #include "ds_island.c"

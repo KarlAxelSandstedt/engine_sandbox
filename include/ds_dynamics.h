@@ -91,29 +91,63 @@ void                        ds_NumericsConfigPop(void);
 
 
 /*
-ds_DynamicsStats
-================
+ds_DynamicsProfile
+==================
 */
 
-struct ds_DynamicsStats
+struct ds_DynamicsProfile
 {
-    /* HullContact statistics */
-    u32 hull_call_count;
-    u32 hull_cache_count;
-    u32 hull_eviction_count;
+    /* Simulation frame timings (ns) */
+    u64 ns_frame_start;           
+    u64 ns_frame_end;           
+    u64 ns_frame_duration;           
 
-    /* MeshHullContact statistics */
-    u32 mesh_hull_call_count;
-    u32 mesh_hull_cache_count;
-    u32 mesh_hull_eviction_count;
+    /* Broadphase timings (ns) */
+    u64 ns_broadphase_start;
+    u64 ns_broadphase_end;
+    u64 ns_broadphase_duration; 
+
+    /* Narrowphase timings (ns) */
+    u64 ns_narrowphase_start;
+    u64 ns_narrowphase_end;
+    u64 ns_narrowphase_duration;
+
+    /* Solverphase timings (ns) */
+    u64 ns_solverphase_start;             
+    u64 ns_solverphase_end;               
+    u64 ns_solverphase_duration;          
+
+    /* Dbvh rebuilding / updating timings (ns) */
+    u64 ns_rebuildphase_start;    
+    u64 ns_rebuildphase_end;    
+    u64 ns_rebuildphase_duration;    
+};
+
+void    ds_DynamicsProfilePrint(FILE *file, const struct ds_DynamicsProfile *profile);
+
+/*
+ds_DynamicsMetrics
+==================
+Pipeline metrics data.
+*/
+
+struct ds_DynamicsMetrics
+{
+    u32 hull_call_count;            /* Number of calls to HullContact           */ 
+    u32 hull_cache_probe_count;     /* Number of existing caches probed         */
+    u32 hull_cache_eviction_count;  /* Number of evicted caches                 */
+
+    u32 mesh_call_count;            /* Number of calls to TriMeshBvhHullContact */
+    u32 mesh_cache_probe_count;     /* Number of existing caches probed         */
+    u32 mesh_cache_eviction_count;  /* Number of evicted caches                 */
 };
 
 /* Flush statistics */
-void    ds_DynamicsStatsFlush(struct ds_DynamicsStats *stats);
+void    ds_DynamicsMetricsFlush(struct ds_DynamicsMetrics *metrics);
 /* Add statistics */
-void    ds_DynamicsStatsAdd(struct ds_DynamicsStats *sum, const struct ds_DynamicsStats *stats);
+void    ds_DynamicsMetricsAdd(struct ds_DynamicsMetrics *sum, const struct ds_DynamicsMetrics *metrics);
 /* Add statistics */
-void    ds_DynamicsStatsPrint(FILE *file, const struct ds_DynamicsStats *stats);
+void    ds_DynamicsMetricsPrint(FILE *file, const struct ds_DynamicsMetrics *metrics);
 
 /*
 ds_DynamicsWorker
@@ -124,12 +158,12 @@ Many parts of the pipeline pushes cached data onto the frame.
 
 struct ds_DynamicsWorker
 {
-    struct arena            frame_arr[2]; /* Double-buffered; Master thread switches arena on new frame */
-    struct arena *          frame;
+    struct arena                frame_arr[2]; /* Double-buffered; Master thread switches arena on new frame */
+    struct arena *              frame;
     
-    struct ds_DynamicsStats stats;
+    struct ds_DynamicsMetrics   metrics;
 
-    u8                      pad[DS_CACHE_LINE];
+    u8                          pad[DS_CACHE_LINE];
 };
 
 /* indexed by workers using their thread indices (ds_ThreadSelfIndex()) */
@@ -858,7 +892,10 @@ void        ds_SolverSetMoveBody(struct ds_Dynamics *pipeline, const u32 body, c
 /*
 ds_Island
 =========
-TODO 
+If an island is not sleeping, it stores one or more connected components in the constraint graph. When all bodies
+in the graph reaches low enough velocity, the island is split up, creating a sleeping island for each connected
+component it stored. Sleeping islands are awoken again by having an external force (new contact or new joint)
+act upon one of the island's bodies.
 */
 
 struct ds_Island
@@ -1337,7 +1374,12 @@ struct ds_Dynamics
 
     struct ds_NumericsConfig        numerics_config;
 
-    struct ds_DynamicsStats         stats;
+    struct ds_DynamicsProfile *     profile;                /* current profile          */
+    struct ds_DynamicsProfile *     profile_buf;            /* profile buffer           */
+    u64                             profile_length;         /* buffer length            */
+    u64                             profile_next;           /* monotonically increasing */
+
+    struct ds_DynamicsMetrics       metrics;
     struct ds_DynamicsWorker *      worker;
     u32                             worker_count;
 

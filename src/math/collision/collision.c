@@ -2449,8 +2449,8 @@ struct c_ContactResult c_HullContact(struct arena *frame, const struct c_Contact
 	ds_Assert(s[0]->type == C_SHAPE_CONVEX_HULL);
 	ds_Assert(s[1]->type == C_SHAPE_CONVEX_HULL);
 
-    struct ds_DynamicsStats *stats = &g_dynamics_worker[ds_ThreadSelfIndex()].stats;
-    stats->hull_call_count += 1;
+    struct ds_DynamicsMetrics *metrics = &g_dynamics_worker[ds_ThreadSelfIndex()].metrics;
+    metrics->hull_call_count += 1;
 
     u32 colliding = 0;
     struct c_ContactResult result = { 0 };
@@ -2487,7 +2487,7 @@ struct c_ContactResult c_HullContact(struct arena *frame, const struct c_Contact
         {
             case SAT_CACHE_SEPARATION:
 	        {
-                stats->hull_cache_count += 1;
+                metrics->hull_cache_probe_count += 1;
 	        	vec3 support1, support2, tmp;
 	        	Vec3Negate(tmp, cache->normal);
 
@@ -2504,12 +2504,12 @@ struct c_ContactResult c_HullContact(struct arena *frame, const struct c_Contact
                     Vec3Copy(result.cache->normal, cache->normal);
                     goto sat_cleanup;
 	        	}
-                stats->hull_eviction_count += 1;
+                metrics->hull_cache_eviction_count += 1;
 	        } break;
              
             case SAT_CACHE_CONTACT_EE:
 	        {
-                stats->hull_cache_count += 1;
+                metrics->hull_cache_probe_count += 1;
 	            struct sat_EdgeQuery e_query = { .depth = -F32_INFINITY };
 	        	HullContactEECheckRecompute(&e_query, h[0], v_world[0], sat_FeatureIdIndex(cache->feature[0]), h[1], v_world[1], sat_FeatureIdIndex(cache->feature[1]), t[0].position);
 	        	sat_EdgeQueryCollisionResult(result.manifold, result.cache, &e_query, ref);
@@ -2518,7 +2518,7 @@ struct c_ContactResult c_HullContact(struct arena *frame, const struct c_Contact
                         || f32_abs(e_query.depth - result.cache->depth) >= g_numerics_config->manifold_cache_depth_max_diff_allowed
                         || Vec3Dot(result.cache->normal, cache->normal) < g_numerics_config->manifold_cache_normal_parallel_check_eps)
                 {
-                    stats->hull_eviction_count += 1;
+                    metrics->hull_cache_eviction_count += 1;
                     break;
                 }
 
@@ -2527,7 +2527,7 @@ struct c_ContactResult c_HullContact(struct arena *frame, const struct c_Contact
 
             case SAT_CACHE_CONTACT_FV:
 	        {
-                stats->hull_cache_count += 1;
+                metrics->hull_cache_probe_count += 1;
                 /* b_f = body with reference/contact face, b_v = incident body with penetrating vertices */
                 const u32 b_f = sat_FeatureIdFaceCheck(cache->feature[1]);
                 const u32 b_v = 1 - b_f;
@@ -2535,7 +2535,7 @@ struct c_ContactResult c_HullContact(struct arena *frame, const struct c_Contact
 	        	DcelFaceNormal(result.cache->normal, h[b_f], rot[b_f], face);
                 if (Vec3Dot(result.cache->normal, cache->normal) < g_numerics_config->manifold_cache_normal_parallel_check_eps) 
                 { 
-                    stats->hull_eviction_count += 1;
+                    metrics->hull_cache_eviction_count += 1;
                     break; 
                 }
 
@@ -2548,7 +2548,7 @@ struct c_ContactResult c_HullContact(struct arena *frame, const struct c_Contact
                         || result.cache->feature[b_v] != cache->feature[b_v]
                         || f32_abs(result.cache->depth - cache->depth) >= g_numerics_config->manifold_cache_depth_max_diff_allowed)
                 { 
-                    stats->hull_eviction_count += 1;
+                    metrics->hull_cache_eviction_count += 1;
                     break; 
                 }
 			    result.cache->type = SAT_CACHE_CONTACT_FV;
@@ -3429,7 +3429,7 @@ static void TriCcwHullDelayedSet(u32 delayed_set[2], u32 *delayed_count, const s
 static u32 TriCcwHullContact(struct c_Manifold *manifold, struct c_SatCache *new_cache, u32 delayed_set[2], u32 *delayed_count, const struct c_SatCache *old_cache, const vec3 tri[3], const struct dcel *hull, const u32 ref)
 { 
     struct arena *tmp = ArenaPushScratch();
-    struct ds_DynamicsStats *stats = &g_dynamics_worker[ds_ThreadSelfIndex()].stats;
+    struct ds_DynamicsMetrics *metrics = &g_dynamics_worker[ds_ThreadSelfIndex()].metrics;
     
     struct dcel hull_tri = DcelTriStub();
     hull_tri.v = (vec3ptr) tri;
@@ -3443,7 +3443,7 @@ static u32 TriCcwHullContact(struct c_Manifold *manifold, struct c_SatCache *new
         (tri[0][2] + tri[1][2] + tri[2][2]) / 3.0f,
     };
 
-    stats->mesh_hull_call_count += 1;
+    metrics->mesh_call_count += 1;
 	u32 colliding = 0;
     if (old_cache)
     {
@@ -3452,7 +3452,7 @@ static u32 TriCcwHullContact(struct c_Manifold *manifold, struct c_SatCache *new
         {
             case SAT_CACHE_SEPARATION:
 	        {
-                stats->mesh_hull_cache_count += 1;
+                metrics->mesh_cache_probe_count += 1;
 	        	vec3 support1, support2, tmp;
 	        	Vec3Negate(tmp, old_cache->normal);
 
@@ -3464,7 +3464,7 @@ static u32 TriCcwHullContact(struct c_Manifold *manifold, struct c_SatCache *new
 	        	const f32 depth = dot2 - dot1;
 	        	if (depth <= 0.0f)
 	        	{
-                    stats->mesh_hull_eviction_count += 1;
+                    metrics->mesh_cache_eviction_count += 1;
                     break;
 	        	}
 
@@ -3477,7 +3477,7 @@ static u32 TriCcwHullContact(struct c_Manifold *manifold, struct c_SatCache *new
              
             case SAT_CACHE_CONTACT_EE:
 	        {
-                stats->mesh_hull_cache_count += 1;
+                metrics->mesh_cache_probe_count += 1;
 	            struct sat_EdgeQuery e_query = { .depth = -F32_INFINITY };
 	        	HullContactEECheckRecompute(&e_query, h[0], v[0], sat_FeatureIdIndex(old_cache->feature[0]), h[1], v[1], sat_FeatureIdIndex(old_cache->feature[1]), tri_center);
                 TriCcwHullEdgeQueryCollisionResult(manifold, new_cache, delayed_set, delayed_count, &e_query, ref);
@@ -3487,7 +3487,7 @@ static u32 TriCcwHullContact(struct c_Manifold *manifold, struct c_SatCache *new
                         || f32_abs(new_cache->depth - old_cache->depth) >= g_numerics_config->manifold_cache_depth_max_diff_allowed
                         || Vec3Dot(new_cache->normal, old_cache->normal) < g_numerics_config->manifold_cache_normal_parallel_check_eps)
                 {
-                    stats->mesh_hull_eviction_count += 1;
+                    metrics->mesh_cache_eviction_count += 1;
                     break;
                 }
 
@@ -3497,14 +3497,14 @@ static u32 TriCcwHullContact(struct c_Manifold *manifold, struct c_SatCache *new
 
             case SAT_CACHE_CONTACT_FV:
             {
-                stats->mesh_hull_cache_count += 1;
+                metrics->mesh_cache_probe_count += 1;
                 const u32 b_f = sat_FeatureIdFaceCheck(old_cache->feature[1]);
                 const u32 b_v = 1 - b_f;
                 const u32 face = sat_FeatureIdIndex(old_cache->feature[b_f]);
 	        	DcelFaceNormalLocal(new_cache->normal, h[b_f], face);
                 if (Vec3Dot(new_cache->normal, old_cache->normal) < g_numerics_config->manifold_cache_normal_parallel_check_eps) 
                 { 
-                    stats->mesh_hull_eviction_count += 1;
+                    metrics->mesh_cache_eviction_count += 1;
                     break; 
                 }
 
@@ -3517,7 +3517,7 @@ static u32 TriCcwHullContact(struct c_Manifold *manifold, struct c_SatCache *new
                         || new_cache->feature[b_v] != old_cache->feature[b_v]
                         || f32_abs(new_cache->depth - old_cache->depth) >= g_numerics_config->manifold_cache_depth_max_diff_allowed)
                 { 
-                    stats->mesh_hull_eviction_count += 1;
+                    metrics->mesh_cache_eviction_count += 1;
                     break; 
                 }
 

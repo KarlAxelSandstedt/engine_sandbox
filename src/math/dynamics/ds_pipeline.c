@@ -39,6 +39,7 @@ struct ds_Dynamics ds_DynamicsAlloc(struct arena *mem, const u32 initial_size, c
 	{
 		.gravity = { 0.0f, -GRAVITY_CONSTANT_DEFAULT, 0.0f },
 		.ns_tick = ns_tick,
+        .timestep = (f32) ns_tick / NSEC_PER_SEC,
 		.ns_elapsed = 0,
 		.ns_start = 0,
 		.frame = ArenaAlloc(mem, frame_memory),
@@ -133,7 +134,7 @@ struct ds_Dynamics ds_DynamicsAlloc(struct arena *mem, const u32 initial_size, c
 
     ds_StaticAssert((u64) &((struct ds_DynamicsWorker *)0)->frame_arr[1] < (u64) &((struct ds_DynamicsWorker *)0)->pad, "");
     ds_StaticAssert((u64) &((struct ds_DynamicsWorker *)0)->frame < (u64) &((struct ds_DynamicsWorker *)0)->pad, "");
-    ds_StaticAssert((u64) &((struct ds_DynamicsWorker *)0)->stats < (u64) &((struct ds_DynamicsWorker *)0)->pad, "");
+    ds_StaticAssert((u64) &((struct ds_DynamicsWorker *)0)->metrics < (u64) &((struct ds_DynamicsWorker *)0)->pad, "");
     pipeline.worker = ArenaPushAligned(mem, worker_count*sizeof(struct ds_DynamicsWorker), DS_CACHE_LINE);
     pipeline.worker_count = worker_count;
     g_dynamics_worker = pipeline.worker;
@@ -142,6 +143,10 @@ struct ds_Dynamics ds_DynamicsAlloc(struct arena *mem, const u32 initial_size, c
         pipeline.worker[i].frame_arr[0] = ArenaAlloc(NULL, worker_frame_size);
         pipeline.worker[i].frame_arr[1] = ArenaAlloc(NULL, worker_frame_size);
     }
+
+    pipeline.profile_length = 8192;
+    pipeline.profile_next = pipeline.profile_length;
+    pipeline.profile_buf = ArenaPushZero(mem, pipeline.profile_length*sizeof(struct ds_DynamicsProfile));
 
 	return pipeline;
 }
@@ -216,6 +221,9 @@ void ds_DynamicsFlush(struct ds_Dynamics *pipeline)
         ArenaFlush(pipeline->worker[i].frame_arr + 0);
         ArenaFlush(pipeline->worker[i].frame_arr + 1);
     }
+
+    memset(pipeline->profile_buf, 0, pipeline->profile_length*sizeof(struct ds_DynamicsProfile));
+    pipeline->profile_next = pipeline->profile_length;
 
     ds_SolverSetFlush(pipeline, 0);
     ds_SolverSetFlush(pipeline, 1);
@@ -426,6 +434,7 @@ static void CollisionDetection(struct ds_Dynamics *pipeline)
     struct ds_BroadJobPhase *broad_phase = pipeline->broad_phase;
     {
     	ProfZoneNamed("JobPhase(Broadphase)");
+        pipeline->profile->ns_broadphase_start = ds_TimeNs();
 
         ds_JobPhaseBegin(&broad_phase->phase);
 
@@ -456,6 +465,7 @@ static void CollisionDetection(struct ds_Dynamics *pipeline)
         
         ds_JobPhaseEnd();
 
+        pipeline->profile->ns_broadphase_end = ds_TimeNs();
         ProfZoneEnd;
     }
 
@@ -492,6 +502,7 @@ static void CollisionDetection(struct ds_Dynamics *pipeline)
     struct ds_NarrowJobPhase *narrow_phase = pipeline->narrow_phase;
     {
     	ProfZoneNamed("JobPhase(Narrowphase)");
+        pipeline->profile->ns_narrowphase_start = ds_TimeNs();
 
         ds_JobPhaseBegin(&narrow_phase->phase);
 
@@ -535,6 +546,7 @@ static void CollisionDetection(struct ds_Dynamics *pipeline)
         
         ds_JobPhaseEnd();
 
+        pipeline->profile->ns_narrowphase_end = ds_TimeNs();
     	ProfZoneEnd;
     }
 
@@ -818,6 +830,7 @@ static void SolveConstraints(struct ds_Dynamics *pipeline)
     struct ds_SolverJobPhase *solver_phase = pipeline->solver_phase;
     {
     	ProfZoneNamed("JobPhase(Solve)");
+        pipeline->profile->ns_solverphase_start = ds_TimeNs();
 
         ds_JobPhaseBegin(&solver_phase->phase);
 
@@ -900,6 +913,7 @@ static void SolveConstraints(struct ds_Dynamics *pipeline)
         
         ds_JobPhaseEnd();
 
+        pipeline->profile->ns_solverphase_end = ds_TimeNs();
     	ProfZoneEnd;
     }
 
@@ -917,6 +931,8 @@ static void SolveConstraints(struct ds_Dynamics *pipeline)
         ds_Assert(dirty_count >= reinsert_count);
         if (dirty_count)
         {
+            pipeline->profile->ns_rebuildphase_start = ds_TimeNs();
+
             const f32 reinsert_fraction = reinsert_count / dirty_count;
             if (reinsert_fraction > g_numerics_config->dbvh_reinsert_threshold)
             {
@@ -1051,6 +1067,8 @@ static void SolveConstraints(struct ds_Dynamics *pipeline)
                     ProfZoneEnd;
                 }
             }
+
+            pipeline->profile->ns_rebuildphase_end = ds_TimeNs();
         }
     }
         
@@ -1203,6 +1221,8 @@ static void UpdateSolverConfig(struct ds_Dynamics *pipeline)
 
 void ds_DynamicsSimulateFrame(struct ds_Dynamics *pipeline)
 {
+    pipeline->profile->ns_frame_start = ds_TimeNs();
+
 	/* update, if possible, any pending values in contact solver config */
 	UpdateSolverConfig(pipeline);
 
@@ -1212,12 +1232,64 @@ void ds_DynamicsSimulateFrame(struct ds_Dynamics *pipeline)
 
     for (u32 i = 0; i < pipeline->worker_count; ++i)
     {
-        ds_DynamicsStatsAdd(&pipeline->stats, &pipeline->worker[i].stats);
+        ds_DynamicsMetricsAdd(&pipeline->metrics, &pipeline->worker[i].metrics);
     }
-    ds_DynamicsStatsPrint(stderr, &pipeline->stats);
+    ds_DynamicsMetricsPrint(stderr, &pipeline->metrics);
 
 	PHYSICS_PIPELINE_VALIDATE(pipeline);
+
+    pipeline->profile->ns_frame_end = ds_TimeNs();
 }
+
+static void ds_DynamicsProfileBegin(struct ds_Dynamics *pipeline)
+{
+    ds_Assert(PowerOfTwoCheck(pipeline->profile_length));
+    const u32 pi = pipeline->profile_next & (pipeline->profile_length-1);
+    pipeline->profile = pipeline->profile_buf + pi;
+    pipeline->profile_next += 1;
+}
+
+static void ds_DynamicsProfileEnd(struct ds_Dynamics *pipeline)
+{
+    struct ds_DynamicsProfile *p = pipeline->profile;
+
+    p->ns_frame_duration = p->ns_frame_end - p->ns_frame_start;
+    p->ns_broadphase_duration = p->ns_broadphase_end - p->ns_broadphase_start;
+    p->ns_narrowphase_duration = p->ns_narrowphase_end - p->ns_narrowphase_start;
+    p->ns_solverphase_duration = p->ns_solverphase_end - p->ns_solverphase_start;
+    p->ns_rebuildphase_duration = p->ns_rebuildphase_end - p->ns_rebuildphase_start;
+
+    ds_DynamicsProfilePrint(stderr, p);
+
+    if (p->ns_frame_duration > pipeline->ns_tick)
+    {
+        const f32 ms_frame_duration = (f32) p->ns_frame_duration / NSEC_PER_MSEC;
+        const f32 ms_frame_budget = (f32) pipeline->ns_tick / NSEC_PER_MSEC;
+        Log(T_PHYSICS, S_ERROR, "Dynamics time budget surpassed! %f > %f (ms)", ms_frame_duration, ms_frame_budget);
+    }
+}
+
+void ds_DynamicsProfilePrint(FILE *file, const struct ds_DynamicsProfile *p)
+{
+    const f32 ms_frame_duration = (f32) p->ns_frame_duration / NSEC_PER_MSEC;
+    const f32 ms_broadphase_duration = (f32) p->ns_broadphase_duration / NSEC_PER_MSEC;
+    const f32 ms_narrowphase_duration = (f32) p->ns_narrowphase_duration / NSEC_PER_MSEC;
+    const f32 ms_solverphase_duration = (f32) p->ns_solverphase_duration / NSEC_PER_MSEC;
+    const f32 ms_rebuildphase_duration = (f32) p->ns_rebuildphase_duration / NSEC_PER_MSEC;
+
+    const f32 ms_broadphase_perc = 100.0f * ms_broadphase_duration / ms_frame_duration;
+    const f32 ms_narrowphase_perc = 100.0f * ms_narrowphase_duration / ms_frame_duration;
+    const f32 ms_solverphase_perc = 100.0f * ms_solverphase_duration / ms_frame_duration;
+    const f32 ms_rebuildphase_perc = 100.0f * ms_rebuildphase_duration / ms_frame_duration;
+
+    fprintf(file, "================= Profile ==============\n");
+    fprintf(file, "        Time: %fms (100.0%%)\n", ms_frame_duration);
+    fprintf(file, "  Broadphase: %fms (%f%%)\n", ms_broadphase_duration, ms_broadphase_perc);
+    fprintf(file, " Narrowphase: %fms (%f%%)\n", ms_narrowphase_duration, ms_narrowphase_perc);
+    fprintf(file, " Solverphase: %fms (%f%%)\n", ms_solverphase_duration, ms_solverphase_perc);
+    fprintf(file, "Reubildphase: %fms (%f%%)\n", ms_rebuildphase_duration, ms_rebuildphase_perc);
+}
+
 
 void ds_DynamicsTick(struct ds_Dynamics *pipeline)
 {
@@ -1236,13 +1308,15 @@ void ds_DynamicsTick(struct ds_Dynamics *pipeline)
     {
         ArenaFlush(pipeline->worker[i].frame_arr + f);
         pipeline->worker[i].frame = pipeline->worker[i].frame_arr + f;
-        ds_DynamicsStatsFlush(&pipeline->worker[i].stats);
+        ds_DynamicsMetricsFlush(&pipeline->worker[i].metrics);
     }
-    ds_DynamicsStatsFlush(&pipeline->stats);
+    ds_DynamicsMetricsFlush(&pipeline->metrics);
 
-    pipeline->timestep = (f32) pipeline->ns_tick / NSEC_PER_SEC;
-
-	ds_DynamicsSimulateFrame(pipeline);
+    ds_DynamicsProfileBegin(pipeline);
+    {
+	    ds_DynamicsSimulateFrame(pipeline);
+    }
+    ds_DynamicsProfileEnd(pipeline);
 
     ds_NumericsConfigPop();
 
