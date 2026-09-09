@@ -32,7 +32,7 @@ void ds_DynamicsStaticAssert(void)
     ds_StaticAssert(sizeof(struct ds_BodyCompute) == DS_CACHE_LINE, "");
 }
 
-struct ds_Dynamics PhysicsPipelineAlloc(struct arena *mem, const u32 initial_size, const u64 ns_tick, const u64 frame_memory, c_ShapeSDB *cshape_db, ds_BodyPrefabSDB *prefab_db, const u32 worker_count, const u64 worker_frame_size)
+struct ds_Dynamics ds_DynamicsAlloc(struct arena *mem, const u32 initial_size, const u64 ns_tick, const u64 frame_memory, c_ShapeSDB *cshape_db, ds_BodyPrefabSDB *prefab_db, const u32 worker_count, const u64 worker_frame_size)
 {
 	struct ds_Dynamics pipeline =
 	{
@@ -142,7 +142,7 @@ struct ds_Dynamics PhysicsPipelineAlloc(struct arena *mem, const u32 initial_siz
 	return pipeline;
 }
 
-void PhysicsPipelineFree(struct ds_Dynamics *pipeline)
+void ds_DynamicsFree(struct ds_Dynamics *pipeline)
 {
 #ifdef DS_PHYSICS_DEBUG
 	for (u32 i = 0; i < pipeline->debug_count; ++i)
@@ -185,7 +185,7 @@ void PhysicsPipelineFree(struct ds_Dynamics *pipeline)
     ds_SolverSetPoolDealloc(&pipeline->solver_set_pool);
 }
 
-static void PhysicsPipelineClearFrame(struct ds_Dynamics *pipeline)
+static void ds_DynamicsClearFrame(struct ds_Dynamics *pipeline)
 {
 #ifdef DS_PHYSICS_DEBUG
 	for (u32 i = 0; i < pipeline->debug_count; ++i)
@@ -199,7 +199,7 @@ static void PhysicsPipelineClearFrame(struct ds_Dynamics *pipeline)
 }
 
 
-void PhysicsPipelineFlush(struct ds_Dynamics *pipeline)
+void ds_DynamicsFlush(struct ds_Dynamics *pipeline)
 {
 #ifdef DS_PHYSICS_DEBUG
 	for (u32 i = 0; i < pipeline->debug_count; ++i)
@@ -250,7 +250,7 @@ void PhysicsPipelineFlush(struct ds_Dynamics *pipeline)
 	pipeline->ns_elapsed = 0;
 }
 
-void PhysicsPipelineValidate(const struct ds_Dynamics *pipeline)
+void ds_DynamicsValidate(const struct ds_Dynamics *pipeline)
 {
 	ProfZone;
 
@@ -1126,7 +1126,7 @@ static void SolveConstraints(struct ds_Dynamics *pipeline)
 DONE:
 }
 
-void PhysicsPipelineSleepEnable(struct ds_Dynamics *pipeline)
+void ds_DynamicsSleepEnable(struct ds_Dynamics *pipeline)
 {
 	ds_Assert(g_solver_config->sleep_enabled == 0);
 	if (g_solver_config->sleep_enabled)
@@ -1151,7 +1151,7 @@ void PhysicsPipelineSleepEnable(struct ds_Dynamics *pipeline)
     }
 }
 
-void PhysicsPipelineSleepDisable(struct ds_Dynamics *pipeline)
+void ds_DynamicsSleepDisable(struct ds_Dynamics *pipeline)
 {
 	ds_Assert(g_solver_config->sleep_enabled == 1);
 	if (!g_solver_config->sleep_enabled)
@@ -1190,14 +1190,14 @@ static void UpdateSolverConfig(struct ds_Dynamics *pipeline)
 	if (g_solver_config->pending_sleep_enabled != g_solver_config->sleep_enabled)
 	{
 		(g_solver_config->pending_sleep_enabled)
-			? PhysicsPipelineSleepEnable(pipeline)
-			: PhysicsPipelineSleepDisable(pipeline);
+			? ds_DynamicsSleepEnable(pipeline)
+			: ds_DynamicsSleepDisable(pipeline);
 
 		g_solver_config->sleep_enabled = g_solver_config->pending_sleep_enabled;
 	}
 }
 
-void PhysicsPipelineSimulateFrame(struct ds_Dynamics *pipeline)
+void ds_DynamicsSimulateFrame(struct ds_Dynamics *pipeline)
 {
 	/* update, if possible, any pending values in contact solver config */
 	UpdateSolverConfig(pipeline);
@@ -1210,7 +1210,7 @@ void PhysicsPipelineSimulateFrame(struct ds_Dynamics *pipeline)
 	PHYSICS_PIPELINE_VALIDATE(pipeline);
 }
 
-void PhysicsPipelineTick(struct ds_Dynamics *pipeline)
+void ds_DynamicsTick(struct ds_Dynamics *pipeline)
 {
 	ProfZone;
 
@@ -1218,7 +1218,7 @@ void PhysicsPipelineTick(struct ds_Dynamics *pipeline)
 
 	if (pipeline->frames_completed > 0)
 	{
-		PhysicsPipelineClearFrame(pipeline);
+		ds_DynamicsClearFrame(pipeline);
 	}
 	pipeline->frames_completed += 1;
 
@@ -1231,14 +1231,14 @@ void PhysicsPipelineTick(struct ds_Dynamics *pipeline)
 
     pipeline->timestep = (f32) pipeline->ns_tick / NSEC_PER_SEC;
 
-	PhysicsPipelineSimulateFrame(pipeline);
+	ds_DynamicsSimulateFrame(pipeline);
 
     ds_NumericsConfigPop();
 
 	ProfZoneEnd;
 }
 
-u64 PhysicsPipelineOrientationHash(const struct ds_Dynamics *pipeline)
+u64 ds_DynamicsOrientationHash(const struct ds_Dynamics *pipeline)
 {
     XXH3_state_t* state = XXH3_createState();
     if (!state)
@@ -1276,7 +1276,7 @@ u64 PhysicsPipelineOrientationHash(const struct ds_Dynamics *pipeline)
     return hash;
 }
 
-u32f32 PhysicsPipelineRaycastParameter(const struct ds_Dynamics *pipeline, const struct ray *ray)
+u32f32 ds_DynamicsRaycastParameter(const struct ds_Dynamics *pipeline, const struct ray *ray)
 {
     struct arena *tmp = ArenaPushScratch();
 
@@ -1348,7 +1348,7 @@ struct ds_PhysicsEvent *ds_PhysicsEventPush(struct ds_Dynamics *pipeline)
 	return event;
 }
 
-void PhysicsPipelinePrintUsage(const struct ds_Dynamics *pipeline)
+void ds_DynamicsPrintUsage(const struct ds_Dynamics *pipeline)
 {
     fprintf(stderr, "Physics:\n");
     fprintf(stderr, "\tbodies:                      %u\n", pipeline->body_pool.count);

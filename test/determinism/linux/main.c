@@ -207,7 +207,7 @@ int main(int argc, char *argv[])
 		led_UiMain(editor);
 		r_EditorMain(editor);
 
-        const u64 hash = PhysicsPipelineOrientationHash(&editor->physics);
+        const u64 hash = ds_DynamicsOrientationHash(&editor->physics);
         if (test.generate)
         {
             const u32 index = ds_CPoolPush(test.hash_pool).index;

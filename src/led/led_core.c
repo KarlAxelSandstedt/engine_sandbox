@@ -1746,7 +1746,7 @@ static void led_EngineRun(struct led *led)
 		//}
 		//else
 		//{
-			PhysicsPipelineTick(&led->physics);
+			ds_DynamicsTick(&led->physics);
 			ns_next_physics_frame += led->physics.ns_tick;
 		//}
 	}
@@ -2029,12 +2029,12 @@ static void led_EngineRun(struct led *led)
 	
 	ds_PhysicsEventPoolFlush(&led->physics.event_pool);
 
-    //PhysicsPipelinePrintUsage(&led->physics);
+    //ds_DynamicsPrintUsage(&led->physics);
 }
 
 static void led_EngineFlush(struct led *led)
 {
-	PhysicsPipelineFlush(&led->physics);
+	ds_DynamicsFlush(&led->physics);
 
     HII it; 
     HIIInit(it, led->node_hierarchy, LED_NODE_ROOT);
@@ -2066,7 +2066,7 @@ static void led_EngineFlush(struct led *led)
 static void led_EngineInit(struct led *led)
 {
 	//TODO move this into engine flush
-	PhysicsPipelineFlush(&led->physics);		
+	ds_DynamicsFlush(&led->physics);		
 	led->physics.ns_start = led->ns;
 	led->physics.ns_elapsed = -led->ns_delta;
 	led->ns_engine_paused = 0;

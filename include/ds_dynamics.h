@@ -1055,13 +1055,10 @@ struct ds_BroadJob
 struct ds_BroadJobPhase
 {
     struct ds_JobPhase              phase;
-
-    struct ds_Dynamics *   pipeline;
-
     struct ds_BroadJob *            job;
     u32                             job_count;
-
     struct ds_ParallelForChain      pf;
+    struct ds_Dynamics *            pipeline;
 };
 
 u32 ds_BroadJobPhaseDispatch(const ds_JobId job);
@@ -1085,14 +1082,10 @@ struct ds_NarrowJob
 struct ds_NarrowJobPhase
 {
     struct ds_JobPhase              phase;
-
-    struct ds_Dynamics *   pipeline;
-    struct dbvhOverlap *            overlap;
-
     struct ds_NarrowJob *           job;
     u32                             job_count;
-
     struct ds_ParallelForChain      pf[CG_COLOR_COUNT + 1];
+    struct ds_Dynamics *            pipeline;
 };
 
 u32 ds_NarrowJobPhaseDispatch(const ds_JobId job);
@@ -1178,14 +1171,11 @@ struct ds_RebuildJob
 
 struct ds_RebuildJobPhase
 {
-    struct ds_JobPhase              phase;
-
-    struct ds_Dynamics *   pipeline;
-
-    struct ds_RebuildJob *          job;
-    u32                             job_count;
-
-    struct ds_ParallelForChain      pf_proxy_update;
+    struct ds_JobPhase          phase;
+    struct ds_RebuildJob *      job;
+    u32                         job_count;
+    struct ds_ParallelForChain  pf_proxy_update;
+    struct ds_Dynamics *        pipeline;
 };
 
 u32 ds_RebuildJobPhaseDispatch(const ds_JobId job);
@@ -1378,28 +1368,28 @@ struct ds_Dynamics
 /**************** PHYISCS PIPELINE API ****************/
 
 /* Initialize a new growable physics pipeline; ns_tick is the duration of a physics frame. */
-struct ds_Dynamics PhysicsPipelineAlloc(struct arena *mem, const u32 initial_size, const u64 ns_tick, const u64 frame_memory, c_ShapeSDB *cshape_db, ds_BodyPrefabSDB *prefab_db, const u32 worker_cont, const u64 worker_frame_size);
+struct ds_Dynamics ds_DynamicsAlloc(struct arena *mem, const u32 initial_size, const u64 ns_tick, const u64 frame_memory, c_ShapeSDB *cshape_db, ds_BodyPrefabSDB *prefab_db, const u32 worker_cont, const u64 worker_frame_size);
 /* free pipeline resources */
-void 			PhysicsPipelineFree(struct ds_Dynamics *physics_pipeline);
+void 			ds_DynamicsFree(struct ds_Dynamics *physics_pipeline);
 /* flush pipeline resources */
-void			PhysicsPipelineFlush(struct ds_Dynamics *physics_pipeline);
+void			ds_DynamicsFlush(struct ds_Dynamics *physics_pipeline);
 /* pipeline main method: simulate a single physics frame and update internal state  */
-void 			PhysicsPipelineTick(struct ds_Dynamics *pipeline);
+void 			ds_DynamicsTick(struct ds_Dynamics *pipeline);
 /* Hash bodies in order from low to high and return the final hash  */
-u64             PhysicsPipelineOrientationHash(const struct ds_Dynamics *pipeline);
+u64             ds_DynamicsOrientationHash(const struct ds_Dynamics *pipeline);
 /* validate and ds_Assert internal state of physics pipeline */
-void			PhysicsPipelineValidate(const struct ds_Dynamics *pipeline);
+void			ds_DynamicsValidate(const struct ds_Dynamics *pipeline);
 /* If hit, return parameter (shape,t) of ray at first collision. Otherwise return (U32_MAX, F32_INFINITY) */
-u32f32 			PhysicsPipelineRaycastParameter(const struct ds_Dynamics *pipeline, const struct ray *ray);
+u32f32 			ds_DynamicsRaycastParameter(const struct ds_Dynamics *pipeline, const struct ray *ray);
 /* enable sleeping in pipeline */
-void 			PhysicsPipelineSleepEnable(struct ds_Dynamics *pipeline);
+void 			ds_DynamicsSleepEnable(struct ds_Dynamics *pipeline);
 /* disable sleeping in pipeline */
-void 			PhysicsPipelineSleepDisable(struct ds_Dynamics *pipeline);
+void 			ds_DynamicsSleepDisable(struct ds_Dynamics *pipeline);
 /* Print resource usage */
-void            PhysicsPipelinePrintUsage(const struct ds_Dynamics *pipeline);
+void            ds_DynamicsPrintUsage(const struct ds_Dynamics *pipeline);
 
 #ifdef DS_PHYSICS_DEBUG
-#define PHYSICS_PIPELINE_VALIDATE(pipeline)	PhysicsPipelineValidate(pipeline)
+#define PHYSICS_PIPELINE_VALIDATE(pipeline)	ds_DynamicsValidate(pipeline)
 #else
 #define PHYSICS_PIPELINE_VALIDATE(pipeline)	
 #endif
