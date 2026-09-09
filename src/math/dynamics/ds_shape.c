@@ -21,8 +21,15 @@ POOL_DEFINE(ds_Shape);
 SDB_DEFINE(ds_ShapePrefab);
 POOL_DEFINE(ds_ShapePrefabInstance);
 
-ds_ShapeId ds_ShapeAdd(struct ds_Dynamics *pipeline, const struct ds_ShapePrefab *prefab, const ds_Transform *t, const ds_BodyId body)
+ds_ShapeId ds_ShapeAdd(struct ds_Dynamics *pipeline, const struct ds_ShapePrefab *prefab, const ds_Transform *t, const ds_BodyId body_id)
 {
+    struct slot	body_slot = ds_BodyLookup(pipeline, body_id);
+    struct ds_Body *body = body_slot.address;
+    if (!body)
+    {
+        return DS_ID_NULL;
+    }
+
     ds_ShapeId id = DS_ID_NULL;
     const u32 old_max = pipeline->shape_pool.count_max;
     const struct slot shape_slot = ds_ShapePoolAdd(&pipeline->shape_pool);
@@ -45,11 +52,10 @@ ds_ShapeId ds_ShapeAdd(struct ds_Dynamics *pipeline, const struct ds_ShapePrefab
         ds_BitSetIncreaseSize(&pipeline->shape_dynamic_usage_set, pipeline->shape_dynamic_usage_set.bit_count << 1, 0);
     }
 
-	struct ds_Body *body_ptr = pipeline->body_pool.buf + ds_IdIndex(body);
-	ds_Assert(ds_PoolSlotAllocated(body_ptr));
-	ds_DLLAppend(body_ptr->shape_list, pipeline->shape_pool.buf, shape_slot.index, body_shape);
+	ds_DLLAppend(body->shape_list, pipeline->shape_pool.buf, shape_slot.index, body_shape);
 
-	shape->body = ds_IdIndex(body);
+    shape->flags = body->flags & SHAPE_FLAG_ALL;
+	shape->body = ds_IdIndex(body_id);
 	shape->density = prefab->density;
 	shape->restitution = prefab->restitution;
 	shape->friction = prefab->friction;
@@ -63,7 +69,7 @@ ds_ShapeId ds_ShapeAdd(struct ds_Dynamics *pipeline, const struct ds_ShapePrefab
 	shape->cshape_type = cshape->type;
 
 	struct aabb bbox_proxy = ds_ShapeWorldBbox(pipeline, shape);
-    if (ds_BodyDynamicCheck(body_ptr))
+    if (ds_BodyDynamicCheck(body))
     {
 		Vec3Translate(bbox_proxy.hw, Vec3Inline(shape->margin, shape->margin, shape->margin));
         ds_BitSetSet(&pipeline->shape_dynamic_usage_set, shape_slot.index, 1);
@@ -75,7 +81,7 @@ ds_ShapeId ds_ShapeAdd(struct ds_Dynamics *pipeline, const struct ds_ShapePrefab
         shape->proxy = DbvhInsert(&pipeline->static_bvh, shape->body, shape_slot.index, &bbox_proxy);
     }
     
-    ds_BodyUpdateMassProperties(pipeline, body);
+    ds_BodyUpdateMassProperties(pipeline, body_id);
 
     return shape->id;
 }

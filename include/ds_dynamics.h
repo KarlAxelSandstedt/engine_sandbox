@@ -177,13 +177,22 @@ transform, ds_Body must also store its center of mass:
 	}
 */
 
+#define SHAPE_FLAG_ALL          (BODY_FLAG_DYNAMIC)
+
+#define ds_ShapeStaticCheck(b)	(!((b)->flags & BODY_FLAG_DYNAMIC))
+#define ds_ShapeDynamicCheck(b)	((b)->flags & BODY_FLAG_DYNAMIC)
+
+#define ds_ShapeDynamicBit(b)    (((b)->flags & BODY_FLAG_DYNAMIC) >> BODY_FLAG_DYNAMIC_BIT)
+
 struct ds_Shape
 {
 	POOL_NODE;
     struct ds_DLLNode body_shape;
 
     ds_ShapeId      id;                 /* Generational identifier                          */
-	u32 			body;		        /* ds_Body owner of node 			            */
+    u32             flags;              /* Shape flags (BODY_FLAG_DYNAMIC)                       */
+	u32 			body;		        /* ds_Body owner of node 			                */
+	u32			    proxy;		        /* BVH index 					                    */
     struct ds_DLL   contact_list;       /* list of the shape's contacts                     */
 
 	enum c_ShapeType cshape_type;	    /* collisionShape type 				                */
@@ -196,9 +205,6 @@ struct ds_Shape
 	f32		        margin;		        /* bouding box margin for dynamic BVH proxies 	    */
 
 	ds_Transform	t_local;	        /* local body frame transform 			            */
-
-	/* DYNAMIC STATE */
-	u32			    proxy;		        /* BVH index 					                    */
 };
 POOL_DECLARE(ds_Shape);
 
@@ -252,7 +258,7 @@ POOL_DECLARE(ds_ShapePrefabInstance);
 
 /* 
  * Allocates a shape according to the values set in Prefab and with given local body frame transform. On success, 
- * an identifier to the shape is returned. On failure, U64 is return. 
+ * an identifier to the shape is returned. On failure, DS_ID_NULL is return. 
  */
 ds_ShapeId  ds_ShapeAdd(struct ds_Dynamics *pipeline, const struct ds_ShapePrefab *prefab, const ds_Transform *t, const ds_BodyId body);
 /* 
@@ -334,13 +340,15 @@ ds_BodyCompute.
        stores velocities.
 */
 
-#define BODY_DYNAMIC_BIT    0
-#define BODY_DYNAMIC		((u32) 1 << BODY_DYNAMIC_BIT)
+#define BODY_FLAG_DYNAMIC_BIT    0
 
-#define ds_BodyStaticCheck(b)	(!((b)->flags & BODY_DYNAMIC))
-#define ds_BodyDynamicCheck(b)	((b)->flags & BODY_DYNAMIC)
+#define BODY_FLAG_DYNAMIC		((u32) 1 << BODY_FLAG_DYNAMIC_BIT)
+#define BODY_FLAG_ALL           (BODY_FLAG_DYNAMIC)
 
-#define ds_BodyDynamicBit(b)    (((b)->flags & BODY_DYNAMIC) >> BODY_DYNAMIC_BIT)
+#define ds_BodyStaticCheck(b)	(!((b)->flags & BODY_FLAG_DYNAMIC))
+#define ds_BodyDynamicCheck(b)	((b)->flags & BODY_FLAG_DYNAMIC)
+
+#define ds_BodyDynamicBit(b)    (((b)->flags & BODY_FLAG_DYNAMIC) >> BODY_FLAG_DYNAMIC_BIT)
 
 struct ds_Body
 {

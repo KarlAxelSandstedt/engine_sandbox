@@ -44,7 +44,7 @@ ds_BodyId ds_BodyAdd(struct ds_Dynamics *pipeline, const struct ds_BodyPrefab *p
 
 	body->entity = entity;
 
-	const u32 dynamic_flag = (prefab->dynamic) ? BODY_DYNAMIC : 0;
+	const u32 dynamic_flag = (prefab->dynamic) ? BODY_FLAG_DYNAMIC : 0;
 	body->flags = dynamic_flag;
 
 	body->low_velocity_time = 0.0f;
@@ -60,6 +60,8 @@ ds_BodyId ds_BodyAdd(struct ds_Dynamics *pipeline, const struct ds_BodyPrefab *p
         body->sim = sim_slot.index;
 
         sim = sim_slot.address;
+        sim->flags = body->flags;
+
         struct ds_BodyCompute *compute = compute_slot.address;
         compute->flags = body->flags;
 	    Vec3Set(compute->linear_velocity, 0.0f, 0.0f, 0.0f);
@@ -80,6 +82,7 @@ ds_BodyId ds_BodyAdd(struct ds_Dynamics *pipeline, const struct ds_BodyPrefab *p
 		body->island = POOL_NULL;
 
         sim = sim_slot.address;
+        sim->flags = body->flags;
 	}
 
     sim->body = body_slot.index;

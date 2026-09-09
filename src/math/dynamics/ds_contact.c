@@ -178,20 +178,14 @@ u32 ds_ContactCheckBvhOverlap(const struct ds_Dynamics *pipeline, const u32 cont
         pipeline->shape_pool.buf + contact->key.shape[1],
     };
     
-    const struct ds_Body *body[2] =
-    {
-	    pipeline->body_pool.buf + shape[0]->body,
-	    pipeline->body_pool.buf + shape[1]->body,
-    };
-
     const struct bvhNode *s_node = pipeline->static_bvh.pool.buf;
     const struct bvhNode *d_node = pipeline->dynamic_bvh.pool.buf;
 
     const struct aabb *bbox[2];
-    bbox[0] = ds_BodyDynamicCheck(body[0]) 
+    bbox[0] = ds_ShapeDynamicCheck(shape[0]) 
             ? &d_node[ shape[0]->proxy ].bbox 
             : &s_node[ shape[0]->proxy ].bbox;
-    bbox[1] = ds_BodyDynamicCheck(body[1]) 
+    bbox[1] = ds_ShapeDynamicCheck(shape[1]) 
             ? &d_node[ shape[1]->proxy ].bbox 
             : &s_node[ shape[1]->proxy ].bbox;
     
