@@ -787,7 +787,7 @@ static void ds_RebuildProduceFatWork(struct arena *mem, struct ds_RebuildJobPhas
     ds_ParallelForInit(new_range->pf.parallel_for, new_count, phase->small_range_leaf_limit);
 }
 
-static void ds_RebuildGather(u32 count[2], u32 axis[2], f32 pivot[2], const struct ds_RebuildJobPhase *phase)
+static void ds_RebuildGather(u32 axis[2], f32 pivot[2], const struct ds_RebuildJobPhase *phase)
 {
     vec3 min[2] = 
     {
@@ -801,13 +801,9 @@ static void ds_RebuildGather(u32 count[2], u32 axis[2], f32 pivot[2], const stru
         { -F32_INFINITY, -F32_INFINITY, -F32_INFINITY },
     };
 
-    count[0] = 0;
-    count[1] = 0;
     for (u32 j = 0; j < phase->job_count; ++j)
     {
         struct ds_RebuildJob *job = phase->job + j;
-        count[0] += job->count[0];
-        count[1] += job->count[1];
         Vec3MinSelf(min[0], job->min[0]);
         Vec3MaxSelf(max[0], job->max[0]);
         Vec3MinSelf(min[1], job->min[1]);
@@ -839,9 +835,11 @@ static void ds_RebuildProduceWork(struct arena *phase_mem, struct ds_RebuildJobP
     const struct ds_RebuildLeaf *leaf_buf = phase->leaf_buf[ri];
     struct bvhNode *node_buf = pipeline->dynamic_bvh.pool.buf;
     
-    f32 pivot[2];
-    u32 count[2], axis[2];
-    ds_RebuildGather(count, axis, pivot, phase);
+    const u32 count[2] = 
+    { 
+        range->a_low_count, 
+        range->a_high_count 
+    };
 
     if (count[0] == 0 || count[1] == 0)
     {
@@ -849,8 +847,12 @@ static void ds_RebuildProduceWork(struct arena *phase_mem, struct ds_RebuildJobP
         Breakpoint(1);
         return;
     }
-    
+
     const u32 base[2] = { range->low, range->low + count[0] };
+    f32 pivot[2];
+    u32 axis[2];
+    ds_RebuildGather(axis, pivot, phase);
+
     for (u32 i = 0; i < 2; ++i)
     {        
         const u32 child_index = (count[i] == 1)
@@ -896,13 +898,7 @@ u32 ds_RebuildJobPhaseDispatch(const ds_JobId job_id)
     u32 local_completed = 0;
 
     ds_Assert(pipeline->dynamic_bvh.pool.count > 1);
-
-    job->count[0] = 0;
-    job->count[1] = 0;
-    Vec3Set(job->min[0], F32_INFINITY, F32_INFINITY, F32_INFINITY);
-    Vec3Set(job->max[0], -F32_INFINITY, -F32_INFINITY, -F32_INFINITY);
-    Vec3Set(job->min[1], F32_INFINITY, F32_INFINITY, F32_INFINITY);
-    Vec3Set(job->max[1], -F32_INFINITY, -F32_INFINITY, -F32_INFINITY);
+    ds_Assert(phase->small_range_leaf_limit == 64*phase->leaf_blocks_per_work);
 
     chain = &phase->pf_proxy_update;
     {
@@ -914,6 +910,13 @@ u32 ds_RebuildJobPhaseDispatch(const ds_JobId job_id)
             ds_ParallelForRange(&low, &high, pf, range_index);
             for (u32 block = low; block < high; ++block)
             {
+                job->count[0] = 0;
+                job->count[1] = 0;
+                Vec3Set(job->min[0], F32_INFINITY, F32_INFINITY, F32_INFINITY);
+                Vec3Set(job->max[0], -F32_INFINITY, -F32_INFINITY, -F32_INFINITY);
+                Vec3Set(job->min[1], F32_INFINITY, F32_INFINITY, F32_INFINITY);
+                Vec3Set(job->max[1], -F32_INFINITY, -F32_INFINITY, -F32_INFINITY);
+
                 struct ds_BitBlock it = ds_BitBlockInit(leaf_usage->bits[block], block);
                 while (ds_BitBlockHasNext(&it))
                 {
@@ -945,28 +948,24 @@ u32 ds_RebuildJobPhaseDispatch(const ds_JobId job_id)
     }
     ds_ParallelForChainWait(chain);
 
-    //TODO: Write up math books / code book to read / go trough while coding project 
-    //TODO: Project: Arcane Knowledge 
-
-
     /* 
      * One thread gets to finalize the setup, and initialize the first thin or fat work.
      */
     u32 lock = 0;
     if (AtomicCompareExchangeRlxRlx32(&phase->a_setup_completed, &lock, U32_MAX))
     {
-        u32 count[2], axis[2];
+        u32 axis[2];
         f32 pivot[2];
-        ds_RebuildGather(count, axis, pivot, phase);
+        ds_RebuildGather(axis, pivot, phase);
         const u32 node_index = AtomicFetchAddRlx32(&phase->a_internal_counter, 1);
 
-        if (count[0] <= phase->small_range_leaf_limit)
+        if (phase->leaf_count <= phase->small_range_leaf_limit)
         {
-            ds_RebuildProduceThinWork(phase, node_index, 0, count[0], axis[0], pivot[0]);
+            ds_RebuildProduceThinWork(phase, node_index, 0, phase->leaf_count, axis[0], pivot[0]);
         }
         else
         {
-            ds_RebuildProduceFatWork(phase_mem, phase, node_index, 0, count[0], 0, axis[0], pivot[0]);
+            ds_RebuildProduceFatWork(phase_mem, phase, node_index, 0, phase->leaf_count, 0, axis[0], pivot[0]);
         }
         
         AtomicStoreRel32(&phase->a_setup_completed, 1);
@@ -1006,13 +1005,6 @@ u32 ds_RebuildJobPhaseDispatch(const ds_JobId job_id)
             const struct ds_RebuildLeaf *leaf_read = phase->leaf_buf[ri];
             struct ds_RebuildLeaf *leaf_write = phase->leaf_buf[1-ri];
 
-            job->count[0] = 0;
-            job->count[1] = 0;
-            Vec3Set(job->min[0], F32_INFINITY, F32_INFINITY, F32_INFINITY);
-            Vec3Set(job->max[0], -F32_INFINITY, -F32_INFINITY, -F32_INFINITY);
-            Vec3Set(job->min[1], F32_INFINITY, F32_INFINITY, F32_INFINITY);
-            Vec3Set(job->max[1], -F32_INFINITY, -F32_INFINITY, -F32_INFINITY);
-
             chain = &range->pf;
             {
                 pf = chain->parallel_for + 0;
@@ -1022,6 +1014,14 @@ u32 ds_RebuildJobPhaseDispatch(const ds_JobId job_id)
                     ds_ParallelForRange(&low, &high, pf, range_index);
                     low += range->low;
                     high += range->low;
+
+                    job->count[0] = 0;
+                    job->count[1] = 0;
+                    Vec3Set(job->min[0], F32_INFINITY, F32_INFINITY, F32_INFINITY);
+                    Vec3Set(job->max[0], -F32_INFINITY, -F32_INFINITY, -F32_INFINITY);
+                    Vec3Set(job->min[1], F32_INFINITY, F32_INFINITY, F32_INFINITY);
+                    Vec3Set(job->max[1], -F32_INFINITY, -F32_INFINITY, -F32_INFINITY);
+
                     for (u32 li = low; li < high; ++li)
                     {
                         const struct ds_RebuildLeaf *leaf = leaf_read + li;
