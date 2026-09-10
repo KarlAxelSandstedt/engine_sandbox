@@ -832,7 +832,7 @@ static void ds_RebuildProduceWork(struct arena *phase_mem, struct ds_RebuildJobP
     const struct ds_RebuildFatRange *range = phase->fat_range + work_index;
 
     const u32 ri = (range->depth & 0x1);
-    const struct ds_RebuildLeaf *leaf_buf = phase->leaf_buf[ri];
+    const struct ds_RebuildLeaf *leaf_write = phase->leaf_buf[1-ri];
     struct bvhNode *node_buf = pipeline->dynamic_bvh.pool.buf;
     
     const u32 count[2] = 
@@ -856,7 +856,7 @@ static void ds_RebuildProduceWork(struct arena *phase_mem, struct ds_RebuildJobP
     for (u32 i = 0; i < 2; ++i)
     {        
         const u32 child_index = (count[i] == 1)
-                                ? leaf_buf[ base[0] ].index
+                                ? leaf_write[ base[i] ].index
                                 : AtomicFetchAddRlx32(&phase->a_internal_counter, 1);
 
         struct bvhNode *parent = node_buf + range->internal_index;
@@ -1065,7 +1065,6 @@ u32 ds_RebuildJobPhaseDispatch(const ds_JobId job_id)
             }
 
             ds_Spin((local_completed = AtomicLoadAcq32(&phase->a_fat_range_completed)) < local_iteration, 32, U32_MAX);
-            local_iteration += 1;
         }
     }
 
