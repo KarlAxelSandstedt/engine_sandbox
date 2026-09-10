@@ -186,7 +186,7 @@ int main(int argc, char *argv[])
 
 	AssetInit(&persistent);
 
-	struct led *editor = led_Alloc();
+	struct led *editor = led_Alloc(test.thread_count, thread_framesize);
 
 	const u64 renderer_framerate = 144;	
 	r_Init(&persistent, NSEC_PER_SEC / renderer_framerate, 16*1024*1024, 1024, &editor->render_mesh_db);
@@ -215,7 +215,7 @@ int main(int argc, char *argv[])
         }
         else
         {
-            //fprintf(stderr, "checking index %lu of %u: (%lu, %lu)\n", frame, test.hash_pool.count, hash, ((frame >= test.hash_pool.count) ? U64_MAX : test.hash_pool.buf[ frame ]));
+            fprintf(stderr, "checking index %lu of %u: (%lu, %lu)\n", frame, test.hash_pool.count, hash, ((frame >= test.hash_pool.count) ? U64_MAX : test.hash_pool.buf[ frame ]));
             if (frame >= test.hash_pool.count || hash != test.hash_pool.buf[ frame ])
             {
                 success = 0;

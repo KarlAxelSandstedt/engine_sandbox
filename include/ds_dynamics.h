@@ -1259,18 +1259,91 @@ enum ds_RebuildJobType
     REBUILD_JOB_COUNT
 };
 
+struct ds_RebuildLeaf 
+{
+    vec3    center;
+    u32     index;
+};
+
+
+struct ds_RebuildThinRange
+{
+    u32                         low;
+    u32                         high;
+    u32                         internal_index;
+    u32                         axis;
+    f32                         pivot;
+};
+
+struct ds_RebuildFatRange
+{
+    u32                         low;
+    u32                         high;
+    u32                         depth;
+    u32                         internal_index;
+
+    u32                         axis;
+    f32                         pivot;
+
+    struct ds_ParallelForChain  pf;
+
+    u8                          pad0[DS_CACHE_LINE];
+    u32                         a_low_count;
+    u8                          pad1[DS_CACHE_LINE];
+    u32                         a_high_count;
+    u8                          pad2[DS_CACHE_LINE];
+
+};
+
 struct ds_RebuildJob
 {
-    u32 tmp;
+    u8                      pad0[DS_CACHE_LINE];
+    struct ds_RebuildLeaf * leaf[2];
+    u32                     count[2];
+    vec3                    min[2];
+    vec3                    max[2];
+    u8                      pad1[DS_CACHE_LINE];
 };
 
 struct ds_RebuildJobPhase
 {
-    struct ds_JobPhase          phase;
-    struct ds_RebuildJob *      job;
-    u32                         job_count;
-    struct ds_ParallelForChain  pf_proxy_update;
-    struct ds_Dynamics *        pipeline;
+    struct ds_JobPhase              phase;
+    struct ds_RebuildJob *          job;
+    u32                             job_count;
+    struct ds_ParallelForChain      pf_proxy_update;
+    struct ds_Dynamics *            pipeline;
+
+    u32 *                           internal_buf;
+    u32                             internal_count;
+    struct ds_RebuildLeaf *         leaf_buf[2];
+    u32                             leaf_count;
+    u32                             leaf_blocks_per_work; 
+    u32                             small_range_leaf_limit; 
+
+    //TODO Remove
+    u32                             a_next[2];
+
+    struct ds_RebuildThinRange *    thin_range;
+    u32                             thin_range_max_count;
+    struct ds_RebuildFatRange *     fat_range;
+    u32                             fat_range_max_count;
+
+    u8                              pad0[DS_CACHE_LINE];
+    u32                             a_fat_range_counter;
+    u8                              pad1[DS_CACHE_LINE];
+    u32                             a_fat_range_completed;
+    u8                              pad2[DS_CACHE_LINE];
+    u32                             a_fat_range_iteration;
+    u8                              pad3[DS_CACHE_LINE];
+
+    u32                             a_thin_range_left;
+    u8                              pad4[DS_CACHE_LINE];
+
+    u32                             a_setup_completed;     
+    u8                              pad5[DS_CACHE_LINE];
+
+    u32                             a_internal_counter;
+    u8                              pad6[DS_CACHE_LINE];
 };
 
 u32 ds_RebuildJobPhaseDispatch(const ds_JobId job);
