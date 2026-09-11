@@ -1008,6 +1008,7 @@ u32 ds_RebuildJobPhaseDispatch(const ds_JobId job_id)
         ds_RebuildGather(axis, pivot, phase);
         const u32 node_index = phase->internal_buf[AtomicFetchAddRlx32(&phase->a_internal_counter, 1)];
         pipeline->dynamic_bvh.bt.root = node_index;
+        pipeline->dynamic_bvh.pool.buf[node_index].bt_parent = BT_INDEX_NULL;
 
         if (phase->leaf_count <= phase->small_range_leaf_limit)
         {
@@ -1065,6 +1066,7 @@ u32 ds_RebuildJobPhaseDispatch(const ds_JobId job_id)
                 ds_ParallelFor(pf, range_index)
                 {
                     ProfZoneNamed("FatRangeBlock");
+
                     ds_ParallelForRange(&low, &high, pf, range_index);
                     low += range->low;
                     high += range->low;
@@ -1097,9 +1099,9 @@ u32 ds_RebuildJobPhaseDispatch(const ds_JobId job_id)
                         const u32 hbase = range->high - AtomicAddFetchRlx32(&range->a_high_count, job->count[1]);
                         memcpy(leaf_write + hbase, job->leaf[1], job->count[1]*sizeof(struct ds_RebuildLeaf));
                     }
-                }
 
                     ProfZoneEnd;
+                }
             }
 
             ds_ParallelForChainWait(chain);
@@ -1372,7 +1374,7 @@ static void SolveConstraints(struct ds_Dynamics *pipeline)
                     rebuild_phase->leaf_count = ds_BTLeafCount(pipeline->dynamic_bvh.bt);
                     rebuild_phase->leaf_buf[0] = ArenaPushAligned(&pipeline->frame, rebuild_phase->leaf_count*sizeof(struct ds_RebuildLeaf), DS_CACHE_LINE);
                     rebuild_phase->leaf_buf[1] = ArenaPushAligned(&pipeline->frame, rebuild_phase->leaf_count*sizeof(struct ds_RebuildLeaf), DS_CACHE_LINE);
-                    rebuild_phase->fat_range_max_count = 512;
+                    rebuild_phase->fat_range_max_count = 128;
                     rebuild_phase->fat_range = ArenaPush(&pipeline->frame, rebuild_phase->fat_range_max_count*sizeof(struct ds_RebuildFatRange));
                     AtomicStoreRel32(&rebuild_phase->a_fat_range_counter, 0);
                     AtomicStoreRel32(&rebuild_phase->a_fat_range_completed, 0);
@@ -1419,19 +1421,16 @@ static void SolveConstraints(struct ds_Dynamics *pipeline)
                     ProfZoneEnd;
                 }
 
-                struct bvh *dbvh = &pipeline->dynamic_bvh;
-                struct bvhNode *n = dbvh->pool.buf;
-                BvhValidate(dbvh);
-
                 {
                     ProfZoneNamed("Rebuild Bbox derivation and dirtying");
-                    u32 pi;
+                
+                    struct bvh *dbvh = &pipeline->dynamic_bvh;
+                    struct bvhNode *n = dbvh->pool.buf;
                     BTI it;
                     BTLRInit(it, dbvh->pool.buf, dbvh->bt.root);
-                    do
+                    while (it.at != BT_INDEX_NULL)
                     {
-                        pi = it.at;
-                        struct bvhNode *p = n + pi;
+                        struct bvhNode *p = n + it.at;
                         if (!ds_BTLeafCheck(p))
                         {
                             const struct bvhNode *c[2] =
@@ -1442,16 +1441,36 @@ static void SolveConstraints(struct ds_Dynamics *pipeline)
                             p->bbox = BboxUnion(c[0]->bbox, c[1]->bbox);
                         }
                         BTLRAdvance(it, dbvh->pool.buf);
-                    } while (pi != it.root);
-
-                    const struct ds_BitSet *usage = &pipeline->shape_dynamic_usage_set;
-                    for (u64 block = 0; block < usage->block_count; ++block)
-                    {
-                        pipeline->shape_dirty_set.bits[block] = usage->bits[block];
                     }
+
+                    //BvhValidate(dbvh);
                                 
                     ProfZoneEnd;
                 }
+                
+                //{
+                //    ProfZoneNamed("RebuildPhase");
+    
+                //    const struct ds_BitSet *leaf_usage = &pipeline->dynamic_bvh.leaf_set;
+                //    for (u64 block = 0; block < leaf_usage->block_count; ++block)
+                //    {
+                //        struct ds_BitBlock it = ds_BitBlockInit(leaf_usage->bits[block], block);
+                //        while (ds_BitBlockHasNext(&it))
+                //        {
+                //            const u32 pi = ds_BitBlockNext(&it);
+                //            struct bvhNode *node = pipeline->dynamic_bvh.pool.buf + pi;
+                //            const struct ds_Shape *shape = pipeline->shape_pool.buf + node->bt_child[0];
+                //            node->bbox = ds_ShapeWorldBbox(pipeline, shape);
+                //            node->bbox.hw[0] += shape->margin;
+                //            node->bbox.hw[1] += shape->margin;
+                //            node->bbox.hw[2] += shape->margin;
+                //        }
+                //    }
+                //    
+                //    DbvhRebuild(&pipeline->dynamic_bvh);
+
+                //    ProfZoneEnd;
+                //}
             }
             else
             {
@@ -1727,7 +1746,7 @@ void ds_DynamicsProfilePrint(FILE *file, const struct ds_DynamicsProfile *p)
     fprintf(file, "  Broadphase: %fms (%f%%)\n", ms_broadphase_duration, ms_broadphase_perc);
     fprintf(file, " Narrowphase: %fms (%f%%)\n", ms_narrowphase_duration, ms_narrowphase_perc);
     fprintf(file, " Solverphase: %fms (%f%%)\n", ms_solverphase_duration, ms_solverphase_perc);
-    fprintf(file, "Reubildphase: %fms (%f%%)\n", ms_rebuildphase_duration, ms_rebuildphase_perc);
+    fprintf(file, "Rebuildphase: %fms (%f%%)\n", ms_rebuildphase_duration, ms_rebuildphase_perc);
 }
 
 

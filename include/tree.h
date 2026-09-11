@@ -170,6 +170,7 @@ typedef struct BTI
     u32 root;
     u32 at;
     u32 next;
+    u32 root_parent;
 } BTI;
 
 /* Setup depth-first iterator at the given node root */
@@ -231,11 +232,17 @@ do                                                                              
 {                                                                                   \
     (_bti_).root = (_root_);                                                        \
     (_bti_).at = (_root_);                                                          \
-    (_bti_).next = (_root_);                                                        \
+    (_bti_).root_parent = (_buf_)[(_bti_).root].bt_parent & BT_INDEX_MASK;          \
+    (_bti_).next = (_bti_).root_parent;                                             \
     while (!ds_BTLeafCheck((_buf_) + (_bti_).at))                                   \
     {                                                                               \
-        (_bti_).at = (_buf_)[(_bti_).at].bt_child[0];                               \
         (_bti_).next = (_buf_)[(_bti_).at].bt_child[1];                             \
+        (_bti_).at = (_buf_)[(_bti_).at].bt_child[0];                               \
+    }                                                                               \
+                                                                                    \
+    while (!ds_BTLeafCheck((_buf_) + (_bti_).next))                                 \
+    {                                                                               \
+        (_bti_).next = (_buf_)[(_bti_).next].bt_child[0];                           \
     }                                                                               \
 } while (0)
 
@@ -245,14 +252,13 @@ do                                                                              
 #define BTLRAdvance(_bti_, _buf_)                                                                           \
 do                                                                                                          \
 {                                                                                                           \
-    ds_Assert((_bti_).at != (_bti_).root || (_bti_).next == (_bti_).root);                                  \
+    ds_Assert((_bti_).at != (_bti_).root_parent);                                                           \
     (_bti_).at = (_bti_).next;                                                                              \
-                                                                                                            \
-    if (!ds_BTRootCheck((_buf_) + (_bti_).next))                                                            \
+    if ((_bti_).at != (_bti_).root_parent)                                                                  \
     {                                                                                                       \
-        const u32 _parent_ = (_buf_)[(_bti_).next].bt_parent % BT_INDEX_MASK;                               \
+        const u32 _parent_ = (_buf_)[(_bti_).at].bt_parent & BT_INDEX_MASK;                                 \
         (_bti_).next = _parent_;                                                                            \
-        if ((_buf_)[_parent_].bt_child[0] == (_bti_).at)                                                    \
+        if (_parent_ != (_bti_).root_parent && (_buf_)[_parent_].bt_child[0] == (_bti_).at)                 \
         {                                                                                                   \
             (_bti_).next = (_buf_)[_parent_].bt_child[1];                                                   \
             while (!ds_BTLeafCheck((_buf_) + (_bti_).next))                                                 \
@@ -263,9 +269,6 @@ do                                                                              
     }                                                                                                       \
 }                                                                                                           \
 while (0)
-
-
-
 
 #ifdef __cplusplus
 } 
