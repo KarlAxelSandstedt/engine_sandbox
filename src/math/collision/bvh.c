@@ -296,7 +296,7 @@ u32 DbvhInsert(struct bvh *bvh, const u32 body, const u32 shape, const struct aa
 	}
 
 	//struct arena *tmp = ArenaPushScratch();
-	//BvhValidate(tmp, bvh);
+	//BvhValidate(bvh);
 	//ArenaPopScratch();
 
     if (bvh->leaf_set.bit_count < bvh->pool.length)
@@ -875,34 +875,25 @@ struct dbvhOverlap *DbvhPushOverlapPairs(struct arena *mem, u32 *count, const st
 	return (*count) ? overlaps : NULL;
 }
 
-void BvhValidate(struct arena *tmp, const struct bvh *bvh)
+void BvhValidate(const struct bvh *bvh)
 {
 	ds_BTValidate(bvh->bt, bvh->pool.buf);
 	if (bvh->bt.root == BT_INDEX_NULL) { return; }
 
-	ArenaPushRecord(tmp);
 	const struct bvhNode *node = bvh->pool.buf;
-	struct memArray arr = ArenaPushAlignedAll(tmp, sizeof(u32), 4);
-	u32 *stack = arr.addr;
-	stack[0] = bvh->bt.root;
-	u32 sc = 1;
-	while (sc--)
-	{
-		const u32 i = stack[sc];
-		if (!ds_BTRootCheck(node + i))
-		{
+    BTI it;
+    BTDFInit(it, bvh->pool.buf, bvh->bt.root);
+    while (it.next != it.root)
+    {
+        const u32 i = it.at;
+        if (!ds_BTRootCheck(node + i))
+        {
 			const u32 parent = node[i].bt_parent & BT_INDEX_MASK;
 			ds_Assert(AabbContainsMargin(&node[parent].bbox, &node[i].bbox, 0.001f));
-		}
+        }
 
-		if (!ds_BTLeafCheck(node + stack[sc]))
-		{
-			stack[sc + 0] = node[i].bt_child[0];
-			stack[sc + 1] = node[i].bt_child[1];
-			sc += 2;
-		}
-	}
-	ArenaPopRecord(tmp);
+        BTDFAdvance(it, bvh->pool.buf);
+    }
 }
 
 struct triMeshBvh TriMeshBvhConstruct(struct arena *mem, const struct triMesh *mesh, const u32 bin_count)
@@ -1169,7 +1160,7 @@ end:
     ArenaPopScratch();
     ArenaPopScratch();
 
-	BvhValidate(mem, &mesh_bvh.bvh);
+	BvhValidate(&mesh_bvh.bvh);
 
 	ProfZoneEnd;
 	return mesh_bvh;

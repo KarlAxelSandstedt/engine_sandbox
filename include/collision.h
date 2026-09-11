@@ -60,7 +60,7 @@ struct bvh
 /* free allocated resources */
 void 		        BvhFree(struct bvh *tree);
 /* validate (ds_Assert) internal coherence of bvh */
-void 		        BvhValidate(struct arena *tmp, const struct bvh *bvh);
+void 		        BvhValidate(const struct bvh *bvh);
 /* return total cost of bvh */
 f32 		        BvhCost(const struct bvh *bvh);
 /* Query all overlapping shapes */

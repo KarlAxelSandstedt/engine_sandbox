@@ -1419,29 +1419,20 @@ static void SolveConstraints(struct ds_Dynamics *pipeline)
                     ProfZoneEnd;
                 }
 
-                for (u32 wi = 0; wi < rebuild_phase->a_thin_range_count; ++wi)
-                {
-                    fprintf(stderr, "[%u, %u](%u)\n"
-                            , rebuild_phase->thin_range[wi].low
-                            , rebuild_phase->thin_range[wi].high
-                            , rebuild_phase->thin_range[wi].high - rebuild_phase->thin_range[wi].low
-                            );
-                }
-
                 struct bvh *dbvh = &pipeline->dynamic_bvh;
                 struct bvhNode *n = dbvh->pool.buf;
+                BvhValidate(dbvh);
 
                 {
                     ProfZoneNamed("Rebuild Bbox derivation and dirtying");
                     u32 pi;
                     BTI it;
-                    BTIInit(it, dbvh->pool.buf, dbvh->bt.root);
-                    BTIAdvance(it, dbvh->pool.buf);
+                    BTLRInit(it, dbvh->pool.buf, dbvh->bt.root);
                     do
                     {
                         pi = it.at;
                         struct bvhNode *p = n + pi;
-                        if (!ds_BTLeafCheck(p) && it.next != p->bt_child[0])
+                        if (!ds_BTLeafCheck(p))
                         {
                             const struct bvhNode *c[2] =
                             {
@@ -1450,8 +1441,7 @@ static void SolveConstraints(struct ds_Dynamics *pipeline)
                             };
                             p->bbox = BboxUnion(c[0]->bbox, c[1]->bbox);
                         }
-                        BTIAdvance(it, dbvh->pool.buf);
-
+                        BTLRAdvance(it, dbvh->pool.buf);
                     } while (pi != it.root);
 
                     const struct ds_BitSet *usage = &pipeline->shape_dynamic_usage_set;

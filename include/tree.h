@@ -134,7 +134,7 @@ do                                                                              
                                                                                             \
     u32 node_count = 0;                                                                     \
     BTI _it_;                                                                               \
-    BTIInit(_it_, (_buf_), (_bt_).root);                                                    \
+    BTDFInit(_it_, (_buf_), (_bt_).root);                                                   \
     do                                                                                      \
     {                                                                                       \
         node_count += 1;                                                                    \
@@ -153,13 +153,18 @@ do                                                                              
             ds_AssertString(((_buf_)[_right_].bt_parent & BT_INDEX_MASK) == _it_.at, "(4)");\
         }                                                                                   \
                                                                                             \
-        BTIAdvance(_it_, (_buf_));                                                          \
+        BTDFAdvance(_it_, (_buf_));                                                         \
     }                                                                                       \
     while (_it_.at != (_bt_).root);                                                         \
     ds_AssertString(node_count == (_bt_).count, "(5)");                                     \
 }                                                                                           \
 while (0)
 
+/*
+BTI
+===
+BT iterator 
+ */
 typedef struct BTI
 {
     u32 root;
@@ -167,8 +172,8 @@ typedef struct BTI
     u32 next;
 } BTI;
 
-/* Setup hierarchy iterator at the given node root */
-#define BTIInit(_bti_, _buf_, _root_)                                               \
+/* Setup depth-first iterator at the given node root */
+#define BTDFInit(_bti_, _buf_, _root_)                                              \
 do                                                                                  \
 {                                                                                   \
     (_bti_).root = (_root_);                                                        \
@@ -181,7 +186,7 @@ do                                                                              
 /* 
  * Advance the iterator in depth-first ordering. 
  */
-#define BTIAdvance(_bti_, _buf_)                                                                            \
+#define BTDFAdvance(_bti_, _buf_)                                                                           \
 do                                                                                                          \
 {                                                                                                           \
     ds_Assert((_bti_).at != (_bti_).root                                                                    \
@@ -195,7 +200,7 @@ do                                                                              
         break;                                                                                              \
     }                                                                                                       \
                                                                                                             \
-    BTISkip(_bti_, _buf_);                                                                                  \
+    BTDFSkip(_bti_, _buf_);                                                                                 \
 }                                                                                                           \
 while (0)
 
@@ -203,7 +208,7 @@ while (0)
  * Set it.next to the next left(0)-first index outside of subtree of it.at. If the iterator is at the root,
  * it.next is set to root indicating that the iterator is finished.
  */
-#define BTISkip(_bti_, _buf_)                                                                               \
+#define BTDFSkip(_bti_, _buf_)                                                                              \
 do                                                                                                          \
 {                                                                                                           \
     (_bti_).next = (_bti_).at;                                                                              \
@@ -219,6 +224,48 @@ do                                                                              
     }                                                                                                       \
 }                                                                                                           \
 while (0)
+
+/* Setup Left-Right (child[0]->child[1]->parent->...) iterator at the given node root */
+#define BTLRInit(_bti_, _buf_, _root_)                                              \
+do                                                                                  \
+{                                                                                   \
+    (_bti_).root = (_root_);                                                        \
+    (_bti_).at = (_root_);                                                          \
+    (_bti_).next = (_root_);                                                        \
+    while (!ds_BTLeafCheck((_buf_) + (_bti_).at))                                   \
+    {                                                                               \
+        (_bti_).at = (_buf_)[(_bti_).at].bt_child[0];                               \
+        (_bti_).next = (_buf_)[(_bti_).at].bt_child[1];                             \
+    }                                                                               \
+} while (0)
+
+/* 
+ * Advance the iterator in Left-Right ordering. 
+ */
+#define BTLRAdvance(_bti_, _buf_)                                                                           \
+do                                                                                                          \
+{                                                                                                           \
+    ds_Assert((_bti_).at != (_bti_).root || (_bti_).next == (_bti_).root);                                  \
+    (_bti_).at = (_bti_).next;                                                                              \
+                                                                                                            \
+    if (!ds_BTRootCheck((_buf_) + (_bti_).next))                                                            \
+    {                                                                                                       \
+        const u32 _parent_ = (_buf_)[(_bti_).next].bt_parent % BT_INDEX_MASK;                               \
+        (_bti_).next = _parent_;                                                                            \
+        if ((_buf_)[_parent_].bt_child[0] == (_bti_).at)                                                    \
+        {                                                                                                   \
+            (_bti_).next = (_buf_)[_parent_].bt_child[1];                                                   \
+            while (!ds_BTLeafCheck((_buf_) + (_bti_).next))                                                 \
+            {                                                                                               \
+                (_bti_).next = (_buf_)[(_bti_).next].bt_child[0];                                           \
+            }                                                                                               \
+        }                                                                                                   \
+    }                                                                                                       \
+}                                                                                                           \
+while (0)
+
+
+
 
 #ifdef __cplusplus
 } 
