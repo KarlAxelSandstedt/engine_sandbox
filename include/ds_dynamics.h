@@ -1270,6 +1270,7 @@ struct ds_RebuildThinRange
 {
     u32                         low;
     u32                         high;
+    u32                         depth;
     u32                         internal_index;
     u32                         axis;
     f32                         pivot;
@@ -1336,14 +1337,16 @@ struct ds_RebuildJobPhase
     u32                             a_fat_range_iteration;
     u8                              pad3[DS_CACHE_LINE];
 
-    u32                             a_thin_range_left;
+    u32                             a_thin_range_count;
     u8                              pad4[DS_CACHE_LINE];
-
-    u32                             a_setup_completed;     
+    u32                             a_thin_range_next;
     u8                              pad5[DS_CACHE_LINE];
 
-    u32                             a_internal_counter;
+    u32                             a_setup_completed;     
     u8                              pad6[DS_CACHE_LINE];
+
+    u32                             a_internal_counter;
+    u8                              pad7[DS_CACHE_LINE];
 };
 
 u32 ds_RebuildJobPhaseDispatch(const ds_JobId job);

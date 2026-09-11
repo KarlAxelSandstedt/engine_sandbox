@@ -742,12 +742,12 @@ u32 ds_SolverJobPhaseDispatch(const ds_JobId job)
     return U32_MAX;
 }
 
-static void ds_RebuildProduceThinWork(struct ds_RebuildJobPhase *phase, const u32 node_index, const u32 base, const u32 count, const u32 axis, const f32 pivot)
+static void ds_RebuildProduceThinWork(struct ds_RebuildJobPhase *phase, const u32 node_index, const u32 base, const u32 count, const u32 depth, const u32 axis, const f32 pivot)
 {
     ds_Assert(count <= phase->small_range_leaf_limit);
     
-    const u32 wi = phase->a_thin_range_left;
-    phase->a_thin_range_left += 1;
+    const u32 wi = phase->a_thin_range_count;
+    phase->a_thin_range_count += 1;
     if (wi >= phase->thin_range_max_count)
     {
         LogString(T_PHYSICS, S_FATAL, "RebuildPhase: thin_range_max_count reached, Exiting.");
@@ -760,6 +760,7 @@ static void ds_RebuildProduceThinWork(struct ds_RebuildJobPhase *phase, const u3
     new_range->internal_index = node_index;
     new_range->axis = axis;
     new_range->pivot = pivot;
+    new_range->depth = depth;
 }
 
 static void ds_RebuildProduceFatWork(struct arena *mem, struct ds_RebuildJobPhase *phase, const u32 node_index, const u32 base, const u32 count, const u32 depth, const u32 axis, const f32 pivot)
@@ -787,6 +788,35 @@ static void ds_RebuildProduceFatWork(struct arena *mem, struct ds_RebuildJobPhas
     ds_ParallelForInit(new_range->pf.parallel_for, new_count, phase->small_range_leaf_limit);
 }
 
+static void ds_RebuildLeafSetMinMax(vec3 min, vec3 max, const struct ds_RebuildLeaf *base, const u32 count)
+{
+	Vec3Set(min, F32_INFINITY, F32_INFINITY, F32_INFINITY);
+	Vec3Set(max, -F32_INFINITY, -F32_INFINITY, -F32_INFINITY);
+	for (u32 i = 0; i < count; ++i)
+	{
+        Vec3MinSelf(min, base[i].center);
+        Vec3MaxSelf(max, base[i].center);
+	}
+}
+
+static void ds_RebuildAxisPivot(u32 axis[2], f32 pivot[2], const vec3 min[2], const vec3 max[2])
+{
+    for (u32 i = 0; i < 2; ++i)
+    {
+        vec3 diff;
+        Vec3Sub(diff, max[i], min[i]);
+        axis[i] = 0;
+        for (u32 a = 1; a < 3; ++a)
+        {
+            if (diff[axis[i]] < diff[a])
+            {
+                axis[i] = a;
+            }
+        }
+        pivot[i] = min[i][axis[i]] + diff[axis[i]] / 2.0f;
+    }
+}
+
 static void ds_RebuildGather(u32 axis[2], f32 pivot[2], const struct ds_RebuildJobPhase *phase)
 {
     vec3 min[2] = 
@@ -810,20 +840,7 @@ static void ds_RebuildGather(u32 axis[2], f32 pivot[2], const struct ds_RebuildJ
         Vec3MaxSelf(max[1], job->max[1]);
     }
 
-    for (u32 i = 0; i < 2; ++i)
-    {
-        vec3 diff;
-        Vec3Sub(diff, max[i], min[i]);
-        axis[i] = 0;
-        for (u32 a = 1; a < 3; ++a)
-        {
-            if (diff[axis[i]] < diff[a])
-            {
-                axis[i] = a;
-            }
-        }
-        pivot[i] = min[i][axis[i]] + diff[axis[i]] / 2.0f;
-    }
+    ds_RebuildAxisPivot(axis, pivot, min, max);
 }
 
 static void ds_RebuildProduceWork(struct arena *phase_mem, struct ds_RebuildJobPhase *phase, const u32 work_index)
@@ -835,23 +852,29 @@ static void ds_RebuildProduceWork(struct arena *phase_mem, struct ds_RebuildJobP
     const struct ds_RebuildLeaf *leaf_write = phase->leaf_buf[1-ri];
     struct bvhNode *node_buf = pipeline->dynamic_bvh.pool.buf;
     
-    const u32 count[2] = 
+    u32 count[2] = 
     { 
         range->a_low_count, 
-        range->a_high_count 
+        range->a_high_count,
     };
 
+    f32 pivot[2];
+    u32 axis[2];
     if (count[0] == 0 || count[1] == 0)
     {
-        //TODO re-caclculate leaf array bounding boxes, split at N/2
-        Breakpoint(1);
-        return;
+        vec3 min[2], max[2];
+        count[0] = (range->high - range->low) / 2;
+        count[1] = range->high - range->low - count[0];
+        ds_RebuildLeafSetMinMax(min[0], max[0], leaf_write + range->low, count[0]);
+        ds_RebuildLeafSetMinMax(min[1], max[1], leaf_write + range->low + count[0], count[1]);
+        ds_RebuildAxisPivot(axis, pivot, min, max);
+    }
+    else
+    {
+        ds_RebuildGather(axis, pivot, phase);
     }
 
     const u32 base[2] = { range->low, range->low + count[0] };
-    f32 pivot[2];
-    u32 axis[2];
-    ds_RebuildGather(axis, pivot, phase);
 
     for (u32 i = 0; i < 2; ++i)
     {        
@@ -873,7 +896,7 @@ static void ds_RebuildProduceWork(struct arena *phase_mem, struct ds_RebuildJobP
 
         if (count[i] <= phase->small_range_leaf_limit)
         {
-            ds_RebuildProduceThinWork(phase, child_index, base[i], count[i], axis[i], pivot[i]);
+            ds_RebuildProduceThinWork(phase, child_index, base[i], count[i], range->depth+1, axis[i], pivot[i]);
         }
         else
         {
@@ -904,6 +927,10 @@ u32 ds_RebuildJobPhaseDispatch(const ds_JobId job_id)
     {
         ProfZoneNamed("Proxy Update");
 
+        Vec3Set(job->min[0], F32_INFINITY, F32_INFINITY, F32_INFINITY);
+        Vec3Set(job->max[0], -F32_INFINITY, -F32_INFINITY, -F32_INFINITY);
+        Vec3Set(job->min[1], F32_INFINITY, F32_INFINITY, F32_INFINITY);
+        Vec3Set(job->max[1], -F32_INFINITY, -F32_INFINITY, -F32_INFINITY);
         pf = chain->parallel_for + 0;
         ds_ParallelFor(pf, range_index)
         {
@@ -912,10 +939,6 @@ u32 ds_RebuildJobPhaseDispatch(const ds_JobId job_id)
             {
                 job->count[0] = 0;
                 job->count[1] = 0;
-                Vec3Set(job->min[0], F32_INFINITY, F32_INFINITY, F32_INFINITY);
-                Vec3Set(job->max[0], -F32_INFINITY, -F32_INFINITY, -F32_INFINITY);
-                Vec3Set(job->min[1], F32_INFINITY, F32_INFINITY, F32_INFINITY);
-                Vec3Set(job->max[1], -F32_INFINITY, -F32_INFINITY, -F32_INFINITY);
 
                 struct ds_BitBlock it = ds_BitBlockInit(leaf_usage->bits[block], block);
                 while (ds_BitBlockHasNext(&it))
@@ -961,7 +984,7 @@ u32 ds_RebuildJobPhaseDispatch(const ds_JobId job_id)
 
         if (phase->leaf_count <= phase->small_range_leaf_limit)
         {
-            ds_RebuildProduceThinWork(phase, node_index, 0, phase->leaf_count, axis[0], pivot[0]);
+            ds_RebuildProduceThinWork(phase, node_index, 0, phase->leaf_count, 0, axis[0], pivot[0]);
         }
         else
         {
@@ -1005,6 +1028,10 @@ u32 ds_RebuildJobPhaseDispatch(const ds_JobId job_id)
             const struct ds_RebuildLeaf *leaf_read = phase->leaf_buf[ri];
             struct ds_RebuildLeaf *leaf_write = phase->leaf_buf[1-ri];
 
+            Vec3Set(job->min[0], F32_INFINITY, F32_INFINITY, F32_INFINITY);
+            Vec3Set(job->max[0], -F32_INFINITY, -F32_INFINITY, -F32_INFINITY);
+            Vec3Set(job->min[1], F32_INFINITY, F32_INFINITY, F32_INFINITY);
+            Vec3Set(job->max[1], -F32_INFINITY, -F32_INFINITY, -F32_INFINITY);
             chain = &range->pf;
             {
                 pf = chain->parallel_for + 0;
@@ -1017,11 +1044,6 @@ u32 ds_RebuildJobPhaseDispatch(const ds_JobId job_id)
 
                     job->count[0] = 0;
                     job->count[1] = 0;
-                    Vec3Set(job->min[0], F32_INFINITY, F32_INFINITY, F32_INFINITY);
-                    Vec3Set(job->max[0], -F32_INFINITY, -F32_INFINITY, -F32_INFINITY);
-                    Vec3Set(job->min[1], F32_INFINITY, F32_INFINITY, F32_INFINITY);
-                    Vec3Set(job->max[1], -F32_INFINITY, -F32_INFINITY, -F32_INFINITY);
-
                     for (u32 li = low; li < high; ++li)
                     {
                         const struct ds_RebuildLeaf *leaf = leaf_read + li;
@@ -1067,6 +1089,117 @@ u32 ds_RebuildJobPhaseDispatch(const ds_JobId job_id)
             ds_Spin((local_completed = AtomicLoadAcq32(&phase->a_fat_range_completed)) < local_iteration, 32, U32_MAX);
         }
     }
+
+    struct ds_RebuildThinRange *range_buf = ArenaPush(phase_mem, phase->small_range_leaf_limit*sizeof(struct ds_RebuildThinRange));
+    u32 work_count = 0;
+
+    const u32 thin_count = AtomicLoadRlx32(&phase->a_thin_range_count);
+    u32 ti = AtomicFetchAddRlx32(&phase->a_thin_range_next, 1);
+    while ((ti = AtomicFetchAddRlx32(&phase->a_thin_range_next, 1)) < thin_count)
+    {
+        ProfZoneNamed("ThinRange");
+
+        range_buf[work_count] = phase->thin_range[ti];
+        work_count = 1;
+
+        while (work_count--)
+        {
+            const struct ds_RebuildThinRange *range = range_buf + work_count;
+            const u32 ri = (range->depth & 0x1);
+            struct ds_RebuildLeaf *leaf = phase->leaf_buf[ri];
+            u32 low = range->low;
+            u32 high = range->high;
+
+            job->count[0] = 0;
+            job->count[1] = 0;
+            Vec3Set(job->min[0], F32_INFINITY, F32_INFINITY, F32_INFINITY);
+            Vec3Set(job->max[0], -F32_INFINITY, -F32_INFINITY, -F32_INFINITY);
+            Vec3Set(job->min[1], F32_INFINITY, F32_INFINITY, F32_INFINITY);
+            Vec3Set(job->max[1], -F32_INFINITY, -F32_INFINITY, -F32_INFINITY);
+
+            while (low < high)
+            {
+                while (low < high)
+                {
+                    if (leaf[low].center[range->axis] >= range->pivot)
+                    {
+                        break;
+                    }
+
+                    Vec3MinSelf(job->min[0], leaf[low].center);
+                    Vec3MaxSelf(job->max[0], leaf[low].center);
+                    low += 1;
+                }
+
+                while (low < high)
+                {
+                    if (leaf[high-1].center[range->axis] < range->pivot)
+                    {
+                        const struct ds_RebuildLeaf tmp = leaf[low];
+                        leaf[low] = leaf[high-1];
+                        leaf[high-1] = tmp;
+                        Vec3MinSelf(job->min[0], leaf[low].center);
+                        Vec3MaxSelf(job->max[0], leaf[low].center);
+                        Vec3MinSelf(job->min[1], leaf[high-1].center);
+                        Vec3MaxSelf(job->max[1], leaf[high-1].center);
+                        low += 1;
+                        high -= 1;
+                        break;
+                    }
+
+                    Vec3MinSelf(job->min[1], leaf[high-1].center);
+                    Vec3MaxSelf(job->max[1], leaf[high-1].center);
+                    high -= 1;
+                }
+            }
+           
+            if (job->count[0] == 0 || job->count[1] == 0)
+            {
+                job->count[0] = (range->high - range->low) / 2;
+                job->count[1] = range->high - range->low - job->count[0];
+                ds_RebuildLeafSetMinMax(job->min[0], job->max[0], leaf + range->low, job->count[0]);
+                ds_RebuildLeafSetMinMax(job->min[1], job->max[1], leaf + range->low + job->count[0], job->count[1]);
+            }
+ 
+            const u32 parent = range->internal_index;
+            const u32 base[2] =
+            {
+                range->low,
+                range->low + job->count[0],
+            };
+
+            u32 axis[2];
+            f32 pivot[2];
+            ds_RebuildAxisPivot(axis, pivot, job->min, job->max);
+            
+            for (u32 s = 0; s < 2; ++s)
+            {
+                if (job->count[s] <= 1)
+                {
+                    const u32 index = leaf[base[s]].index;
+                    pipeline->dynamic_bvh.pool.buf[parent].bt_child[s] = index;
+                    pipeline->dynamic_bvh.pool.buf[index].bt_parent = BT_LEAF_MASK | parent;
+                }
+                else
+                {
+                    ds_Assert(work_count < phase->small_range_leaf_limit);
+                    const u32 index = AtomicFetchAddRlx32(&phase->a_internal_counter, 1);
+                    range_buf[ work_count ].low = base[s];
+                    range_buf[ work_count ].high = base[s] + job->count[s];
+                    range_buf[ work_count ].axis = axis[s];
+                    range_buf[ work_count ].pivot = pivot[s];
+                    range_buf[ work_count ].depth = range->depth + 1;
+                    range_buf[ work_count ].internal_index = index;
+                    work_count += 1;
+                    pipeline->dynamic_bvh.pool.buf[parent].bt_child[s] = index;
+                    pipeline->dynamic_bvh.pool.buf[index].bt_parent = parent;
+                }
+            }
+        }
+
+        ProfZoneEnd;
+    }
+    
 
     ArenaPopScratch();
 
@@ -1227,7 +1360,8 @@ static void SolveConstraints(struct ds_Dynamics *pipeline)
                     struct memArray thin_arr = ArenaPushAlignedAll(tmp, sizeof(struct ds_RebuildThinRange), 8);
                     rebuild_phase->thin_range = thin_arr.addr;
                     rebuild_phase->thin_range_max_count = thin_arr.len;
-                    AtomicStoreRel32(&rebuild_phase->a_thin_range_left, 0);
+                    AtomicStoreRel32(&rebuild_phase->a_thin_range_count, 0);
+                    AtomicStoreRel32(&rebuild_phase->a_thin_range_next, 0);
 
                     for (u32 i = 0; i < rebuild_phase->job_count; ++i)
                     {
@@ -1257,7 +1391,7 @@ static void SolveConstraints(struct ds_Dynamics *pipeline)
                     ProfZoneEnd;
                 }
 
-                for (u32 wi = 0; wi < rebuild_phase->a_thin_range_left; ++wi)
+                for (u32 wi = 0; wi < rebuild_phase->a_thin_range_count; ++wi)
                 {
                     fprintf(stderr, "[%u, %u](%u)\n"
                             , rebuild_phase->thin_range[wi].low
@@ -1266,11 +1400,11 @@ static void SolveConstraints(struct ds_Dynamics *pipeline)
                             );
                 }
 
-                {
-                    ProfZoneNamed("DBVH Rebuild");
-                    DbvhRebuild(&pipeline->dynamic_bvh);
-                    ProfZoneEnd;
-                }
+                //{
+                //    ProfZoneNamed("DBVH Rebuild");
+                //    DbvhRebuild(&pipeline->dynamic_bvh);
+                //    ProfZoneEnd;
+                //}
 
                 //{
                 //    ProfZoneNamed("Dirtying Bboxes");
