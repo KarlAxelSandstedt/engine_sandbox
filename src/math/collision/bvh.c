@@ -36,6 +36,7 @@ struct bvh DbvhAlloc(struct arena *mem, const u32 initial_length, const u32 grow
 	struct bvh bvh =
 	{
         .leaf_set = ds_BitSetAlloc(mem, initial_length, 0, growable),
+        .internal_set = ds_BitSetAlloc(mem, initial_length, 0, growable),
 		.pool = bvhNodePoolAlloc(mem, initial_length, growable),
 		.cost_queue = MinQueueAlloc(NULL, COST_QUEUE_INITIAL_COUNT, growable),
 		.heap_allocated = !mem,	
@@ -48,6 +49,7 @@ struct bvh DbvhAlloc(struct arena *mem, const u32 initial_length, const u32 grow
 
 void BvhFree(struct bvh *bvh)
 {
+    ds_BitSetDealloc(&bvh->internal_set);
     ds_BitSetDealloc(&bvh->leaf_set);
     bvhNodePoolDealloc(&bvh->pool);
 	MinQueueDealloc(&bvh->cost_queue);
@@ -88,6 +90,7 @@ f32 BvhCost(const struct bvh *bvh)
 
 void DbvhFlush(struct bvh *bvh)
 {
+    ds_BitSetClear(&bvh->internal_set, 0);
     ds_BitSetClear(&bvh->leaf_set, 0);
 	ds_BTFlush(bvh->bt);
     bvhNodePoolFlush(&bvh->pool);
@@ -194,6 +197,7 @@ static void DbvhInternalBalanceNode(struct bvh *bvh, const u32 node)
 u32 DbvhInsert(struct bvh *bvh, const u32 body, const u32 shape, const struct aabb *bbox)
 {
     struct slot leaf = bvhNodePoolAdd(&bvh->pool);
+    struct slot internal = { .address = NULL, .index = U32_MAX };
 	if (bvh->bt.root == BT_INDEX_NULL)
 	{
 	    struct bvhNode *nodes = bvh->pool.buf;
@@ -206,7 +210,7 @@ u32 DbvhInsert(struct bvh *bvh, const u32 body, const u32 shape, const struct aa
 	}
 	else
 	{
-		struct slot internal = bvhNodePoolAdd(&bvh->pool);
+		internal = bvhNodePoolAdd(&bvh->pool);
 	    struct bvhNode *nodes = bvh->pool.buf;
 		nodes[leaf.index].bbox = *bbox;
 		nodes[leaf.index].bt_parent = BT_LEAF_MASK | internal.index;
@@ -302,6 +306,12 @@ u32 DbvhInsert(struct bvh *bvh, const u32 body, const u32 shape, const struct aa
     if (bvh->leaf_set.bit_count < bvh->pool.length)
     {
         ds_BitSetIncreaseSize(&bvh->leaf_set, bvh->pool.length, 0);
+        ds_BitSetIncreaseSize(&bvh->internal_set, bvh->pool.length, 0);
+    }
+
+    if (internal.address)
+    {
+        ds_BitSetSet(&bvh->internal_set, internal.index, 1);
     }
     ds_BitSetSet(&bvh->leaf_set, leaf.index, 1);
 
@@ -323,6 +333,7 @@ void DbvhRemove(struct bvh *bvh, const u32 index)
 	}
 	else
 	{
+        ds_BitSetSet(&bvh->internal_set, parent, 0);
 		const u32 sibling = (nodes[parent].bt_child[0] == index)
 			? nodes[parent].bt_child[1]
 			: nodes[parent].bt_child[0];
@@ -489,72 +500,6 @@ struct bvh_QuerySet BvhQueryAndFilterOnBody(struct arena *mem, const struct bvh 
     ArenaPopPacked(mem, (mem_arr.len - query.count)*sizeof(u32));
 
     return query;
-}
-
-u32 DbvhInternalPushSubtreeOverlapPairs(struct arena *mem, struct dbvhOverlap *stack, const u64 stack_len, const struct bvh *bvh, u32 subA, u32 subB)
-{
-	struct bvhNode *nodes = bvh->pool.buf;
-	u32 overlap_count = 0;
-	struct dbvhOverlap overlap;
-	u32 q = U32_MAX;
-
-	while (1)
-	{
-		if (AabbTest(&nodes[subA].bbox, &nodes[subB].bbox))
-		{
-			if (ds_BTLeafCheck(nodes + subA) && ds_BTLeafCheck(nodes + subB))
-			{
-				overlap_count += 1;
-				/* id's */
-				if (nodes[subA].bt_child[0] < nodes[subB].bt_child[0])
-				{
-					overlap.id1 = nodes[subA].bt_child[0];	
-					overlap.id2 = nodes[subB].bt_child[0];	
-				}
-				else
-				{
-					overlap.id1 = nodes[subB].bt_child[0];	
-					overlap.id2 = nodes[subA].bt_child[0];	
-				}
-				ArenaPushPackedMemcpy(mem, &overlap, sizeof(overlap));
-			}
-			else
-			{
-				/* if a is larger than b, descend into a first  */
-				if (ds_BTLeafCheck(nodes + subB) || (!ds_BTLeafCheck(nodes + subA) && BodySah(&nodes[subB].bbox) < BodySah(&nodes[subA].bbox)))
-				{
-					stack[++q].id1 = nodes[subA].bt_child[0];
-					stack[q].id2 = subB;
-					subA = nodes[subA].bt_child[1];
-				}
-				else
-				{
-					stack[++q].id1 = nodes[subB].bt_child[0];
-					stack[q].id2 = subA;
-					subB = nodes[subB].bt_child[1];
-				}
-
-				if (q+1 >= stack_len)
-				{
-					LogString(T_PHYSICS, S_FATAL, "out-of-memory in arena based stack, increase arena size!");		
-					FatalCleanupAndExit();
-				}
-				continue;
-			}
-		}
-
-		if (q != U32_MAX)
-		{
-			subA = stack[q].id1;
-			subB = stack[q--].id2;
-		}
-		else
-		{
-			break;
-		}
-	}
-
-	return overlap_count;
 }
 
 struct RebuildPoint
@@ -771,108 +716,36 @@ void DbvhRebuild(struct bvh *bvh)
 
     ds_Assert(internal_next == internal_count);
 
-    ArenaFlush(tmp3);
-
-
-    struct bvhNode *n = bvh->pool.buf;
-
-    arr = ArenaPushAlignedAll(tmp3, sizeof(u32), 4);
-    u32 *stack = arr.addr;
-
-    u32 li = 0;
-    u32 sc = 0;
-    for (u32 li = 0; li < leaf_count; ++li)
-    {
-        if (sc == arr.len)
-        {
-			LogString(T_PHYSICS, S_FATAL, "out-of-memory Rebuild bbox building stack, increase arena size!");		
-			FatalCleanupAndExit();
-        }
-
-        stack[sc++] = n[leaf[li].index].bt_parent & BT_INDEX_MASK;
-        while (sc >= 2 && stack[sc-2] == stack[sc-1])
-        {
-            struct bvhNode *parent = n + stack[sc-2]; 
-            const struct bvhNode *left = n + parent->bt_child[0]; 
-            const struct bvhNode *right = n + parent->bt_child[1]; 
-            parent->bbox = BboxUnion(left->bbox, right->bbox);
-            stack[sc-2] = parent->bt_parent;
-            sc -= 1;
-        }
-    }
-
-    ds_Assert(sc == 1 && stack[0] == BT_INDEX_NULL);
-
-    /*
-     * TODO
-     * Multithreading:
-     * Work:    (0) Grab TStack/Stack internal node to work on
-     *          (1) choose root box split-axis
-     *          (2) iteratively sort 
-     */
-
+    BvhPropagateBoundingBoxesFromLeaves(bvh);
+   
     ArenaPopScratch();
     ArenaPopScratch();
     ArenaPopScratch();
 }
 
-struct dbvhOverlap *DbvhPushOverlapPairs(struct arena *mem, u32 *count, const struct bvh *bvh)
+void BvhPropagateBoundingBoxesFromLeaves(struct bvh *bvh)
 {
-	if (ds_BTLeafCount(bvh->bt) < 2) { return 0; }
-	const struct bvhNode *nodes = bvh->pool.buf;
+    ProfZone;
 
-	*count = 0;
-	u32 a = nodes[bvh->bt.root].bt_child[0];
-	u32 b = nodes[bvh->bt.root].bt_child[1];
-	u32 q = U32_MAX;
+    struct bvhNode *n = bvh->pool.buf;
+    BTI it;
+    BTLRInit(it, bvh->pool.buf, bvh->bt.root);
+    while (it.at != BT_INDEX_NULL)
+    {
+        struct bvhNode *p = n + it.at;
+        if (!ds_BTLeafCheck(p))
+        {
+            const struct bvhNode *c[2] =
+            {
+                n + p->bt_child[0],
+                n + p->bt_child[1],
+            };
+            p->bbox = BboxUnion(c[0]->bbox, c[1]->bbox);
+        }
+        BTLRAdvance(it, bvh->pool.buf);
+    }
 
-	struct arena *tmp1 = ArenaPushScratch();
-	struct arena *tmp2 = ArenaPushScratch();
-
-	struct memArray arr1 = ArenaPushAlignedAll(tmp1, sizeof(struct dbvhOverlap), 4); 
-	struct memArray arr2 = ArenaPushAlignedAll(tmp2, sizeof(struct dbvhOverlap), 4); 
-
-	struct dbvhOverlap *stack1 = arr1.addr;
-	struct dbvhOverlap *stack2 = arr2.addr;
-	struct dbvhOverlap *overlaps = (struct dbvhOverlap *) mem->stack_ptr; 
-
-	while (1)
-	{
-		*count += DbvhInternalPushSubtreeOverlapPairs(mem, stack2, arr2.len, bvh, a, b);
-
-		if (!ds_BTLeafCheck(nodes + a))
-		{
-			stack1[++q].id1 = nodes[a].bt_child[0];
-			stack1[q].id2 = nodes[a].bt_child[1];	
-			if (q >= arr1.len)
-			{
-				LogString(T_PHYSICS, S_FATAL, "out-of-memory in arena based stack, increase arena size!");		
-				FatalCleanupAndExit();
-			}
-		}
-
-		if (!ds_BTLeafCheck(nodes + b))
-		{
-			 a = nodes[b].bt_child[0];	
-			 b = nodes[b].bt_child[1];	
-			 continue;
-		}
-
-		if (q != U32_MAX)
-		{
-			a = stack1[q].id1;
-			b = stack1[q--].id2;
-		}
-		else
-		{
-			break;
-		}
-	}
-
-    ArenaPopScratch();
-    ArenaPopScratch();
-
-	return (*count) ? overlaps : NULL;
+    ProfZoneEnd;
 }
 
 void BvhValidate(const struct bvh *bvh)
@@ -914,6 +787,7 @@ struct triMeshBvh TriMeshBvhConstruct(struct arena *mem, const struct triMesh *m
 		.mesh = mesh,
 		.bvh = 
 		{ 
+            .internal_set = { 0 },
             .leaf_set = { 0 },
 			.pool = bvhNodePoolAlloc(mem, max_node_count_required, NOT_GROWABLE),
 			.heap_allocated = 0,

@@ -52,6 +52,7 @@ struct bvh
 {
     struct ds_BT        bt;  
     struct ds_BitSet    leaf_set;       /* dynamic specific */
+    struct ds_BitSet    internal_set;   /* dynamic specific */
     struct bvhNodePool  pool;
 	struct minQueue	    cost_queue;	    /* dynamic specific */
 	u32			        heap_allocated;
@@ -59,6 +60,8 @@ struct bvh
 
 /* free allocated resources */
 void 		        BvhFree(struct bvh *tree);
+/* Derive all internal bounding boxes from the leaves' bounding boxes */
+void                BvhPropagateBoundingBoxesFromLeaves(struct bvh *bvh);
 /* validate (ds_Assert) internal coherence of bvh */
 void 		        BvhValidate(const struct bvh *bvh);
 /* return total cost of bvh */
@@ -91,19 +94,6 @@ u32 			    DbvhInsert(struct bvh *bvh, const u32 body, const u32 shape, const st
 void 			    DbvhRemove(struct bvh *bvh, const u32 index);
 /* Full top-down rebuild with the given set of leaves. */
 void                DbvhRebuild(struct bvh *bvh);
-
-
-
-
-//TODO remove
-struct dbvhOverlap
-{
-	u32 id1;
-	u32 id2;	
-};
-/* (DEPRECATED): Return overlapping ids ptr, set to NULL if no overlap. if overlap, count is set */
-struct dbvhOverlap *DbvhPushOverlapPairs(struct arena *mem, u32 *count, const struct bvh *bvh);
-
 
 struct triMeshBvh
 {

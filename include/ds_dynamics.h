@@ -1276,6 +1276,16 @@ struct ds_RebuildThinRange
     f32                         pivot;
 };
 
+static void ds_RebuildThinRangeSetNull(struct ds_RebuildThinRange *range)
+{
+    range->internal_index = U32_MAX;
+}
+
+static u32 ds_RebuildThinRangeCheck(struct ds_RebuildThinRange *range)
+{
+    return (range->internal_index != U32_MAX);
+}
+
 struct ds_RebuildFatRange
 {
     u32                         low;
@@ -1298,13 +1308,33 @@ struct ds_RebuildFatRange
 
 struct ds_RebuildJob
 {
-    u8                      pad0[DS_CACHE_LINE];
-    struct ds_RebuildLeaf * leaf[2];
-    u32                     count[2];
-    vec3                    min[2];
-    vec3                    max[2];
-    u8                      pad1[DS_CACHE_LINE];
+    u8                          pad0[DS_CACHE_LINE];
+    /* May be poked by other threads in fat range work  */
+    u32                         count[2];
+    vec3                        min[2];
+    vec3                        max[2];
+    u8                          pad1[DS_CACHE_LINE];
+    /* These variables are never touched by other threads  */
+    struct ds_RebuildLeaf *     leaf[2];
+    struct ds_RebuildThinRange  thin_range[2];
+    u8                          pad2[DS_CACHE_LINE];
 };
+
+static void ds_RebuildJobRangeFlush(struct ds_RebuildJob *job)
+{
+    job->count[0] = 0;
+    job->count[1] = 0;
+    Vec3Set(job->min[0], F32_INFINITY, F32_INFINITY, F32_INFINITY);
+    Vec3Set(job->max[0], -F32_INFINITY, -F32_INFINITY, -F32_INFINITY);
+    Vec3Set(job->min[1], F32_INFINITY, F32_INFINITY, F32_INFINITY);
+    Vec3Set(job->max[1], -F32_INFINITY, -F32_INFINITY, -F32_INFINITY);
+}
+
+static void ds_RebuildJobBlockFlush(struct ds_RebuildJob *job)
+{
+    job->count[0] = 0;
+    job->count[1] = 0;
+}
 
 struct ds_RebuildJobPhase
 {
@@ -1318,11 +1348,9 @@ struct ds_RebuildJobPhase
     u32                             internal_count;
     struct ds_RebuildLeaf *         leaf_buf[2];
     u32                             leaf_count;
-    u32                             leaf_blocks_per_work; 
-    u32                             small_range_leaf_limit; 
-
-    //TODO Remove
-    u32                             a_next[2];
+    u32                             leaf_blocks_per_proxy_update; 
+    u32                             small_leaf_limit; 
+    u32                             fat_leaf_limit; 
 
     struct ds_RebuildThinRange *    thin_range;
     u32                             thin_range_max_count;

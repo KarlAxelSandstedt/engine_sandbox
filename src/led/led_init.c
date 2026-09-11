@@ -30,7 +30,7 @@ struct led_ProjectMenu led_ProjectMenuAlloc(void)
 		.projects_folder_allocated = 0,
 		.projects_folder_refresh = 0,
 		.selected_path = Utf8Empty(),
-		.dir_nav = DirectoryNavigatorAlloc(8192, 64, 64),
+		.dir_nav = DirectoryNavigatorAlloc(16384, 64, 64),
 		.dir_list = ui_ListInit(AXIS_2_Y, 200.0f, 24.0f, UI_SELECTION_UNIQUE),
 		.window = HI_ROOT,
 		.popup_new_project = ui_PopupNull(),
@@ -113,12 +113,12 @@ struct led *led_Alloc(const u32 thread_count, const u64 thread_framesize)
 	}
 	
 	g_editor->viewport_id = Utf8Format(&sys_win->mem_persistent, "viewport_%u", g_editor->window);
-	g_editor->node_hierarchy = led_NodeHIAlloc(NULL, 8192, GROWABLE);
-	g_editor->node_map = ds_HashMapAlloc(NULL, 8192, 8192, GROWABLE);
+	g_editor->node_hierarchy = led_NodeHIAlloc(NULL, 16384, GROWABLE);
+	g_editor->node_map = ds_HashMapAlloc(NULL, 16384, 16384, GROWABLE);
 	//g_editor->node_selected_list = dll2_Init(struct led_Node);
 	g_editor->render_mesh_db = r_MeshSDBAlloc(NULL, 32, GROWABLE);
 	g_editor->shape_prefab_db = ds_ShapePrefabSDBAlloc(NULL, 32, GROWABLE);
-    g_editor->shape_prefab_instance_pool = ds_ShapePrefabInstancePoolAlloc(NULL, 8192, GROWABLE);
+    g_editor->shape_prefab_instance_pool = ds_ShapePrefabInstancePoolAlloc(NULL, 16384, GROWABLE);
 	g_editor->body_prefab_db = ds_BodyPrefabSDBAlloc(NULL, 32, GROWABLE);
 	g_editor->cs_db = c_ShapeSDBAlloc(NULL, 32, GROWABLE);
 	g_editor->physics = ds_DynamicsAlloc(&g_editor->mem_persistent, 1024, NSEC_PER_SEC / (u64) 60, 16*1024*1024, &g_editor->cs_db, &g_editor->body_prefab_db, thread_count, thread_framesize);
