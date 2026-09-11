@@ -864,7 +864,7 @@ static void ds_RebuildProduceWork(struct arena *phase_mem, struct ds_RebuildJobP
     {
         /* leaf_write is non-deterministically ordered, so we are required to make it deterministic */
         struct ds_RebuildLeaf *leaf_read = phase->leaf_buf[ri];
-        memcpy(leaf_write, leaf_read, (count[0] + count[1])*sizeof(struct ds_RebuildLeaf));
+        memcpy(leaf_write + range->low, leaf_read + range->low, (count[0] + count[1])*sizeof(struct ds_RebuildLeaf));
         vec3 min[2], max[2];
         count[0] = (range->high - range->low) / 2;
         count[1] = range->high - range->low - count[0];
@@ -1007,6 +1007,7 @@ u32 ds_RebuildJobPhaseDispatch(const ds_JobId job_id)
         f32 pivot[2];
         ds_RebuildGather(axis, pivot, phase);
         const u32 node_index = phase->internal_buf[AtomicFetchAddRlx32(&phase->a_internal_counter, 1)];
+        pipeline->dynamic_bvh.bt.root = node_index;
 
         if (phase->leaf_count <= phase->small_range_leaf_limit)
         {
@@ -1225,7 +1226,6 @@ u32 ds_RebuildJobPhaseDispatch(const ds_JobId job_id)
 
         ProfZoneEnd;
     }
-    
 
     ArenaPopScratch();
 
@@ -1428,42 +1428,40 @@ static void SolveConstraints(struct ds_Dynamics *pipeline)
                             );
                 }
 
-                //{
-                //    ProfZoneNamed("DBVH Rebuild");
-                //    DbvhRebuild(&pipeline->dynamic_bvh);
-                //    ProfZoneEnd;
-                //}
+                struct bvh *dbvh = &pipeline->dynamic_bvh;
+                struct bvhNode *n = dbvh->pool.buf;
 
-                //{
-                //    ProfZoneNamed("Dirtying Bboxes");
-                //    const struct ds_BitSet *usage = &pipeline->shape_dynamic_usage_set;
-                //    for (u64 block = 0; block < usage->block_count; ++block)
-                //    {
-                //        pipeline->shape_dirty_set.bits[block] = usage->bits[block];
-                //        struct ds_BitBlock it = ds_BitBlockInit(usage->bits[block], block);
-                //        while (ds_BitBlockHasNext(&it))
-                //        {
-                //            const u32 si = ds_BitBlockNext(&it);
-                //            const struct ds_Shape *shape = pipeline->shape_pool.buf + si;
-                //            const struct ds_Body *body = pipeline->body_pool.buf + shape->body;
-                //            if (RB_IS_DYNAMIC(body))
-                //            {
-                //                pipeline->dynamic_bvh.pool.buf[ shape->proxy ].bbox = ds_ShapeWorldBbox(pipeline, shape);
-                //                pipeline->dynamic_bvh.pool.buf[ shape->proxy ].bbox.hw[0] += shape->margin;
-                //                pipeline->dynamic_bvh.pool.buf[ shape->proxy ].bbox.hw[1] += shape->margin;
-                //                pipeline->dynamic_bvh.pool.buf[ shape->proxy ].bbox.hw[2] += shape->margin;
-                //            }
-                //        }
-                //    }
-                //                
-                //    ProfZoneEnd;
-                //}
+                {
+                    ProfZoneNamed("Rebuild Bbox derivation and dirtying");
+                    u32 pi;
+                    BTI it;
+                    BTIInit(it, dbvh->pool.buf, dbvh->bt.root);
+                    BTIAdvance(it, dbvh->pool.buf);
+                    do
+                    {
+                        pi = it.at;
+                        struct bvhNode *p = n + pi;
+                        if (!ds_BTLeafCheck(p) && it.next != p->bt_child[0])
+                        {
+                            const struct bvhNode *c[2] =
+                            {
+                                n + p->bt_child[0],
+                                n + p->bt_child[1],
+                            };
+                            p->bbox = BboxUnion(c[0]->bbox, c[1]->bbox);
+                        }
+                        BTIAdvance(it, dbvh->pool.buf);
 
-                //{
-                //    ProfZoneNamed("DBVH Rebuild");
-                //    DbvhRebuild(&pipeline->dynamic_bvh);
-                //    ProfZoneEnd;
-                //}
+                    } while (pi != it.root);
+
+                    const struct ds_BitSet *usage = &pipeline->shape_dynamic_usage_set;
+                    for (u64 block = 0; block < usage->block_count; ++block)
+                    {
+                        pipeline->shape_dirty_set.bits[block] = usage->bits[block];
+                    }
+                                
+                    ProfZoneEnd;
+                }
             }
             else
             {
