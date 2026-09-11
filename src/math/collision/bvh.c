@@ -329,7 +329,7 @@ void DbvhRemove(struct bvh *bvh, const u32 index)
 	{
 		bvh->bt.root = BT_INDEX_NULL;
         bvh->bt.count -= 1;
-        bvhNodePoolRemove(&bvh->pool, parent);
+        bvhNodePoolRemove(&bvh->pool, index);
 	}
 	else
 	{

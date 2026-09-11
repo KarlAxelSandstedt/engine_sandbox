@@ -240,6 +240,11 @@ do                                                                              
         (_bti_).at = (_buf_)[(_bti_).at].bt_child[0];                               \
     }                                                                               \
                                                                                     \
+    if ((_bti_).next == BT_INDEX_NULL)                                              \
+    {                                                                               \
+        break;                                                                      \
+    }                                                                               \
+                                                                                    \
     while (!ds_BTLeafCheck((_buf_) + (_bti_).next))                                 \
     {                                                                               \
         (_bti_).next = (_buf_)[(_bti_).next].bt_child[0];                           \

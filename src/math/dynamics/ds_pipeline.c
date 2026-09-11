@@ -846,6 +846,7 @@ static void ds_RebuildProduceWork(struct arena *phase_mem, struct ds_RebuildJobP
     struct ds_RebuildLeaf *leaf_write = phase->leaf_buf[1-ri];
     struct bvhNode *node_buf = pipeline->dynamic_bvh.pool.buf;
 
+    ds_RebuildJobRangeFlush(job);
     ds_RebuildThinRangeSetNull(job->thin_range + 0);
     ds_RebuildThinRangeSetNull(job->thin_range + 1);
     
@@ -1043,23 +1044,25 @@ u32 ds_RebuildJobPhaseDispatch(const ds_JobId job_id)
     struct arena *phase_mem = ArenaPushScratch();
     struct ds_RebuildJobPhase *phase = (struct ds_RebuildJobPhase *) g_scheduler->phase;
     struct ds_Dynamics *pipeline = phase->pipeline;
-    const struct ds_BitSet *leaf_usage = &pipeline->dynamic_bvh.leaf_set;
-    const struct ds_BitSet *internal_usage = &pipeline->dynamic_bvh.internal_set;
     struct ds_ParallelForChain *chain;
     struct ds_ParallelFor *pf;
     struct ds_RebuildJob *job = phase->job + ds_JobIdIndex(job_id);
-    u32 low, high, tmp_iteration;
-    u32 local_iteration = 0;
-    u32 local_completed = 0;
+    u32 low, high;
 
-    //TODO do job allocs here instead of in RebuildJobPhase setup
-    u32 *local_internal_buf = ArenaPush(phase_mem, 64*phase->leaf_blocks_per_proxy_update*sizeof(u32));
     struct ds_RebuildThinRange *thin_range_buf = ArenaPush(phase_mem, phase->small_leaf_limit*sizeof(struct ds_RebuildThinRange));
-    ds_Assert(pipeline->dynamic_bvh.pool.count > 1);
+    u32 *local_internal_buf = ArenaPush(phase_mem, 64*phase->leaf_blocks_per_proxy_update*sizeof(u32));
+    ds_Assert(pipeline->dynamic_bvh.pool.count >= 2);
 
+    /*
+     * Threads begin by setting up one of the two shared ds_RebuildLeaf arrays which 
+     * the threads will be working on. 
+     */
     chain = &phase->pf_proxy_update;
     {
-        ProfZoneNamed("Proxy Update");
+        ProfZoneNamed("Leaf Array Setup");
+    
+        const struct ds_BitSet *leaf_usage = &pipeline->dynamic_bvh.leaf_set;
+        const struct ds_BitSet *internal_usage = &pipeline->dynamic_bvh.internal_set;
 
         ds_RebuildJobRangeFlush(job);
         pf = chain->parallel_for + 0;
@@ -1069,23 +1072,30 @@ u32 ds_RebuildJobPhaseDispatch(const ds_JobId job_id)
             for (u32 block = low; block < high; ++block)
             {
                 ds_RebuildJobBlockFlush(job);
+                struct ds_BitBlock it;
 
-                struct ds_BitBlock it = ds_BitBlockInit(leaf_usage->bits[block], block);
-                while (ds_BitBlockHasNext(&it))
                 {
-                    const u32 pi = ds_BitBlockNext(&it);
-                    struct bvhNode *node = pipeline->dynamic_bvh.pool.buf + pi;
-                    const struct ds_Shape *shape = pipeline->shape_pool.buf + node->bt_child[0];
-                    node->bbox = ds_ShapeWorldBbox(pipeline, shape);
-                    node->bbox.hw[0] += shape->margin;
-                    node->bbox.hw[1] += shape->margin;
-                    node->bbox.hw[2] += shape->margin;
+                    ProfZoneNamed("Leaf Block");
 
-                    Vec3MinSelf(job->min[0], node->bbox.center);
-                    Vec3MaxSelf(job->max[0], node->bbox.center);
-                    Vec3Copy(job->leaf[0][ job->count[0] ].center, node->bbox.center);
-                    job->leaf[0][ job->count[0] ].index = pi;
-                    job->count[0] += 1;
+                    it = ds_BitBlockInit(leaf_usage->bits[block], block);
+                    while (ds_BitBlockHasNext(&it))
+                    {
+                        const u32 pi = ds_BitBlockNext(&it);
+                        struct bvhNode *node = pipeline->dynamic_bvh.pool.buf + pi;
+                        const struct ds_Shape *shape = pipeline->shape_pool.buf + node->bt_child[0];
+                        node->bbox = ds_ShapeWorldBbox(pipeline, shape);
+                        node->bbox.hw[0] += shape->margin;
+                        node->bbox.hw[1] += shape->margin;
+                        node->bbox.hw[2] += shape->margin;
+
+                        Vec3MinSelf(job->min[0], node->bbox.center);
+                        Vec3MaxSelf(job->max[0], node->bbox.center);
+                        Vec3Copy(job->leaf[0][ job->count[0] ].center, node->bbox.center);
+                        job->leaf[0][ job->count[0] ].index = pi;
+                        job->count[0] += 1;
+                    }
+
+                    ProfZoneEnd;
                 }
 
                 if (job->count[0])
@@ -1114,7 +1124,8 @@ u32 ds_RebuildJobPhaseDispatch(const ds_JobId job_id)
     ds_ParallelForChainWait(chain);
 
     /* 
-     * One thread gets to finalize the setup, and initialize the first thin or fat work.
+     * One thread gets to finalize the setup, setup the new tree root, and initialize 
+     * the first thin or fat work.
      */
     u32 lock = 0;
     if (AtomicCompareExchangeRlxRlx32(&phase->a_setup_completed, &lock, U32_MAX))
@@ -1152,73 +1163,72 @@ u32 ds_RebuildJobPhaseDispatch(const ds_JobId job_id)
      *          const u32 d = range->depth;
      *          const ds_RebuildLeaf *read_buf = phase->leaf_buffer + (d & 0x1);
      *                ds_RebuildLeaf *write_buf = phase->leaf_buffer + (1 - (d & 0x1));
+     *
+     *  Any thread that recieves a thin range can safely work solely within read_buf generated from the
+     *  thin ranges' depth.
      */
     ds_Assert(PowerOfTwoCheck(phase->fat_range_max_count));
     const u32 mask = phase->fat_range_max_count - 1;
-    while (1)
+
+    u32 local_completed = AtomicLoadAcq32(&phase->a_fat_range_completed);
+    u32 local_counter = AtomicLoadAcq32(&phase->a_fat_range_counter);
+    while (local_completed < local_counter)
     {
-        u32 local_completed = AtomicLoadAcq32(&phase->a_fat_range_completed);
-        u32 local_counter = AtomicLoadAcq32(&phase->a_fat_range_counter);
-        if (local_counter == local_completed)
+        ds_RebuildJobRangeFlush(job);
+        const u32 wi = local_completed & mask;
+        struct ds_RebuildFatRange *range = phase->fat_range + wi;
+
+        const u32 ri = (range->depth & 0x1);
+        const struct ds_RebuildLeaf *leaf_read = phase->leaf_buf[ri];
+        struct ds_RebuildLeaf *leaf_write = phase->leaf_buf[1-ri];
+        u32 winner = 0;
+
+        chain = &range->pf;
         {
-            break;
-        }
-
-        local_iteration = local_completed;
-        for (u32 i = local_completed; i < local_counter; ++i)
-        {
-            const u32 wi = i & mask;
-            struct ds_RebuildFatRange *range = phase->fat_range + wi;
-
-            const u32 ri = (range->depth & 0x1);
-            const struct ds_RebuildLeaf *leaf_read = phase->leaf_buf[ri];
-            struct ds_RebuildLeaf *leaf_write = phase->leaf_buf[1-ri];
-            ds_RebuildJobRangeFlush(job);
-
-            chain = &range->pf;
+            pf = chain->parallel_for + 0;
+            ds_ParallelFor(pf, range_index)
             {
-                pf = chain->parallel_for + 0;
-                ds_ParallelFor(pf, range_index)
+                ProfZoneNamed("FatRangeBlock");
+
+                ds_ParallelForRange(&low, &high, pf, range_index);
+                ds_RebuildJobBlockFlush(job);
+                ds_RebuildFatRangeBlock(range, job, leaf_write, pipeline, leaf_read, low + range->low, high + range->low);
+                if (range->low + high == range->high)
                 {
-                    ProfZoneNamed("FatRangeBlock");
-
-                    ds_ParallelForRange(&low, &high, pf, range_index);
-                    ds_RebuildJobBlockFlush(job);
-                    ds_RebuildFatRangeBlock(range, job, leaf_write, pipeline, leaf_read, low + range->low, high + range->low);
-
-                    ProfZoneEnd;
+                    winner = 1;
                 }
+
+                ProfZoneEnd;
             }
-            ds_ParallelForChainWait(chain);
+        }
+        ds_ParallelForChainWait(chain);
 
-            /* Winner updates dynamic tree, setup new work, and runs any thin ranges created . */
-            tmp_iteration = local_iteration;
-            local_iteration += 1;
-            if (AtomicCompareExchangeRlxRlx32(&phase->a_fat_range_iteration, &tmp_iteration, local_iteration))
+        /* Winner updates dynamic tree, setup new work, and runs any thin ranges created . */
+        if (winner)
+        {
+            /* 
+             * From now on, other threads may poke our job, so we must make sure it is flushed 
+             * while we do thin range work. (It is flushed within ds_RebuildProduceWork).
+             */
+            ds_RebuildProduceWork(phase_mem, phase, job, wi);
+            AtomicFetchAddRel32(&phase->a_fat_range_completed, 1);
+
+            /* Run any newly produced thin jobs */
+            if (ds_RebuildThinRangeCheck(job->thin_range + 0))
             {
-                ds_RebuildProduceWork(phase_mem, phase, job, wi);
-                /* 
-                 * From now on, other threads may poke our job, so we must make sure it is flushed 
-                 * while we do thin range work
-                 */
-                ds_RebuildJobRangeFlush(job);
-                AtomicFetchAddRel32(&phase->a_fat_range_completed, 1);
-
-                /* Run any newly produced thin jobs */
-                if (ds_RebuildThinRangeCheck(job->thin_range + 0))
-                {
-                    ds_RebuildThinRangeCompute(phase, thin_range_buf, job->thin_range + 0);
-                }
-
-                /* Run any newly produced thin jobs */
-                if (ds_RebuildThinRangeCheck(job->thin_range + 1))
-                {
-                    ds_RebuildThinRangeCompute(phase, thin_range_buf, job->thin_range + 1);
-                }
+                ds_RebuildThinRangeCompute(phase, thin_range_buf, job->thin_range + 0);
             }
 
-            ds_Spin((local_completed = AtomicLoadAcq32(&phase->a_fat_range_completed)) < local_iteration, 32, U32_MAX);
+            /* Run any newly produced thin jobs */
+            if (ds_RebuildThinRangeCheck(job->thin_range + 1))
+            {
+                ds_RebuildThinRangeCompute(phase, thin_range_buf, job->thin_range + 1);
+            }
         }
+
+        u32 tmp_completed = local_completed+1;
+        ds_Spin((local_completed = AtomicLoadAcq32(&phase->a_fat_range_completed)) < tmp_completed, 32, U32_MAX);
+        local_counter = AtomicLoadRlx32(&phase->a_fat_range_counter);
     }
 
     ArenaPopScratch();
@@ -1226,6 +1236,40 @@ u32 ds_RebuildJobPhaseDispatch(const ds_JobId job_id)
     ProfZoneEnd;
 
     return U32_MAX;
+}
+
+static void ds_DynamicsRemoveContacts(struct ds_Dynamics *pipeline)
+{
+    //TODO Traversing all dirty shapes can of course be done in parallel; only the removal itself
+    //should be serial.
+
+    ProfZoneNamed("Contact Removal");
+    struct ds_BitSet *dirty = &pipeline->shape_dirty_set;
+    for (u64 block = 0; block < dirty->block_count; ++block)
+    {
+        struct ds_BitBlock it = ds_BitBlockInit(dirty->bits[block], block);
+        while (ds_BitBlockHasNext(&it))
+        {
+            const u32 si = ds_BitBlockNext(&it);
+            const struct ds_Shape *shape = pipeline->shape_pool.buf + si;
+            i32 ci = shape->contact_list.first;
+            while (ci != DLL_SENTINEL)
+            {
+                struct ds_Contact *c = pipeline->contact_pool.buf + ci;
+                const i32 next = (si == c->key.shape[0])
+                               ? c->shape_contact[0].next
+                               : c->shape_contact[1].next;
+                if (!ds_ContactCheckBvhOverlap(pipeline, ci))
+                {
+                    ProfZoneNamed("ds_ContactRemove");
+                    ds_ContactRemove(pipeline, ci);
+                    ProfZoneEnd;
+                }
+                ci = next;
+            }
+        }
+    }
+    ProfZoneEnd;
 }
 
 static void SolveConstraints(struct ds_Dynamics *pipeline) 
@@ -1339,14 +1383,31 @@ static void SolveConstraints(struct ds_Dynamics *pipeline)
             pipeline->profile->ns_rebuildphase_start = ds_TimeNs();
 
             const f32 reinsert_fraction = reinsert_count / dirty_count;
-            if (reinsert_fraction > g_numerics_config->dbvh_reinsert_threshold)
+            if (dirty_count <= 1 || reinsert_fraction < g_numerics_config->dbvh_reinsert_threshold)
             {
-                const struct ds_BitSet *usage = &pipeline->shape_dynamic_usage_set;
-                for (u64 block = 0; block < usage->block_count; ++block)
+                ProfZoneNamed("DBVH Update");
+                for (u32 ri = 0; ri < pf->range_count; ++ri)
                 {
-                    pipeline->shape_dirty_set.bits[block] = usage->bits[block];
+                    const struct ds_ProxyRange *range = solver_phase->proxy_range + ri;
+                    for (u32 pi = 0; pi < range->count; ++pi)
+                    {
+                        const struct ds_ProxyDirty *dirty = range->proxy + pi;
+                        ds_BitSetSet(&pipeline->shape_dirty_set, dirty->shape, 1);
+                        if (dirty->reinsert)
+                        {
+                            ProfZoneNamed("Reinsert");
+                            struct ds_Shape *shape = pipeline->shape_pool.buf + dirty->shape;
+                    	    DbvhRemove(&pipeline->dynamic_bvh, shape->proxy);
+                    	    shape->proxy = DbvhInsert(&pipeline->dynamic_bvh, shape->body, dirty->shape, &dirty->bbox);
+                            ProfZoneEnd;
+                        }
+                    }
                 }
-                
+                ProfZoneEnd;
+                ds_DynamicsRemoveContacts(pipeline);
+            }
+            else
+            {       
                 struct ds_RebuildJobPhase *rebuild_phase = pipeline->rebuild_phase;
                 {
                 	ProfZoneNamed("JobPhase(Rebuild)");
@@ -1410,13 +1471,19 @@ static void SolveConstraints(struct ds_Dynamics *pipeline)
                     
                     ds_JobPhaseEnd();
 
+                    /* 
+                     * TODO: We can essentially make this cost-free by extending RebuildPhase to also
+                     * have threads doing thin range work derive the root-box withing that thin range.
+                     * The master thread would then gather all thin boxes + necessary leaves and from
+                     * there propagate bounding boxes up to the root.
+                     */
+                    BvhPropagateBoundingBoxesFromLeaves(&pipeline->dynamic_bvh);
+
                     ProfZoneEnd;
                 }
-
-                BvhPropagateBoundingBoxesFromLeaves(&pipeline->dynamic_bvh);
                 
                 //{
-                //    ProfZoneNamed("RebuildPhase");
+                //    ProfZoneNamed("Serial(Rebuild)");
     
                 //    const struct ds_BitSet *leaf_usage = &pipeline->dynamic_bvh.leaf_set;
                 //    for (u64 block = 0; block < leaf_usage->block_count; ++block)
@@ -1438,59 +1505,14 @@ static void SolveConstraints(struct ds_Dynamics *pipeline)
 
                 //    ProfZoneEnd;
                 //}
-            }
-            else
-            {
-                {
-                    ProfZoneNamed("DBVH Update");
-                    for (u32 ri = 0; ri < pf->range_count; ++ri)
-                    {
-                        const struct ds_ProxyRange *range = solver_phase->proxy_range + ri;
-                        for (u32 pi = 0; pi < range->count; ++pi)
-                        {
-                            const struct ds_ProxyDirty *dirty = range->proxy + pi;
-                            ds_BitSetSet(&pipeline->shape_dirty_set, dirty->shape, 1);
-                            if (dirty->reinsert)
-                            {
-                                ProfZoneNamed("Reinsert");
-                                struct ds_Shape *shape = pipeline->shape_pool.buf + dirty->shape;
-                        	    DbvhRemove(&pipeline->dynamic_bvh, shape->proxy);
-                        	    shape->proxy = DbvhInsert(&pipeline->dynamic_bvh, shape->body, dirty->shape, &dirty->bbox);
-                                ProfZoneEnd;
-                            }
-                        }
-                    }
-                    ProfZoneEnd;
-                }
 
+                ds_DynamicsRemoveContacts(pipeline);
+                const struct ds_BitSet *usage = &pipeline->shape_dynamic_usage_set;
+                for (u64 block = 0; block < usage->block_count; ++block)
                 {
-                    ProfZoneNamed("Contact Removal");
-                    struct ds_BitSet *dirty = &pipeline->shape_dirty_set;
-                    for (u64 block = 0; block < dirty->block_count; ++block)
-                    {
-                        struct ds_BitBlock it = ds_BitBlockInit(dirty->bits[block], block);
-		                while (ds_BitBlockHasNext(&it))
-		                {
-                            const u32 si = ds_BitBlockNext(&it);
-                            const struct ds_Shape *shape = pipeline->shape_pool.buf + si;
-                            i32 ci = shape->contact_list.first;
-                            while (ci != DLL_SENTINEL)
-                            {
-                                struct ds_Contact *c = pipeline->contact_pool.buf + ci;
-                                const i32 next = (si == c->key.shape[0])
-                                               ? c->shape_contact[0].next
-                                               : c->shape_contact[1].next;
-                                if (!ds_ContactCheckBvhOverlap(pipeline, ci))
-                                {
-                                    ds_ContactRemove(pipeline, ci);
-                                }
-                                ci = next;
-                            }
-		                }
-                    }
-                    ProfZoneEnd;
+                    pipeline->shape_dirty_set.bits[block] = usage->bits[block];
                 }
-            }
+            } 
 
             pipeline->profile->ns_rebuildphase_end = ds_TimeNs();
         }
