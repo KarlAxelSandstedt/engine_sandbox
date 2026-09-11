@@ -299,9 +299,9 @@ u32 DbvhInsert(struct bvh *bvh, const u32 body, const u32 shape, const struct aa
 	//BvhValidate(tmp, bvh);
 	//ArenaPopScratch();
 
-    if (bvh->leaf_set.bit_count <= leaf.index)
+    if (bvh->leaf_set.bit_count < bvh->pool.length)
     {
-        ds_BitSetIncreaseSize(&bvh->leaf_set, (1 + bvh->leaf_set.bit_count) << 1, 0);
+        ds_BitSetIncreaseSize(&bvh->leaf_set, bvh->pool.length, 0);
     }
     ds_BitSetSet(&bvh->leaf_set, leaf.index, 1);
 
