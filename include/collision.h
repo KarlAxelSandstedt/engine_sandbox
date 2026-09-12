@@ -92,8 +92,6 @@ void 			    DbvhFlush(struct bvh *bvh);
 u32 			    DbvhInsert(struct bvh *bvh, const u32 body, const u32 shape, const struct aabb *bbox);
 /* remove leaf corresponding to index from tree */
 void 			    DbvhRemove(struct bvh *bvh, const u32 index);
-/* Full top-down rebuild with the given set of leaves. */
-void                DbvhRebuild(struct bvh *bvh);
 
 struct triMeshBvh
 {

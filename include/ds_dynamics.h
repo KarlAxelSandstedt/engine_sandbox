@@ -1266,37 +1266,31 @@ struct ds_RebuildLeaf
 };
 
 
-struct ds_RebuildThinRange
+struct ds_RebuildRange
 {
-    u32                         low;
-    u32                         high;
-    u32                         depth;
-    u32                         internal_index;
-    u32                         axis;
-    f32                         pivot;
+    u32 low;
+    u32 high;
+    u32 depth;
+    u32 internal_index;
+    u32 axis;
+    f32 pivot;
 };
 
-static void ds_RebuildThinRangeSetNull(struct ds_RebuildThinRange *range)
+static void ds_RebuildRangeSetNull(struct ds_RebuildRange *range)
 {
     range->internal_index = U32_MAX;
 }
 
-static u32 ds_RebuildThinRangeCheck(struct ds_RebuildThinRange *range)
+static u32 ds_RebuildRangeCheck(struct ds_RebuildRange *range)
 {
     return (range->internal_index != U32_MAX);
 }
 
-struct ds_RebuildFatRange
+struct ds_RebuildFatWork
 {
-    u32                         low;
-    u32                         high;
-    u32                         depth;
-    u32                         internal_index;
-
-    u32                         axis;
-    f32                         pivot;
-
     struct ds_ParallelForChain  pf;
+    struct ds_RebuildRange      range;
+    struct ds_RebuildThread *   thread;
 
     u8                          pad0[DS_CACHE_LINE];
     u32                         a_low_count;
@@ -1306,35 +1300,37 @@ struct ds_RebuildFatRange
 
 };
 
-struct ds_RebuildJob
+struct ds_RebuildThread
 {
-    u8                          pad0[DS_CACHE_LINE];
-    /* May be poked by other threads in fat range work  */
-    u32                         count[2];
-    vec3                        min[2];
-    vec3                        max[2];
-    u8                          pad1[DS_CACHE_LINE];
-    /* These variables are never touched by other threads  */
-    struct ds_RebuildLeaf *     leaf[2];
-    struct ds_RebuildThinRange  thin_range[2];
-    u8                          pad2[DS_CACHE_LINE];
+    /* 8 + 24 + 24 + */
+    u32     count[2];
+    vec3    min[2];
+    vec3    max[2];
+    u8      pad[DS_CACHE_LINE - 2*sizeof(u32) - 4*sizeof(vec3)];
 };
 
-static void ds_RebuildJobRangeFlush(struct ds_RebuildJob *job)
+static void ds_RebuildThreadInit(struct ds_RebuildThread *t)
 {
-    job->count[0] = 0;
-    job->count[1] = 0;
-    Vec3Set(job->min[0], F32_INFINITY, F32_INFINITY, F32_INFINITY);
-    Vec3Set(job->max[0], -F32_INFINITY, -F32_INFINITY, -F32_INFINITY);
-    Vec3Set(job->min[1], F32_INFINITY, F32_INFINITY, F32_INFINITY);
-    Vec3Set(job->max[1], -F32_INFINITY, -F32_INFINITY, -F32_INFINITY);
+    t->count[0] = 0;
+    t->count[1] = 0;
+    Vec3Set(t->min[0], F32_INFINITY, F32_INFINITY, F32_INFINITY);
+    Vec3Set(t->max[0], -F32_INFINITY, -F32_INFINITY, -F32_INFINITY);
+    Vec3Set(t->min[1], F32_INFINITY, F32_INFINITY, F32_INFINITY);
+    Vec3Set(t->max[1], -F32_INFINITY, -F32_INFINITY, -F32_INFINITY);
 }
 
-static void ds_RebuildJobBlockFlush(struct ds_RebuildJob *job)
+static void ds_RebuildThreadBlockInit(struct ds_RebuildThread *t)
 {
-    job->count[0] = 0;
-    job->count[1] = 0;
+    t->count[0] = 0;
+    t->count[1] = 0;
 }
+
+struct ds_RebuildJob
+{
+    struct ds_RebuildLeaf * leaf[2];
+    struct ds_RebuildRange  thin_range[2];
+    u8                      pad[DS_CACHE_LINE];
+};
 
 struct ds_RebuildJobPhase
 {
@@ -1352,29 +1348,26 @@ struct ds_RebuildJobPhase
     u32                             small_leaf_limit; 
     u32                             fat_leaf_limit; 
 
-    struct ds_RebuildThinRange *    thin_range;
-    u32                             thin_range_max_count;
-    struct ds_RebuildFatRange *     fat_range;
-    u32                             fat_range_max_count;
+    struct ds_RebuildFatWork *      fat_work_setup;
+    struct ds_RebuildFatWork *      fat_work;
+    u32                             fat_work_max_count;
 
     u8                              pad0[DS_CACHE_LINE];
-    u32                             a_fat_range_counter;
+    u32                             a_fat_work_counter;
     u8                              pad1[DS_CACHE_LINE];
-    u32                             a_fat_range_completed;
+    u32                             a_fat_work_completed;
     u8                              pad2[DS_CACHE_LINE];
-    u32                             a_fat_range_iteration;
-    u8                              pad3[DS_CACHE_LINE];
 
     u32                             a_thin_range_count;
-    u8                              pad4[DS_CACHE_LINE];
+    u8                              pad3[DS_CACHE_LINE];
     u32                             a_thin_range_next;
-    u8                              pad5[DS_CACHE_LINE];
+    u8                              pad4[DS_CACHE_LINE];
 
     u32                             a_setup_completed;     
-    u8                              pad6[DS_CACHE_LINE];
+    u8                              pad5[DS_CACHE_LINE];
 
     u32                             a_internal_counter;
-    u8                              pad7[DS_CACHE_LINE];
+    u8                              pad6[DS_CACHE_LINE];
 };
 
 u32 ds_RebuildJobPhaseDispatch(const ds_JobId job);
